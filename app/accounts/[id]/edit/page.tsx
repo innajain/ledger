@@ -6,5 +6,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const acc = await prisma.account.findUnique({ where: { id }, include: { opening_balances: { include: { asset: true, allocation_to_purpose_buckets: true } } } });
   if (!acc) return <div className="p-6">Account not found</div>;
 
-  return <ClientPage initial_data={acc} />;
+  const assets = await prisma.asset.findMany();
+  const purpose_buckets = await prisma.purpose_bucket.findMany();
+
+  return <ClientPage initial_data={acc} initial_assets={assets} initial_buckets={purpose_buckets} />;
 }
