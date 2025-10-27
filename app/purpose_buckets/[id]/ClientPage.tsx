@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { delete_purpose_bucket } from '@/server actions/purpose_bucket/delete';
 import { delete_asset_reallocation_between_purpose_buckets } from '@/server actions/purpose_bucket/asset_reallocation_between_purpose_buckets/delete';
 import { get_indian_date_from_date_obj } from '@/utils/date';
+import { formatIndianCurrency } from '@/utils/format_currency';
 
 type AllocationSource = {
   id: string;
@@ -30,6 +31,7 @@ type BucketView = {
   asset_reallocation_between_purpose_buckets_from?: any[];
   asset_reallocation_between_purpose_buckets_to?: any[];
   asset_replacement_in_purpose_buckets?: any[];
+  current_assets?: { id: string; name: string; balance: number; price?: number | null }[];
 };
 
 export default function ClientPage({ initial_data }: { initial_data: BucketView }) {
@@ -37,6 +39,10 @@ export default function ClientPage({ initial_data }: { initial_data: BucketView 
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [deletingReallocId, setDeletingReallocId] = useState<string | null>(null);
+
+  const currentAssets = bucket.current_assets || [];
+  const totalValue = currentAssets.reduce((s, a) => s + (a.price != null ? (a.balance || 0) * a.price : 0), 0);
+  const unknownPriceCount = currentAssets.filter(a => a.price == null).length;
 
   async function onDelete() {
     if (!confirm('Delete this purpose bucket? This cannot be undone.')) return;
@@ -85,6 +91,43 @@ export default function ClientPage({ initial_data }: { initial_data: BucketView 
             </div>
           </div>
         </div>
+
+        <section className="mt-6">
+          <h2 className="font-semibold mb-2">Current Assets</h2>
+          <div className="flex justify-between items-center mb-3">
+            <div className="text-sm text-gray-600">
+              {currentAssets.length} asset{currentAssets.length === 1 ? '' : 's'}
+            </div>
+            <div className="text-right">
+              <div className="font-semibold">Total value: {totalValue ? `₹${formatIndianCurrency(Math.round(totalValue * 100) / 100)}` : '—'}</div>
+              {unknownPriceCount > 0 && (
+                <div className="text-xs text-gray-500">
+                  Note: {unknownPriceCount} asset{unknownPriceCount === 1 ? '' : 's'} missing price
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="space-y-2">
+            {currentAssets.map(a => (
+              <div key={a.id} className="p-3 border rounded flex justify-between items-center">
+                <div>
+                  <div className="font-medium">
+                    <Link href={`/assets/${a.id}`} className="text-blue-600 hover:underline">
+                      {a.name}
+                    </Link>
+                  </div>
+                  <div className="text-sm text-gray-500">Quantity: {a.balance}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">Price: {a.price != null ? `₹${formatIndianCurrency(a.price)}` : '—'}</div>
+                  <div className="font-bold">
+                    Value: {a.price != null ? `₹${formatIndianCurrency(Math.round((a.balance || 0) * a.price * 100) / 100)}` : '—'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="mt-6">
           <h2 className="font-semibold mb-2">Allocations</h2>

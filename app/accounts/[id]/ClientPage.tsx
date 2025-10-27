@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { delete_account } from '@/server actions/account/delete';
 import { get_indian_date_from_date_obj } from '@/utils/date';
+import { formatIndianCurrency } from '@/utils/format_currency';
 
 type Alloc = { id: string; quantity: number; bucket?: { id: string; name: string } };
 type OpeningBalance = { id: string; quantity: number; date: string | Date; asset: { id: string; name: string }; allocation_to_purpose_buckets: Alloc[] };
@@ -19,12 +20,17 @@ type AccountView = {
   self_transfer_or_refundable_or_refund_txn_to?: any[];
   asset_trade_debit?: any[];
   asset_trade_credit?: any[];
+  current_assets?: { id: string; name: string; balance: number; price?: number | null }[];
 };
 
 export default function ClientPage({ initial_data }: { initial_data: AccountView }) {
   const acc = initial_data;
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+
+  const currentAssets = acc.current_assets || [];
+  const totalValue = currentAssets.reduce((s, a) => s + ((a.price != null ? (a.balance || 0) * a.price : 0)), 0);
+  const unknownPriceCount = currentAssets.filter(a => a.price == null).length;
 
   function formatOnlyDate(d: string | Date | undefined) {
     if (!d) return '-';
@@ -69,13 +75,40 @@ export default function ClientPage({ initial_data }: { initial_data: AccountView
         </div>
 
         <section className="mt-6">
+          <h2 className="font-semibold mb-2">Current Assets</h2>
+          <div className="flex justify-between items-center mb-3">
+            <div className="text-sm text-gray-600">{currentAssets.length} asset{currentAssets.length === 1 ? '' : 's'}</div>
+            <div className="text-right">
+              <div className="font-semibold">Total value: {totalValue ? `₹${formatIndianCurrency(Math.round(totalValue * 100) / 100)}` : '—'}</div>
+              {unknownPriceCount > 0 && (
+                <div className="text-xs text-gray-500">Note: {unknownPriceCount} asset{unknownPriceCount === 1 ? '' : 's'} missing price</div>
+              )}
+            </div>
+          </div>
+          <div className="space-y-2">
+            {(acc.current_assets || []).map((a) => (
+              <div key={a.id} className="p-3 border rounded flex justify-between items-center">
+                <div>
+                  <div className="font-medium"><Link href={`/assets/${a.id}`} className="text-blue-600 hover:underline">{a.name}</Link></div>
+                  <div className="text-sm text-gray-500">Quantity: {a.balance}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">Price: {a.price != null ? `₹${formatIndianCurrency(a.price)}` : '—'}</div>
+                  <div className="font-bold">Value: {a.price != null ? `₹${formatIndianCurrency(Math.round((a.balance || 0) * a.price * 100) / 100)}` : '—'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-6">
           <h2 className="font-semibold mb-2">Opening Balances</h2>
           <div className="space-y-2">
             {acc.opening_balances.map((ob: OpeningBalance) => (
               <div key={ob.id} className="p-3 border rounded">
                 <div className="flex justify-between">
                   <div>
-                    <div className="font-medium">{ob.asset.name}</div>
+                    <Link href={`/assets/${ob.asset.id}`} className="text-blue-600 hover:underline">{ob.asset.name}</Link>
                     <div className="text-sm text-gray-500">{formatOnlyDate(ob.date)}</div>
                     <div className="text-sm text-gray-500">Allocations: {ob.allocation_to_purpose_buckets.reduce((s: number, a: Alloc) => s + a.quantity, 0)}</div>
                     <div className="mt-2 text-sm">
