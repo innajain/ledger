@@ -1,3 +1,5 @@
+'use server';
+
 import { prisma } from '@/prisma';
 import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/utils/date';
 

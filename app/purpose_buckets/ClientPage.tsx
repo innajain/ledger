@@ -16,6 +16,9 @@ export default function ClientPage({ initial_data }: { initial_data: BucketItem[
             <Link href="/purpose_buckets/create" className="px-4 py-2 bg-amber-500 text-white rounded-lg shadow-sm">
               New Purpose Bucket
             </Link>
+            <Link href="/purpose_buckets/asset_reallocations/create" className="px-4 py-2 bg-emerald-500 text-white rounded-lg shadow-sm">
+              Create Reallocation
+            </Link>
           </div>
         </div>
 

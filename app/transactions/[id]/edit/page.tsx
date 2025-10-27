@@ -20,7 +20,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     },
   });
 
+  const purpose_buckets = await prisma.purpose_bucket.findMany();
+  const assets = await prisma.asset.findMany();
+  const accounts = await prisma.account.findMany();
+
   if (!txn) return <div className="p-6">Transaction not found</div>;
 
-  return <ClientPage initial_data={txn} />;
+  return <ClientPage initial_data={txn} initial_buckets={purpose_buckets} initial_assets={assets} initial_accounts={accounts} />;
 }

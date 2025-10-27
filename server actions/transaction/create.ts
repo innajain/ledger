@@ -51,7 +51,7 @@ export async function create_expense_transaction({
   purpose_bucket_id,
 }: {
   description?: string | undefined | null;
-  date: string;
+  date?: string | undefined;
   asset_id: string;
   account_id: string;
   quantity: number;
@@ -62,7 +62,15 @@ export async function create_expense_transaction({
       data: {
         type: 'expense',
         description,
-        expense_txn: { create: { date: get_date_obj_from_indian_date(date), asset_id, account_id, quantity, purpose_bucket_id } },
+        expense_txn: {
+          create: {
+            date: date ? get_date_obj_from_indian_date(date) : get_date_obj_from_indian_date(get_indian_date_from_date_obj(new Date())),
+            asset_id,
+            account_id,
+            quantity,
+            purpose_bucket_id,
+          },
+        },
       },
     })
     .catch(err => {
@@ -81,7 +89,7 @@ export async function create_self_transfer_or_refundable_or_refund_transaction({
 }: {
   type: 'self_transfer' | 'refundable' | 'refund';
   description?: string | undefined | null;
-  date: string;
+  date?: string | undefined;
   asset_id: string;
   from_account_id: string;
   to_account_id: string;
@@ -93,7 +101,13 @@ export async function create_self_transfer_or_refundable_or_refund_transaction({
         type,
         description,
         self_transfer_or_refundable_or_refund_txn: {
-          create: { date: get_date_obj_from_indian_date(date), asset_id, from_account_id, to_account_id, quantity },
+          create: {
+            date: date ? get_date_obj_from_indian_date(date) : get_date_obj_from_indian_date(get_indian_date_from_date_obj(new Date())),
+            asset_id,
+            from_account_id,
+            to_account_id,
+            quantity,
+          },
         },
       },
     })
@@ -118,11 +132,11 @@ export async function create_asset_trade_transaction({
   debit_asset_id: string;
   debit_account_id: string;
   debit_quantity: number;
-  debit_date: string;
+  debit_date?: string | undefined;
   credit_asset_id: string;
   credit_account_id: string;
   credit_quantity: number;
-  credit_date: string;
+  credit_date?: string | undefined;
   asset_replacement_in_purpose_buckets: { purpose_bucket_id: string; debit_quantity: number; credit_quantity: number }[];
 }) {
   const total_debit_credit_in_buckets = asset_replacement_in_purpose_buckets.reduce(
@@ -147,11 +161,15 @@ export async function create_asset_trade_transaction({
             debit_asset_id,
             debit_account_id,
             debit_quantity,
-            debit_date: get_date_obj_from_indian_date(debit_date),
+            debit_date: debit_date
+              ? get_date_obj_from_indian_date(debit_date)
+              : get_date_obj_from_indian_date(get_indian_date_from_date_obj(new Date())),
             credit_asset_id,
             credit_account_id,
             credit_quantity,
-            credit_date: get_date_obj_from_indian_date(credit_date),
+            credit_date: credit_date
+              ? get_date_obj_from_indian_date(credit_date)
+              : get_date_obj_from_indian_date(get_indian_date_from_date_obj(new Date())),
             asset_replacement_in_purpose_buckets: { createMany: { data: asset_replacement_in_purpose_buckets } },
           },
         },

@@ -73,7 +73,7 @@ model income_txn {
   date DateTime
 
   transaction_id String      @unique
-  transaction    transaction @relation(fields: [transaction_id], references: [id])
+  transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
 
   asset_id   String
   asset      asset   @relation(fields: [asset_id], references: [id])
@@ -90,7 +90,7 @@ model expense_txn {
   date DateTime
 
   transaction_id String      @unique
-  transaction    transaction @relation(fields: [transaction_id], references: [id])
+  transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
 
   asset_id   String
   asset      asset   @relation(fields: [asset_id], references: [id])
@@ -108,7 +108,7 @@ model self_transfer_or_refundable_or_refund_txn {
   date DateTime
 
   transaction_id String      @unique
-  transaction    transaction @relation(fields: [transaction_id], references: [id])
+  transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
 
   asset_id String
   asset    asset  @relation(fields: [asset_id], references: [id])
@@ -126,7 +126,7 @@ model asset_trade_txn {
   id String @id @unique @default(cuid())
 
   transaction_id String      @unique
-  transaction    transaction @relation(fields: [transaction_id], references: [id])
+  transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
 
   debit_asset_id   String
   debit_asset      asset    @relation("DebitAsset", fields: [debit_asset_id], references: [id])
@@ -165,10 +165,10 @@ model allocation_to_purpose_bucket {
   bucket            purpose_bucket @relation(fields: [purpose_bucket_id], references: [id])
 
   income_txn_id          String?
-  allocation_thru_income income_txn? @relation(fields: [income_txn_id], references: [id])
+  allocation_thru_income income_txn? @relation(fields: [income_txn_id], references: [id], onDelete: Cascade)
 
   opening_balance_id              String?
-  allocation_thru_account_opening opening_balance? @relation(fields: [opening_balance_id], references: [id])
+  allocation_thru_account_opening opening_balance? @relation(fields: [opening_balance_id], references: [id], onDelete: Cascade)
 
   @@unique([purpose_bucket_id, income_txn_id])
   @@unique([purpose_bucket_id, opening_balance_id])
@@ -181,7 +181,7 @@ model asset_replacement_in_purpose_bucket {
   purpose_bucket    purpose_bucket @relation(fields: [purpose_bucket_id], references: [id])
 
   asset_trade_txn_id String
-  asset_trade_txn    asset_trade_txn @relation(fields: [asset_trade_txn_id], references: [id])
+  asset_trade_txn    asset_trade_txn @relation(fields: [asset_trade_txn_id], references: [id], onDelete: Cascade)
 
   debit_quantity  Float
   credit_quantity Float
