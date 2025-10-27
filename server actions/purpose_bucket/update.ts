@@ -1,3 +1,5 @@
+'use server';
+
 import { prisma } from '@/prisma';
 
 export async function update_purpose_bucket({ id, name }: { id: string; name?: string | undefined }) {

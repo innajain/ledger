@@ -1,3 +1,5 @@
+'use server';
+
 import { prisma } from '@/prisma';
 
 export async function delete_purpose_bucket({ id }: { id: string }) {
