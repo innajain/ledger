@@ -45,6 +45,14 @@ export default async function Page() {
         asset_to_balance.set(txn.credit_asset_id, (asset_to_balance.get(txn.credit_asset_id) || 0) + txn.credit_quantity);
       });
 
+      acc.self_transfer_or_refundable_or_refund_txn_from.forEach(txn => {
+        asset_to_balance.set(txn.asset_id, (asset_to_balance.get(txn.asset_id) || 0) - txn.quantity);
+      });
+
+      acc.self_transfer_or_refundable_or_refund_txn_to.forEach(txn => {
+        asset_to_balance.set(txn.asset_id, (asset_to_balance.get(txn.asset_id) || 0) + txn.quantity);
+      });
+
       // For assets involved, fetch their prices
       const assetIds = Array.from(new Set([...acc.opening_balances.map(ob => ob.asset_id), ...acc.income_txn.map(t => t.asset_id), ...acc.expense_txn.map(t => t.asset_id), ...acc.asset_trade_debit.map(t => t.debit_asset_id), ...acc.asset_trade_credit.map(t => t.credit_asset_id)]));
 
