@@ -111,6 +111,8 @@ export default function ClientPage({ initial_data }: { initial_data: BucketView 
                           '-'
                         )}
                       </div>
+                      {/* quantity */}
+                      <div className="text-sm text-gray-600">Quantity: {a.quantity}</div>
                       {srcOpening && (
                         <div className="text-sm text-gray-600">
                           Account:{' '}
