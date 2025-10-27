@@ -125,10 +125,10 @@ async function init() {
     opening_balances: [
       {
         asset_id: money_id,
-        quantity: 3736.75,
+        quantity: 3814.56,
         allocation_to_purpose_buckets: [
           { purpose_bucket_id: commute, quantity: 1500 },
-          { purpose_bucket_id: discretionary, quantity: 1236.75 },
+          { purpose_bucket_id: discretionary, quantity: 1314.56 },
           { purpose_bucket_id: surprise_expenses, quantity: 1000 },
         ],
       },
