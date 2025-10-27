@@ -13,6 +13,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       expense_txn: { include: { account: true, purpose_bucket: true } },
       asset_trade_credit: { include: { credit_account: true } },
       asset_trade_debit: { include: { debit_account: true } },
+      self_transfer_or_refundable_or_refund_txn: { include: { from_account: true, to_account: true } }
     },
   });
 
