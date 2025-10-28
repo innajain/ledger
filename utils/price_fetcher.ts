@@ -3,7 +3,7 @@ import axios from 'axios';
 import { parse } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 import { get_indian_date_from_date_obj, get_date_obj_from_indian_date } from './date';
-import {redis} from './redis';
+import redis from './redis';
 import { toDecimal } from './decimal';
 import { asset_type } from '@/generated/prisma';
 

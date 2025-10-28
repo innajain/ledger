@@ -1,7 +1,7 @@
 import Redis from 'ioredis';
 
 // Create a Redis client instance
-export const redis = new Redis(
+const redis = new Redis(
   process.env.REDIS_URL || 'redis://localhost:6379',
   {
     maxRetriesPerRequest: 3,
@@ -22,3 +22,5 @@ redis.on('error', (err) => {
 redis.on('connect', () => {
   console.log('Redis Client Connected');
 });
+
+export default redis;
