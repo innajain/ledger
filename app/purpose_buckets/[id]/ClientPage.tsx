@@ -7,41 +7,52 @@ import { delete_purpose_bucket } from '@/server actions/purpose_bucket/delete';
 import { delete_asset_reallocation_between_purpose_buckets } from '@/server actions/purpose_bucket/asset_reallocation_between_purpose_buckets/delete';
 import { get_indian_date_from_date_obj } from '@/utils/date';
 import { formatIndianCurrency } from '@/utils/format_currency';
+import { toDecimal } from '@/utils/decimal';
+import { Prisma } from '@/generated/prisma';
 
-type AllocationSource = {
-  id: string;
-  asset?: { id: string; name: string };
-  account?: { id: string; name: string };
+type BucketView = Prisma.purpose_bucketGetPayload<{
+  include: {
+    allocation_to_purpose_bucket: {
+      include: {
+        allocation_thru_income: { include: { account: true; asset: true } };
+        allocation_thru_account_opening: { include: { account: true; asset: true } };
+      };
+    };
+    expense_txn: { include: { account: true; asset: true } };
+    asset_replacement_in_purpose_buckets: {
+      include: {
+        asset_trade_txn: {
+          include: { debit_asset: true; credit_asset: true; debit_account: true; credit_account: true };
+        };
+      };
+    };
+    asset_reallocation_between_purpose_buckets_from: { include: { asset: true; to_purpose_bucket: true } };
+    asset_reallocation_between_purpose_buckets_to: { include: { asset: true; from_purpose_bucket: true } };
+  };
+}>;
+type CurrentAssets = {
+  current_assets: {
+    price: number | null;
+    id: string;
+    name: string;
+    type?: any;
+    code?: string | null | undefined;
+    balance: number;
+  }[];
 };
 
-type Allocation = {
-  id: string;
-  quantity: number;
-  allocation_thru_income?: AllocationSource | null;
-  allocation_thru_account_opening?: AllocationSource | null;
-};
-
-type Expense = { id: string; quantity: number; date: string | Date; account?: { id: string; name: string }; asset?: { id: string; name: string } };
-
-type BucketView = {
-  id: string;
-  name: string;
-  allocation_to_purpose_bucket: Allocation[];
-  expense_txn: Expense[];
-  asset_reallocation_between_purpose_buckets_from?: any[];
-  asset_reallocation_between_purpose_buckets_to?: any[];
-  asset_replacement_in_purpose_buckets?: any[];
-  current_assets?: { id: string; name: string; balance: number; price?: number | null }[];
-};
-
-export default function ClientPage({ initial_data }: { initial_data: BucketView }) {
+export default function ClientPage({ initial_data }: { initial_data: BucketView & CurrentAssets }) {
   const bucket = initial_data;
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [deletingReallocId, setDeletingReallocId] = useState<string | null>(null);
 
   const currentAssets = bucket.current_assets || [];
-  const totalValue = currentAssets.reduce((s, a) => s + (a.price != null ? (a.balance || 0) * a.price : 0), 0);
+  const totalValueDecimal = currentAssets.reduce(
+    (s, a) => toDecimal(s).plus(a.price != null ? toDecimal(a.balance || 0).times(toDecimal(a.price)) : toDecimal(0)),
+    toDecimal(0)
+  );
+  const totalValue = Number(totalValueDecimal.toFixed(2));
   const unknownPriceCount = currentAssets.filter(a => a.price == null).length;
 
   async function onDelete() {
@@ -73,7 +84,6 @@ export default function ClientPage({ initial_data }: { initial_data: BucketView 
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold">{bucket.name}</h1>
-            <div className="text-sm text-gray-600">Bucket ID: {bucket.id}</div>
           </div>
           <div className="text-right">
             <div className="flex gap-2 items-center">
@@ -119,9 +129,16 @@ export default function ClientPage({ initial_data }: { initial_data: BucketView 
                   <div className="text-sm text-gray-500">Quantity: {a.balance}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-gray-600">Price: {a.price != null ? `₹${formatIndianCurrency(a.price)}` : '—'}</div>
                   <div className="font-bold">
-                    Value: {a.price != null ? `₹${formatIndianCurrency(Math.round((a.balance || 0) * a.price * 100) / 100)}` : '—'}
+                    {a.price != null
+                      ? `₹${formatIndianCurrency(
+                          Number(
+                            toDecimal(a.balance || 0)
+                              .times(toDecimal(a.price))
+                              .toFixed(2)
+                          )
+                        )}`
+                      : '—'}
                   </div>
                 </div>
               </div>
@@ -130,58 +147,123 @@ export default function ClientPage({ initial_data }: { initial_data: BucketView 
         </section>
 
         <section className="mt-6">
-          <h2 className="font-semibold mb-2">Allocations</h2>
+          <h2 className="font-semibold mb-2">Opening Balances</h2>
           <div className="space-y-2">
-            {bucket.allocation_to_purpose_bucket.map((a: any) => {
-              const srcIncome = a.allocation_thru_income;
-              const srcOpening = a.allocation_thru_account_opening;
-              const sourceType = srcIncome ? 'Income' : srcOpening ? 'Opening' : 'Unknown';
-              const asset = srcIncome?.asset || srcOpening?.asset;
-              const sourceDate = srcIncome?.date || srcOpening?.date;
-              console.log(srcIncome, srcOpening);
-              return (
-                <div key={a.id} className="p-3 border rounded">
+            {bucket.allocation_to_purpose_bucket
+              .filter(a => a.allocation_thru_account_opening)
+              .map(a => {
+                const srcOpening = a.allocation_thru_account_opening!;
+                const asset = srcOpening.asset;
+                const sourceDate = srcOpening.date;
+                return (
+                  <div key={a.id} className="p-3 border rounded">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-gray-600">
+                          Asset:{' '}
+                          {asset ? (
+                            <Link href={`/assets/${asset.id}`} className="text-blue-600 hover:underline">
+                              {asset.name}
+                            </Link>
+                          ) : (
+                            '-'
+                          )}
+                        </div>
+                        {/* quantity */}
+                        <div className="text-sm text-gray-600">Quantity: {a.quantity}</div>
+                        {srcOpening && (
+                          <div className="text-sm text-gray-600">
+                            Account:{' '}
+                            {
+                              <Link href={`/accounts/${srcOpening.account_id}`} className="text-blue-600 hover:underline">
+                                {srcOpening.account.name}
+                              </Link>
+                            }
+                          </div>
+                        )}
+
+                        <div className="text-sm text-gray-500">Date: {formatOnlyDate(sourceDate)}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </section>
+
+        <section className="mt-6">
+          <h2 className="font-semibold mb-2">Incomes</h2>
+          <div className="space-y-2">
+            {bucket.allocation_to_purpose_bucket
+              .filter(a => a.allocation_thru_income)
+              .map(e => (
+                <div key={e.id} className="p-3 border rounded">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium">{sourceType} Allocation</div>
+                      <div className="font-medium"></div>
+                      <div className="text-sm text-gray-600">
+                        From:{' '}
+                        <Link href={`/accounts/${e.allocation_thru_income!.account_id}`} className="text-blue-600 hover:underline">
+                          {e.allocation_thru_income!.account.name}
+                        </Link>
+                      </div>
                       <div className="text-sm text-gray-600">
                         Asset:{' '}
-                        {asset ? (
-                          <Link href={`/assets/${asset.id}`} className="text-blue-600 hover:underline">
-                            {asset.name}
-                          </Link>
-                        ) : (
-                          '-'
-                        )}
+                        <Link href={`/assets/${e.allocation_thru_income!.asset.id}`} className="text-blue-600 hover:underline">
+                          {e.allocation_thru_income!.asset.name}
+                        </Link>
                       </div>
-                      {/* quantity */}
-                      <div className="text-sm text-gray-600">Quantity: {a.quantity}</div>
-                      {srcOpening && (
-                        <div className="text-sm text-gray-600">
-                          Account:{' '}
-                          {
-                            <Link href={`/accounts/${srcOpening.account_id}`} className="text-blue-600 hover:underline">
-                              {srcOpening.account.name}
-                            </Link>
-                          }
-                        </div>
-                      )}
-                      {srcIncome && (
-                        <div className="text-sm text-gray-600">
-                          Transaction:{' '}
-                          {
-                            <Link href={`/transactions/${srcIncome.transaction_id}`} className="text-blue-600 hover:underline">
-                              {srcIncome.transaction_id}
-                            </Link>
-                          }
-                        </div>
-                      )}
-                      <div className="text-sm text-gray-500">Date: {formatOnlyDate(sourceDate)}</div>
+                      <div className="text-sm text-gray-600">
+                        Transaction:{' '}
+                        <Link href={`/transactions/${e.allocation_thru_income!.transaction_id}`} className="text-blue-600 hover:underline">
+                          {e.allocation_thru_income!.transaction_id}
+                        </Link>
+                      </div>
+                      <div className="text-sm text-gray-500">Date: {formatOnlyDate(e.allocation_thru_income!.date)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold">{e.quantity}</div>
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              ))}
+          </div>
+        </section>
+
+        <section className="mt-6">
+          <h2 className="font-semibold mb-2">Expenses</h2>
+          <div className="space-y-2">
+            {bucket.expense_txn.map((e: any) => (
+              <div key={e.id} className="p-3 border rounded">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium"></div>
+                    <div className="text-sm text-gray-600">
+                      From:{' '}
+                      <Link href={`/accounts/${e.asset.id}`} className="text-blue-600 hover:underline">
+                        {e.account.name}
+                      </Link>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Asset:{' '}
+                      <Link href={`/assets/${e.asset.id}`} className="text-blue-600 hover:underline">
+                        {e.asset.name}
+                      </Link>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Transaction:{' '}
+                      <Link href={`/transactions/${e.transaction_id}`} className="text-blue-600 hover:underline">
+                        {e.transaction_id}
+                      </Link>
+                    </div>
+                    <div className="text-sm text-gray-500">Date: {formatOnlyDate(e.date)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold">{e.quantity}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -297,43 +379,6 @@ export default function ClientPage({ initial_data }: { initial_data: BucketView 
                         {deletingReallocId === r.id ? 'Deleting...' : 'Delete'}
                       </button>
                     </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <h2 className="font-semibold mb-2">Expenses</h2>
-          <div className="space-y-2">
-            {bucket.expense_txn.map((e: any) => (
-              <div key={e.id} className="p-3 border rounded">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium"></div>
-                    <div className="text-sm text-gray-600">
-                      From:{' '}
-                      <Link href={`/accounts/${e.asset.id}`} className="text-blue-600 hover:underline">
-                        {e.account.name}
-                      </Link>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Asset:{' '}
-                      <Link href={`/assets/${e.asset.id}`} className="text-blue-600 hover:underline">
-                        {e.asset.name}
-                      </Link>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Transaction:{' '}
-                      <Link href={`/transactions/${e.transaction_id}`} className="text-blue-600 hover:underline">
-                        {e.transaction_id}
-                      </Link>
-                    </div>
-                    <div className="text-sm text-gray-500">Date: {formatOnlyDate(e.date)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">{e.quantity}</div>
                   </div>
                 </div>
               </div>

@@ -2,6 +2,7 @@
 
 import { prisma } from '@/prisma';
 import { get_date_obj_from_indian_date } from '@/utils/date';
+import { toDecimal } from '@/utils/decimal';
 
 export async function update_account(
   id: string,
@@ -28,8 +29,8 @@ export async function update_account(
   }
 ) {
   opening_balance_creates.forEach(ob => {
-    if (ob.quantity !== ob.allocation_to_purpose_buckets.reduce((sum, apb) => sum + apb.quantity, 0))
-      throw new Error(`Opening balance quantity for asset ${ob.asset_id} does not match the sum of allocations to purpose buckets`);
+    const allocSum = ob.allocation_to_purpose_buckets.reduce((s, apb) => s.plus(toDecimal(apb.quantity)), toDecimal(0));
+    if (!allocSum.equals(toDecimal(ob.quantity))) throw new Error(`Opening balance quantity for asset ${ob.asset_id} does not match the sum of allocations to purpose buckets`);
   });
 
   await prisma
@@ -78,7 +79,7 @@ export async function update_account(
             include: { allocation_to_purpose_buckets: true },
           });
 
-          if (opening_balance.quantity !== opening_balance.allocation_to_purpose_buckets.reduce((sum, apb) => sum + apb.quantity, 0))
+          if (!toDecimal(opening_balance.quantity).equals(opening_balance.allocation_to_purpose_buckets.reduce((s, apb) => s.plus(toDecimal(apb.quantity)), toDecimal(0))))
             throw new Error(`Opening balance quantity for asset ${ob.asset_id} does not match the sum of allocations to purpose buckets`);
         })
       );

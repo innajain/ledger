@@ -2,6 +2,7 @@
 
 import { prisma } from '@/prisma';
 import { get_date_obj_from_indian_date } from '@/utils/date';
+import { toDecimal } from '@/utils/decimal';
 
 export async function update_income_transaction(
   id: string,
@@ -52,8 +53,8 @@ export async function update_income_transaction(
         include: { income_txn: { include: { allocation_to_purpose_buckets: true } } },
       });
 
-      if (txn.income_txn!.quantity !== txn.income_txn!.allocation_to_purpose_buckets.reduce((sum, curr) => sum + curr.quantity, 0))
-        throw new Error('Sum of allocation to purpose buckets must equal the income quantity');
+      const allocSum = txn.income_txn!.allocation_to_purpose_buckets.reduce((s, curr) => s.plus(toDecimal(curr.quantity)), toDecimal(0));
+      if (!toDecimal(txn.income_txn!.quantity).equals(allocSum)) throw new Error('Sum of allocation to purpose buckets must equal the income quantity');
 
       return txn;
     })
@@ -204,16 +205,16 @@ export async function update_asset_trade_transaction(
 
       const total_debit_credit_in_buckets = txn.asset_trade_txn!.asset_replacement_in_purpose_buckets.reduce(
         (acc, curr) => {
-          acc.debit += curr.debit_quantity;
-          acc.credit += curr.credit_quantity;
+          acc.debit = acc.debit.plus(toDecimal(curr.debit_quantity));
+          acc.credit = acc.credit.plus(toDecimal(curr.credit_quantity));
           return acc;
         },
-        { debit: 0, credit: 0 }
+        { debit: toDecimal(0), credit: toDecimal(0) }
       );
 
-      if (txn.asset_trade_txn!.debit_quantity !== total_debit_credit_in_buckets.debit)
+      if (!toDecimal(txn.asset_trade_txn!.debit_quantity).equals(total_debit_credit_in_buckets.debit))
         throw new Error('Sum of debit in purpose buckets must equal the debit quantity');
-      if (txn.asset_trade_txn!.credit_quantity !== total_debit_credit_in_buckets.credit)
+      if (!toDecimal(txn.asset_trade_txn!.credit_quantity).equals(total_debit_credit_in_buckets.credit))
         throw new Error('Sum of credit in purpose buckets must equal the credit quantity');
     })
     .catch(err => {

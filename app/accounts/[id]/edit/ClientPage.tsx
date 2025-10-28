@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { update_account } from '@/server actions/account/update';
+import { toDecimal } from '@/utils/decimal';
 import { get_indian_date_from_date_obj, getCurrentIndianDate } from '@/utils/date';
 
 type Alloc = { id?: string; purpose_bucket_id: string; quantity: number; _deleted?: boolean };
@@ -66,26 +67,26 @@ export default function ClientPage({ initial_data, initial_assets, initial_bucke
     try {
       // Validate sums
       for (const ob of openingBalances) {
-        const allocSum = ob.allocations.filter(a => !a._deleted).reduce((s, a) => s + Number(a.quantity || 0), 0);
-        if (Number(ob.quantity) !== allocSum) throw new Error(`Opening balance for asset ${ob.asset_id} must equal sum of allocations (${allocSum})`);
+        const allocSum = ob.allocations.filter(a => !a._deleted).reduce((s, a) => s.plus(toDecimal(a.quantity || 0)), toDecimal(0));
+        if (!toDecimal(ob.quantity).equals(allocSum)) throw new Error(`Opening balance for asset ${ob.asset_id} must equal sum of allocations (${allocSum.toNumber()})`);
       }
 
       const creates = openingBalances.filter(ob => !ob.id).map(ob => ({
         asset_id: ob.asset_id,
-        quantity: Number(ob.quantity),
+        quantity: toDecimal(ob.quantity).toNumber(),
         date: ob.date || getCurrentIndianDate(),
-        allocation_to_purpose_buckets: ob.allocations.filter(a => !a.id).filter(a => !a._deleted).map(a => ({ purpose_bucket_id: a.purpose_bucket_id, quantity: Number(a.quantity) })),
+        allocation_to_purpose_buckets: ob.allocations.filter(a => !a.id).filter(a => !a._deleted).map(a => ({ purpose_bucket_id: a.purpose_bucket_id, quantity: toDecimal(a.quantity).toNumber() })),
       }));
 
-      const updates = openingBalances.filter(ob => ob.id).map(ob => ({
-        id: ob.id as string,
-        asset_id: ob.asset_id,
-        quantity: Number(ob.quantity),
-        date: ob.date || getCurrentIndianDate(),
-  allocation_to_purpose_buckets_creates: ob.allocations.filter(a => !a.id && !a._deleted).map(a => ({ purpose_bucket_id: a.purpose_bucket_id, quantity: Number(a.quantity) })),
+  const updates = openingBalances.filter(ob => ob.id).map(ob => ({
+    id: ob.id as string,
+    asset_id: ob.asset_id,
+    quantity: toDecimal(ob.quantity).toNumber(),
+    date: ob.date || getCurrentIndianDate(),
+  allocation_to_purpose_buckets_creates: ob.allocations.filter(a => !a.id && !a._deleted).map(a => ({ purpose_bucket_id: a.purpose_bucket_id, quantity: toDecimal(a.quantity).toNumber() })),
   allocation_to_purpose_buckets_deletes: ob.allocations.filter(a => a.id && a._deleted).map(a => ({ id: a.id! })),
-  allocation_to_purpose_buckets_updates: ob.allocations.filter(a => a.id && !a._deleted).map(a => ({ id: a.id!, purpose_bucket_id: a.purpose_bucket_id, quantity: Number(a.quantity) })),
-      }));
+  allocation_to_purpose_buckets_updates: ob.allocations.filter(a => a.id && !a._deleted).map(a => ({ id: a.id!, purpose_bucket_id: a.purpose_bucket_id, quantity: toDecimal(a.quantity).toNumber() })),
+  }));
 
       const deletes = openingBalanceDeletes;
 

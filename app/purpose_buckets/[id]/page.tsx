@@ -1,5 +1,6 @@
 import { prisma } from '@/prisma';
 import { get_price_for_asset } from '@/utils/price_fetcher';
+import { toDecimal } from '@/utils/decimal';
 import ClientPage from './ClientPage';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
@@ -34,7 +35,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     const asset = srcIncome?.asset || srcOpening?.asset;
     if (!asset) return;
     if (!assetMap[asset.id]) assetMap[asset.id] = { id: asset.id, name: asset.name, type: (asset as any).type, code: (asset as any).code ?? null, balance: 0 };
-    assetMap[asset.id].balance += Number(a.quantity ?? 0);
+    assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance).plus(toDecimal(a.quantity ?? 0)).toNumber();
   });
 
   // reallocations moved into this bucket
@@ -42,7 +43,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     const asset = (r as any).asset;
     if (!asset) return;
     if (!assetMap[asset.id]) assetMap[asset.id] = { id: asset.id, name: asset.name, type: (asset as any).type, code: (asset as any).code ?? null, balance: 0 };
-    assetMap[asset.id].balance += Number((r as any).quantity ?? 0);
+    assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance).plus(toDecimal((r as any).quantity ?? 0)).toNumber();
   });
 
   // reallocations moved out of this bucket
@@ -50,23 +51,23 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     const asset = (r as any).asset;
     if (!asset) return;
     if (!assetMap[asset.id]) assetMap[asset.id] = { id: asset.id, name: asset.name, type: (asset as any).type, code: (asset as any).code ?? null, balance: 0 };
-    assetMap[asset.id].balance -= Number((r as any).quantity ?? 0);
+    assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance).minus(toDecimal((r as any).quantity ?? 0)).toNumber();
   });
 
   // replacements: treat as debit (removed) and credit (added)
   (bucket.asset_replacement_in_purpose_buckets || []).forEach(r => {
     const txn = (r as any).asset_trade_txn;
-    const debitQty = Number((r as any).debit_quantity ?? 0);
-    const creditQty = Number((r as any).credit_quantity ?? 0);
+  const debitQty = toDecimal((r as any).debit_quantity ?? 0);
+  const creditQty = toDecimal((r as any).credit_quantity ?? 0);
     if (txn?.debit_asset) {
       const a = txn.debit_asset;
       if (!assetMap[a.id]) assetMap[a.id] = { id: a.id, name: a.name, type: (a as any).type, code: (a as any).code ?? null, balance: 0 };
-      assetMap[a.id].balance -= debitQty;
+      assetMap[a.id].balance = toDecimal(assetMap[a.id].balance).minus(debitQty).toNumber();
     }
     if (txn?.credit_asset) {
       const a = txn.credit_asset;
       if (!assetMap[a.id]) assetMap[a.id] = { id: a.id, name: a.name, type: (a as any).type, code: (a as any).code ?? null, balance: 0 };
-      assetMap[a.id].balance += creditQty;
+      assetMap[a.id].balance = toDecimal(assetMap[a.id].balance).plus(creditQty).toNumber();
     }
   });
 
@@ -75,7 +76,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     const asset = (e as any).asset;
     if (!asset) return;
     if (!assetMap[asset.id]) assetMap[asset.id] = { id: asset.id, name: asset.name, type: (asset as any).type, code: (asset as any).code ?? null, balance: 0 };
-    assetMap[asset.id].balance -= Number(e.quantity ?? 0);
+    assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance).minus(toDecimal(e.quantity ?? 0)).toNumber();
   });
 
   // fetch prices for assets (best-effort)

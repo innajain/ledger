@@ -2,6 +2,7 @@
 
 import { prisma } from '@/prisma';
 import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/utils/date';
+import { toDecimal } from '@/utils/decimal';
 
 export async function create_income_transaction({
   description,
@@ -18,8 +19,8 @@ export async function create_income_transaction({
   quantity: number;
   allocation_to_purpose_buckets: { purpose_bucket_id: string; quantity: number }[];
 }) {
-  if (allocation_to_purpose_buckets.reduce((sum, curr) => sum + curr.quantity, 0) !== quantity)
-    throw new Error('Sum of allocation to purpose buckets must equal the income quantity');
+  const allocationSum = allocation_to_purpose_buckets.reduce((s, curr) => s.plus(toDecimal(curr.quantity)), toDecimal(0));
+  if (!allocationSum.equals(toDecimal(quantity))) throw new Error('Sum of allocation to purpose buckets must equal the income quantity');
 
   return prisma.transaction
     .create({
@@ -141,15 +142,15 @@ export async function create_asset_trade_transaction({
 }) {
   const total_debit_credit_in_buckets = asset_replacement_in_purpose_buckets.reduce(
     (acc, curr) => {
-      acc.debit += curr.debit_quantity;
-      acc.credit += curr.credit_quantity;
+      acc.debit = acc.debit.plus(toDecimal(curr.debit_quantity));
+      acc.credit = acc.credit.plus(toDecimal(curr.credit_quantity));
       return acc;
     },
-    { debit: 0, credit: 0 }
+    { debit: toDecimal(0), credit: toDecimal(0) }
   );
 
-  if (debit_quantity !== total_debit_credit_in_buckets.debit) throw new Error('Sum of debit in purpose buckets must equal the debit quantity');
-  if (credit_quantity !== total_debit_credit_in_buckets.credit) throw new Error('Sum of credit in purpose buckets must equal the credit quantity');
+  if (!total_debit_credit_in_buckets.debit.equals(toDecimal(debit_quantity))) throw new Error('Sum of debit in purpose buckets must equal the debit quantity');
+  if (!total_debit_credit_in_buckets.credit.equals(toDecimal(credit_quantity))) throw new Error('Sum of credit in purpose buckets must equal the credit quantity');
 
   return prisma.transaction
     .create({

@@ -1,6 +1,7 @@
 import { prisma } from '@/prisma';
 import ClientPage from './ClientPage';
 import { get_price_for_asset } from '@/utils/price_fetcher';
+import { toDecimal } from '@/utils/decimal';
 
 export default async function Page() {
   const buckets = await prisma.purpose_bucket.findMany({
@@ -46,6 +47,10 @@ export default async function Page() {
         asset_to_balance.set(r.asset_id, (asset_to_balance.get(r.asset_id) || 0) + r.quantity);
       });
 
+      b.expense_txn.forEach(r => {
+        asset_to_balance.set(r.asset_id, (asset_to_balance.get(r.asset_id) || 0) - r.quantity);
+      });
+
       const assetIds = Array.from(new Set(Array.from(asset_to_balance.keys()).filter(Boolean)));
 
       const assets = assetIds.length ? await prisma.asset.findMany({ where: { id: { in: assetIds } } }) : [];
@@ -58,10 +63,10 @@ export default async function Page() {
         })
       );
 
-      const total_monetary_value = Array.from(asset_to_balance.entries()).reduce((sum, [asset_id, balance]) => {
+      const total_monetary_value = Array.from(asset_to_balance.entries()).reduce((s, [asset_id, balance]) => {
         const price = assetIdToPrice.get(asset_id) || 0;
-        return sum + (price ? balance * price : 0);
-      }, 0);
+        return s.plus(price ? toDecimal(balance).times(toDecimal(price)) : toDecimal(0));
+      }, toDecimal(0)).toNumber();
 
       return { id: b.id, name: b.name, total_monetary_value };
     })

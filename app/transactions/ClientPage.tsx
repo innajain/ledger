@@ -24,15 +24,15 @@ export default function ClientPage({ initial_data }: { initial_data: TxnItem[] }
             const dateDisplay = tx.date ? new Date(tx.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium' }) : null;
             return (
               <Link key={tx.id} href={`/transactions/${tx.id}`} className="block bg-white p-4 rounded-xl shadow border border-gray-100 hover:shadow-md transition">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{(tx.type ?? 'unknown').toUpperCase()}</span>
 
-                      <div className="flex-1 min-w-0 flex items-center gap-3">
+                      <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap">
                         <div className="font-medium truncate">{tx.description || <span className="text-gray-400">(no description)</span>}</div>
 
-                        <div className="text-sm text-gray-600 flex items-center gap-2 shrink-0">
+                        <div className="text-sm text-gray-600 flex items-center gap-2 shrink flex-wrap">
                           {tx.asset_name && <span className="font-medium text-gray-800 truncate">{tx.asset_name}</span>}
                           {tx.asset_name && tx.account_name && <span className="text-gray-300">·</span>}
                           {tx.account_name && <span className="text-gray-600 truncate">{tx.account_name}</span>}
@@ -48,7 +48,7 @@ export default function ClientPage({ initial_data }: { initial_data: TxnItem[] }
                   </div>
 
                   {dateDisplay && (
-                    <div className="ml-4 shrink-0 text-right text-sm text-gray-500">{dateDisplay}</div>
+                    <div className="mt-2 sm:mt-0 ml-0 sm:ml-4 shrink-0 text-right text-sm text-gray-500">{dateDisplay}</div>
                   )}
                 </div>
               </Link>

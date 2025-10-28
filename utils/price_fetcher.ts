@@ -4,6 +4,7 @@ import { parse } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 import { get_indian_date_from_date_obj, get_date_obj_from_indian_date } from './date';
 import redis from './redis';
+import { toDecimal } from './decimal';
 import { asset_type } from '@/generated/prisma';
 
 type NAVData = {
@@ -70,7 +71,7 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
         const parts = line.split(';');
         const schemeCode = parts[0];
         const schemeName = parts[3];
-        const nav = parseFloat(parts[4]);
+  const nav = toDecimal(parseFloat(parts[4]) || parts[4]).toNumber();
         const dateStr = parts[5]?.trim(); // format: 25-Jun-2025
         const localDate = parse(dateStr, 'dd-MMM-yyyy', new Date());
         // Convert to UTC treating the parsed date as IST

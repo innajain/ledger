@@ -1,5 +1,6 @@
 import { prisma } from '@/prisma';
 import { get_price_for_asset } from '@/utils/price_fetcher';
+import { toDecimal } from '@/utils/decimal';
 import ClientPage from './ClientPage';
 
 export default async function Page() {
@@ -20,12 +21,14 @@ export default async function Page() {
     type: asset.type,
     code: asset.code,
     price: asset.price,
-    balance:
-      asset.opening_balances.reduce((sum, ob) => sum + ob.quantity, 0) +
-      asset.income_txn.reduce((sum, txn) => sum + txn.quantity, 0) -
-      asset.expense_txn.reduce((sum, txn) => sum + txn.quantity, 0) +
-      asset.asset_trade_credit.reduce((sum, txn) => sum + txn.credit_quantity, 0) -
-      asset.asset_trade_debit.reduce((sum, txn) => sum + txn.debit_quantity, 0),
+    balance: (() => {
+      const opening = asset.opening_balances.reduce((s, ob) => s.plus(toDecimal(ob.quantity)), toDecimal(0));
+      const income = asset.income_txn.reduce((s, txn) => s.plus(toDecimal(txn.quantity)), toDecimal(0));
+      const expense = asset.expense_txn.reduce((s, txn) => s.plus(toDecimal(txn.quantity)), toDecimal(0));
+      const credit = asset.asset_trade_credit.reduce((s, txn) => s.plus(toDecimal(txn.credit_quantity)), toDecimal(0));
+      const debit = asset.asset_trade_debit.reduce((s, txn) => s.plus(toDecimal(txn.debit_quantity)), toDecimal(0));
+      return opening.plus(income).minus(expense).plus(credit).minus(debit).toNumber();
+    })(),
   }));
 
   return <ClientPage initial_data={assets_with_balance} />;
