@@ -10,13 +10,6 @@ import {
 } from '@/server actions/transaction/update';
 import { get_indian_date_from_date_obj } from '@/utils/date';
 
-function toDDMMYYYY(dateInput: string) {
-  // input expected as yyyy-mm-dd
-  if (!dateInput) return undefined;
-  const [y, m, d] = dateInput.split('-');
-  return `${d}-${m}-${y}`;
-}
-
 export default function ClientPage({ initial_data, initial_buckets, initial_assets, initial_accounts }: { initial_data: any; initial_buckets: { id: string; name: string }[]; initial_assets: { id: string; name: string }[]; initial_accounts: { id: string; name: string }[] }) {
   const txn = initial_data;
   const router = useRouter();
@@ -27,9 +20,10 @@ export default function ClientPage({ initial_data, initial_buckets, initial_asse
     if (!d) return '';
     const dt = new Date(String(d));
     // convert to dd-mm-yyyy for text input
-    const iso = get_indian_date_from_date_obj(dt);
-    return toDDMMYYYY(iso) || '';
+    const date = get_indian_date_from_date_obj(dt);
+    return date;
   });
+  console.log(dateStr)
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
