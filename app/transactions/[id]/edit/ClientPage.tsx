@@ -8,6 +8,7 @@ import {
   update_self_transfer_or_refundable_or_refund_transaction,
   update_asset_trade_transaction,
 } from '@/server actions/transaction/update';
+import { get_indian_date_from_date_obj } from '@/utils/date';
 
 function toDDMMYYYY(dateInput: string) {
   // input expected as yyyy-mm-dd
@@ -26,7 +27,7 @@ export default function ClientPage({ initial_data, initial_buckets, initial_asse
     if (!d) return '';
     const dt = new Date(String(d));
     // convert to dd-mm-yyyy for text input
-    const iso = dt.toISOString().slice(0, 10);
+    const iso = get_indian_date_from_date_obj(dt);
     return toDDMMYYYY(iso) || '';
   });
   const [saving, setSaving] = useState(false);
