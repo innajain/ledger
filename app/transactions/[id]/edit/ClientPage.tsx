@@ -25,7 +25,9 @@ export default function ClientPage({ initial_data, initial_buckets, initial_asse
     const d = txn.income_txn?.date || txn.expense_txn?.date || txn.self_transfer_or_refundable_or_refund_txn?.date || txn.asset_trade_txn?.debit_date;
     if (!d) return '';
     const dt = new Date(String(d));
-    return dt.toISOString().slice(0, 10);
+    // convert to dd-mm-yyyy for text input
+    const iso = dt.toISOString().slice(0, 10);
+    return toDDMMYYYY(iso) || '';
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,8 @@ export default function ClientPage({ initial_data, initial_buckets, initial_asse
     setSaving(true);
     setError(null);
     try {
-      const datePayload = dateStr ? toDDMMYYYY(dateStr) : undefined;
+  // dateStr is expected in dd-mm-yyyy format from the text input
+  const datePayload = dateStr ? dateStr : undefined;
 
       if (txn.income_txn) {
         // prepare create/update/delete payloads for allocations
@@ -160,8 +163,8 @@ export default function ClientPage({ initial_data, initial_buckets, initial_asse
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Date</label>
-            <input type="date" value={dateStr} onChange={e => setDateStr(e.target.value)} className="mt-1 block w-full border rounded px-3 py-2" />
+            <label className="block text-sm font-medium text-gray-700">Date (dd-mm-yyyy)</label>
+            <input type="text" placeholder="dd-mm-yyyy" value={dateStr} onChange={e => setDateStr(e.target.value)} className="mt-1 block w-full border rounded px-3 py-2" />
           </div>
 
           {error && <div className="text-red-600">{error}</div>}

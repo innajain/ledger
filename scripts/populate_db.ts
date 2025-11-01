@@ -178,6 +178,18 @@ async function init() {
     ],
   });
 
+  const {id: sbi_card} = await create_account({
+    name: 'SBI Card',
+    opening_balances: [
+      {
+        asset_id: money_id,
+        quantity: -907,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: discretionary, quantity: -15000 }],
+        date: '27-10-2025',
+      },
+    ],
+  });
+
   console.log('Created money accounts');
 
   const { id: groww_demat_mfs } = await create_account({
