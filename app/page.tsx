@@ -107,146 +107,71 @@ export default async function Home() {
     }, toDecimal(0))
     .toNumber();
 
-  // --- Unsettled allocations: find purpose buckets with any asset balance negative ---
-  const allBuckets = await prisma.purpose_bucket.findMany({
+  // --- Emergency Fund: find purpose buckets whose name contains "Emergency Fund" (case-insensitive)
+  const emergencyBuckets = await prisma.purpose_bucket.findMany({
+    where: { name: { contains: 'Emergency Fund', mode: 'insensitive' } },
     include: {
       allocation_to_purpose_bucket: {
         include: { allocation_thru_income: { include: { asset: true } }, allocation_thru_account_opening: { include: { asset: true } } },
       },
-      expense_txn: { include: { asset: true } },
-      asset_replacement_in_purpose_buckets: { include: { asset_trade_txn: { include: { debit_asset: true, credit_asset: true } } } },
-      asset_reallocation_between_purpose_buckets_from: { include: { asset: true } },
-      asset_reallocation_between_purpose_buckets_to: { include: { asset: true } },
+      expense_txn: true,
+      asset_replacement_in_purpose_buckets: { include: { asset_trade_txn: true } },
+      asset_reallocation_between_purpose_buckets_from: true,
+      asset_reallocation_between_purpose_buckets_to: true,
     },
   });
 
-  const unsettledBuckets: { id: string; name: string; assets: { id: string; name: string; balance: number }[] }[] = [];
+  const asset_to_balance_map_for_emergency = new Map<string, number>();
 
-  for (const bucket of allBuckets) {
-    const assetMap: Record<string, { id: string; name: string; balance: number; type?: any; code?: string | null }> = {};
-
-    (bucket.allocation_to_purpose_bucket || []).forEach(a => {
-      const srcIncome = (a as any).allocation_thru_income;
-      const srcOpening = (a as any).allocation_thru_account_opening;
-      const asset = srcIncome?.asset || srcOpening?.asset;
-      if (!asset) return;
-      if (!assetMap[asset.id])
-        assetMap[asset.id] = { id: asset.id, name: asset.name, balance: 0, type: (asset as any).type, code: (asset as any).code ?? null };
-      assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance)
-        .plus(toDecimal(a.quantity ?? 0))
-        .toNumber();
+  (emergencyBuckets || []).forEach(bucket => {
+    (bucket.allocation_to_purpose_bucket || []).forEach(allocation => {
+      if ((allocation as any).allocation_thru_income) {
+        const asset_id = (allocation as any).allocation_thru_income.asset_id;
+        asset_to_balance_map_for_emergency.set(asset_id, (asset_to_balance_map_for_emergency.get(asset_id) || 0) + allocation.quantity);
+      } else if ((allocation as any).allocation_thru_account_opening) {
+        const asset_id = (allocation as any).allocation_thru_account_opening.asset_id;
+        asset_to_balance_map_for_emergency.set(asset_id, (asset_to_balance_map_for_emergency.get(asset_id) || 0) + allocation.quantity);
+      }
     });
 
-    (bucket.asset_reallocation_between_purpose_buckets_to || []).forEach(r => {
-      const asset = (r as any).asset;
-      if (!asset) return;
-      if (!assetMap[asset.id])
-        assetMap[asset.id] = { id: asset.id, name: asset.name, balance: 0, type: (asset as any).type, code: (asset as any).code ?? null };
-      assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance)
-        .plus(toDecimal((r as any).quantity ?? 0))
-        .toNumber();
+    (bucket.expense_txn || []).forEach(txn => {
+      const asset_id = txn.asset_id;
+      asset_to_balance_map_for_emergency.set(asset_id, (asset_to_balance_map_for_emergency.get(asset_id) || 0) - txn.quantity);
+    });
+
+    (bucket.asset_replacement_in_purpose_buckets || []).forEach(replacement => {
+      const debit_asset_id = (replacement as any).asset_trade_txn?.debit_asset_id;
+      const debit_quantity = (replacement as any).debit_quantity ?? 0;
+      if (debit_asset_id)
+        asset_to_balance_map_for_emergency.set(debit_asset_id, (asset_to_balance_map_for_emergency.get(debit_asset_id) || 0) - debit_quantity);
+
+      const credit_asset_id = (replacement as any).asset_trade_txn?.credit_asset_id;
+      const credit_quantity = (replacement as any).credit_quantity ?? 0;
+      if (credit_asset_id)
+        asset_to_balance_map_for_emergency.set(credit_asset_id, (asset_to_balance_map_for_emergency.get(credit_asset_id) || 0) + credit_quantity);
     });
 
     (bucket.asset_reallocation_between_purpose_buckets_from || []).forEach(r => {
-      const asset = (r as any).asset;
-      if (!asset) return;
-      if (!assetMap[asset.id])
-        assetMap[asset.id] = { id: asset.id, name: asset.name, balance: 0, type: (asset as any).type, code: (asset as any).code ?? null };
-      assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance)
-        .minus(toDecimal((r as any).quantity ?? 0))
-        .toNumber();
+      const asset_id = (r as any).asset_id ?? (r as any).asset?.id;
+      const quantity = (r as any).quantity ?? 0;
+      if (asset_id) asset_to_balance_map_for_emergency.set(asset_id, (asset_to_balance_map_for_emergency.get(asset_id) || 0) - quantity);
     });
 
-    (bucket.asset_replacement_in_purpose_buckets || []).forEach(r => {
-      const txn = (r as any).asset_trade_txn;
-      const debitQty = toDecimal((r as any).debit_quantity ?? 0);
-      const creditQty = toDecimal((r as any).credit_quantity ?? 0);
-      if (txn?.debit_asset) {
-        const a = txn.debit_asset;
-        if (!assetMap[a.id]) assetMap[a.id] = { id: a.id, name: a.name, balance: 0, type: (a as any).type, code: (a as any).code ?? null };
-        assetMap[a.id].balance = toDecimal(assetMap[a.id].balance).minus(debitQty).toNumber();
-      }
-      if (txn?.credit_asset) {
-        const a = txn.credit_asset;
-        if (!assetMap[a.id]) assetMap[a.id] = { id: a.id, name: a.name, balance: 0, type: (a as any).type, code: (a as any).code ?? null };
-        assetMap[a.id].balance = toDecimal(assetMap[a.id].balance).plus(creditQty).toNumber();
-      }
+    (bucket.asset_reallocation_between_purpose_buckets_to || []).forEach(r => {
+      const asset_id = (r as any).asset_id ?? (r as any).asset?.id;
+      const quantity = (r as any).quantity ?? 0;
+      if (asset_id) asset_to_balance_map_for_emergency.set(asset_id, (asset_to_balance_map_for_emergency.get(asset_id) || 0) + quantity);
     });
+  });
 
-    (bucket.expense_txn || []).forEach(e => {
-      const asset = (e as any).asset;
-      if (!asset) return;
-      if (!assetMap[asset.id])
-        assetMap[asset.id] = { id: asset.id, name: asset.name, balance: 0, type: (asset as any).type, code: (asset as any).code ?? null };
-      assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance)
-        .minus(toDecimal(e.quantity ?? 0))
-        .toNumber();
-    });
+  const total_emergency_monetary_value = Array.from(asset_to_balance_map_for_emergency.entries())
+    .reduce((s, [asset_id, balance]) => {
+      const price = asset_to_price_map.get(asset_id) || 0;
+      return s.plus(toDecimal(balance).times(toDecimal(price)));
+    }, toDecimal(0))
+    .toNumber();
 
-    const negativeAssets = Object.values(assetMap)
-      .filter(a => toDecimal(a.balance).lt(0))
-      .map(a => ({ id: a.id, name: a.name, balance: a.balance }));
-    if (negativeAssets.length > 0) unsettledBuckets.push({ id: bucket.id, name: bucket.name, assets: negativeAssets });
-  }
-
-  // --- Lending: find Money Lent asset and accounts with non-zero balance of it ---
-  const moneyLentAsset = await prisma.asset.findUnique({ where: { name: 'Money Lent' } });
-  let lendingList: { accountId: string; accountName: string; balance: number; monetary?: number }[] = [];
-  if (moneyLentAsset) {
-    const moneyPriceData = await get_price_for_asset(moneyLentAsset.type, (moneyLentAsset as any).code ?? null);
-    const moneyPrice = moneyPriceData?.price ?? 1;
-
-    const allAccounts = await prisma.account.findMany({
-      include: {
-        opening_balances: { include: { asset: true } },
-        income_txn: { include: { asset: true } },
-        expense_txn: { include: { asset: true } },
-        self_transfer_or_refundable_or_refund_txn_from: { include: { asset: true } },
-        self_transfer_or_refundable_or_refund_txn_to: { include: { asset: true } },
-        asset_trade_debit: { include: { debit_asset: true } },
-        asset_trade_credit: { include: { credit_asset: true } },
-      },
-    });
-
-    lendingList = allAccounts
-      .map(acc => {
-        let balance = toDecimal(0);
-        // openings
-        (acc.opening_balances || []).forEach(ob => {
-          if (ob.asset?.id === moneyLentAsset.id) balance = balance.plus(toDecimal(ob.quantity ?? 0));
-        });
-        // income
-        (acc.income_txn || []).forEach(t => {
-          if (t.asset?.id === moneyLentAsset.id) balance = balance.plus(toDecimal(t.quantity ?? 0));
-        });
-        // expense
-        (acc.expense_txn || []).forEach(t => {
-          if (t.asset?.id === moneyLentAsset.id) balance = balance.minus(toDecimal(t.quantity ?? 0));
-        });
-        // self transfers
-        (acc.self_transfer_or_refundable_or_refund_txn_from || []).forEach(t => {
-          if (t.asset?.id === moneyLentAsset.id) balance = balance.minus(toDecimal(t.quantity ?? 0));
-        });
-        (acc.self_transfer_or_refundable_or_refund_txn_to || []).forEach(t => {
-          if (t.asset?.id === moneyLentAsset.id) balance = balance.plus(toDecimal(t.quantity ?? 0));
-        });
-        // asset trades
-        (acc.asset_trade_debit || []).forEach(t => {
-          if (t.debit_asset?.id === moneyLentAsset.id) balance = balance.minus(toDecimal(t.debit_quantity ?? 0));
-        });
-        (acc.asset_trade_credit || []).forEach(t => {
-          if (t.credit_asset?.id === moneyLentAsset.id) balance = balance.plus(toDecimal(t.credit_quantity ?? 0));
-        });
-
-        return {
-          accountId: acc.id,
-          accountName: acc.name,
-          balance: balance.toNumber(),
-          monetary: balance.equals(toDecimal(0)) ? undefined : balance.times(toDecimal(moneyPrice)).toNumber(),
-        };
-      })
-      .filter(x => x.balance !== 0);
-  }
+  const expendable_monetary_value = total_monetary_value_of_all_assets - total_investment_monetary_value - total_emergency_monetary_value;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -263,11 +188,11 @@ export default async function Home() {
 
         {/* Portfolio Value Cards */}
         {
-          <div className="grid md:grid-cols-2 gap-6 mb-12">
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
             {/* Total Portfolio */}
             <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-700">Total Assets Owned</h3>
+                <h3 className="text-lg font-semibold text-gray-700">Near-term Expenses</h3>
                 <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -279,8 +204,7 @@ export default async function Home() {
                   </svg>
                 </div>
               </div>
-              <p className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">₹{formatIndianCurrency(total_monetary_value_of_all_assets)}</p>
-              <p className="text-sm text-gray-500">All assets across accounts</p>
+              <p className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">₹{formatIndianCurrency(expendable_monetary_value)}</p>
             </div>
 
             {/* Investments Value */}
@@ -294,7 +218,25 @@ export default async function Home() {
                 </div>
               </div>
               <p className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">₹{formatIndianCurrency(total_investment_monetary_value)}</p>
-              <p className="text-sm text-gray-500">Investment value</p>
+            </div>
+
+            {/* Emergency Fund Value */}
+            <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-700">Emergency Fund</h3>
+                <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-pink-500 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 2l7 4v5c0 5.25-3.5 9.74-7 11-3.5-1.26-7-5.75-7-11V6l7-4z"
+                    />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.5 11.5l1.75 1.75L15 9.5" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">₹{formatIndianCurrency(total_emergency_monetary_value)}</p>
             </div>
           </div>
         }
@@ -437,7 +379,7 @@ export default async function Home() {
 
             {/* Redis flush - admin utility (client only) */}
             <div className="p-6 rounded-xl border-2 border-gray-100 bg-red-50">
-              <div className="mb-3">
+              <div className="flex items-center mb-3">
                 <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center mr-3">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
