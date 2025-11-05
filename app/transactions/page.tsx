@@ -5,7 +5,12 @@ import { get_price_for_asset } from '@/utils/price_fetcher';
 export default async function Page() {
   const txns = await prisma.transaction.findMany({
     orderBy: { id: 'desc' },
-    include: { income_txn: true, expense_txn: true, self_transfer_or_refundable_or_refund_txn: true, asset_trade_txn: true },
+    include: {
+  income_txn: { include: { allocation_to_purpose_buckets: { include: { bucket: true } } } },
+      expense_txn: { include: { purpose_bucket: true } },
+      self_transfer_or_refundable_or_refund_txn: true,
+      asset_trade_txn: { include: { asset_replacement_in_purpose_buckets: { include: { purpose_bucket: true } } } },
+    },
     take: 50,
   });
 
@@ -51,6 +56,10 @@ export default async function Page() {
   );
 
   const summarized = txns.map(t => {
+    const purposeNames: string[] = [];
+    if (t.expense_txn?.purpose_bucket) purposeNames.push(t.expense_txn.purpose_bucket.name);
+    if (t.income_txn?.allocation_to_purpose_buckets) purposeNames.push(...t.income_txn.allocation_to_purpose_buckets.map(a => a.bucket?.name).filter(Boolean));
+    if (t.asset_trade_txn?.asset_replacement_in_purpose_buckets) purposeNames.push(...t.asset_trade_txn.asset_replacement_in_purpose_buckets.map(r => r.purpose_bucket?.name).filter(Boolean));
     let asset_name: string | null = null;
     let account_name: string | null = null;
     let quantity: number | null = null;
@@ -105,6 +114,7 @@ export default async function Page() {
       quantity,
       value,
       date,
+      purpose_names: purposeNames.length ? purposeNames.join(' | ') : null,
     };
   });
 
