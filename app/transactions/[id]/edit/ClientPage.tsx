@@ -23,7 +23,6 @@ export default function ClientPage({ initial_data, initial_buckets, initial_asse
     const date = get_indian_date_from_date_obj(dt);
     return date;
   });
-  console.log(dateStr)
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
