@@ -10,6 +10,7 @@ import {
   create_self_transfer_or_refundable_or_refund_transaction,
 } from '@/server actions/transaction/create';
 import { create_asset_reallocation_between_purpose_buckets } from '@/server actions/purpose_bucket/asset_reallocation_between_purpose_buckets/create';
+import { prisma } from '@/prisma';
 
 const __filename = fileURLToPath(import.meta.url);
 const invokedPath = process.argv?.[1] ? path.resolve(process.argv[1]) : undefined;
@@ -18,6 +19,19 @@ if (invokedPath && path.resolve(__filename) === invokedPath) {
 }
 
 async function init() {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.transaction.deleteMany();
+      await tx.opening_balance.deleteMany();
+      await tx.account.deleteMany();
+      await tx.asset_reallocation_between_purpose_buckets.deleteMany();
+      await tx.purpose_bucket.deleteMany();
+      await tx.asset.deleteMany();
+    })
+  } catch (error) {
+    console.error('Error clearing existing data:', error);
+    return;
+  }
   const { id: money_id } = await create_asset({ name: 'Money', type: 'rupees' });
   const { id: parag_parikh } = await create_asset({ name: 'Parag Parikh Flexi Cap', type: 'mf', code: 'INF879O01027' });
   const { id: hdfc_flexicap } = await create_asset({ name: 'HDFC Flexicap Fund', type: 'mf', code: 'INF179K01UT0' });
@@ -45,7 +59,7 @@ async function init() {
   const { id: electricity } = await create_purpose_bucket({ name: 'Electricity' });
   const { id: dinner_tiffin } = await create_purpose_bucket({ name: 'Dinner Tiffin' });
   const { id: maid } = await create_purpose_bucket({ name: 'Maid' });
-  const { id: discretionary } = await create_purpose_bucket({ name: 'Discretionary Expense Money' });
+  const { id: discretionary } = await create_purpose_bucket({ name: 'Monthly Discretionary Expense Budget' });
   const { id: brokerage } = await create_purpose_bucket({ name: 'Brokerage' });
   const { id: big_ticket_expenses } = await create_purpose_bucket({ name: 'Big Ticket Expenses' });
   const { id: emergency_fund_bank } = await create_purpose_bucket({ name: 'Emergency Fund (Bank)' });
@@ -60,7 +74,7 @@ async function init() {
   const { id: unallocated } = await create_purpose_bucket({ name: 'Unallocated' });
 
   console.log('Created purpose buckets');
-  const today = '09-11-2025';
+  const today = '10-11-2025';
   const { id: kotak } = await create_account({
     name: 'Kotak',
     opening_balances: [{ asset_id: money_id, date: today, quantity: 0, allocation_to_purpose_buckets: [] }],
@@ -105,14 +119,7 @@ async function init() {
   });
   const { id: idfc } = await create_account({
     name: 'IDFC',
-    opening_balances: [
-      {
-        asset_id: money_id,
-        quantity: 0,
-        date: today,
-        allocation_to_purpose_buckets: [],
-      },
-    ],
+    opening_balances: [{ asset_id: money_id, quantity: 0, date: today, allocation_to_purpose_buckets: [] }],
   });
   const { id: bhim_upi_lite } = await create_account({
     name: 'BHIM UPI Lite',
@@ -123,34 +130,19 @@ async function init() {
   const { id: gpay_upi_lite } = await create_account({
     name: 'Gpay UPI Lite',
     opening_balances: [
-      {
-        asset_id: money_id,
-        quantity: 763.91,
-        date: today,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 763.91 }],
-      },
+      { asset_id: money_id, quantity: 763.91, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 763.91 }] },
     ],
   });
   const { id: aviral } = await create_account({
     name: 'Aviral',
     opening_balances: [
-      {
-        asset_id: money_id,
-        quantity: -47,
-        date: today,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: -47 }],
-      },
+      { asset_id: money_id, quantity: -47, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: -47 }] },
     ],
   });
   const { id: pankaj } = await create_account({
     name: 'Pankaj',
     opening_balances: [
-      {
-        asset_id: money_id,
-        quantity: 105.17,
-        date: today,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 105.17 }],
-      },
+      { asset_id: money_id, quantity: 105.17, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 105.17 }] },
     ],
   });
   const { id: sbi_card } = await create_account({
@@ -160,12 +152,7 @@ async function init() {
   const { id: dhaval } = await create_account({
     name: 'Mr. Dhaval Mehta',
     opening_balances: [
-      {
-        asset_id: money_id,
-        quantity: 50000,
-        date: today,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: security_deposit, quantity: 50000 }],
-      },
+      { asset_id: money_id, quantity: 50000, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: security_deposit, quantity: 50000 }] },
     ],
   });
   const { id: ten_rs_notes } = await create_account({
@@ -177,12 +164,7 @@ async function init() {
   const { id: epf } = await create_account({
     name: 'EPF',
     opening_balances: [
-      {
-        asset_id: money_id,
-        quantity: 27200,
-        date: today,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 27200 }],
-      },
+      { asset_id: money_id, quantity: 27200, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 27200 }] },
     ],
   });
   const { id: misc } = await create_account({
@@ -314,7 +296,7 @@ async function init() {
   });
   await create_asset_reallocation_between_purpose_buckets({
     asset_id: money_id,
-    quantity: -261.21,
+    quantity: -538.21,
     from_purpose_bucket_id: unallocated,
     to_purpose_bucket_id: discretionary,
     date: today,

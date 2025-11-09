@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { update_asset_reallocation_between_purpose_buckets } from '@/server actions/purpose_bucket/asset_reallocation_between_purpose_buckets/update';
+import { delete_asset_reallocation_between_purpose_buckets } from '@/server actions/purpose_bucket/asset_reallocation_between_purpose_buckets/delete';
 import { get_indian_date_from_date_obj } from '@/utils/date';
 
 type BucketRef = { id: string; name: string };
@@ -22,6 +23,7 @@ export default function ClientPage({ initial_data, purpose_buckets, assets }: { 
     }
   });
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
@@ -41,6 +43,21 @@ export default function ClientPage({ initial_data, purpose_buckets, assets }: { 
       setError(err?.message || String(err));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onDelete() {
+    if (!confirm('Delete this reallocation? This cannot be undone.')) return;
+    setError(null);
+    setDeleting(true);
+    try {
+      // server action expects the id string
+      await delete_asset_reallocation_between_purpose_buckets(initial_data.id);
+      router.push("/purpose_buckets");
+    } catch (err: any) {
+      setError(err?.message || String(err));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -85,8 +102,13 @@ export default function ClientPage({ initial_data, purpose_buckets, assets }: { 
           {error && <div className="text-red-600">{error}</div>}
 
           <div className="flex gap-2">
-            <button type="submit" disabled={loading} className="px-4 py-2 bg-amber-500 text-white rounded">{loading ? 'Saving...' : 'Save'}</button>
-            <button type="button" onClick={() => router.push(`/purpose_buckets/${initial_data.from_purpose_bucket_id || ''}`)} className="px-4 py-2 border rounded">Cancel</button>
+            <button type="submit" disabled={loading || deleting} className="px-4 py-2 bg-amber-500 text-white rounded">{loading ? 'Saving...' : 'Save'}</button>
+
+            <button type="button" onClick={onDelete} disabled={deleting || loading} className="px-4 py-2 bg-red-500 text-white rounded">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
+
+            <button type="button" onClick={() => router.push(initial_data?.from_purpose_bucket_id ? `/purpose_buckets/${initial_data.from_purpose_bucket_id}` : '/purpose_buckets')} className="px-4 py-2 border rounded">Cancel</button>
           </div>
         </form>
       </div>

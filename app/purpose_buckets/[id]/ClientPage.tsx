@@ -228,9 +228,7 @@ export default function ClientPage({ bucket_with_asset_balances_values }: { buck
                                     {alloc.allocation_thru_income.asset.name}
                                   </Link>
                                 )}
-                                <div className="text-xs text-gray-500">
-                                  {formatOnlyDate(alloc.allocation_thru_income?.transaction?.date)}
-                                </div>
+                                <div className="text-xs text-gray-500">{formatOnlyDate(alloc.allocation_thru_income?.transaction?.date)}</div>
                               </div>
                               <div className="text-right ml-4">
                                 <div className="text-lg font-bold text-green-600">+{alloc.quantity}</div>
@@ -337,13 +335,10 @@ export default function ClientPage({ bucket_with_asset_balances_values }: { buck
           )}
 
           {/* Asset Reallocations */}
-          {(bucket.asset_reallocation_between_purpose_buckets_from.length > 0 ||
-            bucket.asset_reallocation_between_purpose_buckets_to.length > 0) && (
+          {(bucket.asset_reallocation_between_purpose_buckets_from.length > 0 || bucket.asset_reallocation_between_purpose_buckets_to.length > 0) && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <SectionHeader
-                count={
-                  bucket.asset_reallocation_between_purpose_buckets_from.length + bucket.asset_reallocation_between_purpose_buckets_to.length
-                }
+                count={bucket.asset_reallocation_between_purpose_buckets_from.length + bucket.asset_reallocation_between_purpose_buckets_to.length}
               >
                 Asset Reallocations
               </SectionHeader>
@@ -381,7 +376,16 @@ export default function ClientPage({ bucket_with_asset_balances_values }: { buck
                               )}
                               <div className="text-xs text-gray-500">{formatOnlyDate(realloc.date)}</div>
                             </div>
-                            <div className="text-lg font-bold text-red-600">-{realloc.quantity}</div>
+
+                            <div className="text-right ml-4">
+                              <div className="text-lg font-bold text-red-600">-{realloc.quantity}</div>
+                              <Link
+                                href={`/purpose_buckets/asset_reallocations/${realloc.id}/edit`}
+                                className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+                              >
+                                Edit →
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -421,7 +425,16 @@ export default function ClientPage({ bucket_with_asset_balances_values }: { buck
                               )}
                               <div className="text-xs text-gray-500">{formatOnlyDate(realloc.date)}</div>
                             </div>
-                            <div className="text-lg font-bold text-green-600">+{realloc.quantity}</div>
+
+                            <div className="text-right ml-4">
+                              <div className="text-lg font-bold text-green-600">+{realloc.quantity}</div>
+                              <Link
+                                href={`/purpose_buckets/asset_reallocations/${realloc.id}/edit`}
+                                className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+                              >
+                                Edit →
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       ))}

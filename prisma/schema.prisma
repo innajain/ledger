@@ -172,7 +172,7 @@ model purpose_bucket {
   id   String @id @unique @default(cuid())
   name String @unique
 
-  allocation_to_purpose_buckets                    allocation_to_purpose_bucket[]
+  allocation_to_purpose_buckets                   allocation_to_purpose_bucket[]
   expense_txn                                     expense_txn[]
   asset_replacement_in_purpose_buckets            asset_replacement_in_purpose_bucket[]
   asset_reallocation_between_purpose_buckets_from asset_reallocation_between_purpose_buckets[] @relation("FromPurposeBucket")
