@@ -1,58 +1,45 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { verifyPasswordEdge  } from '@/hashing-edge';
+// middleware.ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-  // Get Basic Auth header
-  const authHeader = request.headers.get('authorization');
-  
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    return new NextResponse('Authentication required', {
-      status: 401,
-      headers: {
-        'WWW-Authenticate': 'Basic realm="Secure Area"',
-      },
-    });
+const PLAIN_PASSWORD = process.env.PLAIN_PASSWORD;
+
+function unauthorized(message = "Unauthorized") {
+  return new NextResponse(message, {
+    status: 401,
+    headers: { "WWW-Authenticate": 'Basic realm="Restricted"' },
+  });
+}
+
+export function middleware(req: NextRequest) {
+  if (!PLAIN_PASSWORD) {
+    return new NextResponse("Password not set in env var", { status: 500 });
   }
 
-  // Decode Basic Auth credentials
-  const base64Credentials = authHeader.substring(6);
-  const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-  const [username, password] = credentials.split(':');
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader) return unauthorized();
 
-  const storedHash = process.env.PASSWORD_HASH;
+  const [scheme, credentials] = authHeader.split(" ");
+  if (!scheme || scheme.toLowerCase() !== "basic" || !credentials) return unauthorized();
 
-  if (!storedHash) {
-    console.error('PASSWORD_HASH not set in environment variables');
-    return new NextResponse('Server configuration error', {
-      status: 500,
-    });
+  let decoded: string;
+  try {
+    decoded =
+      typeof atob === "function"
+        ? atob(credentials)
+        : Buffer.from(credentials, "base64").toString("utf8");
+  } catch {
+    return unauthorized();
   }
 
-  // Verify password (username is ignored, only password matters)
-  const isValid = verifyPasswordEdge(password, storedHash);
+  const hasColon = decoded.includes(":");
+  const password = hasColon ? decoded.split(":").slice(1).join(":") : decoded;
 
-  if (!isValid) {
-    return new NextResponse('Invalid credentials', {
-      status: 401,
-      headers: {
-        'WWW-Authenticate': 'Basic realm="Secure Area"',
-      },
-    });
-  }
+  if (password === PLAIN_PASSWORD) return NextResponse.next();
 
-  // Allow request to proceed
-  return NextResponse.next();
+  return unauthorized();
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ["/:path*"],
 };
