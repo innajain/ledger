@@ -1,10 +1,18 @@
-"use client";
+'use client';
 
 import Link from 'next/link';
-import React from 'react';
-import { formatIndianCurrency } from '@/utils/format_currency';
+import { format_indian_currency } from '@/utils/format_currency';
+import { asset, purpose_bucket } from '@/generated/prisma/wasm';
+import { Decimal } from 'decimal.js';
 
-type BucketItem = { id: string; name: string; total_monetary_value?: number };
+type BucketItem = purpose_bucket & {
+  asset_balances: (asset & {
+    balance: number;
+    monetary_value: number | null | undefined;
+    price: { price: number; date: Date } | null | undefined;
+  })[];
+  monetary_value: number;
+};
 
 export default function ClientPage({ initial_data }: { initial_data: BucketItem[] }) {
   return (
@@ -21,16 +29,22 @@ export default function ClientPage({ initial_data }: { initial_data: BucketItem[
             </Link>
           </div>
         </div>
-
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
+        <div className="mb-4 text-right text-gray-700 font-medium">
+          Total: {format_indian_currency(initial_data.reduce((sum, bucket) => sum.plus(bucket.monetary_value), new Decimal(0)).toNumber())}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
           {initial_data.map(bucket => (
-            <Link key={bucket.id} href={`/purpose_buckets/${bucket.id}`} className="block bg-white rounded-xl p-4 shadow border border-gray-100 hover:shadow-md transition">
+            <Link
+              key={bucket.id}
+              href={`/purpose_buckets/${bucket.id}`}
+              className="block bg-white rounded-xl p-4 shadow border border-gray-100 hover:shadow-md transition"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold">{bucket.name}</h3>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold">₹{formatIndianCurrency(bucket.total_monetary_value ?? 0)}</div>
+                  <div className="text-lg font-bold">{format_indian_currency(bucket.monetary_value)}</div>
                 </div>
               </div>
             </Link>

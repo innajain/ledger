@@ -1,8 +1,9 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { create_asset_reallocation_between_purpose_buckets } from '@/server actions/purpose_bucket/asset_reallocation_between_purpose_buckets/create';
+import { get_indian_date_from_date_obj } from '@/utils/date';
 
 type BucketRef = { id: string; name: string };
 type AssetRef = { id: string; name: string };
@@ -13,7 +14,7 @@ export default function ClientPage({ purpose_buckets, assets }: { purpose_bucket
   const [toBucket, setToBucket] = useState(purpose_buckets[1]?.id || purpose_buckets[0]?.id || '');
   const [assetId, setAssetId] = useState(assets[0]?.id || '');
   const [quantity, setQuantity] = useState<number | ''>('' as any);
-  const [dateStr, setDateStr] = useState('');
+  const [dateStr, setDateStr] = useState(get_indian_date_from_date_obj(new Date()));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +29,13 @@ export default function ClientPage({ purpose_buckets, assets }: { purpose_bucket
 
     setLoading(true);
     try {
-      await create_asset_reallocation_between_purpose_buckets({ from_purpose_bucket_id: fromBucket, to_purpose_bucket_id: toBucket, asset_id: assetId, quantity: q, date: dateStr || undefined });
+      await create_asset_reallocation_between_purpose_buckets({
+        from_purpose_bucket_id: fromBucket,
+        to_purpose_bucket_id: toBucket,
+        asset_id: assetId,
+        quantity: q,
+        date: dateStr,
+      });
       router.push('/purpose_buckets');
     } catch (err: any) {
       setError(err?.message || String(err));
@@ -48,7 +55,9 @@ export default function ClientPage({ purpose_buckets, assets }: { purpose_bucket
               <label className="block text-sm font-medium">From Bucket</label>
               <select className="mt-1 block w-full border rounded px-2 py-1" value={fromBucket} onChange={e => setFromBucket(e.target.value)}>
                 {purpose_buckets.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -57,7 +66,9 @@ export default function ClientPage({ purpose_buckets, assets }: { purpose_bucket
               <label className="block text-sm font-medium">To Bucket</label>
               <select className="mt-1 block w-full border rounded px-2 py-1" value={toBucket} onChange={e => setToBucket(e.target.value)}>
                 {purpose_buckets.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -66,13 +77,22 @@ export default function ClientPage({ purpose_buckets, assets }: { purpose_bucket
           <div>
             <label className="block text-sm font-medium">Asset</label>
             <select className="mt-1 block w-full border rounded px-2 py-1" value={assetId} onChange={e => setAssetId(e.target.value)}>
-              {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {assets.map(a => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium">Quantity</label>
-            <input type="number" className="mt-1 block w-full border rounded px-2 py-1" value={quantity as any} onChange={e => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} />
+            <input
+              type="number"
+              className="mt-1 block w-full border rounded px-2 py-1"
+              value={quantity as any}
+              onChange={e => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+            />
           </div>
 
           <div>

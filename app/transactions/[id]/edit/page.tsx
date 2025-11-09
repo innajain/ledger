@@ -1,11 +1,5 @@
 import { prisma } from '@/prisma';
 import ClientPage from './ClientPage';
-import {
-  update_income_transaction,
-  update_expense_transaction,
-  update_self_transfer_or_refundable_or_refund_transaction,
-  update_asset_trade_transaction,
-} from '@/server actions/transaction/update';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

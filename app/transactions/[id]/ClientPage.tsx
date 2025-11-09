@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { delete_transaction } from '@/server actions/transaction/delete';
-import { formatIndianCurrency } from '@/utils/format_currency';
+import { format_indian_currency } from '@/utils/format_currency';
 import { get_indian_date_from_date_obj } from '@/utils/date';
 
 type IncomeView = {
@@ -84,7 +84,7 @@ export default function ClientPage({ initial_data }: { initial_data: Transaction
 
   function fmtAmount(amount: number | undefined, assetType?: string) {
     if (amount === undefined || amount === null) return '-';
-    if (assetType === 'rupees') return `₹ ${formatIndianCurrency(Number(amount))}`;
+    if (assetType === 'rupees') return format_indian_currency(Number(amount));
     return Number(amount).toLocaleString(undefined, { maximumFractionDigits: 6 });
   }
 

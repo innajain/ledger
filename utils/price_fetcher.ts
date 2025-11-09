@@ -3,9 +3,9 @@ import axios from 'axios';
 import { parse } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 import { get_indian_date_from_date_obj, get_date_obj_from_indian_date } from './date';
-import redis from './redis';
-import { toDecimal } from './decimal';
+import { redis } from '../server actions/redis/redis';
 import { asset_type } from '@/generated/prisma';
+import { Decimal } from 'decimal.js';
 
 type NAVData = {
   schemeCode: string;
@@ -37,8 +37,8 @@ export async function get_latest_etf_price(symbol: string) {
     date = fromZonedTime(date, 'Asia/Kolkata');
     const priceData = { price: result.regularMarketPrice!, date };
 
-  // Cache in Redis (no TTL — persistent until explicitly deleted)
-  await redis.set(cacheKey, JSON.stringify(priceData));
+    // Cache in Redis (no TTL — persistent until explicitly deleted)
+    await redis.set(cacheKey, JSON.stringify(priceData));
 
     return { date, close: result.regularMarketPrice as number };
   } catch (err) {
@@ -69,15 +69,15 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
         const parts = line.split(';');
         const schemeCode = parts[0];
         const schemeName = parts[3];
-  const nav = toDecimal(parseFloat(parts[4]) || parts[4]).toNumber();
+        const nav = new Decimal(parseFloat(parts[4]) || parts[4]).toNumber();
         const dateStr = parts[5]?.trim(); // format: 25-Jun-2025
         const localDate = parse(dateStr, 'dd-MMM-yyyy', new Date());
         // Convert to UTC treating the parsed date as IST
         const istDate = fromZonedTime(localDate, 'Asia/Kolkata');
         const navData = { schemeCode, schemeName, nav, date: istDate };
 
-  // Cache in Redis (no TTL — persistent until explicitly deleted)
-  await redis.set(cacheKey, JSON.stringify(navData));
+        // Cache in Redis (no TTL — persistent until explicitly deleted)
+        await redis.set(cacheKey, JSON.stringify(navData));
 
         return navData;
       }

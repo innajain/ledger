@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/prisma';
-import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/utils/date';
+import { get_date_obj_from_indian_date } from '@/utils/date';
 
 export async function update_asset_reallocation_between_purpose_buckets({
   id,
@@ -25,7 +25,7 @@ export async function update_asset_reallocation_between_purpose_buckets({
       to_purpose_bucket_id,
       asset_id,
       quantity,
-      date: date ? get_date_obj_from_indian_date(date) : get_date_obj_from_indian_date(get_indian_date_from_date_obj(new Date())),
+      date: date && get_date_obj_from_indian_date(date),
     },
   });
 }

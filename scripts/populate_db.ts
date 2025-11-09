@@ -3,12 +3,13 @@ import { fileURLToPath } from 'url';
 import { create_asset } from '@/server actions/asset/create';
 import { create_account } from '@/server actions/account/create';
 import { create_purpose_bucket } from '@/server actions/purpose_bucket/create';
-import { prisma } from '@/prisma';
 import {
+  create_asset_trade_transaction,
   create_expense_transaction,
   create_income_transaction,
   create_self_transfer_or_refundable_or_refund_transaction,
 } from '@/server actions/transaction/create';
+import { create_asset_reallocation_between_purpose_buckets } from '@/server actions/purpose_bucket/asset_reallocation_between_purpose_buckets/create';
 
 const __filename = fileURLToPath(import.meta.url);
 const invokedPath = process.argv?.[1] ? path.resolve(process.argv[1]) : undefined;
@@ -55,19 +56,27 @@ async function init() {
   const { id: commute } = await create_purpose_bucket({ name: 'Commute' });
   const { id: surprise_expenses } = await create_purpose_bucket({ name: 'Surprise Expenses' });
   const { id: investments } = await create_purpose_bucket({ name: 'Investments' });
+  const { id: security_deposit } = await create_purpose_bucket({ name: 'House Security Deposit' });
+  const { id: unallocated } = await create_purpose_bucket({ name: 'Unallocated' });
 
   console.log('Created purpose buckets');
-
-  const { id: kotak } = await create_account({ name: 'Kotak', opening_balances: [] });
-  const { id: pnb } = await create_account({ name: 'PNB', opening_balances: [] });
+  const today = '09-11-2025';
+  const { id: kotak } = await create_account({
+    name: 'Kotak',
+    opening_balances: [{ asset_id: money_id, date: today, quantity: 0, allocation_to_purpose_buckets: [] }],
+  });
+  const { id: pnb } = await create_account({
+    name: 'PNB',
+    opening_balances: [{ asset_id: money_id, date: today, quantity: 0, allocation_to_purpose_buckets: [] }],
+  });
   const { id: sbi } = await create_account({
     name: 'SBI',
     opening_balances: [
       {
         asset_id: money_id,
-        quantity: 90000,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: emergency_fund_bank, quantity: 90000 }],
-        date: '27-10-2025',
+        quantity: 100000,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: emergency_fund_bank, quantity: 100000 }],
       },
     ],
   });
@@ -76,46 +85,22 @@ async function init() {
     opening_balances: [
       {
         asset_id: money_id,
-        quantity: 50000,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: emergency_fund_cash, quantity: 50000 }],
-        date: '27-10-2025',
+        quantity: 20000,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: emergency_fund_cash, quantity: 20000 }],
       },
     ],
   });
   const { id: wallet } = await create_account({
     name: 'Wallet',
     opening_balances: [
-      {
-        asset_id: money_id,
-        quantity: 1340,
-        allocation_to_purpose_buckets: [
-          { purpose_bucket_id: commute, quantity: 500 },
-          { purpose_bucket_id: discretionary, quantity: 840 },
-        ],
-        date: '27-10-2025',
-      },
+      { asset_id: money_id, quantity: 90, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 90 }] },
     ],
   });
   const { id: coin_pouch } = await create_account({
     name: 'Coin Pouch',
     opening_balances: [
-      {
-        asset_id: money_id,
-        quantity: 206,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: discretionary, quantity: 206 }],
-        date: '27-10-2025',
-      },
-    ],
-  });
-  const { id: ten_rs_notes } = await create_account({
-    name: '10rs ke note ki gaddi flat pe',
-    opening_balances: [
-      {
-        asset_id: money_id,
-        quantity: 800,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: discretionary, quantity: 800 }],
-        date: '27-10-2025',
-      },
+      { asset_id: money_id, quantity: 171, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 171 }] },
     ],
   });
   const { id: idfc } = await create_account({
@@ -123,21 +108,16 @@ async function init() {
     opening_balances: [
       {
         asset_id: money_id,
-        quantity: 28500,
-        allocation_to_purpose_buckets: [
-          { purpose_bucket_id: rent, quantity: 25000 },
-          { purpose_bucket_id: maid, quantity: 400 },
-          { purpose_bucket_id: electricity, quantity: 1600 },
-          { purpose_bucket_id: dinner_tiffin, quantity: 1500 },
-        ],
-        date: '27-10-2025',
+        quantity: 0,
+        date: today,
+        allocation_to_purpose_buckets: [],
       },
     ],
   });
   const { id: bhim_upi_lite } = await create_account({
     name: 'BHIM UPI Lite',
     opening_balances: [
-      { asset_id: money_id, date: '27-10-2025', quantity: 1714, allocation_to_purpose_buckets: [{ purpose_bucket_id: office_food, quantity: 1714 }] },
+      { asset_id: money_id, date: today, quantity: 967, allocation_to_purpose_buckets: [{ purpose_bucket_id: office_food, quantity: 967 }] },
     ],
   });
   const { id: gpay_upi_lite } = await create_account({
@@ -145,13 +125,9 @@ async function init() {
     opening_balances: [
       {
         asset_id: money_id,
-        quantity: 3814.56,
-        allocation_to_purpose_buckets: [
-          { purpose_bucket_id: commute, quantity: 1000 },
-          { purpose_bucket_id: discretionary, quantity: 814.56 },
-          { purpose_bucket_id: surprise_expenses, quantity: 2000 },
-        ],
-        date: '27-10-2025',
+        quantity: 763.91,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 763.91 }],
       },
     ],
   });
@@ -160,9 +136,9 @@ async function init() {
     opening_balances: [
       {
         asset_id: money_id,
-        quantity: 446.67,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: discretionary, quantity: 446.67 }],
-        date: '27-10-2025',
+        quantity: -47,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: -47 }],
       },
     ],
   });
@@ -171,195 +147,192 @@ async function init() {
     opening_balances: [
       {
         asset_id: money_id,
-        quantity: 292.67,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: discretionary, quantity: 292.67 }],
-        date: '27-10-2025',
+        quantity: 105.17,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 105.17 }],
       },
     ],
   });
-
-  const {id: sbi_card} = await create_account({
+  const { id: sbi_card } = await create_account({
     name: 'SBI Card',
+    opening_balances: [{ asset_id: money_id, quantity: 0, date: today, allocation_to_purpose_buckets: [] }],
+  });
+  const { id: dhaval } = await create_account({
+    name: 'Mr. Dhaval Mehta',
     opening_balances: [
       {
         asset_id: money_id,
-        quantity: -907,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: discretionary, quantity: -15000 }],
-        date: '27-10-2025',
+        quantity: 50000,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: security_deposit, quantity: 50000 }],
       },
+    ],
+  });
+  const { id: ten_rs_notes } = await create_account({
+    name: '10rs ke note ki gaddi flat pe',
+    opening_balances: [
+      { asset_id: money_id, quantity: 800, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 800 }] },
+    ],
+  });
+  const { id: epf } = await create_account({
+    name: 'EPF',
+    opening_balances: [
+      {
+        asset_id: money_id,
+        quantity: 27200,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 27200 }],
+      },
+    ],
+  });
+  const { id: misc } = await create_account({
+    name: 'Misc. Refundables',
+    opening_balances: [{ asset_id: money_id, quantity: 0, date: today, allocation_to_purpose_buckets: [] }],
+  });
+  const { id: groww_balance } = await create_account({
+    name: 'Groww Balance',
+    opening_balances: [
+      { asset_id: money_id, quantity: 1151.72, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 1151.72 }] },
+    ],
+  });
+  const { id: iccl } = await create_account({
+    name: 'ICCL',
+    opening_balances: [{ asset_id: money_id, quantity: 0, date: today, allocation_to_purpose_buckets: [] }],
+  });
+  const { id: rapido } = await create_account({
+    name: 'Rapido Wallet',
+    opening_balances: [
+      { asset_id: money_id, quantity: 143, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 143 }] },
+    ],
+  });
+  const { id: dmrc } = await create_account({
+    name: 'DMRC Virtual Card',
+    opening_balances: [
+      { asset_id: money_id, quantity: 69, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: unallocated, quantity: 69 }] },
     ],
   });
 
   console.log('Created money accounts');
 
-  const { id: groww_demat_mfs } = await create_account({
-    name: 'Groww demat MFs',
+  const { id: groww_demat } = await create_account({
+    name: 'Groww demat',
     opening_balances: [
       {
         asset_id: sundaram_low_duration,
         quantity: 21.156,
+        date: today,
         allocation_to_purpose_buckets: [{ purpose_bucket_id: siddhu_college_money, quantity: 21.156 }],
-        date: '27-10-2025',
       },
       {
         asset_id: aditya_birla_liquid,
         quantity: 46.231,
+        date: today,
         allocation_to_purpose_buckets: [{ purpose_bucket_id: send_home_money, quantity: 46.231 }],
-        date: '27-10-2025',
       },
       {
         asset_id: lic_low_duration,
-        quantity: 357.905,
+        quantity: 344.205,
+        date: today,
         allocation_to_purpose_buckets: [
-          { purpose_bucket_id: brokerage, quantity: 109.7 },
-          { purpose_bucket_id: my_health_insurance, quantity: 50.3 },
-          { purpose_bucket_id: my_life_insurance, quantity: 50.3 },
-          { purpose_bucket_id: parents_health_insurance, quantity: 128.205 },
-          { purpose_bucket_id: wifi, quantity: 5.7 },
-          { purpose_bucket_id: mobile, quantity: 13.7 },
+          { purpose_bucket_id: wifi, quantity: 5.718 },
+          { purpose_bucket_id: my_health_insurance, quantity: 50.316 },
+          { purpose_bucket_id: my_life_insurance, quantity: 50.316 },
+          { purpose_bucket_id: parents_health_insurance, quantity: 128.075 },
+          { purpose_bucket_id: brokerage, quantity: 109.78 },
         ],
-        date: '27-10-2025',
       },
       {
         asset_id: parag_parikh,
-        quantity: 142.305,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 142.305 }],
-        date: '27-10-2025',
+        quantity: 184.861,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 184.861 }],
       },
       {
         asset_id: hdfc_midcap,
-        quantity: 61.043,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 61.043 }],
-        date: '27-10-2025',
+        quantity: 78.342,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 78.342 }],
       },
       {
         asset_id: nippon_ultra_short_term,
         quantity: 2.21,
+        date: today,
         allocation_to_purpose_buckets: [{ purpose_bucket_id: big_ticket_expenses, quantity: 2.21 }],
-        date: '27-10-2025',
       },
       {
         asset_id: hdfc_flexicap,
-        quantity: 4.422,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 4.422 }],
-        date: '27-10-2025',
+        quantity: 5.79,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 5.79 }],
       },
       {
         asset_id: bandhan_small_cap,
-        quantity: 129.096,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 129.096 }],
-        date: '27-10-2025',
+        quantity: 166.354,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 166.354 }],
       },
       {
         asset_id: invesco_small_cap,
-        quantity: 140.458,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 140.458 }],
-        date: '27-10-2025',
+        quantity: 183.637,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 183.637 }],
       },
       {
         asset_id: hdfc_low_duration,
         quantity: 50.13,
+        date: today,
         allocation_to_purpose_buckets: [
-          { purpose_bucket_id: mandir_charity, quantity: 25.065 },
           { purpose_bucket_id: human_charity, quantity: 25.065 },
+          { purpose_bucket_id: mandir_charity, quantity: 25.065 },
         ],
-        date: '27-10-2025',
       },
-    ],
-  });
-  const { id: groww_demat_etfs } = await create_account({
-    name: 'Groww demat ETFs',
-    opening_balances: [
       {
         asset_id: motilal_nasdaq,
-        quantity: 56.0,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 56.0 }],
-        date: '27-10-2025',
+        quantity: 73,
+        date: today,
+        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 73 }],
       },
-      {
-        asset_id: mirae_gold,
-        quantity: 27.0,
-        allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 27.0 }],
-        date: '27-10-2025',
-      },
+      { asset_id: mirae_gold, quantity: 27, date: today, allocation_to_purpose_buckets: [{ purpose_bucket_id: investments, quantity: 27 }] },
     ],
   });
 
   console.log('Created groww demat account');
 
-  await create_expense_transaction({
+  await create_asset_reallocation_between_purpose_buckets({
     asset_id: money_id,
-    quantity: 120,
-    description: 'pasta',
-    account_id: gpay_upi_lite,
-    purpose_bucket_id: discretionary,
-    date: '27-10-2025',
+    quantity: 285.29,
+    from_purpose_bucket_id: unallocated,
+    to_purpose_bucket_id: mobile,
+    date: today,
   });
-  await create_self_transfer_or_refundable_or_refund_transaction({
+  await create_asset_reallocation_between_purpose_buckets({
     asset_id: money_id,
-    quantity: 7000,
-    description: 'guard ko cash ke badle money transfer krna tha',
-    from_account_id: sbi,
-    to_account_id: cash_at_flat,
-    date: '27-10-2025',
-    type: 'self_transfer',
+    quantity: 1600,
+    from_purpose_bucket_id: unallocated,
+    to_purpose_bucket_id: electricity,
+    date: today,
   });
-  await create_self_transfer_or_refundable_or_refund_transaction({
+  await create_asset_reallocation_between_purpose_buckets({
     asset_id: money_id,
-    quantity: 7000,
-    from_account_id: cash_at_flat,
-    to_account_id: sbi,
-    date: '27-10-2025',
-    type: 'self_transfer',
+    quantity: -261.21,
+    from_purpose_bucket_id: unallocated,
+    to_purpose_bucket_id: discretionary,
+    date: today,
   });
-  await create_expense_transaction({
+  await create_asset_reallocation_between_purpose_buckets({
     asset_id: money_id,
-    quantity: 45,
-    description: 'auto to office',
-    account_id: wallet,
-    purpose_bucket_id: commute,
-    date: '28-10-2025',
+    quantity: 987,
+    from_purpose_bucket_id: unallocated,
+    to_purpose_bucket_id: commute,
+    date: today,
   });
-  await create_expense_transaction({
+  await create_asset_reallocation_between_purpose_buckets({
     asset_id: money_id,
-    quantity: 29,
-    description: 'aaloo parantha + chai (done in 2 transactions)',
-    account_id: bhim_upi_lite,
-    purpose_bucket_id: office_food,
-    date: '28-10-2025',
-  });
-  await create_expense_transaction({
-    asset_id: money_id,
-    quantity: 48,
-    description: 'lunch',
-    account_id: bhim_upi_lite,
-    purpose_bucket_id: office_food,
-    date: '28-10-2025',
-  });
-  await create_income_transaction({
-    asset_id: money_id,
-    quantity: 2,
-    description: 'cashback',
-    account_id: idfc,
-    date: '28-10-2025',
-    allocation_to_purpose_buckets: [{ purpose_bucket_id: office_food, quantity: 2 }],
-  });
-  await create_expense_transaction({
-    asset_id: money_id,
-    quantity: 31.5,
-    description: 'evening snacks: manchurian + chai',
-    account_id: bhim_upi_lite,
-    purpose_bucket_id: office_food,
-    date: '28-10-2025',
-  });
-  await create_self_transfer_or_refundable_or_refund_transaction({
-    asset_id: money_id,
-    quantity: 5,
-    from_account_id: wallet,
-    to_account_id: coin_pouch,
-    date: '28-10-2025',
-    type: 'self_transfer',
+    quantity: -239,
+    from_purpose_bucket_id: unallocated,
+    to_purpose_bucket_id: surprise_expenses,
+    date: today,
   });
 
-  console.log('Created transactions');
+  console.log('Created asset reallocations between purpose buckets');
 }

@@ -1,6 +1,6 @@
-"use server";
+'use server';
 
-import redis from '@/utils/redis';
+import { redis } from '@/server actions/redis/redis';
 
 export async function flush_redis() {
   try {

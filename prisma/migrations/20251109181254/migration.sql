@@ -28,10 +28,10 @@ CREATE TABLE "account" (
 -- CreateTable
 CREATE TABLE "opening_balance" (
     "id" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "quantity" DOUBLE PRECISION NOT NULL,
     "account_id" TEXT NOT NULL,
     "asset_id" TEXT NOT NULL,
-    "quantity" DOUBLE PRECISION NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "opening_balance_pkey" PRIMARY KEY ("id")
 );
@@ -39,6 +39,7 @@ CREATE TABLE "opening_balance" (
 -- CreateTable
 CREATE TABLE "transaction" (
     "id" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
     "description" TEXT,
     "type" "transaction_type",
 
@@ -48,7 +49,6 @@ CREATE TABLE "transaction" (
 -- CreateTable
 CREATE TABLE "income_txn" (
     "id" TEXT NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
     "transaction_id" TEXT NOT NULL,
     "asset_id" TEXT NOT NULL,
     "account_id" TEXT NOT NULL,
@@ -58,9 +58,19 @@ CREATE TABLE "income_txn" (
 );
 
 -- CreateTable
+CREATE TABLE "allocation_to_purpose_bucket" (
+    "id" TEXT NOT NULL,
+    "quantity" DOUBLE PRECISION NOT NULL,
+    "purpose_bucket_id" TEXT NOT NULL,
+    "income_txn_id" TEXT,
+    "opening_balance_id" TEXT,
+
+    CONSTRAINT "allocation_to_purpose_bucket_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "expense_txn" (
     "id" TEXT NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
     "transaction_id" TEXT NOT NULL,
     "asset_id" TEXT NOT NULL,
     "account_id" TEXT NOT NULL,
@@ -73,7 +83,6 @@ CREATE TABLE "expense_txn" (
 -- CreateTable
 CREATE TABLE "self_transfer_or_refundable_or_refund_txn" (
     "id" TEXT NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
     "transaction_id" TEXT NOT NULL,
     "asset_id" TEXT NOT NULL,
     "from_account_id" TEXT NOT NULL,
@@ -90,32 +99,11 @@ CREATE TABLE "asset_trade_txn" (
     "debit_asset_id" TEXT NOT NULL,
     "debit_account_id" TEXT NOT NULL,
     "debit_quantity" DOUBLE PRECISION NOT NULL,
-    "debit_date" TIMESTAMP(3) NOT NULL,
     "credit_asset_id" TEXT NOT NULL,
     "credit_account_id" TEXT NOT NULL,
     "credit_quantity" DOUBLE PRECISION NOT NULL,
-    "credit_date" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "asset_trade_txn_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "purpose_bucket" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-
-    CONSTRAINT "purpose_bucket_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "allocation_to_purpose_bucket" (
-    "id" TEXT NOT NULL,
-    "quantity" DOUBLE PRECISION NOT NULL,
-    "purpose_bucket_id" TEXT NOT NULL,
-    "income_txn_id" TEXT,
-    "opening_balance_id" TEXT,
-
-    CONSTRAINT "allocation_to_purpose_bucket_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -130,13 +118,21 @@ CREATE TABLE "asset_replacement_in_purpose_bucket" (
 );
 
 -- CreateTable
+CREATE TABLE "purpose_bucket" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+
+    CONSTRAINT "purpose_bucket_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "asset_reallocation_between_purpose_buckets" (
     "id" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
     "from_purpose_bucket_id" TEXT NOT NULL,
     "to_purpose_bucket_id" TEXT NOT NULL,
     "asset_id" TEXT NOT NULL,
     "quantity" DOUBLE PRECISION NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "asset_reallocation_between_purpose_buckets_pkey" PRIMARY KEY ("id")
 );
@@ -169,6 +165,15 @@ CREATE UNIQUE INDEX "income_txn_id_key" ON "income_txn"("id");
 CREATE UNIQUE INDEX "income_txn_transaction_id_key" ON "income_txn"("transaction_id");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "allocation_to_purpose_bucket_id_key" ON "allocation_to_purpose_bucket"("id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "allocation_to_purpose_bucket_purpose_bucket_id_income_txn_i_key" ON "allocation_to_purpose_bucket"("purpose_bucket_id", "income_txn_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "allocation_to_purpose_bucket_purpose_bucket_id_opening_bala_key" ON "allocation_to_purpose_bucket"("purpose_bucket_id", "opening_balance_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "expense_txn_id_key" ON "expense_txn"("id");
 
 -- CreateIndex
@@ -187,22 +192,13 @@ CREATE UNIQUE INDEX "asset_trade_txn_id_key" ON "asset_trade_txn"("id");
 CREATE UNIQUE INDEX "asset_trade_txn_transaction_id_key" ON "asset_trade_txn"("transaction_id");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "asset_replacement_in_purpose_bucket_id_key" ON "asset_replacement_in_purpose_bucket"("id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "purpose_bucket_id_key" ON "purpose_bucket"("id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "purpose_bucket_name_key" ON "purpose_bucket"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "allocation_to_purpose_bucket_id_key" ON "allocation_to_purpose_bucket"("id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "allocation_to_purpose_bucket_purpose_bucket_id_income_txn_i_key" ON "allocation_to_purpose_bucket"("purpose_bucket_id", "income_txn_id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "allocation_to_purpose_bucket_purpose_bucket_id_opening_bala_key" ON "allocation_to_purpose_bucket"("purpose_bucket_id", "opening_balance_id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "asset_replacement_in_purpose_bucket_id_key" ON "asset_replacement_in_purpose_bucket"("id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "asset_reallocation_between_purpose_buckets_id_key" ON "asset_reallocation_between_purpose_buckets"("id");
@@ -221,6 +217,15 @@ ALTER TABLE "income_txn" ADD CONSTRAINT "income_txn_asset_id_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "income_txn" ADD CONSTRAINT "income_txn_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "allocation_to_purpose_bucket" ADD CONSTRAINT "allocation_to_purpose_bucket_purpose_bucket_id_fkey" FOREIGN KEY ("purpose_bucket_id") REFERENCES "purpose_bucket"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "allocation_to_purpose_bucket" ADD CONSTRAINT "allocation_to_purpose_bucket_income_txn_id_fkey" FOREIGN KEY ("income_txn_id") REFERENCES "income_txn"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "allocation_to_purpose_bucket" ADD CONSTRAINT "allocation_to_purpose_bucket_opening_balance_id_fkey" FOREIGN KEY ("opening_balance_id") REFERENCES "opening_balance"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "expense_txn" ADD CONSTRAINT "expense_txn_transaction_id_fkey" FOREIGN KEY ("transaction_id") REFERENCES "transaction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -260,15 +265,6 @@ ALTER TABLE "asset_trade_txn" ADD CONSTRAINT "asset_trade_txn_credit_asset_id_fk
 
 -- AddForeignKey
 ALTER TABLE "asset_trade_txn" ADD CONSTRAINT "asset_trade_txn_credit_account_id_fkey" FOREIGN KEY ("credit_account_id") REFERENCES "account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "allocation_to_purpose_bucket" ADD CONSTRAINT "allocation_to_purpose_bucket_purpose_bucket_id_fkey" FOREIGN KEY ("purpose_bucket_id") REFERENCES "purpose_bucket"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "allocation_to_purpose_bucket" ADD CONSTRAINT "allocation_to_purpose_bucket_income_txn_id_fkey" FOREIGN KEY ("income_txn_id") REFERENCES "income_txn"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "allocation_to_purpose_bucket" ADD CONSTRAINT "allocation_to_purpose_bucket_opening_balance_id_fkey" FOREIGN KEY ("opening_balance_id") REFERENCES "opening_balance"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "asset_replacement_in_purpose_bucket" ADD CONSTRAINT "asset_replacement_in_purpose_bucket_purpose_bucket_id_fkey" FOREIGN KEY ("purpose_bucket_id") REFERENCES "purpose_bucket"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

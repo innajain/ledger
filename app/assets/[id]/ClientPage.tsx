@@ -1,91 +1,43 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { delete_asset } from '@/server actions/asset/delete';
-import { formatIndianCurrency } from '@/utils/format_currency';
+import { format_indian_currency } from '@/utils/format_currency';
+import { Prisma } from '@/generated/prisma';
+import { Decimal } from 'decimal.js';
 import { get_indian_date_from_date_obj } from '@/utils/date';
-import { toDecimal } from '@/utils/decimal';
 
-type Alloc = { id: string; quantity: number; bucket?: { id: string; name: string } };
-type OpeningBalance = {
-  id: string;
-  quantity: number;
-  date: string | Date;
-  account: { id: string; name: string };
-  allocation_to_purpose_buckets: Alloc[];
-};
+type AssetView = Prisma.assetGetPayload<{
+  include: {
+    opening_balances: { include: { account: true } };
+    income_txn: { include: { account: true; transaction: true } };
+    expense_txn: { include: { account: true; purpose_bucket: true; transaction: true } };
+    asset_trade_credit: { include: { credit_account: true; transaction: true; debit_account: true; debit_asset: true } };
+    asset_trade_debit: { include: { debit_account: true; transaction: true; credit_account: true; credit_asset: true } };
+    self_transfer_or_refundable_or_refund_txn: { include: { from_account: true; to_account: true; transaction: true } };
+  };
+}>;
 
-type IncomeTxn = {
-  id: string;
-  date: string | Date;
-  account?: { id: string; name: string };
-  account_id?: string;
-  quantity: number;
-  allocation_to_purpose_buckets?: Alloc[];
-  description?: string | null;
-  transaction_id: string;
-};
-type ExpenseTxn = {
-  id: string;
-  date: string | Date;
-  account?: { id: string; name: string };
-  account_id?: string;
-  quantity: number;
-  purpose_bucket?: { id: string; name: string };
-  purpose_bucket_id?: string;
-  description?: string | null;
-  transaction_id: string;
-};
-
-type AssetView = {
-  id: string;
-  name: string;
-  type: string;
-  code?: string | null;
-  price?: number | null;
-  opening_balances: OpeningBalance[];
-  income_txn?: IncomeTxn[];
-  expense_txn?: ExpenseTxn[];
-  self_transfer_or_refundable_or_refund_txn: ({
-    from_account: {
-      id: string;
-      name: string;
-    };
-    to_account: {
-      id: string;
-      name: string;
-    };
-  } & {
-    id: string;
+export function ClientPage({
+  asset,
+  price_data,
+  balance,
+  account_entries,
+}: {
+  asset: AssetView;
+  price_data: {
+    price: number;
     date: Date;
-    transaction_id: string;
-    asset_id: string;
-    from_account_id: string;
-    to_account_id: string;
-    quantity: number;
-  })[];
-  asset_trade_debit?: any[];
-  asset_trade_credit?: any[];
-};
-
-export default function ClientPage({ initial_data }: { initial_data: AssetView }) {
-  const asset = initial_data;
+  } | null;
+  balance: number | null;
+  account_entries: { id: string; name: string; balance: number }[];
+}) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
-  function formatOnlyDate(d: string | Date | undefined) {
-    if (!d) return '-';
-    try {
-      const dt = typeof d === 'string' ? new Date(d) : d;
-      return get_indian_date_from_date_obj(new Date(dt));
-    } catch (e) {
-      return String(d).split('T')[0];
-    }
-  }
-
-  async function onDelete() {
+  async function handle_delete() {
     if (!confirm('Delete this asset? This cannot be undone.')) return;
     setDeleting(true);
     try {
@@ -98,340 +50,430 @@ export default function ClientPage({ initial_data }: { initial_data: AssetView }
     }
   }
 
+  const total_value = account_entries.reduce((sum, acc) => {
+    if (!price_data) return sum;
+    return sum + new Decimal(acc.balance).times(price_data.price).toNumber();
+  }, 0);
+
+  const SectionHeader = ({ children, count }: { children: React.ReactNode; count?: number }) => (
+    <div className="flex items-center gap-2 mb-4">
+      <h2 className="text-lg font-semibold text-gray-900">{children}</h2>
+      {count !== undefined && count > 0 && <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-full">{count}</span>}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50 p-6">
-      <div className="max-w-4xl mx-auto bg-white rounded-xl p-6 shadow">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{asset.name}</h1>
-            <div className="text-sm text-gray-600">
-              Type: {asset.type} {asset.code ? `• ${asset.code}` : ''}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Back Button */}
+        <Link href="/assets" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Assets
+        </Link>
+
+        {/* Header Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{asset.name}</h1>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full font-medium">{asset.type}</span>
+                    {asset.code && <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-mono">{asset.code}</span>}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="text-right">
-            <div className="text-lg font-bold">{asset.price ? `₹${formatIndianCurrency(asset.price)}` : '—'}</div>
-            <div className="flex flex-col items-end gap-2">
+
+            <div className="flex flex-col gap-4">
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
+                <div className="text-sm text-gray-600 mb-1">Current Price</div>
+                <div className="text-2xl font-bold text-gray-900">{price_data ? format_indian_currency(price_data.price) : '—'}</div>
+                {price_data && <div className="text-xs text-gray-500 mt-1">as of {get_indian_date_from_date_obj(price_data.date)}</div>}
+              </div>
+
               <div className="flex gap-2">
-                <Link href={`/assets/${asset.id}/edit`} className="px-3 py-1 border rounded text-sm">
+                <Link
+                  href={`/assets/${asset.id}/edit`}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors text-center"
+                >
                   Edit
                 </Link>
-                <button onClick={onDelete} disabled={deleting} className="px-3 py-1 bg-red-500 text-white rounded text-sm">
+                <button
+                  onClick={handle_delete}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   {deleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
-              <Link href="/assets" className="text-sm text-blue-600 hover:underline">
-                Back
-              </Link>
             </div>
           </div>
         </div>
 
-        <section className="mt-6">
-          <h2 className="font-semibold mb-2">Current balances</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            {(() => {
-              // compute per-account balances for this asset
-              const map = new Map<string, { account?: { id: string; name: string }; balance: any }>();
+        {/* Current Balances */}
+        {account_entries.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+            <SectionHeader count={account_entries.length}>Current Holdings</SectionHeader>
 
-              function ensureAccount(id?: string, name?: string) {
-                if (!id) return undefined;
-                if (!map.has(id)) map.set(id, { account: name ? { id, name } : undefined, balance: toDecimal(0) });
-                const rec = map.get(id)!;
-                if (!rec.account && name) rec.account = { id, name };
-                return rec;
-              }
+            {price_data && total_value > 0 && (
+              <div className="mb-6 p-4 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl border border-violet-100">
+                <div className="text-sm text-gray-600 mb-1">Total Portfolio Value</div>
+                <div className="text-3xl font-bold text-gray-900">{format_indian_currency(total_value)}</div>
+              </div>
+            )}
 
-              // openings
-              (asset.opening_balances || []).forEach((ob: OpeningBalance) => {
-                const r = ensureAccount(ob.account.id, ob.account.name);
-                if (r) r.balance = r.balance.plus(toDecimal(ob.quantity));
-              });
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
+              {account_entries.map(account => (
+                <div
+                  key={account.id}
+                  className="group p-5 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <Link href={`/accounts/${account.id}`} className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                      {account.name}
+                    </Link>
+                    <svg
+                      className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
 
-              // income
-              (asset.income_txn || []).forEach((t: IncomeTxn) => {
-                const id = t.account?.id || t.account_id;
-                const r = ensureAccount(id, t.account?.name);
-                if (r) r.balance = r.balance.plus(toDecimal(t.quantity));
-              });
-
-              // expense
-              (asset.expense_txn || []).forEach((t: ExpenseTxn) => {
-                const id = t.account?.id || t.account_id;
-                const r = ensureAccount(id, t.account?.name);
-                if (r) r.balance = r.balance.minus(toDecimal(t.quantity));
-              });
-
-              // self transfers
-              (asset.self_transfer_or_refundable_or_refund_txn || []).forEach((t: any) => {
-                const fromId = t.from_account?.id || t.from_account_id;
-                const toId = t.to_account?.id || t.to_account_id;
-                const rFrom = ensureAccount(fromId, t.from_account?.name);
-                const rTo = ensureAccount(toId, t.to_account?.name);
-                if (rFrom) rFrom.balance = rFrom.balance.minus(toDecimal(t.quantity));
-                if (rTo) rTo.balance = rTo.balance.plus(toDecimal(t.quantity));
-              });
-
-              // asset trades: debit reduces from debit_account, credit adds to credit_account
-              (asset.asset_trade_debit || []).forEach((d: any) => {
-                const id = d.debit_account?.id || d.debit_account_id;
-                const r = ensureAccount(id, d.debit_account?.name);
-                if (r) r.balance = r.balance.minus(toDecimal(d.debit_quantity ?? 0));
-              });
-              (asset.asset_trade_credit || []).forEach((c: any) => {
-                const id = c.credit_account?.id || c.credit_account_id;
-                const r = ensureAccount(id, c.credit_account?.name);
-                if (r) r.balance = r.balance.plus(toDecimal(c.credit_quantity ?? 0));
-              });
-
-              const rows = Array.from(map.values()).filter(r => !r.balance.equals(toDecimal(0)));
-
-              if (!rows.length) return <div className="text-sm text-gray-500">No current balances</div>;
-
-              return rows.map(r => (
-                <div key={r.account?.id ?? Math.random()} className="p-4 bg-white border rounded shadow-sm flex items-center justify-between">
-                  <div>
-                    {r.account ? (
-                      <Link href={`/accounts/${r.account.id}`} className="font-medium text-blue-600 hover:underline">{r.account.name}</Link>
-                    ) : (
-                      <div className="font-medium">Unknown Account</div>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">Balance</div>
+                      <div className="text-2xl font-bold text-gray-900">{account.balance}</div>
+                    </div>
+                    {price_data && (
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500 mb-1">Value</div>
+                        <div className="text-lg font-semibold text-emerald-600">
+                          {format_indian_currency(new Decimal(account.balance).times(price_data.price).toNumber())}
+                        </div>
+                      </div>
                     )}
-                    <div className="text-sm text-gray-500">Balance: <span className="font-semibold text-gray-800">{r.balance.toString()}</span></div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-gray-500">Current value</div>
-                    <div className="text-lg font-bold">{asset.price ? `₹${formatIndianCurrency(r.balance.times(toDecimal(asset.price)))}` : '—'}</div>
                   </div>
                 </div>
-              ));
-            })()}
+              ))}
+            </div>
           </div>
+        )}
 
-        </section>
-
-        <section className="mt-6">
-          <h2 className="font-semibold mb-2">Opening Balances</h2>
-          <div className="space-y-2">
-            {asset.opening_balances.map((ob: OpeningBalance) => (
-                <div key={ob.id} className="p-3 border rounded bg-white">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium">
-                      <Link href={`/accounts/${ob.account.id}`} className="text-blue-600 hover:underline">
-                        {ob.account.name}
-                      </Link>
-                    </div>
-                    <div className="text-sm text-gray-500">Date: {formatOnlyDate(ob.date)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">{ob.quantity}</div>
-                    <div className="text-sm text-gray-600">{asset.price ? `₹${formatIndianCurrency(toDecimal(ob.quantity).times(toDecimal(asset.price)))}` : '—'}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <h2 className="font-semibold mb-2">Income Transactions</h2>
-          <div className="space-y-2">
-            {(asset.income_txn || []).map((t: IncomeTxn) => (
-              <div key={t.id} className="p-3 border rounded bg-white">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium">
-                      {t.account ? (
-                        <Link href={`/accounts/${t.account.id}`} className="text-blue-600 hover:underline">
-                          {t.account.name}
-                        </Link>
-                      ) : (
-                        t.account_id
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-500">{formatOnlyDate(t.date)}</div>
-                    {t.description && <div className="text-sm text-gray-600 mt-1">{t.description}</div>}
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">{t.quantity}</div>
-                    <div className="text-sm text-gray-600">{asset.price ? `₹${formatIndianCurrency(toDecimal(t.quantity).times(toDecimal(asset.price)))}` : '—'}</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      <Link href={`/transactions/${t.transaction_id}`} className="text-blue-600 hover:underline">
-                        View
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <h2 className="font-semibold mb-2">Expense Transactions</h2>
-          <div className="space-y-2">
-            {(asset.expense_txn || []).map((t: ExpenseTxn) => (
-              <div key={t.id} className="p-3 border rounded bg-white">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium">
-                      {t.account ? (
-                        <Link href={`/accounts/${t.account.id}`} className="text-blue-600 hover:underline">
-                          {t.account.name}
-                        </Link>
-                      ) : (
-                        t.account_id
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-500">{formatOnlyDate(t.date)}</div>
-                    <div className="text-sm text-gray-500">From bucket: {t.purpose_bucket ? (
-                        <Link href={`/purpose_buckets/${t.purpose_bucket.id}`} className="text-blue-600 hover:underline">
-                          {t.purpose_bucket.name}
-                        </Link>
-                      ) : (
-                        t.purpose_bucket_id
-                      )}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">{t.quantity}</div>
-                    <div className="text-sm text-gray-600">{asset.price ? `₹${formatIndianCurrency(toDecimal(t.quantity).times(toDecimal(asset.price)))}` : '—'}</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      <Link href={`/transactions/${t.transaction_id}`} className="text-blue-600 hover:underline">
-                        View
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <h2 className="font-semibold mb-2">Self Transfers / Refunds</h2>
-          <div className="space-y-2">
-            {(asset.self_transfer_or_refundable_or_refund_txn || []).map((t: any) => (
-              <div key={t.id} className="p-3 border rounded">
-                <div className="flex justify-between">
-                  <div>
-                    <div className="font-medium">
-                      From:{' '}
-                      {t.from_account ? (
-                        <Link href={`/accounts/${t.from_account.id}`} className="text-blue-600 hover:underline">
-                          {t.from_account.name}
-                        </Link>
-                      ) : (
-                        t.from_account_id
-                      )}{' '}
-                      → To:{' '}
-                      {t.to_account ? (
-                        <Link href={`/accounts/${t.to_account.id}`} className="text-blue-600 hover:underline">
-                          {t.to_account.name}
-                        </Link>
-                      ) : (
-                        t.to_account_id
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-500">Date: {formatOnlyDate(t.date)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold">{t.quantity}</div>
-                    <div className="text-xs text-gray-500">
-                      <Link href={`/transactions/${t.transaction_id}`} className="text-blue-600 hover:underline">
-                        View
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <h2 className="font-semibold mb-2">Asset Trades</h2>
-          <div className="space-y-2">
-            {/* Combine debit and credit entries into a single tile per transaction */}
-            {(() => {
-              const map = new Map<string, { id?: string; transaction_id: string; debit?: any; credit?: any }>();
-              (asset.asset_trade_debit || []).forEach((d: any) => {
-                const key = d.transaction_id || d.id;
-                const existing = map.get(key) || { id: d.id, transaction_id: d.transaction_id, debit: undefined, credit: undefined };
-                existing.debit = d;
-                existing.id = existing.id || d.id;
-                map.set(key, existing);
-              });
-              (asset.asset_trade_credit || []).forEach((c: any) => {
-                const key = c.transaction_id || c.id;
-                const existing = map.get(key) || { id: c.id, transaction_id: c.transaction_id, debit: undefined, credit: undefined };
-                existing.credit = c;
-                existing.id = existing.id || c.id;
-                map.set(key, existing);
-              });
-
-              const trades = Array.from(map.values());
-
-              return trades.map(t => {
-                const d = t.debit;
-                const c = t.credit;
-                return (
-                  <div key={t.id || t.transaction_id} className="p-3 border rounded bg-white">
-                    <div className="flex justify-between items-start gap-4">
+        {/* Transaction Sections */}
+        <div className="space-y-6">
+          {/* Opening Balances */}
+          {asset.opening_balances.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <SectionHeader count={asset.opening_balances.length}>Opening Balances</SectionHeader>
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                {asset.opening_balances.map(ob => (
+                  <div key={ob.id} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex justify-between items-center">
                       <div className="flex-1">
-                        <div className="font-medium">
-                          <span className="mr-2">Transaction:</span>
-                          <Link href={`/transactions/${t.transaction_id}`} className="text-blue-600 hover:underline">
-                            {t.transaction_id}
-                          </Link>
-                        </div>
+                        <Link href={`/accounts/${ob.account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                          {ob.account.name}
+                        </Link>
+                        <div className="text-xs text-gray-500 mt-1">{get_indian_date_from_date_obj(ob.date)}</div>
+                      </div>
+                      <div className="text-lg font-bold text-gray-900">{ob.quantity}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div>
-                            <div className="text-sm text-gray-600">Debit</div>
-                            <div className="text-sm">
-                              {d?.debit_account ? (
-                                <Link href={`/accounts/${d.debit_account.id}`} className="text-blue-600 hover:underline">
-                                  {d.debit_account.name}
-                                </Link>
-                              ) : (
-                                d?.debit_account_id ?? '-'
-                              )}
+          {/* Income and Expense Transactions - Side by Side on Desktop */}
+          {(asset.income_txn.length > 0 || asset.expense_txn.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Expense Transactions */}
+              {asset.expense_txn.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <SectionHeader count={asset.expense_txn.length}>Expense Transactions</SectionHeader>
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    {asset.expense_txn.map(t => (
+                      <div key={t.id} className="p-4 border border-red-200 bg-red-50/30 rounded-lg hover:bg-red-50 transition-colors">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <Link href={`/accounts/${t.account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                              {t.account.name}
+                            </Link>
+                            <div className="text-xs text-gray-500 mt-1">{get_indian_date_from_date_obj(t.transaction.date)}</div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              Bucket:{' '}
+                              <Link href={`/purpose_buckets/${t.purpose_bucket.id}`} className="text-blue-600 hover:underline">
+                                {t.purpose_bucket.name}
+                              </Link>
                             </div>
-                            <div className="text-sm text-gray-700 font-semibold">{d?.debit_quantity ?? '-'}</div>
-                            <div className="text-xs text-gray-600">{asset.price ? `₹${formatIndianCurrency(toDecimal(d?.debit_quantity ?? 0).times(toDecimal(asset.price)))}` : '—'}</div>
                           </div>
-
-                          <div>
-                            <div className="text-sm text-gray-600">Credit</div>
-                            <div className="text-sm">
-                              {c?.credit_account ? (
-                                <Link href={`/accounts/${c.credit_account.id}`} className="text-blue-600 hover:underline">
-                                  {c.credit_account.name}
-                                </Link>
-                              ) : (
-                                c?.credit_account_id ?? '-'
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-700 font-semibold">{c?.credit_quantity ?? '-'}</div>
-                            <div className="text-xs text-gray-600">{asset.price ? `₹${formatIndianCurrency(toDecimal(c?.credit_quantity ?? 0).times(toDecimal(asset.price)))}` : '—'}</div>
+                          <div className="text-right ml-4">
+                            <div className="text-lg font-bold text-red-600">-{t.quantity}</div>
+                            <Link href={`/transactions/${t.transaction_id}`} className="text-xs text-blue-600 hover:underline mt-1 inline-block">
+                              View →
+                            </Link>
                           </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                      <div className="text-right text-sm text-gray-500">
-                        <div>Date: {formatOnlyDate(d?.debit_date ?? c?.credit_date)}</div>
-                        <div className="mt-2 text-xs">
-                          <Link href={`/transactions/${t.transaction_id}`} className="text-blue-600 hover:underline">
-                            View
+              {/* Income Transactions */}
+              {asset.income_txn.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <SectionHeader count={asset.income_txn.length}>Income Transactions</SectionHeader>
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    {asset.income_txn.map(t => (
+                      <div key={t.id} className="p-4 border border-green-200 bg-green-50/30 rounded-lg hover:bg-green-50 transition-colors">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <Link href={`/accounts/${t.account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                              {t.account.name}
+                            </Link>
+                            <div className="text-xs text-gray-500 mt-1">{get_indian_date_from_date_obj(t.transaction.date)}</div>
+                            {t.transaction.description && <div className="text-xs text-gray-600 mt-2">{t.transaction.description}</div>}
+                          </div>
+                          <div className="text-right ml-4">
+                            <div className="text-lg font-bold text-green-600">+{t.quantity}</div>
+                            <Link href={`/transactions/${t.transaction_id}`} className="text-xs text-blue-600 hover:underline mt-1 inline-block">
+                              View →
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Self Transfers */}
+          {asset.self_transfer_or_refundable_or_refund_txn.filter(t => t.transaction.type === 'self_transfer').length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <SectionHeader count={asset.self_transfer_or_refundable_or_refund_txn.filter(t => t.transaction.type === 'self_transfer').length}>
+                Self Transfers
+              </SectionHeader>
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                {asset.self_transfer_or_refundable_or_refund_txn
+                  .filter(t => t.transaction.type === 'self_transfer')
+                  .map(t => (
+                    <div key={t.id} className="p-4 border border-purple-200 bg-purple-50/30 rounded-lg hover:bg-purple-50 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 text-sm mb-2">
+                            <Link href={`/accounts/${t.from_account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                              {t.from_account.name}
+                            </Link>
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                            <Link href={`/accounts/${t.to_account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                              {t.to_account.name}
+                            </Link>
+                          </div>
+                          <div className="text-xs text-gray-500">{get_indian_date_from_date_obj(t.transaction.date)}</div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="text-lg font-bold text-gray-900">{t.quantity}</div>
+                          <Link href={`/transactions/${t.transaction_id}`} className="text-xs text-blue-600 hover:underline mt-1 inline-block">
+                            View →
                           </Link>
                         </div>
                       </div>
                     </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Refundable and Refund Transactions - Side by Side on Desktop */}
+          {(asset.self_transfer_or_refundable_or_refund_txn.filter(t => t.transaction.type === 'refundable').length > 0 ||
+            asset.self_transfer_or_refundable_or_refund_txn.filter(t => t.transaction.type === 'refund').length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Refundable Transactions */}
+              {asset.self_transfer_or_refundable_or_refund_txn.filter(t => t.transaction.type === 'refundable').length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <SectionHeader count={asset.self_transfer_or_refundable_or_refund_txn.filter(t => t.transaction.type === 'refundable').length}>
+                    Refundable Transactions
+                  </SectionHeader>
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    {asset.self_transfer_or_refundable_or_refund_txn
+                      .filter(t => t.transaction.type === 'refundable')
+                      .map(t => (
+                        <div key={t.id} className="p-4 border border-orange-200 bg-orange-50/30 rounded-lg hover:bg-orange-50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 text-sm mb-2">
+                                <Link href={`/accounts/${t.from_account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                                  {t.from_account.name}
+                                </Link>
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                                <Link href={`/accounts/${t.to_account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                                  {t.to_account.name}
+                                </Link>
+                              </div>
+                              <div className="text-xs text-gray-500">{get_indian_date_from_date_obj(t.transaction.date)}</div>
+                            </div>
+                            <div className="text-right ml-4">
+                              <div className="text-lg font-bold text-gray-900">{t.quantity}</div>
+                              <Link href={`/transactions/${t.transaction_id}`} className="text-xs text-blue-600 hover:underline mt-1 inline-block">
+                                View →
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                   </div>
-                );
-              });
-            })()}
+                </div>
+              )}
+
+              {/* Refund Transactions */}
+              {asset.self_transfer_or_refundable_or_refund_txn.filter(t => t.transaction.type === 'refund').length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <SectionHeader count={asset.self_transfer_or_refundable_or_refund_txn.filter(t => t.transaction.type === 'refund').length}>
+                    Refund Transactions
+                  </SectionHeader>
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    {asset.self_transfer_or_refundable_or_refund_txn
+                      .filter(t => t.transaction.type === 'refund')
+                      .map(t => (
+                        <div key={t.id} className="p-4 border border-teal-200 bg-teal-50/30 rounded-lg hover:bg-teal-50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 text-sm mb-2">
+                                <Link href={`/accounts/${t.from_account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                                  {t.from_account.name}
+                                </Link>
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                                <Link href={`/accounts/${t.to_account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                                  {t.to_account.name}
+                                </Link>
+                              </div>
+                              <div className="text-xs text-gray-500">{get_indian_date_from_date_obj(t.transaction.date)}</div>
+                            </div>
+                            <div className="text-right ml-4">
+                              <div className="text-lg font-bold text-gray-900">{t.quantity}</div>
+                              <Link href={`/transactions/${t.transaction_id}`} className="text-xs text-blue-600 hover:underline mt-1 inline-block">
+                                View →
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Asset Trades - Side by Side on Desktop */}
+        {(asset.asset_trade_debit.length > 0 || asset.asset_trade_credit.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {/* Asset Trades - Debit (Selling this asset) */}
+            {asset.asset_trade_debit.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <SectionHeader count={asset.asset_trade_debit.length}>Asset Trades (Debit - Selling)</SectionHeader>
+                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                  {asset.asset_trade_debit.map(t => (
+                    <div
+                      key={t.id || t.transaction_id}
+                      className="p-5 border border-red-200 bg-red-50/30 rounded-xl hover:bg-red-50 transition-colors"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <Link href={`/accounts/${t.debit_account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                            {t.debit_account.name}
+                          </Link>
+                          <div className="text-xs text-gray-500 mt-1">{get_indian_date_from_date_obj(t.transaction.date)}</div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            Credited {t.credit_quantity}{' '}
+                            <Link href={`/assets/${t.credit_asset_id}`} className="text-blue-600 hover:underline">
+                              {t.credit_asset.name}
+                            </Link>{' '}
+                            in{' '}
+                            <Link href={`/accounts/${t.credit_account_id}`} className="text-blue-600 hover:underline">
+                              {t.credit_account.name}
+                            </Link>
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="text-lg font-bold text-red-600">-{t.debit_quantity}</div>
+                          <Link href={`/transactions/${t.transaction_id}`} className="text-xs text-blue-600 hover:underline mt-1 inline-block">
+                            View →
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Asset Trades - Credit (Buying this asset) */}
+            {asset.asset_trade_credit.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <SectionHeader count={asset.asset_trade_credit.length}>Asset Trades (Credit - Buying)</SectionHeader>
+                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                  {asset.asset_trade_credit.map(t => (
+                    <div
+                      key={t.id || t.transaction_id}
+                      className="p-5 border border-green-200 bg-green-50/30 rounded-xl hover:bg-green-50 transition-colors"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <Link href={`/accounts/${t.credit_account.id}`} className="font-medium text-blue-600 hover:text-blue-700">
+                            {t.credit_account.name}
+                          </Link>
+                          <div className="text-xs text-gray-500 mt-1">{get_indian_date_from_date_obj(t.transaction.date)}</div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            Debited {t.credit_quantity}{' '}
+                            <Link href={`/assets/${t.debit_asset_id}`} className="text-blue-600 hover:underline">
+                              {t.debit_asset.name}
+                            </Link>{' '}
+                            from{' '}
+                            <Link href={`/accounts/${t.debit_account_id}`} className="text-blue-600 hover:underline">
+                              {t.debit_account.name}
+                            </Link>
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="text-lg font-bold text-green-600">+{t.credit_quantity}</div>
+                          <Link href={`/transactions/${t.transaction_id}`} className="text-xs text-blue-600 hover:underline mt-1 inline-block">
+                            View →
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </section>
+        )}
       </div>
     </div>
   );

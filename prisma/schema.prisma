@@ -15,14 +15,13 @@ model asset {
 
   code String?
 
-  opening_balances                                opening_balance[]
-  income_txn                                      income_txn[]
-  expense_txn                                     expense_txn[]
-  self_transfer_or_refundable_or_refund_txn       self_transfer_or_refundable_or_refund_txn[]
-  asset_trade_debit                               asset_trade_txn[]                               @relation("DebitAsset")
-  asset_trade_credit                              asset_trade_txn[]                               @relation("CreditAsset")
-
-  asset_reallocation_between_purpose_buckets_from asset_reallocation_between_purpose_buckets[]
+  opening_balances                           opening_balance[]
+  income_txn                                 income_txn[]
+  expense_txn                                expense_txn[]
+  self_transfer_or_refundable_or_refund_txn  self_transfer_or_refundable_or_refund_txn[]
+  asset_trade_debit                          asset_trade_txn[]                            @relation("DebitAsset")
+  asset_trade_credit                         asset_trade_txn[]                            @relation("CreditAsset")
+  asset_reallocation_between_purpose_buckets asset_reallocation_between_purpose_buckets[]
 }
 
 model account {
@@ -40,16 +39,14 @@ model account {
 }
 
 model opening_balance {
-  id String @id @unique @default(cuid())
+  id       String   @id @unique @default(cuid())
+  date     DateTime
+  quantity Float
 
   account_id String
   account    account @relation(fields: [account_id], references: [id])
-
-  asset_id String
-  asset    asset  @relation(fields: [asset_id], references: [id])
-
-  quantity Float
-  date     DateTime
+  asset_id   String
+  asset      asset   @relation(fields: [asset_id], references: [id])
 
   allocation_to_purpose_buckets allocation_to_purpose_bucket[]
 
@@ -57,10 +54,11 @@ model opening_balance {
 }
 
 model transaction {
-  id          String  @id @unique @default(cuid())
-  description String?
+  id   String   @id @unique @default(cuid())
+  date DateTime
 
-  type transaction_type?
+  description String?
+  type        transaction_type?
 
   income_txn                                income_txn?
   expense_txn                               expense_txn?
@@ -69,8 +67,7 @@ model transaction {
 }
 
 model income_txn {
-  id   String   @id @unique @default(cuid())
-  date DateTime
+  id String @id @unique @default(cuid())
 
   transaction_id String      @unique
   transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
@@ -85,9 +82,25 @@ model income_txn {
   allocation_to_purpose_buckets allocation_to_purpose_bucket[]
 }
 
+model allocation_to_purpose_bucket {
+  id       String @id @unique @default(cuid())
+  quantity Float
+
+  purpose_bucket_id String
+  bucket            purpose_bucket @relation(fields: [purpose_bucket_id], references: [id])
+
+  income_txn_id          String?
+  allocation_thru_income income_txn? @relation(fields: [income_txn_id], references: [id], onDelete: Cascade)
+
+  opening_balance_id              String?
+  allocation_thru_account_opening opening_balance? @relation(fields: [opening_balance_id], references: [id], onDelete: Cascade)
+
+  @@unique([purpose_bucket_id, income_txn_id])
+  @@unique([purpose_bucket_id, opening_balance_id])
+}
+
 model expense_txn {
-  id   String   @id @unique @default(cuid())
-  date DateTime
+  id String @id @unique @default(cuid())
 
   transaction_id String      @unique
   transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
@@ -104,8 +117,7 @@ model expense_txn {
 }
 
 model self_transfer_or_refundable_or_refund_txn {
-  id   String   @id @unique @default(cuid())
-  date DateTime
+  id String @id @unique @default(cuid())
 
   transaction_id String      @unique
   transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
@@ -129,49 +141,18 @@ model asset_trade_txn {
   transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
 
   debit_asset_id   String
-  debit_asset      asset    @relation("DebitAsset", fields: [debit_asset_id], references: [id])
+  debit_asset      asset   @relation("DebitAsset", fields: [debit_asset_id], references: [id])
   debit_account_id String
-  debit_account    account  @relation("DebitAccount", fields: [debit_account_id], references: [id])
+  debit_account    account @relation("DebitAccount", fields: [debit_account_id], references: [id])
   debit_quantity   Float
-  debit_date       DateTime
 
   credit_asset_id   String
-  credit_asset      asset    @relation("CreditAsset", fields: [credit_asset_id], references: [id])
+  credit_asset      asset   @relation("CreditAsset", fields: [credit_asset_id], references: [id])
   credit_account_id String
-  credit_account    account  @relation("CreditAccount", fields: [credit_account_id], references: [id])
+  credit_account    account @relation("CreditAccount", fields: [credit_account_id], references: [id])
   credit_quantity   Float
-  credit_date       DateTime
 
   asset_replacement_in_purpose_buckets asset_replacement_in_purpose_bucket[]
-}
-
-model purpose_bucket {
-  id   String  @id @unique @default(cuid())
-  name String  @unique
-
-  allocation_to_purpose_bucket allocation_to_purpose_bucket[]
-  expense_txn                  expense_txn[]
-
-  asset_replacement_in_purpose_buckets asset_replacement_in_purpose_bucket[]
-  asset_reallocation_between_purpose_buckets_from asset_reallocation_between_purpose_buckets[] @relation("FromPurposeBucket")
-  asset_reallocation_between_purpose_buckets_to   asset_reallocation_between_purpose_buckets[] @relation("ToPurposeBucket")
-}
-
-model allocation_to_purpose_bucket {
-  id       String @id @unique @default(cuid())
-  quantity Float
-
-  purpose_bucket_id String
-  bucket            purpose_bucket @relation(fields: [purpose_bucket_id], references: [id])
-
-  income_txn_id          String?
-  allocation_thru_income income_txn? @relation(fields: [income_txn_id], references: [id], onDelete: Cascade)
-
-  opening_balance_id              String?
-  allocation_thru_account_opening opening_balance? @relation(fields: [opening_balance_id], references: [id], onDelete: Cascade)
-
-  @@unique([purpose_bucket_id, income_txn_id])
-  @@unique([purpose_bucket_id, opening_balance_id])
 }
 
 model asset_replacement_in_purpose_bucket {
@@ -187,8 +168,20 @@ model asset_replacement_in_purpose_bucket {
   credit_quantity Float
 }
 
+model purpose_bucket {
+  id   String @id @unique @default(cuid())
+  name String @unique
+
+  allocation_to_purpose_buckets                    allocation_to_purpose_bucket[]
+  expense_txn                                     expense_txn[]
+  asset_replacement_in_purpose_buckets            asset_replacement_in_purpose_bucket[]
+  asset_reallocation_between_purpose_buckets_from asset_reallocation_between_purpose_buckets[] @relation("FromPurposeBucket")
+  asset_reallocation_between_purpose_buckets_to   asset_reallocation_between_purpose_buckets[] @relation("ToPurposeBucket")
+}
+
 model asset_reallocation_between_purpose_buckets {
-  id String @id @unique @default(cuid())
+  id   String   @id @unique @default(cuid())
+  date DateTime
 
   from_purpose_bucket_id String
   from_purpose_bucket    purpose_bucket @relation("FromPurposeBucket", fields: [from_purpose_bucket_id], references: [id])
@@ -200,7 +193,6 @@ model asset_reallocation_between_purpose_buckets {
   asset    asset  @relation(fields: [asset_id], references: [id])
 
   quantity Float
-  date     DateTime
 }
 
 enum transaction_type {

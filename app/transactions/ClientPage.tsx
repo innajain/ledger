@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import React, { useMemo, useState } from 'react';
-import { formatIndianCurrency } from '@/utils/format_currency';
-import { toDecimal } from '@/utils/decimal';
+import { format_indian_currency } from '@/utils/format_currency';
+import {Decimal} from 'decimal.js';
 
 type TxnItem = { id: string; type: string | null; description: string; asset_name?: string | null; account_name?: string | null; quantity?: number | null; value?: number | null; date?: string | null; purpose_names?: string | null };
 
-export default function ClientPage({ initial_data }: { initial_data: TxnItem[] }) {
+export default function ClientPage({ transactions }: { transactions: TxnItem[] }) {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [fromDate, setFromDate] = useState<string>('');
@@ -17,7 +17,7 @@ export default function ClientPage({ initial_data }: { initial_data: TxnItem[] }
   const [textQuery, setTextQuery] = useState<string>('');
 
   const filtered = useMemo(() => {
-    return initial_data.filter(tx => {
+    return transactions.filter(tx => {
       // type filter
       if (typeFilter !== 'all' && (tx.type ?? '') !== typeFilter) return false;
 
@@ -36,7 +36,7 @@ export default function ClientPage({ initial_data }: { initial_data: TxnItem[] }
       }
 
       // amount range — prefer monetary value, fall back to quantity
-      const numericValDecimal = toDecimal(tx.value ?? tx.quantity ?? 0);
+      const numericValDecimal = new Decimal(tx.value ?? tx.quantity ?? 0);
       const numericVal = Number(numericValDecimal.toFixed(8));
       if (amountMin) {
         const minN = Number(amountMin);
@@ -56,13 +56,13 @@ export default function ClientPage({ initial_data }: { initial_data: TxnItem[] }
 
       return true;
     });
-  }, [initial_data, typeFilter, fromDate, toDate, amountMin, amountMax, textQuery]);
+  }, [transactions, typeFilter, fromDate, toDate, amountMin, amountMax, textQuery]);
 
   const types = useMemo(() => {
     const s = new Set<string>();
-    initial_data.forEach(d => { if (d.type) s.add(d.type); });
+    transactions.forEach(d => { if (d.type) s.add(d.type); });
     return Array.from(s);
-  }, [initial_data]);
+  }, [transactions]);
 
   function clearFilters() {
     setTypeFilter('all');
@@ -130,7 +130,7 @@ export default function ClientPage({ initial_data }: { initial_data: TxnItem[] }
 
             <div className="sm:col-span-2 flex gap-2 justify-end">
               <button type="button" onClick={clearFilters} className="px-3 py-1 border rounded">Clear</button>
-              <div className="px-3 py-1 text-sm text-gray-600">Showing {filtered.length} of {initial_data.length}</div>
+              <div className="px-3 py-1 text-sm text-gray-600">Showing {filtered.length} of {transactions.length}</div>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { prisma } from '@/prisma';
 import { get_date_obj_from_indian_date } from '@/utils/date';
-import { toDecimal } from '@/utils/decimal';
+import { Decimal } from 'decimal.js';
 
 export async function update_income_transaction(
   id: string,
@@ -33,12 +33,12 @@ export async function update_income_transaction(
         where: { id },
         data: {
           description,
+          date: parsedDate,
           income_txn: {
             update: {
               asset_id,
               account_id,
               quantity,
-              date: parsedDate,
               allocation_to_purpose_buckets: {
                 createMany: { data: allocation_to_purpose_buckets_creates },
                 deleteMany: { id: { in: allocation_to_purpose_buckets_deletes.map(d => d.id) } },
@@ -53,8 +53,9 @@ export async function update_income_transaction(
         include: { income_txn: { include: { allocation_to_purpose_buckets: true } } },
       });
 
-      const allocSum = txn.income_txn!.allocation_to_purpose_buckets.reduce((s, curr) => s.plus(toDecimal(curr.quantity)), toDecimal(0));
-      if (!toDecimal(txn.income_txn!.quantity).equals(allocSum)) throw new Error('Sum of allocation to purpose buckets must equal the income quantity');
+      const allocSum = txn.income_txn!.allocation_to_purpose_buckets.reduce((s, curr) => s.plus(new Decimal(curr.quantity)), new Decimal(0));
+      if (!new Decimal(txn.income_txn!.quantity).equals(allocSum))
+        throw new Error('Sum of allocation to purpose buckets must equal the income quantity');
 
       return txn;
     })
@@ -87,7 +88,8 @@ export async function update_expense_transaction(
       where: { id },
       data: {
         description,
-        expense_txn: { update: { asset_id, account_id, quantity, purpose_bucket_id, date: parsedDate } },
+        date: parsedDate,
+        expense_txn: { update: { asset_id, account_id, quantity, purpose_bucket_id } },
       },
     })
     .catch(err => {
@@ -122,8 +124,9 @@ export async function update_self_transfer_or_refundable_or_refund_transaction(
       data: {
         type,
         description,
+        date: parsedDate,
         self_transfer_or_refundable_or_refund_txn: {
-          update: { asset_id, from_account_id, to_account_id, quantity, date: parsedDate },
+          update: { asset_id, from_account_id, to_account_id, quantity },
         },
       },
     })
@@ -139,24 +142,21 @@ export async function update_asset_trade_transaction(
     debit_asset_id,
     debit_account_id,
     debit_quantity,
-    debit_date,
     credit_asset_id,
     credit_account_id,
     credit_quantity,
-    credit_date,
     asset_replacement_in_purpose_buckets_creates,
     asset_replacement_in_purpose_buckets_deletes,
     asset_replacement_in_purpose_buckets_updates,
+    date,
   }: {
     description?: string | undefined | null;
     debit_asset_id?: string | undefined;
     debit_account_id?: string | undefined;
     debit_quantity?: number | undefined;
-    debit_date?: string | undefined;
     credit_asset_id?: string | undefined;
     credit_account_id?: string | undefined;
     credit_quantity?: number | undefined;
-    credit_date?: string | undefined;
     asset_replacement_in_purpose_buckets_creates: { purpose_bucket_id: string; debit_quantity: number; credit_quantity: number }[];
     asset_replacement_in_purpose_buckets_deletes: { id: string }[];
     asset_replacement_in_purpose_buckets_updates: {
@@ -165,26 +165,25 @@ export async function update_asset_trade_transaction(
       debit_quantity?: number | undefined;
       credit_quantity?: number | undefined;
     }[];
+    date?: string | undefined;
   }
 ) {
-  const parsedDebitDate = debit_date && get_date_obj_from_indian_date(debit_date);
-  const parsedCreditDate = credit_date && get_date_obj_from_indian_date(credit_date);
+  const parsedDate = date && get_date_obj_from_indian_date(date);
   return prisma
     .$transaction(async tx => {
       const txn = await tx.transaction.update({
         where: { id },
         data: {
           description,
+          date: parsedDate,
           asset_trade_txn: {
             update: {
               debit_asset_id,
               debit_account_id,
               debit_quantity,
-              debit_date: parsedDebitDate,
               credit_asset_id,
               credit_account_id,
               credit_quantity,
-              credit_date: parsedCreditDate,
               asset_replacement_in_purpose_buckets: {
                 createMany: { data: asset_replacement_in_purpose_buckets_creates },
                 deleteMany: { id: { in: asset_replacement_in_purpose_buckets_deletes.map(d => d.id) } },
@@ -205,16 +204,16 @@ export async function update_asset_trade_transaction(
 
       const total_debit_credit_in_buckets = txn.asset_trade_txn!.asset_replacement_in_purpose_buckets.reduce(
         (acc, curr) => {
-          acc.debit = acc.debit.plus(toDecimal(curr.debit_quantity));
-          acc.credit = acc.credit.plus(toDecimal(curr.credit_quantity));
+          acc.debit = acc.debit.plus(new Decimal(curr.debit_quantity));
+          acc.credit = acc.credit.plus(new Decimal(curr.credit_quantity));
           return acc;
         },
-        { debit: toDecimal(0), credit: toDecimal(0) }
+        { debit: new Decimal(0), credit: new Decimal(0) }
       );
 
-      if (!toDecimal(txn.asset_trade_txn!.debit_quantity).equals(total_debit_credit_in_buckets.debit))
+      if (!new Decimal(txn.asset_trade_txn!.debit_quantity).equals(total_debit_credit_in_buckets.debit))
         throw new Error('Sum of debit in purpose buckets must equal the debit quantity');
-      if (!toDecimal(txn.asset_trade_txn!.credit_quantity).equals(total_debit_credit_in_buckets.credit))
+      if (!new Decimal(txn.asset_trade_txn!.credit_quantity).equals(total_debit_credit_in_buckets.credit))
         throw new Error('Sum of credit in purpose buckets must equal the credit quantity');
     })
     .catch(err => {

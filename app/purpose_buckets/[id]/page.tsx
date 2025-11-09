@@ -1,7 +1,8 @@
 import { prisma } from '@/prisma';
 import { get_price_for_asset } from '@/utils/price_fetcher';
-import { toDecimal } from '@/utils/decimal';
+import { Decimal } from 'decimal.js';
 import ClientPage from './ClientPage';
+import { calc_asset_balances_in_bucket, calc_asset_values_in_buckets } from '../page';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -9,88 +10,32 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const bucket = await prisma.purpose_bucket.findUnique({
     where: { id },
     include: {
-      allocation_to_purpose_bucket: { include: { allocation_thru_income: { include: { account: true, asset: true } }, allocation_thru_account_opening: { include: { account: true, asset: true } } } },
-      expense_txn: { include: { account: true, asset: true } },
-      asset_replacement_in_purpose_buckets: {
+      allocation_to_purpose_buckets: {
         include: {
-          asset_trade_txn: {
-            include: { debit_asset: true, credit_asset: true, debit_account: true, credit_account: true },
-          },
+          allocation_thru_account_opening: { include: { asset: true, account: true } },
+          allocation_thru_income: { include: { asset: true, transaction: true } },
         },
       },
+      expense_txn: { include: { account: true, asset: true, transaction: true } },
       asset_reallocation_between_purpose_buckets_from: { include: { asset: true, to_purpose_bucket: true } },
       asset_reallocation_between_purpose_buckets_to: { include: { asset: true, from_purpose_bucket: true } },
+      asset_replacement_in_purpose_buckets: {
+        include: { asset_trade_txn: { include: { debit_asset: true, credit_asset: true, transaction: true } } },
+      },
     },
   });
 
   if (!bucket) return <div className="p-6">Purpose bucket not found</div>;
 
-  // compute current asset balances for this bucket
-  const assetMap: Record<string, { id: string; name: string; type?: any; code?: string | null; balance: number }> = {};
+  const balances = calc_asset_balances_in_bucket({ bucket });
 
-  // allocations into this bucket
-  (bucket.allocation_to_purpose_bucket || []).forEach(a => {
-    const srcIncome = (a as any).allocation_thru_income;
-    const srcOpening = (a as any).allocation_thru_account_opening;
-    const asset = srcIncome?.asset || srcOpening?.asset;
-    if (!asset) return;
-    if (!assetMap[asset.id]) assetMap[asset.id] = { id: asset.id, name: asset.name, type: (asset as any).type, code: (asset as any).code ?? null, balance: 0 };
-    assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance).plus(toDecimal(a.quantity ?? 0)).toNumber();
-  });
-
-  // reallocations moved into this bucket
-  (bucket.asset_reallocation_between_purpose_buckets_to || []).forEach(r => {
-    const asset = (r as any).asset;
-    if (!asset) return;
-    if (!assetMap[asset.id]) assetMap[asset.id] = { id: asset.id, name: asset.name, type: (asset as any).type, code: (asset as any).code ?? null, balance: 0 };
-    assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance).plus(toDecimal((r as any).quantity ?? 0)).toNumber();
-  });
-
-  // reallocations moved out of this bucket
-  (bucket.asset_reallocation_between_purpose_buckets_from || []).forEach(r => {
-    const asset = (r as any).asset;
-    if (!asset) return;
-    if (!assetMap[asset.id]) assetMap[asset.id] = { id: asset.id, name: asset.name, type: (asset as any).type, code: (asset as any).code ?? null, balance: 0 };
-    assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance).minus(toDecimal((r as any).quantity ?? 0)).toNumber();
-  });
-
-  // replacements: treat as debit (removed) and credit (added)
-  (bucket.asset_replacement_in_purpose_buckets || []).forEach(r => {
-    const txn = (r as any).asset_trade_txn;
-  const debitQty = toDecimal((r as any).debit_quantity ?? 0);
-  const creditQty = toDecimal((r as any).credit_quantity ?? 0);
-    if (txn?.debit_asset) {
-      const a = txn.debit_asset;
-      if (!assetMap[a.id]) assetMap[a.id] = { id: a.id, name: a.name, type: (a as any).type, code: (a as any).code ?? null, balance: 0 };
-      assetMap[a.id].balance = toDecimal(assetMap[a.id].balance).minus(debitQty).toNumber();
-    }
-    if (txn?.credit_asset) {
-      const a = txn.credit_asset;
-      if (!assetMap[a.id]) assetMap[a.id] = { id: a.id, name: a.name, type: (a as any).type, code: (a as any).code ?? null, balance: 0 };
-      assetMap[a.id].balance = toDecimal(assetMap[a.id].balance).plus(creditQty).toNumber();
-    }
-  });
-
-  // expenses reduce balances for assets in this bucket
-  (bucket.expense_txn || []).forEach(e => {
-    const asset = (e as any).asset;
-    if (!asset) return;
-    if (!assetMap[asset.id]) assetMap[asset.id] = { id: asset.id, name: asset.name, type: (asset as any).type, code: (asset as any).code ?? null, balance: 0 };
-    assetMap[asset.id].balance = toDecimal(assetMap[asset.id].balance).minus(toDecimal(e.quantity ?? 0)).toNumber();
-  });
-
-  // fetch prices for assets (best-effort)
-  const assetEntries = Object.values(assetMap);
-  const pricePromises = assetEntries.map(async a => {
-    try {
-      const p = await get_price_for_asset(a.type, a.code ?? null);
-      return { ...a, price: p?.price ?? null };
-    } catch (e) {
-      return { ...a, price: null };
-    }
-  });
-
-  const current_assets = await Promise.all(pricePromises);
-
-  return <ClientPage initial_data={{ ...bucket, current_assets }} />;
+  const bucket_with_asset_balances_values = (await calc_asset_values_in_buckets([{ ...bucket, asset_balances: balances }]))[0];
+  const passable_data = {
+    ...bucket_with_asset_balances_values,
+    asset_balances: bucket_with_asset_balances_values.asset_balances.map(ab => ({
+      ...ab,
+      balance: ab.balance.toNumber(),
+    })),
+  };
+  return <ClientPage bucket_with_asset_balances_values={passable_data as any} />;
 }

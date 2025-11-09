@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,6 +8,7 @@ import {
   create_self_transfer_or_refundable_or_refund_transaction,
   create_asset_trade_transaction,
 } from '@/server actions/transaction/create';
+import { get_indian_date_from_date_obj } from '@/utils/date';
 
 type AssetRef = { id: string; name: string };
 type AccountRef = { id: string; name: string };
@@ -33,14 +34,14 @@ export default function ClientPage({
   const [incomeAsset, setIncomeAsset] = useState(assets[0]?.id || '');
   const [incomeAccount, setIncomeAccount] = useState(accounts[0]?.id || '');
   const [incomeQty, setIncomeQty] = useState<number>(0);
-  const [incomeDate, setIncomeDate] = useState('');
+  const [incomeDate, setIncomeDate] = useState(get_indian_date_from_date_obj(new Date()));
   const [incomeAllocations, setIncomeAllocations] = useState<{ purpose_bucket_id: string; quantity: number }[]>([]);
 
   // expense fields
   const [expenseAsset, setExpenseAsset] = useState(assets[0]?.id || '');
   const [expenseAccount, setExpenseAccount] = useState(accounts[0]?.id || '');
   const [expenseQty, setExpenseQty] = useState<number>(0);
-  const [expenseDate, setExpenseDate] = useState('');
+  const [expenseDate, setExpenseDate] = useState(get_indian_date_from_date_obj(new Date()));
   const [expenseBucket, setExpenseBucket] = useState(purpose_buckets[0]?.id || '');
 
   // transfer/refund
@@ -48,17 +49,16 @@ export default function ClientPage({
   const [fromAccount, setFromAccount] = useState(accounts[0]?.id || '');
   const [toAccount, setToAccount] = useState(accounts[0]?.id || '');
   const [txnQuantity, setTxnQuantity] = useState<number>(0);
-  const [txnDate, setTxnDate] = useState('');
+  const [txnDate, setTxnDate] = useState(get_indian_date_from_date_obj(new Date()));
 
   // asset trade
   const [debitAsset, setDebitAsset] = useState(assets[0]?.id || '');
   const [debitAccount, setDebitAccount] = useState(accounts[0]?.id || '');
   const [debitQty, setDebitQty] = useState<number>(0);
-  const [debitDate, setDebitDate] = useState('');
   const [creditAsset, setCreditAsset] = useState(assets[0]?.id || '');
   const [creditAccount, setCreditAccount] = useState(accounts[0]?.id || '');
   const [creditQty, setCreditQty] = useState<number>(0);
-  const [creditDate, setCreditDate] = useState('');
+  const [tradeDate, setTradeDate] = useState(get_indian_date_from_date_obj(new Date()));
   const [replacements, setReplacements] = useState<{ purpose_bucket_id: string; debit_quantity: number; credit_quantity: number }[]>([]);
 
   function resetMessages() {
@@ -74,13 +74,45 @@ export default function ClientPage({
     try {
       let res: any = null;
       if (type === 'income') {
-        res = await create_income_transaction({ description: description || undefined, date: incomeDate || undefined, asset_id: incomeAsset, account_id: incomeAccount, quantity: incomeQty, allocation_to_purpose_buckets: incomeAllocations });
+        res = await create_income_transaction({
+          description: description || undefined,
+          date: incomeDate,
+          asset_id: incomeAsset,
+          account_id: incomeAccount,
+          quantity: incomeQty,
+          allocation_to_purpose_buckets: incomeAllocations,
+        });
       } else if (type === 'expense') {
-        res = await create_expense_transaction({ description: description || undefined, date: expenseDate, asset_id: expenseAsset, account_id: expenseAccount, quantity: expenseQty, purpose_bucket_id: expenseBucket });
+        res = await create_expense_transaction({
+          description: description || undefined,
+          date: expenseDate,
+          asset_id: expenseAsset,
+          account_id: expenseAccount,
+          quantity: expenseQty,
+          purpose_bucket_id: expenseBucket,
+        });
       } else if (type === 'self_transfer' || type === 'refundable' || type === 'refund') {
-        res = await create_self_transfer_or_refundable_or_refund_transaction({ type: type as any, description: description || undefined, date: txnDate, asset_id: txnAsset, from_account_id: fromAccount, to_account_id: toAccount, quantity: txnQuantity });
+        res = await create_self_transfer_or_refundable_or_refund_transaction({
+          type: type as any,
+          description: description || undefined,
+          date: txnDate,
+          asset_id: txnAsset,
+          from_account_id: fromAccount,
+          to_account_id: toAccount,
+          quantity: txnQuantity,
+        });
       } else if (type === 'asset_trade') {
-        res = await create_asset_trade_transaction({ description: description || undefined, debit_asset_id: debitAsset, debit_account_id: debitAccount, debit_quantity: debitQty, debit_date: debitDate, credit_asset_id: creditAsset, credit_account_id: creditAccount, credit_quantity: creditQty, credit_date: creditDate, asset_replacement_in_purpose_buckets: replacements });
+        res = await create_asset_trade_transaction({
+          description: description || undefined,
+          debit_asset_id: debitAsset,
+          debit_account_id: debitAccount,
+          debit_quantity: debitQty,
+          credit_asset_id: creditAsset,
+          credit_account_id: creditAccount,
+          credit_quantity: creditQty,
+          date: tradeDate,
+          asset_replacement_in_purpose_buckets: replacements,
+        });
       }
 
       const id = res?.id;
@@ -124,12 +156,25 @@ export default function ClientPage({
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-2">
                 <select value={incomeAsset} onChange={e => setIncomeAsset(e.target.value)} className="border rounded px-2 py-1">
-                  {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {assets.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
                 <select value={incomeAccount} onChange={e => setIncomeAccount(e.target.value)} className="border rounded px-2 py-1">
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
-                <input type="number" value={String(incomeQty)} onChange={e => setIncomeQty(Number(e.target.value))} className="border rounded px-2 py-1" />
+                <input
+                  type="number"
+                  value={String(incomeQty)}
+                  onChange={e => setIncomeQty(Number(e.target.value))}
+                  className="border rounded px-2 py-1"
+                />
               </div>
               <div>
                 <label className="text-sm">Date (dd-MM-yyyy)</label>
@@ -141,13 +186,32 @@ export default function ClientPage({
                 <div className="space-y-2 mt-2">
                   {incomeAllocations.map((apb, i) => (
                     <div key={i} className="flex gap-2">
-                      <select value={apb.purpose_bucket_id} onChange={e => setIncomeAllocations(s => s.map((x, ii) => ii === i ? { ...x, purpose_bucket_id: e.target.value } : x))} className="border rounded px-2 py-1">
-                        {purpose_buckets.map(pb => <option key={pb.id} value={pb.id}>{pb.name}</option>)}
+                      <select
+                        value={apb.purpose_bucket_id}
+                        onChange={e => setIncomeAllocations(s => s.map((x, ii) => (ii === i ? { ...x, purpose_bucket_id: e.target.value } : x)))}
+                        className="border rounded px-2 py-1"
+                      >
+                        {purpose_buckets.map(pb => (
+                          <option key={pb.id} value={pb.id}>
+                            {pb.name}
+                          </option>
+                        ))}
                       </select>
-                      <input type="number" value={String(apb.quantity)} onChange={e => setIncomeAllocations(s => s.map((x, ii) => ii === i ? { ...x, quantity: Number(e.target.value) } : x))} className="border rounded px-2 py-1" />
+                      <input
+                        type="number"
+                        value={String(apb.quantity)}
+                        onChange={e => setIncomeAllocations(s => s.map((x, ii) => (ii === i ? { ...x, quantity: Number(e.target.value) } : x)))}
+                        className="border rounded px-2 py-1"
+                      />
                     </div>
                   ))}
-                  <button type="button" onClick={() => setIncomeAllocations(s => [...s, { purpose_bucket_id: purpose_buckets[0]?.id || '', quantity: 0 }])} className="text-sm px-2 py-1 bg-gray-100 rounded mt-2">Add Allocation</button>
+                  <button
+                    type="button"
+                    onClick={() => setIncomeAllocations(s => [...s, { purpose_bucket_id: purpose_buckets[0]?.id || '', quantity: 0 }])}
+                    className="text-sm px-2 py-1 bg-gray-100 rounded mt-2"
+                  >
+                    Add Allocation
+                  </button>
                 </div>
               </div>
             </div>
@@ -157,16 +221,33 @@ export default function ClientPage({
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-2">
                 <select value={expenseAsset} onChange={e => setExpenseAsset(e.target.value)} className="border rounded px-2 py-1">
-                  {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {assets.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
                 <select value={expenseAccount} onChange={e => setExpenseAccount(e.target.value)} className="border rounded px-2 py-1">
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
-                <input type="number" value={String(expenseQty)} onChange={e => setExpenseQty(Number(e.target.value))} className="border rounded px-2 py-1" />
+                <input
+                  type="number"
+                  value={String(expenseQty)}
+                  onChange={e => setExpenseQty(Number(e.target.value))}
+                  className="border rounded px-2 py-1"
+                />
               </div>
               <div>
                 <select value={expenseBucket} onChange={e => setExpenseBucket(e.target.value)} className="border rounded px-2 py-1">
-                  {purpose_buckets.map(pb => <option key={pb.id} value={pb.id}>{pb.name}</option>)}
+                  {purpose_buckets.map(pb => (
+                    <option key={pb.id} value={pb.id}>
+                      {pb.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -180,17 +261,34 @@ export default function ClientPage({
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-2">
                 <select value={txnAsset} onChange={e => setTxnAsset(e.target.value)} className="border rounded px-2 py-1">
-                  {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {assets.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
                 <select value={fromAccount} onChange={e => setFromAccount(e.target.value)} className="border rounded px-2 py-1">
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
                 <select value={toAccount} onChange={e => setToAccount(e.target.value)} className="border rounded px-2 py-1">
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input type="number" value={String(txnQuantity)} onChange={e => setTxnQuantity(Number(e.target.value))} className="border rounded px-2 py-1" />
+                <input
+                  type="number"
+                  value={String(txnQuantity)}
+                  onChange={e => setTxnQuantity(Number(e.target.value))}
+                  className="border rounded px-2 py-1"
+                />
                 <input placeholder="dd-MM-yyyy" value={txnDate} onChange={e => setTxnDate(e.target.value)} className="border rounded px-2 py-1" />
               </div>
             </div>
@@ -200,24 +298,49 @@ export default function ClientPage({
             <div className="space-y-2">
               <div className="grid grid-cols-4 gap-2">
                 <select value={debitAsset} onChange={e => setDebitAsset(e.target.value)} className="border rounded px-2 py-1">
-                  {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {assets.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
                 <select value={debitAccount} onChange={e => setDebitAccount(e.target.value)} className="border rounded px-2 py-1">
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
-                <input type="number" value={String(debitQty)} onChange={e => setDebitQty(Number(e.target.value))} className="border rounded px-2 py-1" />
-                <input placeholder="dd-MM-yyyy" value={debitDate} onChange={e => setDebitDate(e.target.value)} className="border rounded px-2 py-1" />
+                <input
+                  type="number"
+                  value={String(debitQty)}
+                  onChange={e => setDebitQty(Number(e.target.value))}
+                  className="border rounded px-2 py-1"
+                />
               </div>
 
               <div className="grid grid-cols-4 gap-2">
                 <select value={creditAsset} onChange={e => setCreditAsset(e.target.value)} className="border rounded px-2 py-1">
-                  {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {assets.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
                 <select value={creditAccount} onChange={e => setCreditAccount(e.target.value)} className="border rounded px-2 py-1">
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </select>
-                <input type="number" value={String(creditQty)} onChange={e => setCreditQty(Number(e.target.value))} className="border rounded px-2 py-1" />
-                <input placeholder="dd-MM-yyyy" value={creditDate} onChange={e => setCreditDate(e.target.value)} className="border rounded px-2 py-1" />
+                <input
+                  type="number"
+                  value={String(creditQty)}
+                  onChange={e => setCreditQty(Number(e.target.value))}
+                  className="border rounded px-2 py-1"
+                />
+                <input placeholder="dd-MM-yyyy" value={tradeDate} onChange={e => setTradeDate(e.target.value)} className="border rounded px-2 py-1" />
               </div>
 
               <div>
@@ -225,14 +348,40 @@ export default function ClientPage({
                 <div className="space-y-2 mt-2">
                   {replacements.map((r, i) => (
                     <div key={i} className="flex gap-2">
-                      <select value={r.purpose_bucket_id} onChange={e => setReplacements(s => s.map((x, ii) => ii === i ? { ...x, purpose_bucket_id: e.target.value } : x))} className="border rounded px-2 py-1">
-                        {purpose_buckets.map(pb => <option key={pb.id} value={pb.id}>{pb.name}</option>)}
+                      <select
+                        value={r.purpose_bucket_id}
+                        onChange={e => setReplacements(s => s.map((x, ii) => (ii === i ? { ...x, purpose_bucket_id: e.target.value } : x)))}
+                        className="border rounded px-2 py-1"
+                      >
+                        {purpose_buckets.map(pb => (
+                          <option key={pb.id} value={pb.id}>
+                            {pb.name}
+                          </option>
+                        ))}
                       </select>
-                      <input type="number" value={String(r.debit_quantity)} onChange={e => setReplacements(s => s.map((x, ii) => ii === i ? { ...x, debit_quantity: Number(e.target.value) } : x))} className="border rounded px-2 py-1" />
-                      <input type="number" value={String(r.credit_quantity)} onChange={e => setReplacements(s => s.map((x, ii) => ii === i ? { ...x, credit_quantity: Number(e.target.value) } : x))} className="border rounded px-2 py-1" />
+                      <input
+                        type="number"
+                        value={String(r.debit_quantity)}
+                        onChange={e => setReplacements(s => s.map((x, ii) => (ii === i ? { ...x, debit_quantity: Number(e.target.value) } : x)))}
+                        className="border rounded px-2 py-1"
+                      />
+                      <input
+                        type="number"
+                        value={String(r.credit_quantity)}
+                        onChange={e => setReplacements(s => s.map((x, ii) => (ii === i ? { ...x, credit_quantity: Number(e.target.value) } : x)))}
+                        className="border rounded px-2 py-1"
+                      />
                     </div>
                   ))}
-                  <button type="button" onClick={() => setReplacements(s => [...s, { purpose_bucket_id: purpose_buckets[0]?.id || '', debit_quantity: 0, credit_quantity: 0 }])} className="text-sm px-2 py-1 bg-gray-100 rounded mt-2">Add replacement</button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReplacements(s => [...s, { purpose_bucket_id: purpose_buckets[0]?.id || '', debit_quantity: 0, credit_quantity: 0 }])
+                    }
+                    className="text-sm px-2 py-1 bg-gray-100 rounded mt-2"
+                  >
+                    Add replacement
+                  </button>
                 </div>
               </div>
             </div>
@@ -242,8 +391,12 @@ export default function ClientPage({
           {success && <div className="text-green-600">{success}</div>}
 
           <div className="flex gap-2">
-            <button type="submit" className="px-4 py-2 bg-rose-500 text-white rounded">Create</button>
-            <a href="/transactions" className="px-4 py-2 border rounded">Cancel</a>
+            <button type="submit" className="px-4 py-2 bg-rose-500 text-white rounded">
+              Create
+            </button>
+            <a href="/transactions" className="px-4 py-2 border rounded">
+              Cancel
+            </a>
           </div>
         </form>
       </div>

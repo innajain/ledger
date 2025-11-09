@@ -6,7 +6,7 @@ export default async function Page() {
   const txns = await prisma.transaction.findMany({
     orderBy: { id: 'desc' },
     include: {
-  income_txn: { include: { allocation_to_purpose_buckets: { include: { bucket: true } } } },
+      income_txn: { include: { allocation_to_purpose_buckets: { include: { bucket: true } } } },
       expense_txn: { include: { purpose_bucket: true } },
       self_transfer_or_refundable_or_refund_txn: true,
       asset_trade_txn: { include: { asset_replacement_in_purpose_buckets: { include: { purpose_bucket: true } } } },
@@ -58,8 +58,10 @@ export default async function Page() {
   const summarized = txns.map(t => {
     const purposeNames: string[] = [];
     if (t.expense_txn?.purpose_bucket) purposeNames.push(t.expense_txn.purpose_bucket.name);
-    if (t.income_txn?.allocation_to_purpose_buckets) purposeNames.push(...t.income_txn.allocation_to_purpose_buckets.map(a => a.bucket?.name).filter(Boolean));
-    if (t.asset_trade_txn?.asset_replacement_in_purpose_buckets) purposeNames.push(...t.asset_trade_txn.asset_replacement_in_purpose_buckets.map(r => r.purpose_bucket?.name).filter(Boolean));
+    if (t.income_txn?.allocation_to_purpose_buckets)
+      purposeNames.push(...t.income_txn.allocation_to_purpose_buckets.map(a => a.bucket?.name).filter(Boolean));
+    if (t.asset_trade_txn?.asset_replacement_in_purpose_buckets)
+      purposeNames.push(...t.asset_trade_txn.asset_replacement_in_purpose_buckets.map(r => r.purpose_bucket?.name).filter(Boolean));
     let asset_name: string | null = null;
     let account_name: string | null = null;
     let quantity: number | null = null;
@@ -99,11 +101,7 @@ export default async function Page() {
     }
 
     // pick a date from the concrete txn where available
-    let date: string | null = null;
-    if (t.income_txn) date = t.income_txn.date.toISOString();
-    else if (t.expense_txn) date = t.expense_txn.date.toISOString();
-    else if (t.self_transfer_or_refundable_or_refund_txn) date = t.self_transfer_or_refundable_or_refund_txn.date.toISOString();
-    else if (t.asset_trade_txn) date = t.asset_trade_txn.debit_date.toISOString();
+    let date: string = t.date.toISOString();
 
     return {
       id: t.id,
@@ -118,5 +116,5 @@ export default async function Page() {
     };
   });
 
-  return <ClientPage initial_data={summarized} />;
+  return <ClientPage transactions={summarized} />;
 }
