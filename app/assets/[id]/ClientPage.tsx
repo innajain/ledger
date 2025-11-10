@@ -37,6 +37,8 @@ export function ClientPage({
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
+  const filtered_account_entries = account_entries.filter(acc => new Decimal(acc.balance).gt(0));
+
   async function handle_delete() {
     if (!confirm('Delete this asset? This cannot be undone.')) return;
     setDeleting(true);
@@ -125,19 +127,30 @@ export function ClientPage({
         </div>
 
         {/* Current Balances */}
-        {account_entries.length > 0 && (
+        {filtered_account_entries.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-            <SectionHeader count={account_entries.length}>Current Holdings</SectionHeader>
+            <SectionHeader count={filtered_account_entries.length}>Current Holdings</SectionHeader>
 
             {price_data && total_value > 0 && (
               <div className="mb-6 p-4 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl border border-violet-100">
-                <div className="text-sm text-gray-600 mb-1">Total Portfolio Value</div>
-                <div className="text-3xl font-bold text-gray-900">{format_indian_currency(total_value)}</div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Portfolio Value</div>
+                    <div className="text-3xl font-bold text-gray-900 mt-1">{format_indian_currency(total_value)}</div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Balance</div>
+                    <div className="text-lg font-semibold text-gray-900">
+                      {balance !== null && balance !== undefined ? format_indian_currency(balance) : '—'}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
-              {account_entries.map(account => (
+              {filtered_account_entries.map(account => (
                 <div
                   key={account.id}
                   className="group p-5 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl hover:shadow-md transition-all"

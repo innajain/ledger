@@ -7,6 +7,7 @@ import { delete_account } from '@/server actions/account/delete';
 import { get_indian_date_from_date_obj } from '@/utils/date';
 import { format_indian_currency } from '@/utils/format_currency';
 import { asset, Prisma } from '@/generated/prisma/wasm';
+import { Decimal } from 'decimal.js';
 
 type AccountView = Prisma.accountGetPayload<{
   include: {
@@ -28,7 +29,7 @@ export function ClientPage({ account }: { account: AccountView }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
-  const currentAssets = acc.assets_with_balance_price_value.filter(a => a.balance > 0);
+  const currentAssets = acc.assets_with_balance_price_value.filter(a => new Decimal(a.balance).gt(0));
 
   function formatOnlyDate(d: string | Date | undefined) {
     if (!d) return '-';
