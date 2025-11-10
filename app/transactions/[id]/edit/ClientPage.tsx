@@ -375,7 +375,7 @@ export default function ClientPage({
                   {incomeAllocs.map((alloc, idx) => (
                     <div
                       key={alloc.id ?? `new-${idx}`}
-                      className={`flex gap-3 items-center p-3 rounded-lg border transition-all ${
+                      className={`flex flex-col sm:flex-row gap-3 items-start sm:items-center p-3 rounded-lg border transition-all ${
                         alloc.markedForDelete
                           ? 'bg-gray-50 border-gray-200 opacity-50'
                           : 'bg-gray-50 border-gray-200 hover:border-emerald-300'
@@ -385,7 +385,7 @@ export default function ClientPage({
                         value={alloc.purpose_bucket_id}
                         onChange={e => updateIncomeAlloc(idx, { purpose_bucket_id: e.target.value })}
                         disabled={alloc.markedForDelete}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
+                        className="w-full sm:flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
                       >
                         {initial_buckets.map((b: Bucket) => (
                           <option key={b.id} value={b.id}>
@@ -400,12 +400,12 @@ export default function ClientPage({
                         onChange={e => updateIncomeAlloc(idx, { quantity: Number(e.target.value) })}
                         disabled={alloc.markedForDelete}
                         placeholder="Quantity"
-                        className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
+                        className="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
                       />
                       <button
                         type="button"
                         onClick={() => removeIncomeAlloc(idx)}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                           alloc.markedForDelete
                             ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                             : 'bg-red-100 text-red-700 hover:bg-red-200'
@@ -696,7 +696,7 @@ export default function ClientPage({
                   {assetReplacements.map((r, idx) => (
                     <div
                       key={r.id ?? `new-rep-${idx}`}
-                      className={`flex gap-3 items-center p-3 rounded-lg border transition-all ${
+                      className={`flex flex-col sm:flex-row gap-3 items-start sm:items-center p-3 rounded-lg border transition-all ${
                         r.markedForDelete
                           ? 'bg-gray-50 border-gray-200 opacity-50'
                           : 'bg-gray-50 border-gray-200 hover:border-purple-300'
@@ -706,7 +706,7 @@ export default function ClientPage({
                         value={r.purpose_bucket_id}
                         onChange={e => updateAssetReplacement(idx, { purpose_bucket_id: e.target.value })}
                         disabled={r.markedForDelete}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                        className="w-full sm:flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                       >
                         {initial_buckets.map((b: Bucket) => (
                           <option key={b.id} value={b.id}>
@@ -714,7 +714,7 @@ export default function ClientPage({
                           </option>
                         ))}
                       </select>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
                         <input
                           type="number"
                           step="any"
@@ -722,7 +722,7 @@ export default function ClientPage({
                           onChange={e => updateAssetReplacement(idx, { debit_quantity: Number(e.target.value) })}
                           disabled={r.markedForDelete}
                           placeholder="Debit"
-                          className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                          className="w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                         />
                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -734,13 +734,13 @@ export default function ClientPage({
                           onChange={e => updateAssetReplacement(idx, { credit_quantity: Number(e.target.value) })}
                           disabled={r.markedForDelete}
                           placeholder="Credit"
-                          className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                          className="w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                         />
                       </div>
                       <button
                         type="button"
                         onClick={() => removeAssetReplacement(idx)}
-                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                           r.markedForDelete
                             ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                             : 'bg-red-100 text-red-700 hover:bg-red-200'

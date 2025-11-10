@@ -58,7 +58,7 @@ model transaction {
   date DateTime
 
   description String?
-  type        transaction_type?
+  type        transaction_type
 
   income_txn                                income_txn?
   expense_txn                               expense_txn?
