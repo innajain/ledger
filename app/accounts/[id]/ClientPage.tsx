@@ -28,7 +28,7 @@ export function ClientPage({ account }: { account: AccountView }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
-  const currentAssets = acc.assets_with_balance_price_value;
+  const currentAssets = acc.assets_with_balance_price_value.filter(a => a.balance > 0);
 
   function formatOnlyDate(d: string | Date | undefined) {
     if (!d) return '-';
