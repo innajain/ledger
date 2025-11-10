@@ -11,7 +11,7 @@ function unauthorized(message = "Unauthorized") {
   });
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   if (!PLAIN_PASSWORD) {
     return new NextResponse("Password not set in env var", { status: 500 });
   }

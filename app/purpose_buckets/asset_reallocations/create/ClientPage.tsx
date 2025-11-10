@@ -89,9 +89,11 @@ export default function ClientPage({ purpose_buckets, assets }: { purpose_bucket
             <label className="block text-sm font-medium">Quantity</label>
             <input
               type="number"
+              step="any"
+              inputMode="decimal"
               className="mt-1 block w-full border rounded px-2 py-1"
               value={quantity as any}
-              onChange={e => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+              onChange={e => setQuantity(e.target.value === '' ? '' : parseFloat(e.target.value))}
             />
           </div>
 
