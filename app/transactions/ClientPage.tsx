@@ -214,7 +214,10 @@ export default function ClientPage({ transactions }: { transactions: Transaction
               </button>
 
               {/* New Transaction Button */}
-              <Link href={"transactions/create"} className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-sm hover:shadow-md hover:from-blue-700 hover:to-indigo-700 transition font-medium">
+              <Link
+                href={'transactions/create'}
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-sm hover:shadow-md hover:from-blue-700 hover:to-indigo-700 transition font-medium"
+              >
                 <span className="text-lg">+</span>
                 New Transaction
               </Link>
@@ -340,12 +343,6 @@ export default function ClientPage({ transactions }: { transactions: Transaction
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${details.typeColor}`}>
                               {details.type}
                             </span>
-                            {tx.date && (
-                              <span className="text-sm text-gray-500 flex items-center gap-1">
-                                <Calendar className="w-3.5 h-3.5" />
-                                {formatDate(tx.date)}
-                              </span>
-                            )}
                           </div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate transition">
                             {tx.description || <span className="text-gray-400 font-normal">(No description)</span>}
@@ -358,25 +355,32 @@ export default function ClientPage({ transactions }: { transactions: Transaction
                             // For asset trades: show debit_quantity -> credit_quantity on top, and debit_asset -> credit_asset below
                             <div className="min-w-[8rem]">
                               <div>
-                                {(details as any).quantityParts[0]} <ArrowRight className="inline-block w-4 h-4 mx-1 text-gray-400" /> {(details as any).quantityParts[1]}
+                                {(details as any).quantityParts[0]} <ArrowRight className="inline-block w-4 h-4 mx-1 text-gray-400" />{' '}
+                                {(details as any).quantityParts[1]}
                               </div>
                               <div className="text-sm font-medium text-gray-600 mt-1">
-                                {(details as any).assetParts[0]} <ArrowRight className="inline-block w-3 h-3 mx-1 text-gray-400" /> {(details as any).assetParts[1]}
+                                <span className="inline-block not-sm:max-w-[5rem] truncate align-middle">{(details as any).assetParts[0]}</span>
+                                <ArrowRight className="inline-block w-3 h-3 mx-1 text-gray-400" />
+                                <span className="inline-block not-sm:max-w-[5rem] truncate align-middle">{(details as any).assetParts[1]}</span>
                               </div>
                             </div>
                           ) : (
                             // For single-asset transactions show quantity on top and asset below
                             <>
-                              <div>{Array.isArray((details as any).quantityParts) ? (details as any).quantityParts[0] : (details as any).quantity}</div>
+                              <div>
+                                {Array.isArray((details as any).quantityParts) ? (details as any).quantityParts[0] : (details as any).quantity}
+                              </div>
                               {(details as any).asset && (
-                                <div className="text-sm font-medium text-gray-600 mt-1">{(details as any).asset}</div>
+                                <div className="text-sm font-medium text-gray-600 mt-1">
+                                  <span className="inline-block not-sm:max-w-[5rem] truncate">{(details as any).asset}</span>
+                                </div>
                               )}
                             </>
                           )}
                         </div>
                       </div>
 
-                      {/* Details */}
+                        {/* Details */}
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
                         {Array.isArray((details as any).accountParts) ? (
                           <span className="font-medium">
@@ -387,15 +391,6 @@ export default function ClientPage({ transactions }: { transactions: Transaction
                           <span className="font-medium">{(details as any).account}</span>
                         )}
 
-                        {Array.isArray((details as any).assetParts) && (
-                          <>
-                            <span className="text-gray-300">•</span>
-                            <span>
-                              {(details as any).assetParts[0]} <ArrowRight className="inline-block w-3 h-3 mx-1 text-gray-400" />{' '}
-                              {(details as any).assetParts[1]}
-                            </span>
-                          </>
-                        )}
                         {details.details && (
                           <>
                             <span className="text-gray-300">•</span>
@@ -403,8 +398,22 @@ export default function ClientPage({ transactions }: { transactions: Transaction
                           </>
                         )}
                       </div>
+                      {/* Mobile: show date at bottom of card */}
+                      {tx.date && (
+                        <div className="mt-3 sm:hidden text-sm text-gray-500 flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {formatDate(tx.date)}
+                        </div>
+                      )}
                     </div>
                   </Link>
+                  {/* Desktop: show date below asset (right column) */}
+                  {tx.date && (
+                    <div className="mt-3 hidden sm:flex items-center justify-end text-sm text-gray-500">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      <span>{formatDate(tx.date)}</span>
+                    </div>
+                  )}
                 </div>
               );
             })
