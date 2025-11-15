@@ -1,8 +1,9 @@
 import { prisma } from '@/prisma';
-import { get_price_for_asset } from '@/utils/price_fetcher';
-import { Decimal } from 'decimal.js';
 import ClientPage from './ClientPage';
 import { calc_asset_balances_in_bucket, calc_asset_values_in_buckets } from '../page';
+import { Decimal } from 'decimal.js';
+import { Prisma } from '@/generated/prisma';
+import { calc_xirr } from '@/utils/xirr';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,5 +38,28 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       balance: ab.balance.toNumber(),
     })),
   };
-  return <ClientPage bucket_with_asset_balances_values={passable_data as any} />;
+
+  let xirr: number | null = null;
+
+  if (bucket.name === 'Investments') {
+    const cashflows: { amount: number; date: Date }[] = [];
+    (
+      bucket_with_asset_balances_values.asset_replacement_in_purpose_buckets as Prisma.asset_replacement_in_purpose_bucketGetPayload<{
+        include: { asset_trade_txn: { include: { debit_asset: true; credit_asset: true; transaction: true } } };
+      }>[]
+    ).forEach(replacement => {
+      if (replacement.asset_trade_txn.credit_asset.name === 'Money') {
+        cashflows.push({ amount: replacement.credit_quantity, date: replacement.asset_trade_txn.transaction.date });
+      } else if (replacement.asset_trade_txn.debit_asset.name === 'Money') {
+        cashflows.push({ amount: -replacement.debit_quantity, date: replacement.asset_trade_txn.transaction.date });
+      }
+    });
+    const total_monetary_value = bucket_with_asset_balances_values.asset_balances
+      .reduce((sum, ab) => sum.plus(ab.monetary_value ?? 0), new Decimal(0))
+      .minus(bucket_with_asset_balances_values.asset_balances.find(ab => ab.name === 'Money')?.monetary_value ?? 0);
+
+    cashflows.push({ amount: total_monetary_value.toNumber(), date: new Date() });
+    xirr = calc_xirr(cashflows);
+  }
+  return <ClientPage bucket_with_asset_balances_values={passable_data as any} xirr={xirr} />;
 }

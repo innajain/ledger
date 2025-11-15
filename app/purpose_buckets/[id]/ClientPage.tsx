@@ -50,7 +50,13 @@ const get_indian_date_from_date_obj = (date: Date) => {
   }).format(date);
 };
 
-export default function ClientPage({ bucket_with_asset_balances_values }: { bucket_with_asset_balances_values: PurposeBucketView }) {
+export default function ClientPage({
+  bucket_with_asset_balances_values,
+  xirr,
+}: {
+  bucket_with_asset_balances_values: PurposeBucketView;
+  xirr: number | null;
+}) {
   const bucket = bucket_with_asset_balances_values;
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -123,8 +129,34 @@ export default function ClientPage({ bucket_with_asset_balances_values }: { buck
 
             <div className="flex flex-col gap-4">
               <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100">
-                <div className="text-sm text-gray-600 mb-1">Total Bucket Value</div>
-                <div className="text-2xl font-bold text-gray-900">{format_indian_currency(bucket.monetary_value)}</div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Bucket Value</div>
+                    <div className="text-2xl font-bold text-gray-900 mt-1">{format_indian_currency(bucket.monetary_value)}</div>
+                  </div>
+
+                  <div className="w-full sm:w-auto">
+                    {xirr != null ? (
+                      <div
+                        className={`rounded-lg px-3 py-2 border text-right ${
+                          xirr > 0 ? 'bg-emerald-50 border-emerald-100' : xirr < 0 ? 'bg-rose-50 border-rose-100' : 'bg-gray-50 border-gray-100'
+                        }`}
+                      >
+                        <div className="text-sm text-gray-600">XIRR</div>
+                        <div className={`text-lg font-bold ${xirr > 0 ? 'text-emerald-600' : xirr < 0 ? 'text-rose-600' : 'text-gray-900'}`}>
+                          {xirr.toFixed(2)}%
+                        </div>
+                        <div className="text-xs text-gray-500">Annualized return</div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg px-3 py-2 border bg-gray-50 border-gray-100 text-right">
+                        <div className="text-sm text-gray-600">XIRR</div>
+                        <div className="text-lg font-bold text-gray-900">—</div>
+                        <div className="text-xs text-gray-500">Annualized return</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-2">
