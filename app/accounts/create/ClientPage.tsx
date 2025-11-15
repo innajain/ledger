@@ -103,6 +103,7 @@ export default function ClientPage({ assets, purpose_buckets }: { assets: AssetR
                     </select>
                     <input
                       type="number"
+                      step="any"
                       value={String(ob.quantity)}
                       onChange={e => updateOpeningBalance(idx, { quantity: Number(e.target.value) })}
                       className="border rounded px-2 py-1"
@@ -144,6 +145,7 @@ export default function ClientPage({ assets, purpose_buckets }: { assets: AssetR
                           </select>
                           <input
                             type="number"
+                            step="any"
                             value={String(apb.quantity)}
                             onChange={e =>
                               updateOpeningBalance(idx, {

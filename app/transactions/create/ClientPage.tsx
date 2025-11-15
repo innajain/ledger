@@ -203,6 +203,7 @@ export default function ClientPage({
                   <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
                   <input
                     type="number"
+                    step="any"
                     value={String(incomeQty)}
                     onChange={e => setIncomeQty(Number(e.target.value))}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
@@ -237,6 +238,7 @@ export default function ClientPage({
                       </select>
                       <input
                         type="number"
+                        step="any"
                         value={String(apb.quantity)}
                         onChange={e => setIncomeAllocations(s => s.map((x, ii) => (ii === i ? { ...x, quantity: Number(e.target.value) } : x)))}
                         className="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg"
@@ -301,6 +303,7 @@ export default function ClientPage({
                   <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
                   <input
                     type="number"
+                    step="any"
                     value={String(expenseQty)}
                     onChange={e => setExpenseQty(Number(e.target.value))}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
@@ -391,6 +394,7 @@ export default function ClientPage({
                   <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
                   <input
                     type="number"
+                    step="any"
                     value={String(txnQuantity)}
                     onChange={e => setTxnQuantity(Number(e.target.value))}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -452,6 +456,7 @@ export default function ClientPage({
                         <label className="block text-sm text-gray-700 mb-2">Quantity</label>
                         <input
                           type="number"
+                          step="any"
                           value={String(debitQty)}
                           onChange={e => setDebitQty(Number(e.target.value))}
                           className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -495,6 +500,7 @@ export default function ClientPage({
                         <label className="block text-sm text-gray-700 mb-2">Quantity</label>
                         <input
                           type="number"
+                          step="any"
                           value={String(creditQty)}
                           onChange={e => setCreditQty(Number(e.target.value))}
                           className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -546,12 +552,14 @@ export default function ClientPage({
                       </select>
                       <input
                         type="number"
+                        step="any"
                         value={String(r.debit_quantity)}
                         onChange={e => setReplacements(s => s.map((x, ii) => (ii === i ? { ...x, debit_quantity: Number(e.target.value) } : x)))}
                         className="w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-lg"
                       />
                       <input
                         type="number"
+                        step="any"
                         value={String(r.credit_quantity)}
                         onChange={e => setReplacements(s => s.map((x, ii) => (ii === i ? { ...x, credit_quantity: Number(e.target.value) } : x)))}
                         className="w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-lg"

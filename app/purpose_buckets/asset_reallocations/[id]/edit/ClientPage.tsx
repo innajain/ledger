@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,15 @@ import { get_indian_date_from_date_obj } from '@/utils/date';
 type BucketRef = { id: string; name: string };
 type AssetRef = { id: string; name: string };
 
-export default function ClientPage({ initial_data, purpose_buckets, assets }: { initial_data: any; purpose_buckets: BucketRef[]; assets: AssetRef[] }) {
+export default function ClientPage({
+  initial_data,
+  purpose_buckets,
+  assets,
+}: {
+  initial_data: any;
+  purpose_buckets: BucketRef[];
+  assets: AssetRef[];
+}) {
   const router = useRouter();
   const [fromBucket, setFromBucket] = useState(initial_data.from_purpose_bucket_id || '');
   const [toBucket, setToBucket] = useState(initial_data.to_purpose_bucket_id || '');
@@ -36,7 +44,14 @@ export default function ClientPage({ initial_data, purpose_buckets, assets }: { 
 
     setLoading(true);
     try {
-      await update_asset_reallocation_between_purpose_buckets({ id: initial_data.id, from_purpose_bucket_id: fromBucket, to_purpose_bucket_id: toBucket, asset_id: assetId, quantity: q, date: dateStr || undefined });
+      await update_asset_reallocation_between_purpose_buckets({
+        id: initial_data.id,
+        from_purpose_bucket_id: fromBucket,
+        to_purpose_bucket_id: toBucket,
+        asset_id: assetId,
+        quantity: q,
+        date: dateStr || undefined,
+      });
       // navigate to from-bucket page
       router.push(`/purpose_buckets/${fromBucket}`);
     } catch (err: any) {
@@ -53,7 +68,7 @@ export default function ClientPage({ initial_data, purpose_buckets, assets }: { 
     try {
       // server action expects the id string
       await delete_asset_reallocation_between_purpose_buckets(initial_data.id);
-      router.push("/purpose_buckets");
+      router.push('/purpose_buckets');
     } catch (err: any) {
       setError(err?.message || String(err));
     } finally {
@@ -70,13 +85,21 @@ export default function ClientPage({ initial_data, purpose_buckets, assets }: { 
             <div>
               <label className="block text-sm">From Bucket</label>
               <select value={fromBucket} onChange={e => setFromBucket(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1">
-                {purpose_buckets.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {purpose_buckets.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
               <label className="block text-sm">To Bucket</label>
               <select value={toBucket} onChange={e => setToBucket(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1">
-                {purpose_buckets.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {purpose_buckets.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -84,31 +107,57 @@ export default function ClientPage({ initial_data, purpose_buckets, assets }: { 
           <div>
             <label className="block text-sm">Asset</label>
             <select value={assetId} onChange={e => setAssetId(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1">
-              {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {assets.map(a => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
             </select>
           </div>
 
           <div>
             <label className="block text-sm">Quantity</label>
-            <input type="number" value={quantity as any} onChange={e => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} className="mt-1 block w-full border rounded px-2 py-1" />
+            <input
+              type="number"
+              step="any"
+              value={quantity as any}
+              onChange={e => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+              className="mt-1 block w-full border rounded px-2 py-1"
+            />
           </div>
 
           <div>
             <label className="block text-sm">Date (dd-MM-yyyy)</label>
-            <input type="text" placeholder="dd-MM-yyyy" value={dateStr} onChange={e => setDateStr(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1" />
+            <input
+              type="text"
+              placeholder="dd-MM-yyyy"
+              value={dateStr}
+              onChange={e => setDateStr(e.target.value)}
+              className="mt-1 block w-full border rounded px-2 py-1"
+            />
             <div className="text-xs text-gray-500 mt-1">Enter date as DD-MM-YYYY. If empty, today's date will be used.</div>
           </div>
 
           {error && <div className="text-red-600">{error}</div>}
 
           <div className="flex gap-2">
-            <button type="submit" disabled={loading || deleting} className="px-4 py-2 bg-amber-500 text-white rounded">{loading ? 'Saving...' : 'Save'}</button>
+            <button type="submit" disabled={loading || deleting} className="px-4 py-2 bg-amber-500 text-white rounded">
+              {loading ? 'Saving...' : 'Save'}
+            </button>
 
             <button type="button" onClick={onDelete} disabled={deleting || loading} className="px-4 py-2 bg-red-500 text-white rounded">
               {deleting ? 'Deleting...' : 'Delete'}
             </button>
 
-            <button type="button" onClick={() => router.push(initial_data?.from_purpose_bucket_id ? `/purpose_buckets/${initial_data.from_purpose_bucket_id}` : '/purpose_buckets')} className="px-4 py-2 border rounded">Cancel</button>
+            <button
+              type="button"
+              onClick={() =>
+                router.push(initial_data?.from_purpose_bucket_id ? `/purpose_buckets/${initial_data.from_purpose_bucket_id}` : '/purpose_buckets')
+              }
+              className="px-4 py-2 border rounded"
+            >
+              Cancel
+            </button>
           </div>
         </form>
       </div>

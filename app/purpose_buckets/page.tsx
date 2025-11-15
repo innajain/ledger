@@ -31,8 +31,7 @@ export default async function Page() {
       balance: ab.balance.toNumber(),
     })),
   }));
-  console.log(passable_data[0]);
-  return <ClientPage initial_data={passable_data} />;
+  return <ClientPage purpose_buckets_with_balances={passable_data} />;
 }
 
 export async function calc_asset_values_in_buckets(

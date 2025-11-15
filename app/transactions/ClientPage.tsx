@@ -273,7 +273,7 @@ export default function ClientPage({ transactions }: { transactions: Transaction
                   <div className="flex gap-2">
                     <input
                       type="number"
-                      step="0.01"
+                      step="any"
                       placeholder="Min"
                       value={amountMin}
                       onChange={e => setAmountMin(e.target.value)}
@@ -281,7 +281,7 @@ export default function ClientPage({ transactions }: { transactions: Transaction
                     />
                     <input
                       type="number"
-                      step="0.01"
+                      step="any"
                       placeholder="Max"
                       value={amountMax}
                       onChange={e => setAmountMax(e.target.value)}
@@ -380,7 +380,7 @@ export default function ClientPage({ transactions }: { transactions: Transaction
                         </div>
                       </div>
 
-                        {/* Details */}
+                      {/* Details */}
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
                         {Array.isArray((details as any).accountParts) ? (
                           <span className="font-medium">
