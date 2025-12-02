@@ -7,7 +7,7 @@ import { PageHeader, FormCard, TextInput, AccountTypeSelect, ParentSelect, FormA
 
 export default function ClientPage({ parents }: { parents: Prisma.accountGetPayload<{}>[] }) {
   const [name, setName] = useState('');
-  const [type, setType] = useState<account_type>('real');
+  const [type, setType] = useState<account_type>('nominal');
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -16,7 +16,7 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
     setBusy(true);
     try {
       await create_account(name, type, parentId ?? undefined);
-      window.location.href = '/allocations';
+      window.location.href = '/income_expenses';
     } catch (err: any) {
       alert('Failed: ' + (err?.message ?? String(err)));
     } finally {
@@ -26,29 +26,24 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        backLink="/allocations"
-        backText="Back to Allocations"
-        title="Create Allocation"
-        description="Add a new allocation to your ledger"
-      />
+      <PageHeader backLink="/income_expenses" backText="Back to Nominal Accounts" title="Create Nominal Account" description="Add an income or expense account" />
 
       <form onSubmit={onCreate} className="space-y-6">
-        <FormCard title="Allocation Details">
-          <TextInput label="Allocation Name" value={name} onChange={setName} placeholder="Enter allocation name" required />
+        <FormCard title="Account Details">
+          <TextInput label="Account Name" value={name} onChange={setName} placeholder="Enter account name" required />
 
-          <AccountTypeSelect label="Allocation Type" value={type} onChange={setType} />
+          <AccountTypeSelect label="Account Type" value={type} onChange={setType} />
 
           <ParentSelect
-            label="Parent Allocation (Optional)"
+            label="Parent Account (Optional)"
             value={parentId}
             onChange={setParentId}
             parents={parents}
-            helpText="Select a parent to create a sub-allocation"
+            helpText="Select a parent to create a sub-account"
           />
         </FormCard>
 
-        <FormActions cancelLink="/allocations" submitText={busy ? 'Creating...' : 'Create Allocation'} busy={busy} />
+        <FormActions cancelLink="/income_expenses" submitText={busy ? 'Creating...' : 'Create Account'} busy={busy} />
       </form>
     </div>
   );

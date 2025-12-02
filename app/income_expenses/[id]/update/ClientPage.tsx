@@ -15,7 +15,7 @@ export default function ClientPage({
   deleteAccount?: (id: string) => Promise<void>;
 }) {
   const [name, setName] = useState(account.name);
-  const [type, setType] = useState<account_type>(account.type);
+  const [type, setType] = useState<account_type>(account.type as account_type);
   const [parentId, setParentId] = useState<string | null>(account.parent_id ?? null);
   const [busy, setBusy] = useState(false);
 
@@ -24,7 +24,7 @@ export default function ClientPage({
     setBusy(true);
     try {
       await update_account(account.id, name, type, parentId ?? undefined);
-      window.location.href = '/accounts';
+      window.location.href = '/income_expenses';
     } catch (err: any) {
       alert('Failed: ' + (err?.message ?? String(err)));
     } finally {
@@ -37,7 +37,7 @@ export default function ClientPage({
     if (!confirm('Delete this account? This action cannot be undone.')) return;
     try {
       await deleteAccount(account.id);
-      window.location.href = '/accounts';
+      window.location.href = '/income_expenses';
     } catch (err: any) {
       alert('Delete failed: ' + (err?.message ?? String(err)));
     }
@@ -45,7 +45,7 @@ export default function ClientPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader backLink="/accounts" backText="Back to Accounts" title="Update Account" description="Modify account details or delete" />
+      <PageHeader backLink="/income_expenses" backText="Back to Nominal Accounts" title="Update Nominal Account" description="Modify account details or delete" />
 
       <form onSubmit={onUpdate} className="space-y-6">
         <FormCard title="Account Details">
@@ -64,7 +64,7 @@ export default function ClientPage({
         </FormCard>
 
         <FormActions
-          cancelLink="/accounts"
+          cancelLink="/income_expenses"
           submitText={busy ? 'Updating...' : 'Update Account'}
           busy={busy}
           onDelete={deleteAccount ? onDelete : undefined}

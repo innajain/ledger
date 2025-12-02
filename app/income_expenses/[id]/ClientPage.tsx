@@ -34,11 +34,11 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
   return (
     <div className="space-y-6">
       <ViewPageHeader
-        backLink="/accounts"
-        backText="Back to Accounts"
+        backLink="/income_expenses"
+        backText="Back to Nominal Accounts"
         title={account.name}
-        description="Account details and holdings"
-        editLink={`/accounts/${account.id}/update`}
+        description="Nominal account details"
+        editLink={`/income_expenses/${account.id}/update`}
         editText="Edit Account"
       />
 
@@ -70,29 +70,29 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
                         {b.asset_name}
                       </Link>
 
-                                <div className="mt-3 text-sm text-slate-600 space-y-2">
-                                  {b.is_base_currency ? (
-                                    <div>
-                                      <span className="text-slate-500">Value:</span>{' '}
-                                      <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <div>
-                                        <span className="text-slate-500">Quantity:</span>{' '}
-                                        <span className="font-medium text-slate-900">{b.quantity} units</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-slate-500">Book:</span>{' '}
-                                        <span className="font-medium text-slate-900">{b.book_value === null ? '—' : currencyFmt.format(b.book_value)}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-slate-500">Current:</span>{' '}
-                                        <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
+                      <div className="mt-3 text-sm text-slate-600 space-y-2">
+                        {b.is_base_currency ? (
+                          <div>
+                            <span className="text-slate-500">Value:</span>{' '}
+                            <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div>
+                              <span className="text-slate-500">Quantity:</span>{' '}
+                              <span className="font-medium text-slate-900">{b.quantity} units</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Book:</span>{' '}
+                              <span className="font-medium text-slate-900">{b.book_value === null ? '—' : currencyFmt.format(b.book_value)}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Current:</span>{' '}
+                              <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mt-4 text-right">
@@ -108,7 +108,6 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
         )}
       </div>
 
-      {/* Line items section */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Transaction Line Items</h2>

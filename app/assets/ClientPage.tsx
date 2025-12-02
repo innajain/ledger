@@ -1,8 +1,11 @@
 'use client';
 
 import { Prisma } from '@/generated/prisma/client';
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React from 'react';
+import { HierarchyTree } from '../_components/HeirarchyTree';
+import { PageHeader } from '../_components/PageHeader';
+import { TotalCard } from '../_components/TotalCard';
+import { EmptyState } from '../_components/EmptyState';
 
 // Lightweight shapes for client component
 type LineItemNumbered = {
@@ -15,7 +18,10 @@ type LineItemNumbered = {
   asset: { id: string; name: string };
 };
 
-type AssetNumbered = Prisma.assetGetPayload<{ include: { parent: true } }> & { line_items: LineItemNumbered[] };
+type AssetNumbered = Prisma.assetGetPayload<{ include: { parent: true } }> & { 
+  line_items: LineItemNumbered[];
+  is_base_currency?: boolean;
+};
 
 type Props = {
   assets: AssetNumbered[];
@@ -24,94 +30,62 @@ type Props = {
 };
 
 export default function ClientPage({ assets, totals, grand_total }: Props) {
-  type Node = { item: AssetNumbered; children: Node[] };
-
-  const nodeById = new Map<string, Node>();
-  for (const a of assets) nodeById.set(a.id, { item: a, children: [] });
-
-  const roots: Node[] = [];
-  for (const node of nodeById.values()) {
-    const pid = node.item.parent_id;
-    if (pid && nodeById.has(pid)) nodeById.get(pid)!.children.push(node);
-    else roots.push(node);
-  }
-
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const toggle = (id: string) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
-
-  function aggregateCurr(n: Node): number {
-    const own = totals[n.item.id];
-    return n.children.reduce((sum, c) => sum + aggregateCurr(c), own);
-  }
-
-  function renderNode(node: Node): React.ReactElement {
-    const a = node.item;
-    const isExpanded = !!expanded[a.id];
-
-    const ownCurr = totals[a.id];
-
-    // Always show aggregate (self + descendants) regardless of expanded state
-    const displayCurr = aggregateCurr(node);
-
-    const ownQty = a.line_items.reduce((s, li) => s + (li.quantity ?? 0), 0);
-    const aggregateQty = (n: Node): number => {
-      const own = n.item.line_items.reduce((s, li) => s + (li.quantity ?? 0), 0);
-      return n.children.reduce((sum, c) => sum + aggregateQty(c), own);
-    };
-    // Always show aggregate quantity as well
-    const displayQty = aggregateQty(node);
-
-    // formatters
-    const currencyFmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
-    const qtyFmt = (n: number) => n.toFixed(2);
-
-    return (
-      <li key={a.id} style={{ marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {node.children.length > 0 ? (
-            <button onClick={() => toggle(a.id)} aria-expanded={isExpanded} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
-              {isExpanded ? '▾' : '▸'}
-            </button>
-          ) : (
-            <span style={{ opacity: 0 }}>▸</span>
-          )}
-
-          <div>
-            <Link href={`/assets/${a.id}`} style={{ cursor: 'pointer', display: 'inline-block' }}>
-              <strong>{a.name}</strong>
-            </Link>
-            {node.children.length === 0 && (a.is_base_currency ? null : <span style={{ marginLeft: 8 }}>{qtyFmt(displayQty)} units</span>) }
-            <span style={{ marginLeft: 8 }}>{currencyFmt.format(displayCurr)}</span>
-          </div>
-        </div>
-
-        {node.children.length > 0 && isExpanded && (
-          <ul style={{ marginLeft: 18 }}>
-            {/* pseudo-child showing non-aggregate "self" values (italicized) */}
-            <li key={`${a.id}-self`} style={{ marginBottom: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ opacity: 0 }}>▸</span>
-                <div style={{ fontStyle: 'italic' }}>
-                  <em>self</em> {a.is_base_currency ? null : <span style={{ marginLeft: 8 }}>{qtyFmt(ownQty)} units</span>}
-                  <span style={{ marginLeft: 8 }}>{currencyFmt.format(ownCurr)}</span>
-                </div>
-              </div>
-            </li>
-            {node.children.map(child => renderNode(child))}
-          </ul>
-        )}
-      </li>
-    );
-  }
+  const currencyFmt = new Intl.NumberFormat('en-IN', { 
+    style: 'currency', 
+    currency: 'INR', 
+    maximumFractionDigits: 2 
+  });
+  
+  const qtyFmt = (n: number) => n.toFixed(2);
 
   return (
-    <div>
-      <h1>Assets</h1>
-      <div style={{ marginBottom: 8 }}>
-        <Link href="/assets/create">Create new asset</Link>
-      </div>
-      <h2>Total: {grand_total}</h2>
-      <ul>{roots.map(r => renderNode(r))}</ul>
+    <div className="space-y-6">
+      <PageHeader
+        title="Assets"
+        description="Manage your assets and view their hierarchy"
+        createUrl="/assets/create"
+        createLabel="+ New Asset"
+      />
+
+      <TotalCard
+        title="Total Assets Value"
+        total={currencyFmt.format(grand_total)}
+        colorScheme="purple"
+        icon={
+          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        }
+      />
+
+      {assets.length > 0 ? (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Asset Hierarchy</h2>
+          <HierarchyTree
+            items={assets}
+            totals={totals}
+            formatCurrency={(amount) => currencyFmt.format(amount)}
+            getItemUrl={(id) => `/assets/${id}`}
+            renderExtraInfo={(asset) => {
+              if (asset.is_base_currency) return null;
+              const qty = asset.line_items.reduce((s, li) => s + (li.quantity ?? 0), 0);
+              return <span className="text-sm text-slate-600">{qtyFmt(qty)} units</span>;
+            }}
+          />
+        </div>
+      ) : (
+        <EmptyState
+          icon={
+            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          }
+          title="No assets yet"
+          description="Get started by creating your first asset"
+          actionUrl="/assets/create"
+          actionLabel="Create Asset"
+        />
+      )}
     </div>
   );
 }

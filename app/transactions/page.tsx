@@ -22,7 +22,7 @@ export default async function Page() {
 
   const txForClient = transactions.map(t => ({
     id: t.id,
-    date: t.date.toISOString(),
+    date: t.date,
     description: t.description,
     total_book: t.line_items
       .filter(li => li.account.type === 'nominal')

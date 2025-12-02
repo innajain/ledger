@@ -43,32 +43,50 @@ export default async function Page({ params }: Props) {
     current_value: number;
     transaction_id: string;
     transaction_date: string;
+    transaction_description: string | null;
+    line_item_description: string | null;
   }[] = [];
+  // aggregate holdings by asset and also prepare per-line items
+  const real_line_items = account.line_items;
 
-  for (const li of account.line_items) {
+  // fetch price per asset when needed; we'll cache by asset id
+  const priceCache: Record<string, Prisma.Decimal | null> = {};
+
+  const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; is_base_currency: boolean; type: string }> = {};
+
+  for (const li of real_line_items) {
     const qty = li.quantity;
     const asset = li.asset;
-    let current_value = new Prisma.Decimal(0);
 
-    if (asset.type === 'mf') {
-      const nav = await get_price_for_asset(asset.type, asset.ticker ?? null);
-      if (nav) current_value = new Prisma.Decimal(nav.price).mul(qty);
-      else current_value = li.book_value!;
-    } else if (asset.type === 'etf') {
-      const p = await get_price_for_asset(asset.type, asset.ticker ?? null);
-      if (p) current_value = new Prisma.Decimal(p.price).mul(qty);
-      else current_value = li.book_value!;
-    } else if (asset.type === 'shares') {
-      const p = await get_latest_etf_price(asset.ticker ?? '');
-      if (p) current_value = new Prisma.Decimal(p.close).mul(qty);
-      else current_value = li.book_value!;
-    } else if (asset.type === 'rupees') {
-      current_value = qty;
-    } else {
-      current_value = li.book_value!;
+    // determine price for this asset, fetch once
+    if (!(asset.id in priceCache)) {
+      try {
+        if (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares') {
+          const p = await get_price_for_asset(asset.type, asset.ticker ?? null);
+          priceCache[asset.id] = p ? new Prisma.Decimal(p.price) : null;
+        } else {
+          priceCache[asset.id] = null;
+        }
+      } catch {
+        priceCache[asset.id] = null;
+      }
     }
 
+    const priceDecimal = priceCache[asset.id];
+
+    let current_value = new Prisma.Decimal(0);
+    if (asset.type === 'rupees') current_value = qty;
+    else if (priceDecimal) current_value = priceDecimal.mul(qty);
+    else current_value = li.book_value ?? qty;
+
     acc_total = acc_total.add(current_value);
+
+    // accumulate per-asset
+    if (!map[asset.id]) {
+      map[asset.id] = { asset_id: asset.id, asset_name: asset.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0), is_base_currency: !!asset.is_base_currency, type: asset.type };
+    }
+    map[asset.id].total_qty = map[asset.id].total_qty.add(qty);
+    map[asset.id].total_book = map[asset.id].total_book.add(li.book_value ?? qty);
 
     lineItemsWithValues.push({
       id: li.id,
@@ -76,10 +94,30 @@ export default async function Page({ params }: Props) {
       asset_name: asset.name,
       is_base_currency: !!asset.is_base_currency,
       quantity: qty.toNumber(),
-      book_value: li.book_value ? li.book_value.toNumber() : null,
+      book_value: li.book_value ? li.book_value.toNumber() : qty.toNumber(),
       current_value: current_value.toNumber(),
       transaction_id: li.transaction.id,
       transaction_date: li.transaction.date.toISOString(),
+      transaction_description: li.transaction.description,
+      line_item_description: li.description,
+    });
+  }
+
+  const breakdown: { asset_id: string; asset_name: string; quantity: number; book_value: number | null; current_value: number; is_base_currency: boolean }[] = [];
+  for (const k of Object.keys(map)) {
+    const e = map[k];
+    let current_value = new Prisma.Decimal(0);
+    if (e.type === 'rupees') current_value = e.total_qty;
+    else if (priceCache[k]) current_value = priceCache[k]!.mul(e.total_qty);
+    else current_value = e.total_book;
+
+    breakdown.push({
+      asset_id: e.asset_id,
+      asset_name: e.asset_name,
+      quantity: e.total_qty.toNumber(),
+      book_value: e.total_book.toNumber(),
+      is_base_currency: e.is_base_currency,
+      current_value: current_value.toNumber(),
     });
   }
 
@@ -91,6 +129,7 @@ export default async function Page({ params }: Props) {
     type: account.type,
     parent: account.parent ? { id: account.parent.id, name: account.parent.name } : null,
     total: acc_total.toNumber(),
+    breakdown,
     line_items: lineItemsWithValues,
   };
 

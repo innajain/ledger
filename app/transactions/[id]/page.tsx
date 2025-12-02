@@ -19,7 +19,19 @@ export default async function Page({ params }: Props) {
   if (!tx) return <div>Transaction not found.</div>;
 
   let total = new Prisma.Decimal(0);
-  const items = [] as any[];
+  const items = [] as {
+    id: string;
+    account_id: string;
+    account_name: string;
+    account_type: string;
+    asset_id: string;
+    asset_name: string;
+    is_base_currency: boolean;
+    quantity: number;
+    book_value: number | null;
+    current_value: number;
+    description: string | null;
+  }[];
   for (const li of tx.line_items) {
     const qty = li.quantity;
     const asset = li.asset;
@@ -55,6 +67,7 @@ export default async function Page({ params }: Props) {
       quantity: qty.toNumber(),
       book_value: li.book_value ? li.book_value.toNumber() : null,
       current_value: current_value.toNumber(),
+      description: li.description,
     });
   }
 

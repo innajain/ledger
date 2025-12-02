@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma';
-import Link from 'next/link';
 import { get_current_user } from '@/app/_actions/auth';
 import { get_price_for_asset, get_latest_etf_price } from '@/app/_utils/price_fetcher';
 import { Prisma } from '@/generated/prisma/client';
@@ -13,22 +12,22 @@ export default async function Page({ params }: Props) {
   if (!user) {
     return (
       <div>
-        <h1>Allocation</h1>
-        <p>Please log in to view this allocation.</p>
+        <h1>Nominal Account</h1>
+        <p>Please log in to view this account.</p>
       </div>
     );
   }
 
-  const allocation = await prisma.account.findUnique({
-    where: { id, user_id: user.id, type: 'allocation' },
+  const account = await prisma.account.findUnique({
+    where: { id, user_id: user.id },
     include: { line_items: { include: { asset: true, transaction: true } }, parent: true },
   });
 
-  if (!allocation) {
+  if (!account || account.type !== 'nominal') {
     return (
       <div>
-        <h1>Allocation</h1>
-        <p>Allocation not found.</p>
+        <h1>Nominal Account</h1>
+        <p>Account not found.</p>
       </div>
     );
   }
@@ -36,7 +35,7 @@ export default async function Page({ params }: Props) {
   let acc_total = new Prisma.Decimal(0);
   const lineItemsWithValues: {
     id: string;
-    asset_id?: string;
+    asset_id: string;
     asset_name: string;
     is_base_currency: boolean;
     quantity: number;
@@ -47,8 +46,8 @@ export default async function Page({ params }: Props) {
     transaction_description: string | null;
     line_item_description: string | null;
   }[] = [];
-  // aggregate by asset similar to account page
-  const real_line_items = allocation.line_items;
+
+  const real_line_items = account.line_items;
   const priceCache: Record<string, Prisma.Decimal | null> = {};
   const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; is_base_currency: boolean; type: string }> = {};
 
@@ -70,6 +69,7 @@ export default async function Page({ params }: Props) {
     }
 
     const priceDecimal = priceCache[asset.id];
+
     let current_value = new Prisma.Decimal(0);
     if (asset.type === 'rupees') current_value = qty;
     else if (priceDecimal) current_value = priceDecimal.mul(qty);
@@ -78,7 +78,7 @@ export default async function Page({ params }: Props) {
     acc_total = acc_total.add(current_value);
 
     if (!map[asset.id]) {
-      map[asset.id] = { asset_id: asset.id, asset_name: asset.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0), is_base_currency: !!asset.is_base_currency || asset.type === 'rupees', type: asset.type };
+      map[asset.id] = { asset_id: asset.id, asset_name: asset.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0), is_base_currency: !!asset.is_base_currency, type: asset.type };
     }
     map[asset.id].total_qty = map[asset.id].total_qty.add(qty);
     map[asset.id].total_book = map[asset.id].total_book.add(li.book_value ?? qty);
@@ -87,7 +87,7 @@ export default async function Page({ params }: Props) {
       id: li.id,
       asset_id: asset.id,
       asset_name: asset.name,
-      is_base_currency: !!asset.is_base_currency || asset.type === 'rupees',
+      is_base_currency: !!asset.is_base_currency,
       quantity: qty.toNumber(),
       book_value: li.book_value ? li.book_value.toNumber() : qty.toNumber(),
       current_value: current_value.toNumber(),
@@ -116,16 +116,15 @@ export default async function Page({ params }: Props) {
     });
   }
 
-  const currencyFmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
-
-  const allocationForClient = {
-    id: allocation.id,
-    name: allocation.name,
-    type: allocation.type,
-    parent: allocation.parent ? { id: allocation.parent.id, name: allocation.parent.name } : null,
+  const accountForClient = {
+    id: account.id,
+    name: account.name,
+    type: account.type,
+    parent: account.parent ? { id: account.parent.id, name: account.parent.name } : null,
     total: acc_total.toNumber(),
+    breakdown,
     line_items: lineItemsWithValues,
   };
 
-  return <ClientPage allocation={allocationForClient} currencyLocale="en-IN" currency="INR" />;
+  return <ClientPage account={accountForClient} currencyLocale="en-IN" currency="INR" />;
 }

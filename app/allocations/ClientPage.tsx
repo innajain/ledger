@@ -1,8 +1,11 @@
 'use client';
 
-import React, { JSX, useState } from 'react';
-import Link from 'next/link';
+import React from 'react';
 import type { Prisma } from '@/generated/prisma/client';
+import { HierarchyTree } from '../_components/HeirarchyTree';
+import { PageHeader } from '../_components/PageHeader';
+import { TotalCard } from '../_components/TotalCard';
+import { EmptyState } from '../_components/EmptyState';
 
 type Props = {
   allocations: (Prisma.accountGetPayload<{ include: { parent: true } }> & {
@@ -16,85 +19,57 @@ type Props = {
 };
 
 export default function ClientPage({ allocations, totals, grand_total }: Props) {
-  type Node = { item: (typeof allocations)[number]; children: Node[] };
-
-  const nodeById = new Map<string, Node>();
-  for (const a of allocations) nodeById.set(a.id, { item: a, children: [] });
-
-  const roots: Node[] = [];
-  for (const node of nodeById.values()) {
-    const pid = node.item.parent_id;
-    if (pid && nodeById.has(pid)) nodeById.get(pid)!.children.push(node);
-    else roots.push(node);
-  }
-
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const toggle = (id: string) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
-
-  const currencyFmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
-
-  function aggregateCurr(n: Node): number {
-    const own = totals[n.item.id];
-    return n.children.reduce((sum, c) => sum + aggregateCurr(c), own);
-  }
-
-  function renderNode(node: Node): JSX.Element {
-    const acc = node.item;
-    const isExpanded = !!expanded[acc.id];
-
-    // compute own and aggregate values
-    const ownCurr = totals[acc.id];
-
-    const displayCurr = aggregateCurr(node);
-
-    return (
-      <li key={acc.id} style={{ marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {node.children.length > 0 ? (
-            <button
-              onClick={() => toggle(acc.id)}
-              aria-expanded={isExpanded}
-              style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
-            >
-              <div style={{ width: 8 }}>{isExpanded ? '▾' : '▸'}</div>
-            </button>
-          ) : (
-            <div style={{ width: 8 }} />
-          )}
-          <div>
-            <Link href={`/allocations/${acc.id}`} style={{ cursor: 'pointer', display: 'inline-block' }}>
-              <strong>{acc.name}</strong>
-            </Link>
-            <span style={{ marginLeft: 8 }}>{currencyFmt.format(displayCurr)}</span>
-          </div>
-        </div>
-
-        {node.children.length > 0 && isExpanded && (
-          <ul style={{ marginLeft: 18 }}>
-            {/* pseudo-child showing non-aggregate "self" value */}
-            <li key={`${acc.id}-self`} style={{ marginBottom: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 8 }} />
-                <div style={{ fontStyle: 'italic' }}>
-                  <em>self</em> <span style={{ marginLeft: 8 }}>{currencyFmt.format(ownCurr)}</span>
-                </div>
-              </div>
-            </li>
-            {node.children.map(child => renderNode(child))}
-          </ul>
-        )}
-      </li>
-    );
-  }
+  const currencyFmt = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  });
 
   return (
-    <div>
-      <h2>Allocations</h2>
-      <div style={{ marginBottom: 8 }}>
-        <Link href="/allocations/create">Create new allocation</Link>
-      </div>
-      <div>Grand total: {currencyFmt.format(grand_total)}</div>
-      <ul>{roots.map(r => renderNode(r))}</ul>
+    <div className="space-y-6">
+      <PageHeader
+        title="Allocations"
+        description="Manage your allocations and view their hierarchy"
+        createUrl="/allocations/create"
+        createLabel="+ New Allocation"
+      />
+
+      <TotalCard
+        title="Total Allocations Value"
+        total={currencyFmt.format(grand_total)}
+        colorScheme="orange"
+        icon={
+          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+          </svg>
+        }
+      />
+
+      {allocations.length > 0 ? (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Allocation Hierarchy</h2>
+          <HierarchyTree
+            items={allocations}
+            totals={totals}
+            formatCurrency={amount => currencyFmt.format(amount)}
+            getItemUrl={id => `/allocations/${id}`}
+          />
+        </div>
+      ) : (
+        <EmptyState
+          icon={
+            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+            </svg>
+          }
+          title="No allocations yet"
+          description="Get started by creating your first allocation"
+          actionUrl="/allocations/create"
+          actionLabel="Create Allocation"
+        />
+      )}
     </div>
   );
 }

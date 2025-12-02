@@ -32,47 +32,84 @@ export default async function Page({ params }: Props) {
     );
   }
 
-  // compute total across real accounts (same logic as assets list)
+  // compute total across real accounts and aggregate holdings by account
   let asset_total = new Prisma.Decimal(0);
   const breakdown: {
+    account_id: string;
     account_name: string;
     quantity: number;
     book_value: number | null;
     current_value: number;
-    transaction_id: string;
-    transaction_date: string;
   }[] = [];
 
   const real_line_items = asset.line_items.filter(li => li.account.type === 'real');
+
+  // attempt to fetch a price once for the asset (used for all line items)
+  const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null);
+  const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null;
+
+  // aggregate per-account
+  const map: Record<string, { account_id: string; account_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {};
   for (const li of real_line_items) {
     const qty = li.quantity;
-    let current_value = new Prisma.Decimal(0);
+    // if book_value is missing, treat book as equal to quantity
+    const book = li.book_value ?? qty;
+    const aid = li.account.id;
+    if (!map[aid]) {
+      map[aid] = { account_id: aid, account_name: li.account.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0) };
+    }
+    map[aid].total_qty = map[aid].total_qty.add(qty);
+    map[aid].total_book = map[aid].total_book.add(book);
+  }
 
-    if (asset.type === 'mf') {
-      const nav = await get_price_for_asset(asset.type, asset.ticker ?? null);
-      if (nav) current_value = new Prisma.Decimal(nav.price).mul(qty);
-      else current_value = li.book_value!;
-    } else if (asset.type === 'etf' || asset.type === 'shares') {
-      const p = await get_price_for_asset(asset.type, asset.ticker ?? null);
-      if (p) current_value = new Prisma.Decimal(p.price).mul(qty);
-      else current_value = li.book_value!;
-    } else if (asset.type === 'rupees') {
-      current_value = qty;
+  for (const k of Object.keys(map)) {
+    const entry = map[k];
+    let current_value = new Prisma.Decimal(0);
+    if (asset.type === 'rupees') {
+      current_value = entry.total_qty;
+    } else if (priceDecimal) {
+      current_value = priceDecimal.mul(entry.total_qty);
     } else {
-      current_value = li.book_value!;
+      current_value = entry.total_book;
     }
 
     asset_total = asset_total.add(current_value);
 
     breakdown.push({
+      account_id: entry.account_id,
+      account_name: entry.account_name,
+      quantity: entry.total_qty.toNumber(),
+      book_value: entry.total_book.toNumber(),
+      current_value: current_value.toNumber(),
+    });
+  }
+
+  // prepare per-line items for client (keep transaction-level detail)
+  const line_items = real_line_items.map(li => {
+    let current_value = new Prisma.Decimal(0);
+    if (asset.type === 'rupees') {
+      current_value = li.quantity;
+    } else if (priceDecimal) {
+      current_value = priceDecimal.mul(li.quantity);
+    } else {
+      // fallback to book value, which itself should be treated as qty when null
+      current_value = li.book_value ?? li.quantity;
+    }
+
+    return {
+      id: li.id,
+      account_id: li.account.id,
       account_name: li.account.name,
-      quantity: qty.toNumber(),
-      book_value: li.book_value ? li.book_value.toNumber() : null,
+      quantity: li.quantity.toNumber(),
+      // fallback to quantity when book_value is null
+      book_value: li.book_value ? li.book_value.toNumber() : li.quantity.toNumber(),
       current_value: current_value.toNumber(),
       transaction_id: li.transaction.id,
       transaction_date: li.transaction.date.toISOString(),
-    });
-  }
+      transaction_description: li.transaction.description,
+      line_item_description: li.description,
+    };
+  });
 
   const assetForClient = {
     id: asset.id,
@@ -82,6 +119,7 @@ export default async function Page({ params }: Props) {
     parent: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
     total: asset_total.toNumber(),
     breakdown,
+    line_items,
   };
 
   return <ClientPage asset={assetForClient} currencyLocale="en-IN" currency="INR" />;

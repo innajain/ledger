@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { create_asset } from '@/app/_actions/resources';
 import type { asset_type, Prisma } from '@/generated/prisma/client';
+import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions } from '@/app/_components/AccountFormComponents';
 
 export default function ClientPage({ parents }: { parents: Prisma.assetGetPayload<{}>[] }) {
   const [name, setName] = useState('');
@@ -12,52 +12,42 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function onCreate() {
+  async function onCreate(e: React.FormEvent) {
+    e.preventDefault();
     setBusy(true);
     try {
       await create_asset(name, type, ticker || undefined, parentId ?? undefined);
-      window.location.href = '/';
+      window.location.href = '/assets';
+    } catch (err: any) {
+      alert('Failed: ' + (err?.message ?? String(err)));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div>
-      <h1>Create Asset</h1>
-      <div style={{ marginBottom: 8 }}>
-        <Link href="/assets">← Back to assets</Link>
-      </div>
-      <div>
-        <label>Name</label>
-        <input value={name} onChange={e => setName(e.target.value)} />
-      </div>
-      <div>
-        <label>Type</label>
-        <select value={type} onChange={e => setType(e.target.value as asset_type)}>
-          <option value="rupees">rupees</option>
-          <option value="mf">mf</option>
-          <option value="etf">etf</option>
-          <option value="shares">shares</option>
-          <option value="other">other</option>
-        </select>
-      </div>
-      <div>
-        <label>Ticker</label>
-        <input value={ticker} onChange={e => setTicker(e.target.value)} />
-      </div>
-      <div>
-        <label>Parent (optional)</label>
-        <select value={parentId ?? ''} onChange={e => setParentId(e.target.value || null)}>
-          <option value="">-- none --</option>
-          {parents.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <button onClick={onCreate} disabled={busy}>Create</button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader backLink="/assets" backText="Back to Assets" title="Create Asset" description="Add a new asset to your portfolio" />
+
+      <form onSubmit={onCreate} className="space-y-6">
+        <FormCard title="Asset Details">
+          <TextInput label="Asset Name" value={name} onChange={setName} placeholder="Enter asset name" required />
+
+          <AssetTypeSelect label="Asset Type" value={type} onChange={val => setType(val as asset_type)} />
+
+          <TextInput label="Ticker (Optional)" value={ticker} onChange={setTicker} placeholder="e.g., AAPL, INFY" />
+
+          <ParentAssetSelect
+            label="Parent Asset (Optional)"
+            value={parentId}
+            onChange={setParentId}
+            parents={parents}
+            helpText="Select a parent to create a sub-asset"
+          />
+        </FormCard>
+
+        <FormActions cancelLink="/assets" submitText={busy ? 'Creating...' : 'Create Asset'} busy={busy} />
+      </form>
     </div>
   );
 }
