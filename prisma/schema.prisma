@@ -1,0 +1,98 @@
+generator client {
+  provider   = "prisma-client"
+  output     = "../generated/prisma"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model user {
+  id            String @id @default(cuid())
+  username      String @unique
+  password_hash String
+
+  accounts     account[]
+  assets       asset[]
+  transactions transaction[]
+}
+
+model account {
+  id      String       @id @default(cuid())
+  user_id String
+  name    String
+  type    account_type
+
+  // --- Hierarchy Implementation ---
+  parent_id String?
+  parent    account?  @relation("AccountHierarchy", fields: [parent_id], references: [id])
+  children  account[] @relation("AccountHierarchy")
+  // --------------------------------
+
+  user       user        @relation(fields: [user_id], references: [id])
+  line_items line_item[]
+
+  @@unique([name, user_id])
+}
+
+model asset {
+  id               String     @id @default(cuid())
+  user_id          String
+  name             String
+  type             asset_type
+  ticker           String?
+  is_base_currency Boolean    @default(false)
+
+  // --- Hierarchy Implementation ---
+  parent_id String?
+  parent    asset?  @relation("AssetHierarchy", fields: [parent_id], references: [id])
+  children  asset[] @relation("AssetHierarchy")
+  // --------------------------------
+
+  user       user        @relation(fields: [user_id], references: [id])
+  line_items line_item[]
+
+  @@unique([name, user_id])
+}
+
+model transaction {
+  id          String   @id @default(cuid())
+  user_id     String
+  date        DateTime
+  description String?
+
+  user       user        @relation(fields: [user_id], references: [id])
+  line_items line_item[]
+}
+
+model line_item {
+  id          String  @id @default(cuid())
+  description String?
+
+  transaction_id String
+  transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+
+  account_id String
+  account    account @relation(fields: [account_id], references: [id])
+
+  asset_id String
+  asset    asset  @relation(fields: [asset_id], references: [id])
+
+  quantity   Decimal
+  book_value Decimal?
+}
+
+enum account_type {
+  real
+  nominal
+  allocation
+}
+
+enum asset_type {
+  rupees
+  mf
+  etf
+  shares
+  other
+}
