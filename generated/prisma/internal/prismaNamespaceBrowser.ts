@@ -100,7 +100,6 @@ export const AssetScalarFieldEnum = {
   name: 'name',
   type: 'type',
   ticker: 'ticker',
-  is_base_currency: 'is_base_currency',
   parent_id: 'parent_id'
 } as const
 

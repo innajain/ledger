@@ -1,3 +1,4 @@
+import { asset_type } from './generated/prisma/enums';
 import { runIntegrityChecks } from './integrity_checker';
 import { prisma } from './lib/prisma';
 import bcrypt from 'bcryptjs';
@@ -13,23 +14,26 @@ await prisma.$transaction(async prisma => {
     create: { username: 'shreyansh', password_hash: await bcrypt.hash('blinkit', 10) },
   });
 
-  const { id: money } = await prisma.asset.create({ data: { name: 'Money', type: 'rupees', is_base_currency: true, user_id: shreyansh } });
+  const { id: money } = await prisma.asset.create({ data: { name: 'Money', type: asset_type.rupees, user_id: shreyansh } });
   const { id: cash } = await prisma.asset.create({
-    data: { name: 'Cash - Notes', type: 'rupees', is_base_currency: true, user_id: shreyansh, parent_id: money },
+    data: { name: 'Cash - Notes', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
   const { id: cash_coins } = await prisma.asset.create({
-    data: { name: 'Cash - Coins', type: 'rupees', is_base_currency: true, user_id: shreyansh, parent_id: money },
+    data: { name: 'Cash - Coins', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
   const { id: digital_money } = await prisma.asset.create({
-    data: { name: 'Digital Money', type: 'rupees', is_base_currency: true, user_id: shreyansh, parent_id: money },
+    data: { name: 'Digital Money', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
   const { id: blocked_money } = await prisma.asset.create({
-    data: { name: 'Blocked Money', type: 'rupees', is_base_currency: true, user_id: shreyansh, parent_id: money },
+    data: { name: 'Blocked Money', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
+  });
+  const { id: liability_money } = await prisma.asset.create({
+    data: { name: 'Liability Money', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
 
   const { id: long_term } = await prisma.asset.create({ data: { name: 'Long Term Assets', type: 'other', user_id: shreyansh } });
   const { id: not_really_money } = await prisma.asset.create({
-    data: { name: 'Not Really Money', type: 'rupees', is_base_currency: true, user_id: shreyansh, parent_id: long_term },
+    data: { name: 'Not Really Money', type: asset_type.rupees, user_id: shreyansh, parent_id: long_term },
   });
   const { id: parag_parikh } = await prisma.asset.create({
     data: { name: 'Parag Parikh Flexi Cap', type: 'mf', ticker: 'INF879O01027', user_id: shreyansh, parent_id: long_term },
@@ -237,17 +241,19 @@ await prisma.$transaction(async prisma => {
           { account_id: wallet, asset_id: cash, quantity: 370 },
           { account_id: coin_pouch, asset_id: cash_coins, quantity: 166 },
           { account_id: aviral, asset_id: blocked_money, quantity: 117.85 },
-          { account_id: sbi_card, asset_id: digital_money, quantity: -5041 },
-          { account_id: axis_card, asset_id: digital_money, quantity: -152 },
-          { account_id: dmrc_wallet, asset_id: digital_money, quantity: 69 },
+          { account_id: pankaj, asset_id: liability_money, quantity: -176.32 },
+          { account_id: sbi_card, asset_id: liability_money, quantity: -5041 },
+          { account_id: axis_card, asset_id: liability_money, quantity: -152 },
+          { account_id: dmrc_wallet, asset_id: blocked_money, quantity: 69 },
           { account_id: rapido_wallet, asset_id: blocked_money, quantity: 143 },
           { account_id: supercard_uncredited_cashbacks, asset_id: blocked_money, quantity: 4.56 },
           { account_id: supermoney_rewards, asset_id: blocked_money, quantity: 10.35 },
 
-          { account_id: opening_balance, asset_id: digital_money, quantity: -123779.2 },
+          { account_id: opening_balance, asset_id: digital_money, quantity: -128903.2 },
           { account_id: opening_balance, asset_id: cash, quantity: -1070 },
           { account_id: opening_balance, asset_id: cash_coins, quantity: -166 },
-          { account_id: opening_balance, asset_id: blocked_money, quantity: -275.76 },
+          { account_id: opening_balance, asset_id: blocked_money, quantity: -344.76 },
+          { account_id: opening_balance, asset_id: liability_money, quantity: 5369.32 },
 
           { account_id: rent, asset_id: digital_money, quantity: 25000 },
           { account_id: office_food, asset_id: digital_money, quantity: 2300 },
@@ -266,16 +272,17 @@ await prisma.$transaction(async prisma => {
           { account_id: my_health_insurance, asset_id: digital_money, quantity: 1100 },
           { account_id: my_life_insurance, asset_id: digital_money, quantity: 1100 },
           { account_id: parents_life_insurance, asset_id: digital_money, quantity: 3000 },
-          { account_id: savings_for_surprise, asset_id: digital_money, quantity: 3917.58 },
+          { account_id: savings_for_surprise, asset_id: digital_money, quantity: 9188.56 },
           { account_id: savings_for_surprise, asset_id: cash, quantity: 670 },
           { account_id: savings_for_surprise, asset_id: cash_coins, quantity: 166 },
-          { account_id: savings_for_surprise, asset_id: blocked_money, quantity: 275.76 },
+          { account_id: savings_for_surprise, asset_id: blocked_money, quantity: 344.76 },
+          { account_id: savings_for_surprise, asset_id: liability_money, quantity: -5369.32 },
           { account_id: wifi, asset_id: digital_money, quantity: 250 },
           { account_id: rent_brokerage, asset_id: digital_money, quantity: 2400 },
           { account_id: big_ticket, asset_id: digital_money, quantity: 5000 },
           { account_id: send_to_home, asset_id: digital_money, quantity: 5000 },
           { account_id: siddhu, asset_id: digital_money, quantity: 40000 },
-          { account_id: investments, asset_id: digital_money, quantity: 22706.62 },
+          { account_id: investments, asset_id: digital_money, quantity: 22559.64 },
         ],
       },
     },
@@ -420,7 +427,7 @@ await prisma.$transaction(async prisma => {
 
   await prisma.transaction.create({
     data: {
-      description: 'refund. aviral\'s balance cleared',
+      description: "refund. aviral's balance cleared",
       date: new Date(2025, 11, 1, 19, 49),
       user_id: shreyansh,
       line_items: {

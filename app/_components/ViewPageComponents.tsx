@@ -1,4 +1,5 @@
 // components/ViewPageComponents.tsx
+import { asset_type } from '@/generated/prisma/enums';
 import Link from 'next/link';
 
 // View Page Header
@@ -119,7 +120,6 @@ export function EmptyState({
 interface LineItemRowProps {
   assetName: string;
   assetLink?: string;
-  isBaseCurrency: boolean;
   quantity?: number;
   bookValue?: number | null;
   currentValue: number;
@@ -128,12 +128,12 @@ interface LineItemRowProps {
   transactionDescription?: string | null;
   lineItemDescription?: string | null;
   currencyFormatter: Intl.NumberFormat;
+  assetType: asset_type;
 }
 
 export function LineItemRow({
   assetName,
   assetLink,
-  isBaseCurrency,
   quantity,
   bookValue,
   currentValue,
@@ -142,6 +142,7 @@ export function LineItemRow({
   transactionDescription,
   lineItemDescription,
   currencyFormatter,
+  assetType
 }: LineItemRowProps) {
   return (
     <div className="p-4 hover:bg-slate-50 transition-colors">
@@ -159,7 +160,7 @@ export function LineItemRow({
           {lineItemDescription && <p className="text-sm text-slate-600 mt-1">{lineItemDescription}</p>}
 
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {isBaseCurrency ? (
+            {assetType === asset_type.rupees ? (
               <div className="text-slate-600">
                 <span className="font-medium text-slate-900">{currencyFormatter.format(currentValue)}</span>
               </div>

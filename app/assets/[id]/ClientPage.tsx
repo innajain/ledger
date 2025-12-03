@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents';
+import { asset_type } from '@/generated/prisma/enums';
 
 type BreakdownItem = {
   account_id: string;
@@ -38,7 +39,6 @@ type AssetForClient = {
 
 export default function ClientPage({ asset, currencyLocale, currency }: { asset: AssetForClient; currencyLocale: string; currency: string }) {
   const currencyFmt = new Intl.NumberFormat(currencyLocale, { style: 'currency', currency, maximumFractionDigits: 2 });
-  const isBaseCurrency = asset.type === 'rupees';
 
   return (
     <div className="space-y-6">
@@ -101,7 +101,7 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
                         </Link>
 
                         <div className="mt-3 text-sm text-slate-600 space-y-2">
-                          {isBaseCurrency ? (
+                          {asset.type === asset_type.rupees ? (
                             <div>
                               <span className="text-slate-500">Value:</span>{' '}
                               <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
@@ -143,7 +143,9 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
       <div className="bg-white rounded-lg shadow-sm border border-slate-200">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Transaction Line Items</h2>
-          <p className="text-sm text-slate-500 mt-1">{(asset.line_items ?? []).length} item{(asset.line_items ?? []).length !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {(asset.line_items ?? []).length} item{(asset.line_items ?? []).length !== 1 ? 's' : ''}
+          </p>
         </div>
 
         {(asset.line_items ?? []).length === 0 ? (
@@ -151,56 +153,59 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
         ) : (
           <div className="divide-y divide-slate-200">
             <div className="max-h-96 overflow-y-auto">
-            {(asset.line_items ?? []).map((li, i) => (
-              <div key={li.id} className="p-4 hover:bg-slate-50 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <Link href={`/accounts/${li.account_id}`} className="font-semibold text-slate-900 hover:text-blue-600 transition-colors">
-                        {li.account_name}
-                      </Link>
-                      <span>•</span>
-                      <Link href={`/transactions/${li.transaction_id}`} className="text-xs text-slate-500 hover:text-blue-600">
-                        {new Date(li.transaction_date).toLocaleString()}
-                      </Link>
-                    </div>
+              {(asset.line_items ?? []).map((li, i) => (
+                <div key={li.id} className="p-4 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 text-sm text-slate-700">
+                        <Link href={`/accounts/${li.account_id}`} className="font-semibold text-slate-900 hover:text-blue-600 transition-colors">
+                          {li.account_name}
+                        </Link>
+                        <span>•</span>
+                        <Link href={`/transactions/${li.transaction_id}`} className="text-xs text-slate-500 hover:text-blue-600">
+                          {new Date(li.transaction_date).toLocaleString()}
+                        </Link>
+                      </div>
 
-                    {li.line_item_description && <p className="text-sm text-slate-600 mt-1 italic">{li.line_item_description}</p>}
-                    {li.transaction_description && <p className="text-xs text-slate-500 italic">Transaction: {li.transaction_description}</p>}
+                      {li.line_item_description && <p className="text-sm text-slate-600 mt-1 italic">{li.line_item_description}</p>}
+                      {li.transaction_description && <p className="text-xs text-slate-500 italic">Transaction: {li.transaction_description}</p>}
 
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                      {isBaseCurrency ? (
-                        <div className="text-slate-600">
-                          <span className="font-medium text-slate-900">{currencyFmt.format(li.current_value)}</span>
-                        </div>
-                      ) : (
-                        <>
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                        {asset.type === asset_type.rupees ? (
                           <div className="text-slate-600">
-                            <span className="text-slate-500">Quantity:</span>{' '}
-                            <span className="font-medium text-slate-900">{li.quantity} units</span>
-                          </div>
-                          <div className="text-slate-600">
-                            <span className="text-slate-500">Book:</span>{' '}
-                            <span className="font-medium text-slate-900">{li.book_value === null ? '—' : currencyFmt.format(li.book_value)}</span>
-                          </div>
-                          <div className="text-slate-600">
-                            <span className="text-slate-500">Current:</span>{' '}
                             <span className="font-medium text-slate-900">{currencyFmt.format(li.current_value)}</span>
                           </div>
-                        </>
-                      )}
+                        ) : (
+                          <>
+                            <div className="text-slate-600">
+                              <span className="text-slate-500">Quantity:</span>{' '}
+                              <span className="font-medium text-slate-900">{li.quantity} units</span>
+                            </div>
+                            <div className="text-slate-600">
+                              <span className="text-slate-500">Book:</span>{' '}
+                              <span className="font-medium text-slate-900">{li.book_value === null ? '—' : currencyFmt.format(li.book_value)}</span>
+                            </div>
+                            <div className="text-slate-600">
+                              <span className="text-slate-500">Current:</span>{' '}
+                              <span className="font-medium text-slate-900">{currencyFmt.format(li.current_value)}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-lg font-semibold text-slate-900">{currencyFmt.format(li.current_value)}</div>
+                      <Link
+                        href={`/transactions/${li.transaction_id}`}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1 inline-block"
+                      >
+                        View Transaction →
+                      </Link>
                     </div>
                   </div>
-
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-lg font-semibold text-slate-900">{currencyFmt.format(li.current_value)}</div>
-                    <Link href={`/transactions/${li.transaction_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1 inline-block">
-                      View Transaction →
-                    </Link>
-                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
             </div>
           </div>
         )}

@@ -3,12 +3,12 @@
 import React from 'react';
 import { ViewPageHeader, InfoCard, HoldingsHeader, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents';
 import Link from 'next/link';
+import { asset_type } from '@/generated/prisma/enums';
 
 type LineItem = {
   id: string;
   asset_id?: string;
   asset_name: string;
-  is_base_currency: boolean;
   quantity: number;
   book_value: number | null;
   current_value: number;
@@ -16,6 +16,7 @@ type LineItem = {
   transaction_date: string;
   transaction_description: string | null;
   line_item_description: string | null;
+  asset_type: asset_type;
 };
 
 type AllocationForClient = {
@@ -24,7 +25,7 @@ type AllocationForClient = {
   type: string;
   parent: { id: string; name: string } | null;
   total: number;
-  breakdown?: { asset_id: string; asset_name: string; is_base_currency: boolean; quantity: number; book_value: number | null; current_value: number }[];
+  breakdown?: { asset_id: string; asset_name: string; asset_type: asset_type; quantity: number; book_value: number | null; current_value: number }[];
   line_items: LineItem[];
 };
 
@@ -81,7 +82,7 @@ export default function ClientPage({
                       </Link>
 
                       <div className="mt-3 text-sm text-slate-600 space-y-2">
-                        {b.is_base_currency ? (
+                        {b.asset_type === asset_type.rupees ? (
                           <div>
                             <span className="text-slate-500">Value:</span>{' '}
                             <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
@@ -135,7 +136,6 @@ export default function ClientPage({
                 key={li.id}
                 assetName={li.asset_name}
                 assetLink={li.asset_id ? `/assets/${li.asset_id}` : undefined}
-                isBaseCurrency={li.is_base_currency}
                 quantity={li.quantity}
                 bookValue={li.book_value}
                 currentValue={li.current_value}
@@ -144,6 +144,7 @@ export default function ClientPage({
                 transactionDescription={li.transaction_description}
                 lineItemDescription={li.line_item_description}
                 currencyFormatter={currencyFmt}
+                assetType={li.asset_type}
               />
             ))}
           </div>

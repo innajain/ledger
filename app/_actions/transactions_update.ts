@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
-import { Prisma } from '@/generated/prisma/client';
+import { asset_type, Prisma } from '@/generated/prisma/client';
 
 type CreateLineItemInput = {
   account_id: string;
@@ -41,11 +41,11 @@ export async function update_transaction(
     const asset_by_id = new Map(assets.map(a => [a.id, a]));
 
     for (const li of line_items) {
-      if (!asset_by_id.get(li.asset_id)!.is_base_currency) {
-        if (li.book_value == null) throw new Error('book_value is required for non-base currency assets');
+      if (!(asset_by_id.get(li.asset_id)!.type === asset_type.rupees)) {
+        if (li.book_value == null) throw new Error('book_value is required for non-rupees type assets');
       } else {
         if (li.book_value != null) {
-          throw new Error('book_value must be null for base currency assets');
+          throw new Error('book_value must be null for rupees type assets');
         }
       }
     }

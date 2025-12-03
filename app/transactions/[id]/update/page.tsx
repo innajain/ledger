@@ -10,7 +10,10 @@ export default async function Page({ params }: Props) {
   const user = await get_current_user();
   if (!user) return <div>Please log in.</div>;
 
-  const tx = await prisma.transaction.findUnique({ where: { id, user_id: user.id }, include: { line_items: { include: { asset: true, account: true } } } });
+  const tx = await prisma.transaction.findUnique({
+    where: { id, user_id: user.id },
+    include: { line_items: { include: { asset: true, account: true } } },
+  });
   if (!tx) return <div>Transaction not found.</div>;
 
   // For now reuse the ClientPage to show transaction and provide an Edit entry point.
@@ -26,7 +29,6 @@ export default async function Page({ params }: Props) {
       account_type: li.account.type,
       asset_id: li.asset.id,
       asset_name: li.asset.name,
-      is_base_currency: li.asset.is_base_currency ?? false,
       quantity: Number(li.quantity.toString()),
       book_value: li.book_value ? Number(li.book_value.toString()) : null,
       current_value: li.book_value ? Number(li.book_value.toString()) : 0,
@@ -36,7 +38,7 @@ export default async function Page({ params }: Props) {
   const assets = await prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } });
 
   const accountsForClient = accounts.map(a => ({ id: a.id, name: a.name, type: a.type }));
-  const assetsForClient = assets.map(a => ({ id: a.id, name: a.name, type: a.type, is_base_currency: a.is_base_currency }));
+  const assetsForClient = assets.map(a => ({ id: a.id, name: a.name, type: a.type }));
 
   return <ClientPage transaction={txForClient} accounts={accountsForClient} assets={assetsForClient} updateTransaction={update_transaction} />;
 }

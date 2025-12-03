@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
 import { get_price_for_asset, get_latest_etf_price } from '@/app/_utils/price_fetcher';
-import { Prisma } from '@/generated/prisma/client';
+import { asset_type, Prisma } from '@/generated/prisma/client';
 import ClientPage from './ClientPage';
 
 type Props = { params: Promise<{ id: string }> };
@@ -65,7 +65,7 @@ export default async function Page({ params }: Props) {
   for (const k of Object.keys(map)) {
     const entry = map[k];
     let current_value = new Prisma.Decimal(0);
-    if (asset.type === 'rupees') {
+    if (asset.type === asset_type.rupees) {
       current_value = entry.total_qty;
     } else if (priceDecimal) {
       current_value = priceDecimal.mul(entry.total_qty);
@@ -87,7 +87,7 @@ export default async function Page({ params }: Props) {
   // prepare per-line items for client (keep transaction-level detail)
   const line_items = real_line_items.map(li => {
     let current_value = new Prisma.Decimal(0);
-    if (asset.type === 'rupees') {
+    if (asset.type === asset_type.rupees) {
       current_value = li.quantity;
     } else if (priceDecimal) {
       current_value = priceDecimal.mul(li.quantity);

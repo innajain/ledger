@@ -2,7 +2,7 @@ import ClientPage from './ClientPage';
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
 import { get_price_for_asset, get_latest_etf_price } from '@/app/_utils/price_fetcher';
-import { Prisma } from '@/generated/prisma/client';
+import { asset_type, Prisma } from '@/generated/prisma/client';
 
 export default async function Page() {
   const user = await get_current_user();
@@ -43,7 +43,7 @@ export default async function Page() {
         const p = await get_price_for_asset(asset.type, asset.ticker!);
         if (p) current_value = new Prisma.Decimal(p.price).mul(qty);
         else current_value = li.book_value!;
-      } else if (asset.type === 'rupees') {
+      } else if (asset.type === asset_type.rupees) {
         current_value = qty;
       } else {
         // other -> use book_value as current value
@@ -61,7 +61,6 @@ export default async function Page() {
     <ClientPage
       assets={assets.map(x => ({
         ...x,
-        is_base_currency: !!x.is_base_currency,
         line_items: x.line_items.map(li => ({
           ...li,
           quantity: li.quantity.toNumber(),

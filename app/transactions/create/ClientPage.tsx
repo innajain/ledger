@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { asset_type } from '@/generated/prisma/enums';
 
 export default function ClientPage({
   accounts,
@@ -9,7 +10,7 @@ export default function ClientPage({
   createTransaction,
 }: {
   accounts: { id: string; name: string; type: string }[];
-  assets: { id: string; name: string; type: string; is_base_currency: boolean }[];
+  assets: { id: string; name: string; type: asset_type }[];
   createTransaction: any;
 }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 16));
@@ -220,7 +221,7 @@ export default function ClientPage({
                                     const copy = [...prev];
                                     copy[idx].asset_id = e.target.value;
                                     const sel = assets.find(a => a.id === e.target.value);
-                                    if (sel?.is_base_currency) copy[idx].book_value = '';
+                                    if (sel?.type === asset_type.rupees) copy[idx].book_value = '';
                                     return copy;
                                   })
                                 }
@@ -251,7 +252,7 @@ export default function ClientPage({
                               />
                             </div>
 
-                            {!asset?.is_base_currency && (
+                            {!(asset?.type === asset_type.rupees) && (
                               <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">Book Value</label>
                                 <input

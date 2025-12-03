@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { get_current_user } from '@/app/_actions/auth';
 import { get_price_for_asset, get_latest_etf_price } from '@/app/_utils/price_fetcher';
-import { Prisma } from '@/generated/prisma/client';
+import { asset_type, Prisma } from '@/generated/prisma/client';
 import ClientPage from './ClientPage';
 
 type Props = { params: Promise<{ id: string }> };
@@ -38,7 +38,6 @@ export default async function Page({ params }: Props) {
     id: string;
     asset_id?: string;
     asset_name: string;
-    is_base_currency: boolean;
     quantity: number;
     book_value: number | null;
     current_value: number;
@@ -46,11 +45,13 @@ export default async function Page({ params }: Props) {
     transaction_date: string;
     transaction_description: string | null;
     line_item_description: string | null;
+    asset_type: asset_type;
   }[] = [];
   // aggregate by asset similar to account page
   const real_line_items = allocation.line_items;
   const priceCache: Record<string, Prisma.Decimal | null> = {};
-  const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; is_base_currency: boolean; type: string }> = {};
+  const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
+    {};
 
   for (const li of real_line_items) {
     const qty = li.quantity;
@@ -71,14 +72,20 @@ export default async function Page({ params }: Props) {
 
     const priceDecimal = priceCache[asset.id];
     let current_value = new Prisma.Decimal(0);
-    if (asset.type === 'rupees') current_value = qty;
+    if (asset.type === asset_type.rupees) current_value = qty;
     else if (priceDecimal) current_value = priceDecimal.mul(qty);
     else current_value = li.book_value ?? qty;
 
     acc_total = acc_total.add(current_value);
 
     if (!map[asset.id]) {
-      map[asset.id] = { asset_id: asset.id, asset_name: asset.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0), is_base_currency: !!asset.is_base_currency || asset.type === 'rupees', type: asset.type };
+      map[asset.id] = {
+        asset_id: asset.id,
+        asset_name: asset.name,
+        total_qty: new Prisma.Decimal(0),
+        total_book: new Prisma.Decimal(0),
+        asset_type: asset.type,
+      };
     }
     map[asset.id].total_qty = map[asset.id].total_qty.add(qty);
     map[asset.id].total_book = map[asset.id].total_book.add(li.book_value ?? qty);
@@ -87,7 +94,6 @@ export default async function Page({ params }: Props) {
       id: li.id,
       asset_id: asset.id,
       asset_name: asset.name,
-      is_base_currency: !!asset.is_base_currency || asset.type === 'rupees',
       quantity: qty.toNumber(),
       book_value: li.book_value ? li.book_value.toNumber() : qty.toNumber(),
       current_value: current_value.toNumber(),
@@ -95,14 +101,22 @@ export default async function Page({ params }: Props) {
       transaction_date: li.transaction.date.toISOString(),
       transaction_description: li.transaction.description,
       line_item_description: li.description,
+      asset_type: asset.type,
     });
   }
 
-  const breakdown: { asset_id: string; asset_name: string; quantity: number; book_value: number | null; current_value: number; is_base_currency: boolean }[] = [];
+  const breakdown: {
+    asset_id: string;
+    asset_name: string;
+    quantity: number;
+    book_value: number | null;
+    current_value: number;
+    asset_type: asset_type;
+  }[] = [];
   for (const k of Object.keys(map)) {
     const e = map[k];
     let current_value = new Prisma.Decimal(0);
-    if (e.type === 'rupees') current_value = e.total_qty;
+    if (e.asset_type === asset_type.rupees) current_value = e.total_qty;
     else if (priceCache[k]) current_value = priceCache[k]!.mul(e.total_qty);
     else current_value = e.total_book;
 
@@ -111,8 +125,8 @@ export default async function Page({ params }: Props) {
       asset_name: e.asset_name,
       quantity: e.total_qty.toNumber(),
       book_value: e.total_book.toNumber(),
-      is_base_currency: e.is_base_currency,
       current_value: current_value.toNumber(),
+      asset_type: e.asset_type,
     });
   }
 

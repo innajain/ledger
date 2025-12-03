@@ -18,7 +18,7 @@ export default async function Page() {
   const assets = await prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } });
 
   const accountsForClient = accounts.map(a => ({ id: a.id, name: a.name, type: a.type }));
-  const assetsForClient = assets.map(a => ({ id: a.id, name: a.name, type: a.type, is_base_currency: a.is_base_currency }));
+  const assetsForClient = assets.map(a => ({ id: a.id, name: a.name, type: a.type }));
 
   return <ClientPage accounts={accountsForClient} assets={assetsForClient} createTransaction={create_transaction} />;
 }

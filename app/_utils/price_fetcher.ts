@@ -90,7 +90,7 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
 
 export async function get_price_for_asset(type: asset_type, code: string | null): Promise<{ price: number; date: Date } | null> {
   try {
-    if (type === 'rupees') return { price: 1, date: get_date_obj_from_indian_date(get_indian_date_from_date_obj(new Date())) };
+    if (type === asset_type.rupees) return { price: 1, date: get_date_obj_from_indian_date(get_indian_date_from_date_obj(new Date())) };
     if (!code) return null;
 
     if (type === 'mf') {

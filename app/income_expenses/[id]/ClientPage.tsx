@@ -3,12 +3,12 @@
 import React from 'react';
 import { ViewPageHeader, InfoCard, HoldingsHeader, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents';
 import Link from 'next/link';
+import { asset_type } from '@/generated/prisma/enums';
 
 type LineItem = {
   id: string;
   asset_id: string;
   asset_name: string;
-  is_base_currency: boolean;
   quantity: number;
   book_value: number | null;
   current_value: number;
@@ -16,6 +16,7 @@ type LineItem = {
   transaction_date: string;
   transaction_description: string | null;
   line_item_description: string | null;
+  asset_type: asset_type;
 };
 
 type AccountForClient = {
@@ -24,7 +25,7 @@ type AccountForClient = {
   type: string;
   parent: { id: string; name: string } | null;
   total: number;
-  breakdown?: { asset_id: string; asset_name: string; is_base_currency: boolean; quantity: number; book_value: number | null; current_value: number }[];
+  breakdown?: { asset_id: string; asset_name: string; asset_type: asset_type; quantity: number; book_value: number | null; current_value: number }[];
   line_items: LineItem[];
 };
 
@@ -54,7 +55,9 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
       <div className="bg-white rounded-lg shadow-sm border border-slate-200">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Holdings (aggregated by asset)</h2>
-          <p className="text-sm text-slate-500 mt-1">{(account.breakdown ?? []).length} asset{(account.breakdown ?? []).length !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {(account.breakdown ?? []).length} asset{(account.breakdown ?? []).length !== 1 ? 's' : ''}
+          </p>
         </div>
 
         {(account.breakdown ?? []).length === 0 ? (
@@ -71,7 +74,7 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
                       </Link>
 
                       <div className="mt-3 text-sm text-slate-600 space-y-2">
-                        {b.is_base_currency ? (
+                        {b.asset_type === asset_type.rupees ? (
                           <div>
                             <span className="text-slate-500">Value:</span>{' '}
                             <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
@@ -79,8 +82,7 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
                         ) : (
                           <>
                             <div>
-                              <span className="text-slate-500">Quantity:</span>{' '}
-                              <span className="font-medium text-slate-900">{b.quantity} units</span>
+                              <span className="text-slate-500">Quantity:</span> <span className="font-medium text-slate-900">{b.quantity} units</span>
                             </div>
                             <div>
                               <span className="text-slate-500">Book:</span>{' '}
@@ -111,7 +113,9 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
       <div className="bg-white rounded-lg shadow-sm border border-slate-200">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Transaction Line Items</h2>
-          <p className="text-sm text-slate-500 mt-1">{account.line_items.length} item{account.line_items.length !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {account.line_items.length} item{account.line_items.length !== 1 ? 's' : ''}
+          </p>
         </div>
 
         {account.line_items.length === 0 ? (
@@ -123,7 +127,6 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
                 key={li.id}
                 assetName={li.asset_name}
                 assetLink={`/assets/${li.asset_id}`}
-                isBaseCurrency={li.is_base_currency}
                 quantity={li.quantity}
                 bookValue={li.book_value}
                 currentValue={li.current_value}
@@ -132,6 +135,7 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
                 transactionDescription={li.transaction_description}
                 lineItemDescription={li.line_item_description}
                 currencyFormatter={currencyFmt}
+                assetType={li.asset_type}
               />
             ))}
           </div>

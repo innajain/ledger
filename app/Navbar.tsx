@@ -29,8 +29,8 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo/Brand */}
           <Link href="/" className="flex items-center space-x-2 text-slate-900 hover:text-slate-700 transition-colors" onClick={closeMenu}>
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">L</span>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+              <img src="/favicon.ico" alt="Ledger" className="w-6 h-6" />
             </div>
             <span className="font-semibold text-lg">Ledger</span>
           </Link>

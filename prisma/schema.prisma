@@ -37,12 +37,11 @@ model account {
 }
 
 model asset {
-  id               String     @id @default(cuid())
-  user_id          String
-  name             String
-  type             asset_type
-  ticker           String?
-  is_base_currency Boolean    @default(false)
+  id      String     @id @default(cuid())
+  user_id String
+  name    String
+  type    asset_type
+  ticker  String?
 
   // --- Hierarchy Implementation ---
   parent_id String?
@@ -79,8 +78,8 @@ model line_item {
   asset_id String
   asset    asset  @relation(fields: [asset_id], references: [id])
 
-  quantity   Decimal
-  book_value Decimal?
+  quantity   Decimal  @db.Decimal(10, 4)
+  book_value Decimal? @db.Decimal(10, 4)
 }
 
 enum account_type {

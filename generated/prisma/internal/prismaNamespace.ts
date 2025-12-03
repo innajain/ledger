@@ -843,7 +843,6 @@ export const AssetScalarFieldEnum = {
   name: 'name',
   type: 'type',
   ticker: 'ticker',
-  is_base_currency: 'is_base_currency',
   parent_id: 'parent_id'
 } as const
 
@@ -942,13 +941,6 @@ export type Enumasset_typeFieldRefInput<$PrismaModel> = FieldRefInputType<$Prism
  * Reference to a field of type 'asset_type[]'
  */
 export type ListEnumasset_typeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'asset_type[]'>
-    
-
-
-/**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 

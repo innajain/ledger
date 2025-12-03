@@ -30,7 +30,6 @@ export type AssetMinAggregateOutputType = {
   name: string | null
   type: $Enums.asset_type | null
   ticker: string | null
-  is_base_currency: boolean | null
   parent_id: string | null
 }
 
@@ -40,7 +39,6 @@ export type AssetMaxAggregateOutputType = {
   name: string | null
   type: $Enums.asset_type | null
   ticker: string | null
-  is_base_currency: boolean | null
   parent_id: string | null
 }
 
@@ -50,7 +48,6 @@ export type AssetCountAggregateOutputType = {
   name: number
   type: number
   ticker: number
-  is_base_currency: number
   parent_id: number
   _all: number
 }
@@ -62,7 +59,6 @@ export type AssetMinAggregateInputType = {
   name?: true
   type?: true
   ticker?: true
-  is_base_currency?: true
   parent_id?: true
 }
 
@@ -72,7 +68,6 @@ export type AssetMaxAggregateInputType = {
   name?: true
   type?: true
   ticker?: true
-  is_base_currency?: true
   parent_id?: true
 }
 
@@ -82,7 +77,6 @@ export type AssetCountAggregateInputType = {
   name?: true
   type?: true
   ticker?: true
-  is_base_currency?: true
   parent_id?: true
   _all?: true
 }
@@ -165,7 +159,6 @@ export type AssetGroupByOutputType = {
   name: string
   type: $Enums.asset_type
   ticker: string | null
-  is_base_currency: boolean
   parent_id: string | null
   _count: AssetCountAggregateOutputType | null
   _min: AssetMinAggregateOutputType | null
@@ -196,7 +189,6 @@ export type assetWhereInput = {
   name?: Prisma.StringFilter<"asset"> | string
   type?: Prisma.Enumasset_typeFilter<"asset"> | $Enums.asset_type
   ticker?: Prisma.StringNullableFilter<"asset"> | string | null
-  is_base_currency?: Prisma.BoolFilter<"asset"> | boolean
   parent_id?: Prisma.StringNullableFilter<"asset"> | string | null
   parent?: Prisma.XOR<Prisma.AssetNullableScalarRelationFilter, Prisma.assetWhereInput> | null
   children?: Prisma.AssetListRelationFilter
@@ -210,7 +202,6 @@ export type assetOrderByWithRelationInput = {
   name?: Prisma.SortOrder
   type?: Prisma.SortOrder
   ticker?: Prisma.SortOrderInput | Prisma.SortOrder
-  is_base_currency?: Prisma.SortOrder
   parent_id?: Prisma.SortOrderInput | Prisma.SortOrder
   parent?: Prisma.assetOrderByWithRelationInput
   children?: Prisma.assetOrderByRelationAggregateInput
@@ -228,7 +219,6 @@ export type assetWhereUniqueInput = Prisma.AtLeast<{
   name?: Prisma.StringFilter<"asset"> | string
   type?: Prisma.Enumasset_typeFilter<"asset"> | $Enums.asset_type
   ticker?: Prisma.StringNullableFilter<"asset"> | string | null
-  is_base_currency?: Prisma.BoolFilter<"asset"> | boolean
   parent_id?: Prisma.StringNullableFilter<"asset"> | string | null
   parent?: Prisma.XOR<Prisma.AssetNullableScalarRelationFilter, Prisma.assetWhereInput> | null
   children?: Prisma.AssetListRelationFilter
@@ -242,7 +232,6 @@ export type assetOrderByWithAggregationInput = {
   name?: Prisma.SortOrder
   type?: Prisma.SortOrder
   ticker?: Prisma.SortOrderInput | Prisma.SortOrder
-  is_base_currency?: Prisma.SortOrder
   parent_id?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.assetCountOrderByAggregateInput
   _max?: Prisma.assetMaxOrderByAggregateInput
@@ -258,7 +247,6 @@ export type assetScalarWhereWithAggregatesInput = {
   name?: Prisma.StringWithAggregatesFilter<"asset"> | string
   type?: Prisma.Enumasset_typeWithAggregatesFilter<"asset"> | $Enums.asset_type
   ticker?: Prisma.StringNullableWithAggregatesFilter<"asset"> | string | null
-  is_base_currency?: Prisma.BoolWithAggregatesFilter<"asset"> | boolean
   parent_id?: Prisma.StringNullableWithAggregatesFilter<"asset"> | string | null
 }
 
@@ -267,7 +255,6 @@ export type assetCreateInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent?: Prisma.assetCreateNestedOneWithoutChildrenInput
   children?: Prisma.assetCreateNestedManyWithoutParentInput
   user: Prisma.userCreateNestedOneWithoutAssetsInput
@@ -280,7 +267,6 @@ export type assetUncheckedCreateInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent_id?: string | null
   children?: Prisma.assetUncheckedCreateNestedManyWithoutParentInput
   line_items?: Prisma.line_itemUncheckedCreateNestedManyWithoutAssetInput
@@ -291,7 +277,6 @@ export type assetUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent?: Prisma.assetUpdateOneWithoutChildrenNestedInput
   children?: Prisma.assetUpdateManyWithoutParentNestedInput
   user?: Prisma.userUpdateOneRequiredWithoutAssetsNestedInput
@@ -304,7 +289,6 @@ export type assetUncheckedUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   children?: Prisma.assetUncheckedUpdateManyWithoutParentNestedInput
   line_items?: Prisma.line_itemUncheckedUpdateManyWithoutAssetNestedInput
@@ -316,7 +300,6 @@ export type assetCreateManyInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent_id?: string | null
 }
 
@@ -325,7 +308,6 @@ export type assetUpdateManyMutationInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type assetUncheckedUpdateManyInput = {
@@ -334,7 +316,6 @@ export type assetUncheckedUpdateManyInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
@@ -364,7 +345,6 @@ export type assetCountOrderByAggregateInput = {
   name?: Prisma.SortOrder
   type?: Prisma.SortOrder
   ticker?: Prisma.SortOrder
-  is_base_currency?: Prisma.SortOrder
   parent_id?: Prisma.SortOrder
 }
 
@@ -374,7 +354,6 @@ export type assetMaxOrderByAggregateInput = {
   name?: Prisma.SortOrder
   type?: Prisma.SortOrder
   ticker?: Prisma.SortOrder
-  is_base_currency?: Prisma.SortOrder
   parent_id?: Prisma.SortOrder
 }
 
@@ -384,7 +363,6 @@ export type assetMinOrderByAggregateInput = {
   name?: Prisma.SortOrder
   type?: Prisma.SortOrder
   ticker?: Prisma.SortOrder
-  is_base_currency?: Prisma.SortOrder
   parent_id?: Prisma.SortOrder
 }
 
@@ -459,10 +437,6 @@ export type Enumasset_typeFieldUpdateOperationsInput = {
   set?: $Enums.asset_type
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type assetUpdateOneWithoutChildrenNestedInput = {
   create?: Prisma.XOR<Prisma.assetCreateWithoutChildrenInput, Prisma.assetUncheckedCreateWithoutChildrenInput>
   connectOrCreate?: Prisma.assetCreateOrConnectWithoutChildrenInput
@@ -520,7 +494,6 @@ export type assetCreateWithoutUserInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent?: Prisma.assetCreateNestedOneWithoutChildrenInput
   children?: Prisma.assetCreateNestedManyWithoutParentInput
   line_items?: Prisma.line_itemCreateNestedManyWithoutAssetInput
@@ -531,7 +504,6 @@ export type assetUncheckedCreateWithoutUserInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent_id?: string | null
   children?: Prisma.assetUncheckedCreateNestedManyWithoutParentInput
   line_items?: Prisma.line_itemUncheckedCreateNestedManyWithoutAssetInput
@@ -572,7 +544,6 @@ export type assetScalarWhereInput = {
   name?: Prisma.StringFilter<"asset"> | string
   type?: Prisma.Enumasset_typeFilter<"asset"> | $Enums.asset_type
   ticker?: Prisma.StringNullableFilter<"asset"> | string | null
-  is_base_currency?: Prisma.BoolFilter<"asset"> | boolean
   parent_id?: Prisma.StringNullableFilter<"asset"> | string | null
 }
 
@@ -581,7 +552,6 @@ export type assetCreateWithoutChildrenInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent?: Prisma.assetCreateNestedOneWithoutChildrenInput
   user: Prisma.userCreateNestedOneWithoutAssetsInput
   line_items?: Prisma.line_itemCreateNestedManyWithoutAssetInput
@@ -593,7 +563,6 @@ export type assetUncheckedCreateWithoutChildrenInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent_id?: string | null
   line_items?: Prisma.line_itemUncheckedCreateNestedManyWithoutAssetInput
 }
@@ -608,7 +577,6 @@ export type assetCreateWithoutParentInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   children?: Prisma.assetCreateNestedManyWithoutParentInput
   user: Prisma.userCreateNestedOneWithoutAssetsInput
   line_items?: Prisma.line_itemCreateNestedManyWithoutAssetInput
@@ -620,7 +588,6 @@ export type assetUncheckedCreateWithoutParentInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   children?: Prisma.assetUncheckedCreateNestedManyWithoutParentInput
   line_items?: Prisma.line_itemUncheckedCreateNestedManyWithoutAssetInput
 }
@@ -651,7 +618,6 @@ export type assetUpdateWithoutChildrenInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent?: Prisma.assetUpdateOneWithoutChildrenNestedInput
   user?: Prisma.userUpdateOneRequiredWithoutAssetsNestedInput
   line_items?: Prisma.line_itemUpdateManyWithoutAssetNestedInput
@@ -663,7 +629,6 @@ export type assetUncheckedUpdateWithoutChildrenInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   line_items?: Prisma.line_itemUncheckedUpdateManyWithoutAssetNestedInput
 }
@@ -689,7 +654,6 @@ export type assetCreateWithoutLine_itemsInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent?: Prisma.assetCreateNestedOneWithoutChildrenInput
   children?: Prisma.assetCreateNestedManyWithoutParentInput
   user: Prisma.userCreateNestedOneWithoutAssetsInput
@@ -701,7 +665,6 @@ export type assetUncheckedCreateWithoutLine_itemsInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent_id?: string | null
   children?: Prisma.assetUncheckedCreateNestedManyWithoutParentInput
 }
@@ -727,7 +690,6 @@ export type assetUpdateWithoutLine_itemsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent?: Prisma.assetUpdateOneWithoutChildrenNestedInput
   children?: Prisma.assetUpdateManyWithoutParentNestedInput
   user?: Prisma.userUpdateOneRequiredWithoutAssetsNestedInput
@@ -739,7 +701,6 @@ export type assetUncheckedUpdateWithoutLine_itemsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   children?: Prisma.assetUncheckedUpdateManyWithoutParentNestedInput
 }
@@ -749,7 +710,6 @@ export type assetCreateManyUserInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
   parent_id?: string | null
 }
 
@@ -758,7 +718,6 @@ export type assetUpdateWithoutUserInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent?: Prisma.assetUpdateOneWithoutChildrenNestedInput
   children?: Prisma.assetUpdateManyWithoutParentNestedInput
   line_items?: Prisma.line_itemUpdateManyWithoutAssetNestedInput
@@ -769,7 +728,6 @@ export type assetUncheckedUpdateWithoutUserInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   children?: Prisma.assetUncheckedUpdateManyWithoutParentNestedInput
   line_items?: Prisma.line_itemUncheckedUpdateManyWithoutAssetNestedInput
@@ -780,7 +738,6 @@ export type assetUncheckedUpdateManyWithoutUserInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parent_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
@@ -790,7 +747,6 @@ export type assetCreateManyParentInput = {
   name: string
   type: $Enums.asset_type
   ticker?: string | null
-  is_base_currency?: boolean
 }
 
 export type assetUpdateWithoutParentInput = {
@@ -798,7 +754,6 @@ export type assetUpdateWithoutParentInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   children?: Prisma.assetUpdateManyWithoutParentNestedInput
   user?: Prisma.userUpdateOneRequiredWithoutAssetsNestedInput
   line_items?: Prisma.line_itemUpdateManyWithoutAssetNestedInput
@@ -810,7 +765,6 @@ export type assetUncheckedUpdateWithoutParentInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
   children?: Prisma.assetUncheckedUpdateManyWithoutParentNestedInput
   line_items?: Prisma.line_itemUncheckedUpdateManyWithoutAssetNestedInput
 }
@@ -821,7 +775,6 @@ export type assetUncheckedUpdateManyWithoutParentInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.Enumasset_typeFieldUpdateOperationsInput | $Enums.asset_type
   ticker?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  is_base_currency?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 
@@ -870,7 +823,6 @@ export type assetSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   name?: boolean
   type?: boolean
   ticker?: boolean
-  is_base_currency?: boolean
   parent_id?: boolean
   parent?: boolean | Prisma.asset$parentArgs<ExtArgs>
   children?: boolean | Prisma.asset$childrenArgs<ExtArgs>
@@ -885,7 +837,6 @@ export type assetSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   name?: boolean
   type?: boolean
   ticker?: boolean
-  is_base_currency?: boolean
   parent_id?: boolean
   parent?: boolean | Prisma.asset$parentArgs<ExtArgs>
   user?: boolean | Prisma.userDefaultArgs<ExtArgs>
@@ -897,7 +848,6 @@ export type assetSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   name?: boolean
   type?: boolean
   ticker?: boolean
-  is_base_currency?: boolean
   parent_id?: boolean
   parent?: boolean | Prisma.asset$parentArgs<ExtArgs>
   user?: boolean | Prisma.userDefaultArgs<ExtArgs>
@@ -909,11 +859,10 @@ export type assetSelectScalar = {
   name?: boolean
   type?: boolean
   ticker?: boolean
-  is_base_currency?: boolean
   parent_id?: boolean
 }
 
-export type assetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "user_id" | "name" | "type" | "ticker" | "is_base_currency" | "parent_id", ExtArgs["result"]["asset"]>
+export type assetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "user_id" | "name" | "type" | "ticker" | "parent_id", ExtArgs["result"]["asset"]>
 export type assetInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   parent?: boolean | Prisma.asset$parentArgs<ExtArgs>
   children?: boolean | Prisma.asset$childrenArgs<ExtArgs>
@@ -944,7 +893,6 @@ export type $assetPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     name: string
     type: $Enums.asset_type
     ticker: string | null
-    is_base_currency: boolean
     parent_id: string | null
   }, ExtArgs["result"]["asset"]>
   composites: {}
@@ -1378,7 +1326,6 @@ export interface assetFieldRefs {
   readonly name: Prisma.FieldRef<"asset", 'String'>
   readonly type: Prisma.FieldRef<"asset", 'asset_type'>
   readonly ticker: Prisma.FieldRef<"asset", 'String'>
-  readonly is_base_currency: Prisma.FieldRef<"asset", 'Boolean'>
   readonly parent_id: Prisma.FieldRef<"asset", 'String'>
 }
     

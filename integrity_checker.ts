@@ -1,6 +1,6 @@
 import { prisma } from './lib/prisma';
 import { get_price_for_asset, get_latest_etf_price, get_nav } from './app/_utils/price_fetcher';
-import { Prisma } from '@/generated/prisma/client';
+import { asset_type, Prisma } from '@/generated/prisma/client';
 import { fileURLToPath } from 'url';
 
 type Issue = { kind: 'error' | 'warning'; message: string };
@@ -74,19 +74,6 @@ async function checkAssetTickersAndPrices(): Promise<Issue[]> {
   return issues;
 }
 
-async function checkAssetBaseCurrencyFlag(): Promise<Issue[]> {
-  const issues: Issue[] = [];
-  const assets = await prisma.asset.findMany({ select: { id: true, name: true, type: true, is_base_currency: true } });
-  for (const a of assets) {
-    if (a.type === 'rupees') {
-      if (!a.is_base_currency) issues.push({ kind: 'error', message: `asset ${a.id} (${a.name}) is type 'rupees' but is_base_currency is false` });
-    } else {
-      if (a.is_base_currency) issues.push({ kind: 'error', message: `asset ${a.id} (${a.name}) is not 'rupees' but is_base_currency is true` });
-    }
-  }
-  return issues;
-}
-
 async function checkAccountParentTypes(): Promise<Issue[]> {
   const issues: Issue[] = [];
   const accounts = await prisma.account.findMany({ select: { id: true, name: true, type: true, parent_id: true } });
@@ -116,15 +103,15 @@ async function checkLineItemsBookValue(): Promise<Issue[]> {
   const issues: Issue[] = [];
   const line_items = await prisma.line_item.findMany({ include: { asset: true, transaction: true } });
   for (const li of line_items) {
-    if (!li.asset.is_base_currency && li.book_value == null) {
+    if (!(li.asset.type === asset_type.rupees) && li.book_value == null) {
       issues.push({
         kind: 'error',
-        message: `line_item ${li.id} (tx=${li.transaction_id}) asset ${li.asset.id} (${li.asset.name}) is not base currency but book_value is null`,
+        message: `line_item ${li.id} (tx=${li.transaction_id}) asset ${li.asset.id} (${li.asset.name}) is of type rupees but book_value is null`,
       });
-    } else if (li.asset.is_base_currency && li.book_value != null) {
+    } else if (li.asset.type === asset_type.rupees && li.book_value != null) {
       issues.push({
         kind: 'error',
-        message: `line_item ${li.id} (tx=${li.transaction_id}) asset ${li.asset.id} (${li.asset.name}) is base currency but book_value is not null`,
+        message: `line_item ${li.id} (tx=${li.transaction_id}) asset ${li.asset.id} (${li.asset.name}) is of type rupees but book_value is not null`,
       });
     }
   }
@@ -159,9 +146,10 @@ async function checkTransactionsInvariants(): Promise<Issue[]> {
     const qty_by_asset_real = new Map<string, Prisma.Decimal>();
     const qty_by_asset_alloc = new Map<string, Prisma.Decimal>();
 
-    let sum_book_value_real = new Prisma.Decimal(0);
-    let sum_book_value_alloc = new Prisma.Decimal(0);
-    let sum_book_value_nominal = new Prisma.Decimal(0);
+    const ZERO = new Prisma.Decimal(0);
+    let sum_book_value_real = ZERO;
+    let sum_book_value_alloc = ZERO;
+    let sum_book_value_nominal = ZERO;
 
     for (const li of tx.line_items) {
       const acc_type = li.account.type;
@@ -169,10 +157,10 @@ async function checkTransactionsInvariants(): Promise<Issue[]> {
       const book_val = new Prisma.Decimal((li.book_value ?? li.quantity).toString());
 
       if (acc_type === 'real') {
-        const prev = qty_by_asset_real.get(li.asset_id) ?? new Prisma.Decimal(0);
+        const prev = qty_by_asset_real.get(li.asset_id) ?? ZERO;
         qty_by_asset_real.set(li.asset_id, prev.add(qty));
       } else if (acc_type === 'allocation') {
-        const prev = qty_by_asset_alloc.get(li.asset_id) ?? new Prisma.Decimal(0);
+        const prev = qty_by_asset_alloc.get(li.asset_id) ?? ZERO;
         qty_by_asset_alloc.set(li.asset_id, prev.add(qty));
       }
 
@@ -184,8 +172,8 @@ async function checkTransactionsInvariants(): Promise<Issue[]> {
     // check per-asset qty equality
     const asset_ids = Array.from(new Set(tx.line_items.map(li => li.asset_id)));
     for (const aid of asset_ids) {
-      const real_qty = qty_by_asset_real.get(aid) ?? new Prisma.Decimal(0);
-      const alloc_qty = qty_by_asset_alloc.get(aid) ?? new Prisma.Decimal(0);
+      const real_qty = qty_by_asset_real.get(aid) ?? ZERO;
+      const alloc_qty = qty_by_asset_alloc.get(aid) ?? ZERO;
       if (!real_qty.equals(alloc_qty)) {
         const assetName = tx.line_items.find(li => li.asset_id === aid)?.asset.name ?? aid;
         issues.push({
@@ -198,7 +186,7 @@ async function checkTransactionsInvariants(): Promise<Issue[]> {
     }
 
     // check book value sums
-    if (!sum_book_value_real.add(sum_book_value_nominal).equals(new Prisma.Decimal(0))) {
+    if (!sum_book_value_real.add(sum_book_value_nominal).equals(ZERO)) {
       issues.push({
         kind: 'error',
         message: `transaction ${
@@ -206,7 +194,7 @@ async function checkTransactionsInvariants(): Promise<Issue[]> {
         }: invariant failed: sum(book_value) in real + nominal !== 0 (real=${sum_book_value_real.toString()} nominal=${sum_book_value_nominal.toString()})`,
       });
     }
-    if (!sum_book_value_alloc.add(sum_book_value_nominal).equals(new Prisma.Decimal(0))) {
+    if (!sum_book_value_alloc.add(sum_book_value_nominal).equals(ZERO)) {
       issues.push({
         kind: 'error',
         message: `transaction ${
@@ -225,7 +213,6 @@ export async function runIntegrityChecks(): Promise<{ ok: boolean; issues: Issue
   issues.push(...(await checkNoCycles('account')));
   issues.push(...(await checkNoCycles('asset')));
   issues.push(...(await checkAssetTickersAndPrices()));
-  issues.push(...(await checkAssetBaseCurrencyFlag()));
   issues.push(...(await checkNonEmptyDescriptions()));
   issues.push(...(await checkLineItemsBookValue()));
   issues.push(...(await checkTransactionsInvariants()));

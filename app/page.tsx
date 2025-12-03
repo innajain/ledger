@@ -2,7 +2,7 @@ import ClientPage from './ClientPage';
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
 import { get_price_for_asset, get_latest_etf_price } from '@/app/_utils/price_fetcher';
-import { Prisma } from '@/generated/prisma/client';
+import { asset_type, Prisma } from '@/generated/prisma/client';
 import { flush_redis } from '@/app/_actions/flush';
 import { log_out } from '@/app/_actions/auth';
 
@@ -38,7 +38,7 @@ export default async function Home() {
         const p = await get_latest_etf_price(asset.ticker ?? '');
         if (p) current_value = new Prisma.Decimal(p.close).mul(qty);
         else current_value = li.book_value!;
-      } else if (asset.type === 'rupees') {
+      } else if (asset.type === asset_type.rupees) {
         current_value = qty;
       } else {
         current_value = li.book_value!;
