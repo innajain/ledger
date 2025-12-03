@@ -1,6 +1,6 @@
 'use client';
 
-import { asset_type, Prisma } from '@/generated/prisma/client';
+import { Prisma } from '@/generated/prisma/client';
 import React from 'react';
 import { HierarchyTree } from '../_components/HeirarchyTree';
 import { PageHeader } from '../_components/PageHeader';
@@ -66,7 +66,7 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
             formatCurrency={amount => currencyFmt.format(amount)}
             getItemUrl={id => `/assets/${id}`}
             renderExtraInfo={asset => {
-              if (asset.type === asset_type.rupees) return null;
+              if (asset.type === 'rupees') return null;
               const qty = asset.line_items.reduce((s, li) => s + (li.quantity ?? 0), 0);
               return <span className="text-sm text-slate-600">{qtyFmt(qty)} units</span>;
             }}
