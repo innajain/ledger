@@ -78,8 +78,8 @@ export async function update_transaction(
     }
 
     for (const asset_id of asset_ids) {
-      const real_qty = qty_by_asset_real.get(asset_id)!;
-      const alloc_qty = qty_by_asset_alloc.get(asset_id)!;
+      const real_qty = qty_by_asset_real.get(asset_id) ?? new Prisma.Decimal(0);
+      const alloc_qty = qty_by_asset_alloc.get(asset_id) ?? new Prisma.Decimal(0);
       if (!real_qty.equals(alloc_qty)) {
         throw new Error(
           `quantity mismatch for asset ${asset_by_id.get(asset_id)!.name}: real=${real_qty.toString()} allocation=${alloc_qty.toString()}`
