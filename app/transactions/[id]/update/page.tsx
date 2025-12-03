@@ -19,7 +19,7 @@ export default async function Page({ params }: Props) {
   // For now reuse the ClientPage to show transaction and provide an Edit entry point.
   const txForClient = {
     id: tx.id,
-    date: tx.date.toISOString(),
+    date: tx.date,
     description: tx.description,
     total: tx.line_items.reduce((s, li) => s + (li.book_value ? Number(li.book_value.toString()) : 0), 0),
     line_items: tx.line_items.map(li => ({

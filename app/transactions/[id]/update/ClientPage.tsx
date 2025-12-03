@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { asset_type } from '@/generated/prisma/enums';
+import { account_type, asset_type } from '@/generated/prisma/enums';
 
 export default function ClientPage({
   transaction,
@@ -10,12 +10,39 @@ export default function ClientPage({
   assets,
   updateTransaction,
 }: {
-  transaction: any;
+  transaction: {
+    id: string;
+    date: Date;
+    description: string | null;
+    total: number;
+    line_items: {
+      id: string;
+      account_id: string;
+      account_name: string;
+      account_type: account_type;
+      asset_id: string;
+      asset_name: string;
+      quantity: number;
+      book_value: number | null;
+      current_value: number;
+    }[];
+  };
   accounts: { id: string; name: string; type: string }[];
   assets: { id: string; name: string; type: asset_type }[];
   updateTransaction: any;
 }) {
-  const [date, setDate] = useState(transaction.date.slice(0, 16));
+  function toLocalDateTimeInputValue(d: Date | string) {
+    const dt = typeof d === 'string' ? new Date(d) : d;
+    if (!dt || isNaN(dt.getTime())) return '';
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const min = String(dt.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  }
+
+  const [date, setDate] = useState(() => toLocalDateTimeInputValue(transaction.date));
   const [description, setDescription] = useState(transaction.description ?? '');
   const [items, setItems] = useState<Array<{ account_id: string; asset_id: string; quantity: string; book_value: string; description: string }>>(
     transaction.line_items.map((li: any) => ({
