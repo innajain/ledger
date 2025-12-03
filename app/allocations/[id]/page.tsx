@@ -129,9 +129,6 @@ export default async function Page({ params }: Props) {
       asset_type: e.asset_type,
     });
   }
-
-  const currencyFmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
-
   const allocationForClient = {
     id: allocation.id,
     name: allocation.name,
@@ -139,6 +136,7 @@ export default async function Page({ params }: Props) {
     parent: allocation.parent ? { id: allocation.parent.id, name: allocation.parent.name } : null,
     total: acc_total.toNumber(),
     line_items: lineItemsWithValues,
+    breakdown,
   };
 
   return <ClientPage allocation={allocationForClient} currencyLocale="en-IN" currency="INR" />;

@@ -25,7 +25,7 @@ type AllocationForClient = {
   type: string;
   parent: { id: string; name: string } | null;
   total: number;
-  breakdown?: { asset_id: string; asset_name: string; asset_type: asset_type; quantity: number; book_value: number | null; current_value: number }[];
+  breakdown: { asset_id: string; asset_name: string; asset_type: asset_type; quantity: number; book_value: number | null; current_value: number }[];
   line_items: LineItem[];
 };
 
