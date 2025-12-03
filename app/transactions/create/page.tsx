@@ -1,7 +1,6 @@
 import ClientPage from './ClientPage';
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
-import { create_transaction } from '@/app/_actions/transactions';
 
 export default async function Page() {
   const user = await get_current_user();
@@ -20,5 +19,5 @@ export default async function Page() {
   const accountsForClient = accounts.map(a => ({ id: a.id, name: a.name, type: a.type }));
   const assetsForClient = assets.map(a => ({ id: a.id, name: a.name, type: a.type }));
 
-  return <ClientPage accounts={accountsForClient} assets={assetsForClient} createTransaction={create_transaction} />;
+  return <ClientPage accounts={accountsForClient} assets={assetsForClient} />;
 }

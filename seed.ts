@@ -507,4 +507,18 @@ await prisma.$transaction(async prisma => {
       },
     },
   });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'zepto',
+      date: new Date(2025, 11, 3, 8, 23),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: sbi, asset_id: digital_money, quantity: -117.85 },
+          { account_id: idfc, asset_id: digital_money, quantity: +117.85 },
+        ],
+      },
+    },
+  });
 });

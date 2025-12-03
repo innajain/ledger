@@ -3,15 +3,14 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { asset_type } from '@/generated/prisma/enums';
+import { create_transaction } from '@/app/_actions/transactions';
 
 export default function ClientPage({
   accounts,
   assets,
-  createTransaction,
 }: {
   accounts: { id: string; name: string; type: string }[];
   assets: { id: string; name: string; type: asset_type }[];
-  createTransaction: any;
 }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 16));
   const [description, setDescription] = useState('');
@@ -70,7 +69,7 @@ export default function ClientPage({
         book_value: it.book_value === '' ? null : Number(it.book_value),
         description: it.description === '' ? null : it.description,
       }));
-      await createTransaction(new Date(date), line_items, description || null);
+      await create_transaction(new Date(date), line_items, description || null);
       window.location.href = '/transactions';
     } catch (err: any) {
       alert('Failed: ' + (err?.message ?? String(err)));

@@ -16,7 +16,6 @@ export async function create_transaction(date: Date, line_items: CreateLineItemI
   if (line_items.length === 0) throw new Error('line_items are required');
   if (line_items.some(li => li.quantity === 0)) throw new Error('quantity cannot be zero in any line item');
   if (description && description.length === 0) description = null;
-
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
 
@@ -79,8 +78,8 @@ export async function create_transaction(date: Date, line_items: CreateLineItemI
 
     // Check invariant 1: per-asset quantities equal between real and allocation
     for (const asset_id of asset_ids) {
-      const real_qty = qty_by_asset_real.get(asset_id)!;
-      const alloc_qty = qty_by_asset_alloc.get(asset_id)!;
+      const real_qty = qty_by_asset_real.get(asset_id) ?? new Prisma.Decimal(0);
+      const alloc_qty = qty_by_asset_alloc.get(asset_id) ?? new Prisma.Decimal(0);
       if (!real_qty.equals(alloc_qty)) {
         throw new Error(
           `quantity mismatch for asset ${asset_by_id.get(asset_id)!.name}: real=${real_qty.toString()} allocation=${alloc_qty.toString()}`
