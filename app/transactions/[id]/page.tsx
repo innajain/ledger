@@ -18,7 +18,8 @@ export default async function Page({ params }: Props) {
   });
   if (!tx) return <div>Transaction not found.</div>;
 
-  let total = new Prisma.Decimal(0);
+  // compute total book value (match transactions list: sum of nominal line_items book_value or quantity, negated)
+  let total_book = new Prisma.Decimal(0);
   const items = [] as {
     id: string;
     account_id: string;
@@ -55,7 +56,9 @@ export default async function Page({ params }: Props) {
       current_value = li.book_value!;
     }
 
-    total = total.add(current_value);
+    // accumulate nominal book value for transaction total_book
+    total_book = total_book.add(li.account.type === 'nominal' ? (li.book_value ?? li.quantity) : new Prisma.Decimal(0));
+
     items.push({
       id: li.id,
       account_id: li.account.id,
@@ -75,7 +78,8 @@ export default async function Page({ params }: Props) {
     id: tx.id,
     date: tx.date.toISOString(),
     description: tx.description,
-    total: total.toNumber(),
+    total: total_book.mul(-1).toNumber(),
+    total_book: total_book.mul(-1).toNumber(),
     line_items: items,
   };
 

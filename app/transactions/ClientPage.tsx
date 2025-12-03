@@ -53,7 +53,11 @@ export default function ClientPage({ transactions }: { transactions: { id: strin
                       </div>
                     </div>
                     <div className="ml-4 flex-shrink-0">
-                      <span className={`text-lg font-semibold ${tx.total_book >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span
+                        className={`text-lg font-semibold ${
+                          tx.total_book > 0 ? 'text-green-600' : tx.total_book < 0 ? 'text-red-600' : 'text-gray-500'
+                        }`}
+                      >
                         {currency_fmt.format(tx.total_book)}
                       </span>
                     </div>
