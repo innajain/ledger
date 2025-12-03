@@ -1,21 +1,45 @@
-import { exec } from 'child_process';
 import { NextResponse } from 'next/server';
-import { promisify } from 'util';
-const execAsync = promisify(exec);
+import { neon } from '@neondatabase/serverless';
 
 export async function GET() {
   try {
-    // Create dump
-    await execAsync(`pg_dump "${process.env.DATABASE_URL}" > /tmp/db.sql`);
+    const sql = neon(process.env.DATABASE_URL!);
+    
+    // Get all table names
+    const tables = await sql`
+      SELECT tablename 
+      FROM pg_tables 
+      WHERE schemaname = 'public'
+    `;
 
-    // Read dump
-    const fs = await import('fs');
-    const file = fs.readFileSync('/tmp/db.sql');
+    let dump = '-- Database Dump\n\n';
 
-    const now = new Date().toISOString().replace(/[:.]/g, '-'); // because Windows is a crybaby
+    // Export each table
+    for (const { tablename } of tables) {
+      // Create a TemplateStringsArray manually
+      const query = Object.assign(
+        [`SELECT * FROM ${tablename}`],
+        { raw: [`SELECT * FROM ${tablename}`] }
+      ) as unknown as TemplateStringsArray;
+      
+      const rows = await sql(query);
+      
+      dump += `-- Table: ${tablename}\n`;
+      dump += `CREATE TABLE IF NOT EXISTS ${tablename} (...); -- Add schema\n`;
+      
+      for (const row of rows) {
+        const values = Object.values(row)
+          .map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v)
+          .join(', ');
+        dump += `INSERT INTO ${tablename} VALUES (${values});\n`;
+      }
+      dump += '\n';
+    }
+
+    const now = new Date().toISOString().replace(/[:.]/g, '-');
     const fileName = `db-${now}.sql`;
 
-    return new NextResponse(file, {
+    return new NextResponse(dump, {
       status: 200,
       headers: {
         'Content-Type': 'application/sql',
