@@ -12,7 +12,18 @@ export default function ClientPage({
   accounts: { id: string; name: string; type: string }[];
   assets: { id: string; name: string; type: asset_type }[];
 }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 16));
+  function toLocalDateTimeInputValue(d: Date | string) {
+    const dt = typeof d === 'string' ? new Date(d) : d;
+    if (!dt || isNaN(dt.getTime())) return '';
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const min = String(dt.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  }
+
+  const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()));
   const [description, setDescription] = useState('');
   const [items, setItems] = useState<Array<{ account_id: string; asset_id: string; quantity: string; book_value: string; description: string }>>([
     { account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '' },
