@@ -29,6 +29,7 @@ export default async function Page({ params }: Props) {
       account_type: li.account.type,
       asset_id: li.asset.id,
       asset_name: li.asset.name,
+      description: li.description ?? null,
       quantity: Number(li.quantity.toString()),
       book_value: li.book_value ? Number(li.book_value.toString()) : null,
       current_value: li.book_value ? Number(li.book_value.toString()) : 0,

@@ -137,7 +137,6 @@ export default function ClientPage({
         <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
           <p className="text-sm text-blue-900 mb-1">Transaction Total</p>
           <p className={`text-3xl font-bold ${transaction.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {transaction.total >= 0 ? '+' : ''}
             {currency_fmt.format(transaction.total)}
           </p>
         </div>
