@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents';
 import { asset_type } from '@/generated/prisma/enums';
+import { currency_fmt } from '@/app/_utils/currency formatter';
 
 type BreakdownItem = {
   account_id: string;
@@ -38,8 +38,6 @@ type AssetForClient = {
 };
 
 export default function ClientPage({ asset, currencyLocale, currency }: { asset: AssetForClient; currencyLocale: string; currency: string }) {
-  const currencyFmt = new Intl.NumberFormat(currencyLocale, { style: 'currency', currency, maximumFractionDigits: 2 });
-
   return (
     <div className="space-y-6">
       <ViewPageHeader
@@ -63,7 +61,7 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
         <div className="mb-4">
           <p className="text-sm text-slate-500">Total Across Real Accounts</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{currencyFmt.format(asset.total)}</p>
+          <p className="text-3xl font-bold text-slate-900 mt-1">{currency_fmt.format(asset.total)}</p>
         </div>
       </div>
 
@@ -104,7 +102,7 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
                           {asset.type === asset_type.rupees ? (
                             <div>
                               <span className="text-slate-500">Value:</span>{' '}
-                              <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
+                              <span className="font-medium text-slate-900">{currency_fmt.format(b.current_value)}</span>
                             </div>
                           ) : (
                             <>
@@ -114,11 +112,11 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
                               </div>
                               <div>
                                 <span className="text-slate-500">Book:</span>{' '}
-                                <span className="font-medium text-slate-900">{b.book_value === null ? '—' : currencyFmt.format(b.book_value)}</span>
+                                <span className="font-medium text-slate-900">{b.book_value === null ? '—' : currency_fmt.format(b.book_value)}</span>
                               </div>
                               <div>
                                 <span className="text-slate-500">Current:</span>{' '}
-                                <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
+                                <span className="font-medium text-slate-900">{currency_fmt.format(b.current_value)}</span>
                               </div>
                             </>
                           )}
@@ -173,7 +171,7 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                         {asset.type === asset_type.rupees ? (
                           <div className="text-slate-600">
-                            <span className="font-medium text-slate-900">{currencyFmt.format(li.current_value)}</span>
+                            <span className="font-medium text-slate-900">{currency_fmt.format(li.current_value)}</span>
                           </div>
                         ) : (
                           <>
@@ -183,11 +181,11 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
                             </div>
                             <div className="text-slate-600">
                               <span className="text-slate-500">Book:</span>{' '}
-                              <span className="font-medium text-slate-900">{li.book_value === null ? '—' : currencyFmt.format(li.book_value)}</span>
+                              <span className="font-medium text-slate-900">{li.book_value === null ? '—' : currency_fmt.format(li.book_value)}</span>
                             </div>
                             <div className="text-slate-600">
                               <span className="text-slate-500">Current:</span>{' '}
-                              <span className="font-medium text-slate-900">{currencyFmt.format(li.current_value)}</span>
+                              <span className="font-medium text-slate-900">{currency_fmt.format(li.current_value)}</span>
                             </div>
                           </>
                         )}
@@ -195,7 +193,7 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                      <div className="text-lg font-semibold text-slate-900">{currencyFmt.format(li.current_value)}</div>
+                      <div className="text-lg font-semibold text-slate-900">{currency_fmt.format(li.current_value)}</div>
                       <Link
                         href={`/transactions/${li.transaction_id}`}
                         className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1 inline-block"

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { currency_fmt } from './_utils/currency formatter';
 
 export default function ClientPage({
   allocations = [],
@@ -18,7 +19,6 @@ export default function ClientPage({
 }) {
   const [busy, setBusy] = useState(false);
   const [busyLogout, setBusyLogout] = useState(false);
-  const fmt = new Intl.NumberFormat(currencyLocale, { style: 'currency', currency, maximumFractionDigits: 2 });
 
   // pick commonly named allocations if present
   const invest = allocations.find(a => /invest/i.test(a.name));
@@ -46,7 +46,7 @@ export default function ClientPage({
           <h3 className="text-sm font-medium text-blue-900 mb-1">Investment Allocation</h3>
           {invest ? (
             <Link href={`/allocations/${invest.id}`} className="text-3xl font-bold text-blue-900 hover:text-blue-700 transition-colors">
-              {fmt.format(invest.total)}
+              {currency_fmt.format(invest.total)}
             </Link>
           ) : (
             <p className="text-3xl font-bold text-blue-900">—</p>
@@ -71,7 +71,7 @@ export default function ClientPage({
           <h3 className="text-sm font-medium text-green-900 mb-1">Savings Allocation</h3>
           {savings ? (
             <Link href={`/allocations/${savings.id}`} className="text-3xl font-bold text-green-900 hover:text-green-700 transition-colors">
-              {fmt.format(savings.total)}
+              {currency_fmt.format(savings.total)}
             </Link>
           ) : (
             <p className="text-3xl font-bold text-green-900">—</p>

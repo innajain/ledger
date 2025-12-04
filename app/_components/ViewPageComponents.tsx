@@ -1,6 +1,7 @@
 // components/ViewPageComponents.tsx
 import { asset_type } from '@/generated/prisma/enums';
 import Link from 'next/link';
+import { currency_fmt } from '../_utils/currency formatter';
 
 // View Page Header
 interface ViewPageHeaderProps {
@@ -127,7 +128,6 @@ interface LineItemRowProps {
   transactionDate: string;
   transactionDescription?: string | null;
   lineItemDescription?: string | null;
-  currencyFormatter: Intl.NumberFormat;
   assetType: asset_type;
 }
 
@@ -141,8 +141,7 @@ export function LineItemRow({
   transactionDate,
   transactionDescription,
   lineItemDescription,
-  currencyFormatter,
-  assetType
+  assetType,
 }: LineItemRowProps) {
   return (
     <div className="p-4 hover:bg-slate-50 transition-colors">
@@ -162,7 +161,7 @@ export function LineItemRow({
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
             {assetType === asset_type.rupees ? (
               <div className="text-slate-600">
-                <span className="font-medium text-slate-900">{currencyFormatter.format(currentValue)}</span>
+                <span className="font-medium text-slate-900">{currency_fmt.format(currentValue)}</span>
               </div>
             ) : (
               <>
@@ -172,12 +171,12 @@ export function LineItemRow({
                 <div className="text-slate-600">
                   <span className="text-slate-500">Book:</span>{' '}
                   <span className="font-medium text-slate-900">
-                    {bookValue === null || bookValue === undefined ? '—' : currencyFormatter.format(bookValue)}
+                    {bookValue === null || bookValue === undefined ? '—' : currency_fmt.format(bookValue)}
                   </span>
                 </div>
                 <div className="text-slate-600">
                   <span className="text-slate-500">Current:</span>{' '}
-                  <span className="font-medium text-slate-900">{currencyFormatter.format(currentValue)}</span>
+                  <span className="font-medium text-slate-900">{currency_fmt.format(currentValue)}</span>
                 </div>
               </>
             )}
@@ -204,7 +203,7 @@ export function LineItemRow({
         </div>
 
         <div className="text-right flex-shrink-0">
-          <div className="text-lg font-semibold text-slate-900">{currencyFormatter.format(currentValue)}</div>
+          <div className="text-lg font-semibold text-slate-900">{currency_fmt.format(currentValue)}</div>
           <Link href={`/transactions/${transactionId}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1 inline-block">
             View Transaction →
           </Link>

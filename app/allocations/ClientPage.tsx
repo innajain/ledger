@@ -1,11 +1,11 @@
 'use client';
 
-import React from 'react';
 import type { Prisma } from '@/generated/prisma/client';
 import { HierarchyTree } from '../_components/HeirarchyTree';
 import { PageHeader } from '../_components/PageHeader';
 import { TotalCard } from '../_components/TotalCard';
 import { EmptyState } from '../_components/EmptyState';
+import { currency_fmt } from '../_utils/currency formatter';
 
 type Props = {
   allocations: (Prisma.accountGetPayload<{ include: { parent: true } }> & {
@@ -19,12 +19,6 @@ type Props = {
 };
 
 export default function ClientPage({ allocations, totals, grand_total }: Props) {
-  const currencyFmt = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2,
-  });
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -36,7 +30,7 @@ export default function ClientPage({ allocations, totals, grand_total }: Props) 
 
       <TotalCard
         title="Total Allocations Value"
-        total={currencyFmt.format(grand_total)}
+        total={currency_fmt.format(grand_total)}
         colorScheme="orange"
         icon={
           <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,7 +46,7 @@ export default function ClientPage({ allocations, totals, grand_total }: Props) 
           <HierarchyTree
             items={allocations}
             totals={totals}
-            formatCurrency={amount => currencyFmt.format(amount)}
+            formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/allocations/${id}`}
           />
         </div>

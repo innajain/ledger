@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
-import { ViewPageHeader, InfoCard, HoldingsHeader, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents';
+import { ViewPageHeader, InfoCard, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents';
 import Link from 'next/link';
 import { asset_type } from '@/generated/prisma/enums';
+import { currency_fmt } from '@/app/_utils/currency formatter';
 
 type LineItem = {
   id: string;
@@ -30,8 +30,6 @@ type AccountForClient = {
 };
 
 export default function ClientPage({ account, currencyLocale, currency }: { account: AccountForClient; currencyLocale: string; currency: string }) {
-  const currencyFmt = new Intl.NumberFormat(currencyLocale, { style: 'currency', currency, maximumFractionDigits: 2 });
-
   return (
     <div className="space-y-6">
       <ViewPageHeader
@@ -48,7 +46,7 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
         fields={[
           { label: 'Account Type', value: <span className="capitalize">{account.type}</span> },
           { label: 'Parent Account', value: account.parent ? account.parent.name : '—' },
-          { label: 'Total Value', value: <p className="text-2xl font-bold text-slate-900">{currencyFmt.format(account.total)}</p> },
+          { label: 'Total Value', value: <p className="text-2xl font-bold text-slate-900">{currency_fmt.format(account.total)}</p> },
         ]}
       />
 
@@ -77,7 +75,7 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
                         {b.asset_type === asset_type.rupees ? (
                           <div>
                             <span className="text-slate-500">Value:</span>{' '}
-                            <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
+                            <span className="font-medium text-slate-900">{currency_fmt.format(b.current_value)}</span>
                           </div>
                         ) : (
                           <>
@@ -86,11 +84,11 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
                             </div>
                             <div>
                               <span className="text-slate-500">Book:</span>{' '}
-                              <span className="font-medium text-slate-900">{b.book_value === null ? '—' : currencyFmt.format(b.book_value)}</span>
+                              <span className="font-medium text-slate-900">{b.book_value === null ? '—' : currency_fmt.format(b.book_value)}</span>
                             </div>
                             <div>
                               <span className="text-slate-500">Current:</span>{' '}
-                              <span className="font-medium text-slate-900">{currencyFmt.format(b.current_value)}</span>
+                              <span className="font-medium text-slate-900">{currency_fmt.format(b.current_value)}</span>
                             </div>
                           </>
                         )}
@@ -134,7 +132,6 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
                 transactionDate={li.transaction_date}
                 transactionDescription={li.transaction_description}
                 lineItemDescription={li.line_item_description}
-                currencyFormatter={currencyFmt}
                 assetType={li.asset_type}
               />
             ))}

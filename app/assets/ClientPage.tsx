@@ -1,11 +1,11 @@
 'use client';
 
 import { Prisma } from '@/generated/prisma/client';
-import React from 'react';
 import { HierarchyTree } from '../_components/HeirarchyTree';
 import { PageHeader } from '../_components/PageHeader';
 import { TotalCard } from '../_components/TotalCard';
 import { EmptyState } from '../_components/EmptyState';
+import { currency_fmt } from '../_utils/currency formatter';
 
 // Lightweight shapes for client component
 type LineItemNumbered = {
@@ -29,12 +29,6 @@ type Props = {
 };
 
 export default function ClientPage({ assets, totals, grand_total }: Props) {
-  const currencyFmt = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2,
-  });
-
   const qtyFmt = (n: number) => n.toFixed(2);
 
   return (
@@ -43,7 +37,7 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
 
       <TotalCard
         title="Total Assets Value"
-        total={currencyFmt.format(grand_total)}
+        total={currency_fmt.format(grand_total)}
         colorScheme="purple"
         icon={
           <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -63,7 +57,7 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
           <HierarchyTree
             items={assets}
             totals={totals}
-            formatCurrency={amount => currencyFmt.format(amount)}
+            formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/assets/${id}`}
             renderExtraInfo={asset => {
               if (asset.type === 'rupees') return null;

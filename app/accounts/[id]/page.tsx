@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
-import { get_price_for_asset, get_latest_etf_price } from '@/app/_utils/price_fetcher';
+import { get_price_for_asset } from '@/app/_utils/price_fetcher';
 import { asset_type, Prisma } from '@/generated/prisma/client';
 import ClientPage from './ClientPage';
 
@@ -133,8 +133,6 @@ export default async function Page({ params }: Props) {
       asset_type: e.type,
     });
   }
-
-  const currencyFmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 
   const accountForClient = {
     id: account.id,

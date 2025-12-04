@@ -57,12 +57,12 @@ export default function ClientPage({
   })();
 
   function addItem() {
-    setItems(prev => [...prev, { account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '' }]);
+    setItems(prev => [{ account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '' }, ...prev]);
   }
 
   function addItemForType(typeKey: string) {
     const defaultAcc = accounts.find(a => a.type === typeKey) ?? accounts[0];
-    setItems(prev => [...prev, { account_id: defaultAcc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '' }]);
+    setItems(prev => [{ account_id: defaultAcc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '' }, ...prev]);
   }
 
   function removeItem(i: number) {
