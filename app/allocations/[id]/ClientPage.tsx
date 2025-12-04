@@ -141,7 +141,6 @@ export default function ClientPage({
                 transactionDate={li.transaction_date}
                 transactionDescription={li.transaction_description}
                 lineItemDescription={li.line_item_description}
-                currencyFormatter={currency_fmt}
                 assetType={li.asset_type}
               />
             ))}
