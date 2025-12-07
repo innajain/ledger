@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
 import { asset_type, Prisma } from '@/generated/prisma/client';
 
-type CreateLineItemInput = {
+export type CreateLineItemInput = {
   account_id: string;
   asset_id: string;
   quantity: number;

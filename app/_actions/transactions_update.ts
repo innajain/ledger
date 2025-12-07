@@ -3,13 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
 import { asset_type, Prisma } from '@/generated/prisma/client';
-
-type CreateLineItemInput = {
-  account_id: string;
-  asset_id: string;
-  quantity: number;
-  book_value: number | null;
-};
+import { CreateLineItemInput } from './transactions';
 
 export async function update_transaction(
   id: string,
@@ -109,6 +103,7 @@ export async function update_transaction(
             book_value: li.book_value == null ? null : new Prisma.Decimal(li.book_value),
             account_id: li.account_id,
             asset_id: li.asset_id,
+            description: li.description !== undefined && li.description !== null && li.description.length === 0 ? null : li.description,
           })),
         },
       },
