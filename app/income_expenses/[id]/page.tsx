@@ -20,7 +20,7 @@ export default async function Page({ params }: Props) {
 
   const account = await prisma.account.findUnique({
     where: { id, user_id: user.id },
-    include: { line_items: { include: { asset: true, transaction: true } }, parent: true },
+    include: { line_items: { include: { asset: true, transaction: true }, orderBy: { transaction: { date: 'desc' } } }, parent: true },
   });
 
   if (!account || account.type !== 'nominal') {
