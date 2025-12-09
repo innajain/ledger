@@ -20,6 +20,7 @@ type HierarchyTreeProps<T extends BaseItem> = {
   formatCurrency: (amount: number) => string;
   getItemUrl: (id: string) => string;
   renderExtraInfo?: (item: T, node: Node<T>) => React.ReactNode;
+  expandAll?: boolean;
 };
 
 export function HierarchyTree<T extends BaseItem>({
@@ -28,8 +29,17 @@ export function HierarchyTree<T extends BaseItem>({
   formatCurrency,
   getItemUrl,
   renderExtraInfo,
+  expandAll,
 }: HierarchyTreeProps<T>) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(expandAll ? items.reduce((acc, item) => ({ ...acc, [item.id]: true }), {}) : {});
+  
+  React.useEffect(() => {
+    if (expandAll) {
+      setExpanded(items.reduce((acc, item) => ({ ...acc, [item.id]: true }), {}));
+    } else {
+      setExpanded({});
+    }
+  }, [expandAll, items]);
   const toggle = (id: string) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
   // Build tree structure

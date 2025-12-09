@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { Prisma } from '@/generated/prisma/client';
 import { currency_fmt } from '../_utils/currency formatter';
 import { HierarchyTree } from '../_components/HeirarchyTree';
@@ -20,6 +20,7 @@ type Props = {
 };
 
 export default function ClientPage({ accounts, totals, grand_total }: Props) {
+  const [expandAll, setExpandAll] = useState(false);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -47,12 +48,21 @@ export default function ClientPage({ accounts, totals, grand_total }: Props) {
 
       {accounts.length > 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Account Hierarchy</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-900">Account Hierarchy</h2>
+            <button
+              onClick={() => setExpandAll(!expandAll)}
+              className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
+            >
+              {expandAll ? 'Collapse All' : 'Expand All'}
+            </button>
+          </div>
           <HierarchyTree
             items={accounts}
             totals={totals}
             formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/accounts/${id}`}
+            expandAll={expandAll}
           />
         </div>
       ) : (

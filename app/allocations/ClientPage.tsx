@@ -1,6 +1,7 @@
 'use client';
 
 import type { Prisma } from '@/generated/prisma/client';
+import { useState } from 'react';
 import { HierarchyTree } from '../_components/HeirarchyTree';
 import { PageHeader } from '../_components/PageHeader';
 import { TotalCard } from '../_components/TotalCard';
@@ -15,10 +16,12 @@ type Props = {
     })[];
   })[];
   totals: Record<string, number>;
+  assetQuantities: Record<string, Record<string, number>>;
   grand_total: number;
 };
 
-export default function ClientPage({ allocations, totals, grand_total }: Props) {
+export default function ClientPage({ allocations, totals, assetQuantities, grand_total }: Props) {
+  const [expandAll, setExpandAll] = useState(false);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -42,12 +45,42 @@ export default function ClientPage({ allocations, totals, grand_total }: Props) 
 
       {allocations.length > 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Allocation Hierarchy</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-900">Allocation Hierarchy</h2>
+            <button
+              onClick={() => setExpandAll(!expandAll)}
+              className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
+            >
+              {expandAll ? 'Collapse All' : 'Expand All'}
+            </button>
+          </div>
           <HierarchyTree
             items={allocations}
             totals={totals}
             formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/allocations/${id}`}
+            expandAll={expandAll}
+            renderExtraInfo={(item) => {
+              const assetQtys = assetQuantities[item.id] || {};
+              const negativeAssets = [...new Set(
+                item.line_items
+                  .filter(li => assetQtys[li.asset.id] !== undefined && assetQtys[li.asset.id] < 0)
+                  .map(li => li.asset.name)
+              )];
+              if (negativeAssets.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {negativeAssets.map((assetName, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {assetName}
+                    </span>
+                  ))}
+                </div>
+              );
+            }}
           />
         </div>
       ) : (
