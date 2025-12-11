@@ -12,10 +12,6 @@ import jwt from 'jsonwebtoken';
  */
 const PUBLIC_PATHS = ['/login', '/favicon.ico', '/robots.txt', '/sitemap.xml'];
 
-// Simple in-memory token cache to avoid verifying the same JWT repeatedly.
-// Keyed by token string -> { uid, expMs }
-const tokenCache = new Map<string, { uid: string; expMs: number }>();
-
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   // allow public assets under /public or next internals
@@ -24,21 +20,10 @@ function isPublicPath(pathname: string) {
 }
 
 function verifyTokenCached(token: string): { uid: string } | null {
-  const now = Date.now();
-  const cached = tokenCache.get(token);
-  if (cached) {
-    if (cached.expMs > now) return { uid: cached.uid };
-    tokenCache.delete(token);
-    return null;
-  }
-
   const secret = process.env.JWT_SECRET;
   if (!secret) return null;
   try {
-    // verify and get payload (including exp)
     const payload = jwt.verify(token, secret) as { uid: string; exp?: number };
-    const expMs = payload.exp ? payload.exp * 1000 : now + 60_000;
-    tokenCache.set(token, { uid: payload.uid, expMs });
     return { uid: payload.uid };
   } catch {
     return null;

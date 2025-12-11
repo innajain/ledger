@@ -1,4 +1,4 @@
- 'use server';
+'use server';
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -7,7 +7,8 @@ import { prisma } from '@/lib/prisma';
 import type { user } from '@/generated/prisma/client';
 
 const token_name = 'ledger_token';
-const jwt_expiry = '7d';
+const JWT_EXPIRY_DAYS = 7;
+const JWT_EXPIRY_SECONDS = JWT_EXPIRY_DAYS * 24 * 60 * 60;
 
 function get_secret(): string {
   const s = process.env.JWT_SECRET;
@@ -16,7 +17,7 @@ function get_secret(): string {
 }
 
 async function sign_token(payload: { uid: string }): Promise<string> {
-  return jwt.sign(payload, get_secret(), { expiresIn: jwt_expiry });
+  return jwt.sign(payload, get_secret(), { expiresIn: `${JWT_EXPIRY_DAYS}d` });
 }
 
 function verify_token(token: string): { uid: string } {
@@ -46,6 +47,7 @@ export async function sign_up(payload: { username: string; password: string }): 
     path: '/',
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
+    maxAge: JWT_EXPIRY_SECONDS,
   });
 
   // no return value — form action expected to return void
