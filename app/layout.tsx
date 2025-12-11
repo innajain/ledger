@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import Navbar from './Navbar';
+import { get_current_user } from './_actions/auth';
 import './globals.css';
 
 const geistSans = Geist({
@@ -18,17 +19,18 @@ export const metadata: Metadata = {
   description: 'Professional ledger and asset management',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await get_current_user();
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50`}>
         <div className="min-h-screen flex flex-col">
           {/* Header */}
-          <Navbar />
+          <Navbar isLoggedIn={!!user} />
 
           {/* Main Content */}
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">

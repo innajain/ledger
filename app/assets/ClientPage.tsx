@@ -1,6 +1,7 @@
 'use client';
 
 import { Prisma } from '@/generated/prisma/client';
+import { useState } from 'react';
 import { HierarchyTree } from '../_components/HeirarchyTree';
 import { PageHeader } from '../_components/PageHeader';
 import { TotalCard } from '../_components/TotalCard';
@@ -29,6 +30,7 @@ type Props = {
 };
 
 export default function ClientPage({ assets, totals, grand_total }: Props) {
+  const [expandAll, setExpandAll] = useState(false);
   const qtyFmt = (n: number) => n.toFixed(2);
 
   return (
@@ -53,12 +55,21 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
 
       {assets.length > 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Asset Hierarchy</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-900">Asset Hierarchy</h2>
+            <button
+              onClick={() => setExpandAll(!expandAll)}
+              className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
+            >
+              {expandAll ? 'Collapse All' : 'Expand All'}
+            </button>
+          </div>
           <HierarchyTree
             items={assets}
             totals={totals}
             formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/assets/${id}`}
+            expandAll={expandAll}
             renderExtraInfo={asset => {
               if (asset.type === 'rupees') return null;
               const qty = asset.line_items.reduce((s, li) => s + (li.quantity ?? 0), 0);

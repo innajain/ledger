@@ -22,13 +22,21 @@ export default async function Page() {
   });
 
   const totalsByAccount: Record<string, number> = {};
+  const assetQuantitiesByAccount: Record<string, Record<string, number>> = {};
   let grand_total = new Prisma.Decimal(0);
 
   for (const acc of accounts) {
     let acc_total = new Prisma.Decimal(0);
+    const assetQtyMap: Record<string, Prisma.Decimal> = {};
+
     for (const li of acc.line_items) {
       const qty = li.quantity;
       const asset = li.asset;
+
+      if (!assetQtyMap[asset.id]) {
+        assetQtyMap[asset.id] = new Prisma.Decimal(0);
+      }
+      assetQtyMap[asset.id] = assetQtyMap[asset.id].add(qty);
 
       let current_value = new Prisma.Decimal(0);
 
@@ -59,6 +67,9 @@ export default async function Page() {
       acc_total = acc_total.add(current_value);
     }
     totalsByAccount[acc.id] = acc_total.toNumber();
+    assetQuantitiesByAccount[acc.id] = Object.fromEntries(
+      Object.entries(assetQtyMap).map(([assetId, qty]) => [assetId, qty.toNumber()])
+    );
     grand_total = grand_total.add(acc_total);
   }
 
@@ -73,6 +84,7 @@ export default async function Page() {
         })),
       }))}
       totals={totalsByAccount}
+      assetQuantities={assetQuantitiesByAccount}
       grand_total={grand_total.toNumber()}
     />
   );

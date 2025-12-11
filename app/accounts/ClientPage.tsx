@@ -16,10 +16,11 @@ type Props = {
     })[];
   })[];
   totals: Record<string, number>;
+  assetQuantities: Record<string, Record<string, number>>;
   grand_total: number;
 };
 
-export default function ClientPage({ accounts, totals, grand_total }: Props) {
+export default function ClientPage({ accounts, totals, assetQuantities, grand_total }: Props) {
   const [expandAll, setExpandAll] = useState(false);
   return (
     <div className="space-y-6">
@@ -63,6 +64,27 @@ export default function ClientPage({ accounts, totals, grand_total }: Props) {
             formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/accounts/${id}`}
             expandAll={expandAll}
+            renderExtraInfo={(item) => {
+              const assetQtys = assetQuantities[item.id] || {};
+              const negativeAssets = [...new Set(
+                item.line_items
+                  .filter(li => assetQtys[li.asset.id] !== undefined && assetQtys[li.asset.id] < 0)
+                  .map(li => li.asset.name)
+              )];
+              if (negativeAssets.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {negativeAssets.map((assetName, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {assetName}
+                    </span>
+                  ))}
+                </div>
+              );
+            }}
           />
         </div>
       ) : (

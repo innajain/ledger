@@ -90,47 +90,51 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
           <div className="divide-y divide-slate-200">
             <div className="p-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
-                {asset.breakdown.map((b, i) => (
-                  <div key={i} className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-                    <div className="flex flex-col h-full justify-between">
-                      <div>
-                        <Link href={`/accounts/${b.account_id}`} className="text-slate-900 font-semibold hover:text-blue-600 transition-colors">
-                          {b.account_name}
-                        </Link>
+                {asset.breakdown
+                  .filter(b => b.current_value !== 0)
+                  .map((b, i) => (
+                    <div key={i} className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+                      <div className="flex flex-col h-full justify-between">
+                        <div>
+                          <Link href={`/accounts/${b.account_id}`} className="text-slate-900 font-semibold hover:text-blue-600 transition-colors">
+                            {b.account_name}
+                          </Link>
 
-                        <div className="mt-3 text-sm text-slate-600 space-y-2">
-                          {asset.type === asset_type.rupees ? (
-                            <div>
-                              <span className="text-slate-500">Value:</span>{' '}
-                              <span className="font-medium text-slate-900">{currency_fmt.format(b.current_value)}</span>
-                            </div>
-                          ) : (
-                            <>
+                          <div className="mt-3 text-sm text-slate-600 space-y-2">
+                            {asset.type === asset_type.rupees ? (
                               <div>
-                                <span className="text-slate-500">Quantity:</span>{' '}
-                                <span className="font-medium text-slate-900">{b.quantity} units</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-500">Book:</span>{' '}
-                                <span className="font-medium text-slate-900">{b.book_value === null ? '—' : currency_fmt.format(b.book_value)}</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-500">Current:</span>{' '}
+                                <span className="text-slate-500">Value:</span>{' '}
                                 <span className="font-medium text-slate-900">{currency_fmt.format(b.current_value)}</span>
                               </div>
-                            </>
-                          )}
+                            ) : (
+                              <>
+                                <div>
+                                  <span className="text-slate-500">Quantity:</span>{' '}
+                                  <span className="font-medium text-slate-900">{b.quantity} units</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-500">Book:</span>{' '}
+                                  <span className="font-medium text-slate-900">
+                                    {b.book_value === null ? '—' : currency_fmt.format(b.book_value)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-500">Current:</span>{' '}
+                                  <span className="font-medium text-slate-900">{currency_fmt.format(b.current_value)}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 text-right">
+                          <Link href={`/accounts/${b.account_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                            View Account →
+                          </Link>
                         </div>
                       </div>
-
-                      <div className="mt-4 text-right">
-                        <Link href={`/accounts/${b.account_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                          View Account →
-                        </Link>
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           </div>

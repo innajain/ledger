@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
-export default function Navbar() {
+export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
 
@@ -36,12 +36,13 @@ export default function Navbar() {
           </Link>
 
           {/* Mobile Menu Button */}
-          <button
-            className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            onClick={toggleMenu}
-            aria-label="Toggle menu"
-            aria-expanded={isMenuOpen}
-          >
+          {isLoggedIn && (
+            <button
+              className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              onClick={toggleMenu}
+              aria-label="Toggle menu"
+              aria-expanded={isMenuOpen}
+            >
             {isMenuOpen ? (
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -51,10 +52,12 @@ export default function Navbar() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             )}
-          </button>
+            </button>
+          )}
 
           {/* Desktop Navigation Links */}
-          <ul className="hidden lg:flex gap-2 list-none p-0 m-0">
+          {isLoggedIn && (
+            <ul className="hidden lg:flex gap-2 list-none p-0 m-0">
             <li>
               <Link
                 href="/"
@@ -115,11 +118,12 @@ export default function Navbar() {
                 Transactions
               </Link>
             </li>
-          </ul>
+            </ul>
+          )}
         </div>
 
         {/* Mobile Navigation Menu */}
-        {isMenuOpen && (
+        {isLoggedIn && isMenuOpen && (
           <div className="lg:hidden pb-4">
             <ul className="flex flex-col gap-1 list-none p-0 m-0">
               <li>
