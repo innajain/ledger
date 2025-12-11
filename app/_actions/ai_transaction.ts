@@ -171,36 +171,36 @@ don't give redundant descriptions
     const rawContent = response.choices[0].message.content || '{}';
 
     // Write to log file (preserve newlines in prompt/response)
-    try {
-      const logDir = path.join(process.cwd(), '.ai_logs');
-      await fs.mkdir(logDir, { recursive: true });
+    // try {
+    //   const logDir = path.join(process.cwd(), '.ai_logs');
+    //   await fs.mkdir(logDir, { recursive: true });
 
-      const timestamp = new Date().toISOString();
-      const logFile = path.join(logDir, `ai_transaction_${new Date().toISOString().split('T')[0]}.log`);
+    //   const timestamp = new Date().toISOString();
+    //   const logFile = path.join(logDir, `ai_transaction_${new Date().toISOString().split('T')[0]}.log`);
 
-      const logContent = [
-        '',
-        '='.repeat(80),
-        timestamp,
-        '='.repeat(80),
-        'INPUT:',
-        input,
-        '',
-        'PROMPT:',
-        `${fullContext}\n\n${systemPrompt}`,
-        '',
-        'RAW RESPONSE:',
-        rawContent,
-        '',
-        'FULL RESPONSE:',
-        JSON.stringify(response, null, 2),
-        '',
-      ].join('\n');
+    //   const logContent = [
+    //     '',
+    //     '='.repeat(80),
+    //     timestamp,
+    //     '='.repeat(80),
+    //     'INPUT:',
+    //     input,
+    //     '',
+    //     'PROMPT:',
+    //     `${fullContext}\n\n${systemPrompt}`,
+    //     '',
+    //     'RAW RESPONSE:',
+    //     rawContent,
+    //     '',
+    //     'FULL RESPONSE:',
+    //     JSON.stringify(response, null, 2),
+    //     '',
+    //   ].join('\n');
 
-      await fs.appendFile(logFile, logContent, 'utf-8');
-    } catch (logError) {
-      console.error('Failed to write log:', logError);
-    }
+    //   await fs.appendFile(logFile, logContent, 'utf-8');
+    // } catch (logError) {
+    //   console.error('Failed to write log:', logError);
+    // }
 
     let aiResponse: AITransactionResponse;
     try {
