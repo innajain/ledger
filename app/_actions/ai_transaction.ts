@@ -2,29 +2,18 @@
 
 import { get_current_user } from './auth';
 import { prisma } from '@/lib/prisma';
+import { redis } from '@/lib/redis';
 import { CreateLineItemInput } from './transactions';
-import { get_ai_learning_context } from './ai_context';
 import OpenAI from 'openai';
-import fs from 'fs/promises';
-import path from 'path';
 
-// Type for the AI response
 type AITransactionResponse = {
-  date: string; // ISO date string
+  date: string;
   description?: string;
   line_items: {
-    account_id: string;
     account_name: string;
-    account_type: 'real' | 'nominal' | 'allocation';
-    asset_id: string;
     asset_name: string;
-    asset_type?: string;
-    quantity: number | string; // May come as string from JSON
-    book_value?: number | null;
-    description?: string | null;
+    quantity: number;
   }[];
-  reasoning?: string; // Optional explanation from AI
-  message?: string; // Optional diagnostic when AI cannot construct a transaction
 };
 
 export async function parse_transaction_with_ai(input: string): Promise<{
@@ -50,107 +39,64 @@ export async function parse_transaction_with_ai(input: string): Promise<{
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY not configured. Please add it to your .env file');
+      throw new Error('OPENAI_API_KEY not configured');
     }
 
-    // Fetch all needed data in parallel
-    const [accounts, assets, fullContext] = await Promise.all([
-      prisma.account.findMany({
-        where: { user_id: user.id },
-        select: { id: true, name: true, type: true },
-      }),
-      prisma.asset.findMany({
-        where: { user_id: user.id },
-        select: { id: true, name: true, type: true },
-      }),
-      get_ai_learning_context(),
-    ]);
+    // Get recent transactions to learn patterns
+    const transactions = await prisma.transaction.findMany({
+      where: { user_id: user.id },
+      include: {
+        line_items: {
+          include: { account: true, asset: true },
+          orderBy: { id: 'asc' },
+        },
+      },
+      orderBy: { date: 'desc' },
+      take: 10,
+    });
 
-    // System prompt with balancing rules
-    const introduction = `You are a financial ledger assistant. Parse user transaction requests into structured ledger entries.
-    based on the user prompt, and the context of their existing accounts and assets and recent transactions, give back response which i will give to create_transaction function.`;
-    const systemPrompt = `
-⚠️ **CRITICAL - READ FIRST - ACCOUNT/ASSET SELECTION RULES:**
+    // Build a simple context with real examples
+    const examples = transactions.slice(0, 5).map(t => ({
+      description: t.description || 'No description',
+      line_items: t.line_items.map(li => ({
+        account: li.account.name,
+        account_type: li.account.type,
+        asset: li.asset.name,
+        quantity: li.quantity.toString(),
+      })),
+    }));
 
-You MUST follow these rules STRICTLY or the transaction will be wrong:
+    const systemPrompt = `You are a ledger assistant. Parse the user's transaction request into line items.
 
-1. **ONLY use accounts and assets that actually appear in the "Recent Transactions" section**
-   - Do NOT look at the full Accounts/Assets lists
-   - Do NOT invent accounts or assets that don't exist in recent transactions
-   - If you can't find a perfect match in recent transactions, use your best judgment from accounts/assets that DO appear there
+EXAMPLE TRANSACTIONS FROM USER'S LEDGER:
+${JSON.stringify(examples, null, 2)}
 
-2. **Pattern Analysis (MANDATORY):**
-   - Extract which REAL account (payment method) is used for each transaction type
-   - Extract which ASSET is paired with each REAL account
-   - Extract which ALLOCATION account is used for each expense type
-   - REPEAT the same combinations you see in recent transactions
+RULES:
+1. Study the examples above - use the EXACT account and asset names you see
+2. For expenses: Real account negative, Allocation account negative, Expenses positive
+3. Balancing: Real sum = Allocation sum, and Nominal = absolute value of Real (NOT doubled)
+4. Use "Refundable Money" asset for rupees unless specified otherwise
 
-3. **Specific Examples from Your Data:**
-   - If you see "SBI Card" + "Refundable Money" + "Groceries" in recent transactions, use the exact same combination
-   - If you see "Discretionary Expenses - Daily" used for small purchases, use it again
-   - Do NOT use "Money" or "Monthly Expenses" unless they appear in recent transactions
+IMPORTANT ACCOUNT MATCHING:
+- If user says "SBI card" or "sbi card" → Use "SBI Card" (the credit card account)
+- If user says "discretionary daily" → Use "Discretionary Expenses - Daily"
+- Match to accounts you see in the examples above
 
----
-
-**TASK: Parse user transaction request into structured ledger entries**
-
-Based on the user prompt and the context of their existing accounts/assets/recent transactions, construct balanced line items.
-
-**Balancing Rules:**
-1. Every transaction must have balanced line items across three account types:
-   - REAL accounts (payment methods)
-   - ALLOCATION accounts (categories)
-   - NOMINAL accounts (income/expenses)
-
-2. For each asset: sum(quantity) in real = sum(quantity) in allocation
-3. sum(book_value) in real + nominal = 0
-4. sum(book_value) in allocation + nominal = 0
-5. Rupees assets: book_value = null
-6. Other assets: book_value required
-
-See the create_transaction function's code for understanding the constraints. Reference recent transactions for actual account/asset combinations.
-
-**Descriptions:**
-- If applicable, provide descriptions for line items (can be null if not needed)
-- Provide transaction description if helpful (can be null)
-
-**Date/Time:**
-- Give appropriate date and time for transaction date
-- If not specified, use current date-time: ${new Date().toISOString()}
-- Seconds should be :00
-
-**RESPONSE FORMAT:**
-Return a JSON object with this exact structure:
+Return JSON:
 {
-  "date": "ISO date string (e.g., 2025-12-12T10:30:00.000Z)",
-  "description": "transaction description (optional)",
+  "date": "ISO date",
+  "description": "brief description",
   "line_items": [
     {
-      "account_id": "ID of the account from the context",
-      "account_name": "name of the account (must exist in recent transactions)",
-      "account_type": "real/allocation/nominal",
-      "asset_id": "ID of the asset from the context",
-      "asset_name": "name of the asset (must exist in recent transactions)",
-      "asset_type": "rupees/mf/etf/shares/other (optional)",
-      "quantity": number,
-      "book_value": number or null,
-      "description": "optional line item description"
+      "account_name": "exact name from examples",
+      "asset_name": "exact asset name",
+      "quantity": number (negative for outgoing, positive for incoming)
     }
   ]
 }
 
-CRITICAL IMPLEMENTATION NOTES:
-- account_id and asset_id must be valid IDs from the Recent Transactions section
-- If a transaction type hasn't been recorded before, use the CLOSEST similar pattern from recent transactions
-- Do NOT use "Money" or "Monthly Expenses" unless explicitly shown in recent transactions
-- Default allocation for new expense types: "Discretionary Expenses - Daily" (only if it appears in recent transactions)
-- If even the default doesn't appear, pick the most general allocation account you can see in recent transactions
+Current date: ${new Date().toISOString()}`;
 
-
-don't give redundant descriptions
-`;
-
-    // Initialize OpenAI client with optional base URL for local models
     const openai = new OpenAI({
       apiKey,
       baseURL: process.env.OPENAI_BASE_URL,
@@ -159,120 +105,96 @@ don't give redundant descriptions
     const response = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: `${introduction}\n\n${fullContext}\n\n${systemPrompt}`,
-        },
-        { role: 'user', content: `${input}` },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: input },
       ],
       response_format: { type: 'json_object' },
+      temperature: 0.1,
     });
 
     const rawContent = response.choices[0].message.content || '{}';
+    const aiResponse: AITransactionResponse = JSON.parse(rawContent);
 
-    // Write to log file (preserve newlines in prompt/response)
-    // try {
-    //   const logDir = path.join(process.cwd(), '.ai_logs');
-    //   await fs.mkdir(logDir, { recursive: true });
-
-    //   const timestamp = new Date().toISOString();
-    //   const logFile = path.join(logDir, `ai_transaction_${new Date().toISOString().split('T')[0]}.log`);
-
-    //   const logContent = [
-    //     '',
-    //     '='.repeat(80),
-    //     timestamp,
-    //     '='.repeat(80),
-    //     'INPUT:',
-    //     input,
-    //     '',
-    //     'PROMPT:',
-    //     `${fullContext}\n\n${systemPrompt}`,
-    //     '',
-    //     'RAW RESPONSE:',
-    //     rawContent,
-    //     '',
-    //     'FULL RESPONSE:',
-    //     JSON.stringify(response, null, 2),
-    //     '',
-    //   ].join('\n');
-
-    //   await fs.appendFile(logFile, logContent, 'utf-8');
-    // } catch (logError) {
-    //   console.error('Failed to write log:', logError);
-    // }
-
-    let aiResponse: AITransactionResponse;
-    try {
-      const parsed = JSON.parse(rawContent);
-      // Handle if AI wraps response in a 'transaction' or 'data' key
-      aiResponse = parsed.transaction || parsed.data || parsed;
-    } catch (parseError) {
+    if (!aiResponse.line_items || aiResponse.line_items.length === 0) {
       return {
         success: false,
-        message: `Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
+        message: 'AI returned invalid response',
       };
     }
 
-    // If AI cannot build a transaction, surface its message
-    if (!aiResponse.line_items || !Array.isArray(aiResponse.line_items)) {
-      if (aiResponse.message) {
-        return {
-          success: false,
-          message: aiResponse.message,
-        };
-      }
-      return {
-        success: false,
-        message: `AI returned invalid response. Please try rephrasing your request.\n\nAI Response: ${JSON.stringify(aiResponse, null, 2)}`,
-      };
-    }
+    // Get all accounts and assets for ID resolution
+    const [accounts, assets] = await Promise.all([
+      prisma.account.findMany({
+        where: { user_id: user.id },
+        select: { id: true, name: true, type: true },
+      }),
+      prisma.asset.findMany({
+        where: { user_id: user.id },
+        select: { id: true, name: true, type: true },
+      }),
+    ]);
 
+    // Resolve names to IDs with fuzzy matching
     const line_items: CreateLineItemInput[] = [];
+    const resolvedLineItems: any[] = [];
 
     for (const li of aiResponse.line_items) {
-      // Validate line item has required fields
-      if (!li.account_id || !li.asset_id) {
-        return {
-          success: false,
-          message: `AI returned incomplete line item. Missing account_id or asset_id.\n\nAI Response: ${JSON.stringify(aiResponse, null, 2)}`,
-        };
+      // Find account (case-insensitive, fuzzy)
+      let account = accounts.find(a => a.name.toLowerCase() === li.account_name.toLowerCase());
+      if (!account) {
+        // Fuzzy match - prefer longer names
+        const matches = accounts
+          .filter(a => a.name.toLowerCase().includes(li.account_name.toLowerCase()) || li.account_name.toLowerCase().includes(a.name.toLowerCase()))
+          .sort((a, b) => b.name.length - a.name.length);
+
+        if (matches.length === 0) {
+          return {
+            success: false,
+            message: `Account "${li.account_name}" not found. Available:\n${accounts.map(a => `- ${a.name}`).join('\n')}`,
+          };
+        }
+        account = matches[0];
       }
 
-      // Convert quantity to number if it's a string
-      const quantity = typeof li.quantity === 'string' ? parseFloat(li.quantity) : li.quantity;
-      if (isNaN(quantity)) {
-        return {
-          success: false,
-          message: `AI returned invalid quantity: ${li.quantity}`,
-        };
+      // Find asset
+      let asset = assets.find(a => a.name.toLowerCase() === li.asset_name.toLowerCase());
+      if (!asset) {
+        const matches = assets.filter(a => a.name.toLowerCase().includes(li.asset_name.toLowerCase()));
+        if (matches.length === 0) {
+          return {
+            success: false,
+            message: `Asset "${li.asset_name}" not found`,
+          };
+        }
+        asset = matches[0];
       }
+
+      const quantity = typeof li.quantity === 'string' ? parseFloat(li.quantity) : li.quantity;
 
       line_items.push({
-        account_id: li.account_id,
-        asset_id: li.asset_id,
+        account_id: account.id,
+        asset_id: asset.id,
         quantity,
-        book_value: li.book_value,
-        description: li.description || undefined,
+        book_value: asset.type === 'rupees' ? null : quantity,
+      });
+
+      resolvedLineItems.push({
+        account_name: account.name,
+        account_type: account.type,
+        asset_name: asset.name,
+        asset_type: asset.type,
+        quantity,
+        book_value: asset.type === 'rupees' ? null : quantity,
       });
     }
 
-    // Return the parsed transaction for user confirmation (don't create yet)
     return {
       success: true,
-      message: 'Transaction ready for confirmation',
+      message: 'Transaction ready',
       transaction: {
-        description: aiResponse.description || undefined,
+        description: aiResponse.description,
         date: aiResponse.date,
-        line_items: aiResponse.line_items.map(li => ({
-          account_name: li.account_name,
-          account_type: li.account_type,
-          asset_name: li.asset_name,
-          asset_type: li.asset_type,
-          quantity: typeof li.quantity === 'string' ? parseFloat(li.quantity) : li.quantity,
-          book_value: li.book_value ?? null,
-          description: li.description ?? undefined,
-        })),
+        line_items: resolvedLineItems,
       },
     };
   } catch (error) {
