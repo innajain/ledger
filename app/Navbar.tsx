@@ -58,66 +58,76 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
           {/* Desktop Navigation Links */}
           {isLoggedIn && (
             <ul className="hidden lg:flex gap-2 list-none p-0 m-0">
-            <li>
-              <Link
-                href="/"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive('/') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/assets"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive('/assets') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                Assets
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/accounts"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive('/accounts') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                Accounts
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/allocations"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive('/allocations') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                Allocations
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/income_expenses"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive('/income_expenses') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                Income / Expenses
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/transactions"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive('/transactions') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                Transactions
-              </Link>
-            </li>
+              <li>
+                <Link
+                  href="/"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/assets"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/assets') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  Assets
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/accounts"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/accounts') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  Accounts
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/allocations"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/allocations') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  Allocations
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/income_expenses"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/income_expenses') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  Income / Expenses
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/ai-transaction"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/ai-transaction') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  AI Transaction
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/transactions"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/transactions') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  Transactions
+                </Link>
+              </li>
             </ul>
           )}
         </div>
@@ -179,6 +189,17 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
                   onClick={closeMenu}
                 >
                   Income / Expenses
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/ai-transaction"
+                  className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive('/ai-transaction') ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                  onClick={closeMenu}
+                >
+                  AI Transaction
                 </Link>
               </li>
               <li>
