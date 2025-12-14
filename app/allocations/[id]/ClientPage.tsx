@@ -38,6 +38,7 @@ export default function ClientPage({
   currencyLocale: string;
   currency: string;
 }) {
+  console.log(allocation.breakdown.filter(b => b.quantity !== 0));
   return (
     <div className="space-y-6">
       <ViewPageHeader
@@ -62,11 +63,12 @@ export default function ClientPage({
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Holdings (aggregated by asset)</h2>
           <p className="text-sm text-slate-500 mt-1">
-            {allocation.breakdown.filter(b => b.quantity > 0).length} asset{allocation.breakdown.filter(b => b.quantity > 0).length !== 1 ? 's' : ''}
+            {allocation.breakdown.filter(b => b.quantity !== 0).length} asset
+            {allocation.breakdown.filter(b => b.quantity !== 0).length !== 1 ? 's' : ''}
           </p>
         </div>
 
-        {allocation.breakdown.filter(b => b.quantity > 0).length === 0 ? (
+        {allocation.breakdown.filter(b => b.quantity !== 0).length === 0 ? (
           <EmptyState />
         ) : (
           <div className="p-4">

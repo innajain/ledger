@@ -69,7 +69,8 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Holdings (aggregated by account)</h2>
           <p className="text-sm text-slate-500 mt-1">
-            {asset.breakdown.length} account{asset.breakdown.length !== 1 ? 's' : ''}
+            {asset.breakdown.filter(b => b.current_value !== 0).length} account
+            {asset.breakdown.filter(b => b.current_value !== 0).length !== 1 ? 's' : ''}
           </p>
         </div>
 
