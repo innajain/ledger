@@ -21,7 +21,7 @@ export default async function Page({ params }: Props) {
 
   const allocation = await prisma.account.findUnique({
     where: { id, user_id: user.id, type: 'allocation' },
-    include: { line_items: { include: { asset: true, transaction: true }, orderBy: { transaction: { date: 'desc' } } }, parent: true },
+    include: { line_items: { include: { asset: true, transaction: true }, orderBy: { transaction: { datetime: 'desc' } } }, parent: true },
   });
 
   if (!allocation) {
@@ -98,7 +98,7 @@ export default async function Page({ params }: Props) {
       book_value: li.book_value ? li.book_value.toNumber() : qty.toNumber(),
       current_value: current_value.toNumber(),
       transaction_id: li.transaction.id,
-      transaction_date: li.transaction.date.toISOString(),
+      transaction_date: li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
       transaction_description: li.transaction.description,
       line_item_description: li.description,
       asset_type: asset.type,

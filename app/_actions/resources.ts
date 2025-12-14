@@ -2,10 +2,11 @@
 
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
-import type { account_type, asset_type, Prisma } from '@/generated/prisma/client';
+import type { account_type, asset_type } from '@/generated/prisma/client';
 import { get_latest_etf_price, get_nav } from '../_utils/price_fetcher';
 
 export async function create_account(name: string, type: account_type, parent_id?: string | null) {
+  name = name.trim();
   if (name.length === 0) throw new Error('name cannot be empty string');
 
   const user = await get_current_user();
@@ -16,6 +17,7 @@ export async function create_account(name: string, type: account_type, parent_id
 
 export async function update_account(id: string, name?: string | undefined, type?: account_type | undefined, parent_id?: string | null | undefined) {
   if (id.length === 0) throw new Error('id is required');
+  name = name?.trim();
   if (name !== undefined && name.length === 0) throw new Error('name cannot be empty string');
 
   const user = await get_current_user();
@@ -64,6 +66,8 @@ export async function create_asset(name: string, type: asset_type, ticker?: stri
     } else if (type === 'etf' || type === 'shares') {
       if ((await get_latest_etf_price(ticker)) === null) throw new Error('invalid ticker for etf/shares: ' + ticker);
     }
+  } else if (ticker !== undefined && ticker !== null) {
+    throw new Error('ticker cannot be non-null for asset type ' + type);
   }
 
   const user = await get_current_user();
@@ -110,6 +114,13 @@ export async function update_asset(
     const asset = await prisma.asset.update({ where: { id, user_id: user.id }, data: { name, type, ticker, parent_id } });
     if (type === 'etf' || type === 'mf' || type === 'shares') {
       if (!asset.ticker || asset.ticker.length === 0) throw new Error('ticker is required for asset type ' + type);
+      if (type === 'mf') {
+        if ((await get_nav({ code: asset.ticker })) === null) throw new Error('invalid ticker for mutual fund: ' + asset.ticker);
+      } else if (type === 'etf' || type === 'shares') {
+        if ((await get_latest_etf_price(asset.ticker)) === null) throw new Error('invalid ticker for etf/shares: ' + asset.ticker);
+      }
+    } else if (asset.ticker !== null) {
+      throw new Error('ticker cannot non-null for asset type ' + type);
     }
   });
 }

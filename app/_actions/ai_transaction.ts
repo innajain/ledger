@@ -2,7 +2,6 @@
 
 import { get_current_user } from './auth';
 import { prisma } from '@/lib/prisma';
-import { redis } from '@/lib/redis';
 import { CreateLineItemInput } from './transactions';
 import OpenAI from 'openai';
 
@@ -51,13 +50,13 @@ export async function parse_transaction_with_ai(input: string): Promise<{
           orderBy: { id: 'asc' },
         },
       },
-      orderBy: { date: 'desc' },
+      orderBy: { datetime: 'desc' },
       take: 10,
     });
 
     // Build a simple context with real examples
     const examples = transactions.slice(0, 5).map(t => ({
-      description: t.description || 'No description',
+      description: t.description,
       line_items: t.line_items.map(li => ({
         account: li.account.name,
         account_type: li.account.type,
@@ -75,7 +74,6 @@ RULES:
 1. Study the examples above - use the EXACT account and asset names you see
 2. For expenses: Real account negative, Allocation account negative, Expenses positive
 3. Balancing: Real sum = Allocation sum, and Nominal = absolute value of Real (NOT doubled)
-4. Use "Refundable Money" asset for rupees unless specified otherwise
 
 IMPORTANT ACCOUNT MATCHING:
 - If user says "SBI card" or "sbi card" → Use "SBI Card" (the credit card account)

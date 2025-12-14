@@ -25,8 +25,8 @@ export default function ClientPage({
 
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()));
   const [description, setDescription] = useState('');
-  const [items, setItems] = useState<Array<{ account_id: string; asset_id: string; quantity: string; book_value: string; description: string }>>([
-    { account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '' },
+  const [items, setItems] = useState<Array<{ account_id: string; asset_id: string; quantity: string; book_value: string; description: string; datetime: string }>>([
+    { account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' },
   ]);
   const [busy, setBusy] = useState(false);
 
@@ -57,12 +57,12 @@ export default function ClientPage({
   })();
 
   function addItem() {
-    setItems(prev => [{ account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '' }, ...prev]);
+    setItems(prev => [{ account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' }, ...prev]);
   }
 
   function addItemForType(typeKey: string) {
     const defaultAcc = accounts.find(a => a.type === typeKey) ?? accounts[0];
-    setItems(prev => [{ account_id: defaultAcc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '' }, ...prev]);
+    setItems(prev => [{ account_id: defaultAcc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' }, ...prev]);
   }
 
   function removeItem(i: number) {
@@ -79,6 +79,7 @@ export default function ClientPage({
         quantity: Number(it.quantity),
         book_value: it.book_value === '' ? null : Number(it.book_value),
         description: it.description === '' ? null : it.description,
+        datetime: it.datetime === '' ? null : new Date(it.datetime),
       }));
       await create_transaction(new Date(date), line_items, description || null);
       window.location.href = '/transactions';
@@ -294,6 +295,22 @@ export default function ClientPage({
                                   })
                                 }
                                 placeholder="Optional description for this line item"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-2">Line Item Date & Time</label>
+                              <input
+                                type="datetime-local"
+                                value={it.datetime}
+                                onChange={e =>
+                                  setItems(prev => {
+                                    const copy = [...prev];
+                                    copy[idx].datetime = e.target.value;
+                                    return copy;
+                                  })
+                                }
+                                placeholder="Optional datetime for this line item"
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               />
                             </div>

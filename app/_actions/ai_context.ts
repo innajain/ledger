@@ -18,7 +18,7 @@ export async function get_ai_learning_context(): Promise<string> {
         orderBy: { id: 'asc' },
       },
     },
-    orderBy: { date: 'desc' },
+    orderBy: { datetime: 'desc' },
     take: 10,
   });
 
@@ -35,8 +35,4 @@ export async function get_ai_learning_context(): Promise<string> {
     null,
     2
   );
-}
-
-export async function get_ai_context_summary(): Promise<string> {
-  return get_ai_learning_context();
 }

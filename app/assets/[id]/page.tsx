@@ -105,7 +105,7 @@ export default async function Page({ params }: Props) {
       book_value: li.book_value ? li.book_value.toNumber() : li.quantity.toNumber(),
       current_value: current_value.toNumber(),
       transaction_id: li.transaction.id,
-      transaction_date: li.transaction.date.toISOString(),
+      transaction_date:  li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
       transaction_description: li.transaction.description,
       line_item_description: li.description,
     };

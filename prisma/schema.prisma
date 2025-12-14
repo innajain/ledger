@@ -58,7 +58,7 @@ model asset {
 model transaction {
   id          String   @id @default(cuid())
   user_id     String
-  date        DateTime
+  datetime    DateTime
   description String?
 
   user       user        @relation(fields: [user_id], references: [id])
@@ -66,8 +66,9 @@ model transaction {
 }
 
 model line_item {
-  id          String  @id @default(cuid())
+  id          String    @id @default(cuid())
   description String?
+  datetime    DateTime?
 
   transaction_id String
   transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
@@ -78,8 +79,8 @@ model line_item {
   asset_id String
   asset    asset  @relation(fields: [asset_id], references: [id])
 
-  quantity   Decimal  @db.Decimal(10, 4)
-  book_value Decimal? @db.Decimal(10, 4)
+  quantity   Decimal  @db.Decimal(14, 4)
+  book_value Decimal? @db.Decimal(14, 4)
 }
 
 enum account_type {

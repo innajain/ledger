@@ -26,6 +26,7 @@ export default function ClientPage({
       book_value: number | null;
       current_value: number;
       description: string | null;
+      datetime: Date | null;
     }[];
   };
   deleteTransaction?: (id: string) => Promise<void>;
@@ -225,6 +226,18 @@ export default function ClientPage({
                         </div>
 
                         {li.description && <p className="text-sm italic text-slate-500 mt-2">{li.description}</p>}
+                        {li.datetime && (
+                          <p className="text-xs text-slate-400 mt-1">
+                            {new Date(li.datetime).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true,
+                            })}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </li>

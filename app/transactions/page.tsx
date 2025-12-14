@@ -17,12 +17,12 @@ export default async function Page() {
   const transactions = await prisma.transaction.findMany({
     where: { user_id: user.id },
     include: { line_items: { include: { asset: true, account: true } } },
-    orderBy: { date: 'desc' },
+    orderBy: { datetime: 'desc' },
   });
 
   const txForClient = transactions.map(t => ({
     id: t.id,
-    date: t.date,
+    date: t.datetime,
     description: t.description,
     total_book: t.line_items
       .filter(li => li.account.type === 'nominal')

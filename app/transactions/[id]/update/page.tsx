@@ -19,7 +19,7 @@ export default async function Page({ params }: Props) {
   // For now reuse the ClientPage to show transaction and provide an Edit entry point.
   const txForClient = {
     id: tx.id,
-    date: tx.date,
+    date: tx.datetime,
     description: tx.description,
     total: tx.line_items.reduce((s, li) => s + (li.book_value ? Number(li.book_value.toString()) : 0), 0),
     line_items: tx.line_items.map(li => ({
@@ -30,6 +30,7 @@ export default async function Page({ params }: Props) {
       asset_id: li.asset.id,
       asset_name: li.asset.name,
       description: li.description ?? null,
+      datetime: li.datetime,
       quantity: Number(li.quantity.toString()),
       book_value: li.book_value ? Number(li.book_value.toString()) : null,
       current_value: li.book_value ? Number(li.book_value.toString()) : 0,

@@ -10,12 +10,12 @@ await prisma.$transaction(async prisma => {
 
   const { id: shreyansh } = await prisma.user.upsert({
     where: { username: 'shreyansh' },
-    update: {},
     create: { username: 'shreyansh', password_hash: await bcrypt.hash('blinkit', 10) },
+    update: {},
   });
 
   const { id: money } = await prisma.asset.create({ data: { name: 'Money', type: asset_type.rupees, user_id: shreyansh } });
-  const { id: cash } = await prisma.asset.create({
+  const { id: cash_notes } = await prisma.asset.create({
     data: { name: 'Cash - Notes', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
   const { id: cash_coins } = await prisma.asset.create({
@@ -24,16 +24,16 @@ await prisma.$transaction(async prisma => {
   const { id: digital_money } = await prisma.asset.create({
     data: { name: 'Digital Money', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
+  const { id: refundable_money } = await prisma.asset.create({
+    data: { name: 'Refundable Money', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
+  });
   const { id: blocked_money } = await prisma.asset.create({
     data: { name: 'Blocked Money', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
-  const { id: liability_money } = await prisma.asset.create({
-    data: { name: 'Liability Money', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
-  });
 
-  const { id: long_term } = await prisma.asset.create({ data: { name: 'Long Term Assets', type: 'other', user_id: shreyansh } });
-  const { id: not_really_money } = await prisma.asset.create({
-    data: { name: 'Not Really Money', type: asset_type.rupees, user_id: shreyansh, parent_id: long_term },
+  const { id: long_term } = await prisma.asset.create({ data: { name: 'Long Term Assets', type: 'rupees', user_id: shreyansh } });
+  const { id: long_term_refundable_money } = await prisma.asset.create({
+    data: { name: 'Long Term Refundable Money', type: asset_type.rupees, user_id: shreyansh, parent_id: long_term },
   });
   const { id: parag_parikh } = await prisma.asset.create({
     data: { name: 'Parag Parikh Flexi Cap', type: 'mf', ticker: 'INF879O01027', user_id: shreyansh, parent_id: long_term },
@@ -144,12 +144,13 @@ await prisma.$transaction(async prisma => {
   const { id: salary } = await prisma.account.create({ data: { name: 'Salary', type: 'nominal', user_id: shreyansh, parent_id: income } });
   const { id: cashbacks } = await prisma.account.create({ data: { name: 'Cashbacks', type: 'nominal', user_id: shreyansh, parent_id: income } });
   const { id: expenses } = await prisma.account.create({ data: { name: 'Expenses', type: 'nominal', user_id: shreyansh } });
+  const { id: trading_acc } = await prisma.account.create({ data: { name: 'Trading Account', type: 'nominal', user_id: shreyansh } });
 
   const { id: monthly_expenses } = await prisma.account.create({ data: { name: 'Monthly Expenses', type: 'allocation', user_id: shreyansh } });
+  const { id: rent } = await prisma.account.create({ data: { name: 'Rent', type: 'allocation', user_id: shreyansh, parent_id: monthly_expenses } });
   const { id: living_expenses } = await prisma.account.create({
     data: { name: 'Living Expenses', type: 'allocation', user_id: shreyansh, parent_id: monthly_expenses },
   });
-  const { id: rent } = await prisma.account.create({ data: { name: 'Rent', type: 'allocation', user_id: shreyansh, parent_id: monthly_expenses } });
   const { id: office_food } = await prisma.account.create({
     data: { name: 'Office Food', type: 'allocation', user_id: shreyansh, parent_id: living_expenses },
   });
@@ -163,17 +164,17 @@ await prisma.$transaction(async prisma => {
     data: { name: 'Dinner Tiffin', type: 'allocation', user_id: shreyansh, parent_id: living_expenses },
   });
   const { id: maid } = await prisma.account.create({ data: { name: 'Maid', type: 'allocation', user_id: shreyansh, parent_id: living_expenses } });
-  const { id: weekend } = await prisma.account.create({
-    data: { name: 'Discretionary Expenses - Weekend', type: 'allocation', user_id: shreyansh, parent_id: living_expenses },
-  });
-  const { id: daily_expenses } = await prisma.account.create({
-    data: { name: 'Discretionary Expenses - Daily', type: 'allocation', user_id: shreyansh, parent_id: living_expenses },
-  });
-  const { id: subscriptions } = await prisma.account.create({
-    data: { name: 'Discretionary Expenses - Subscriptions', type: 'allocation', user_id: shreyansh, parent_id: living_expenses },
-  });
   const { id: commute } = await prisma.account.create({
     data: { name: 'Commute', type: 'allocation', user_id: shreyansh, parent_id: living_expenses },
+  });
+  const { id: discretionary } = await prisma.account.create({
+    data: { name: 'Discretionary Expenses', type: 'allocation', user_id: shreyansh, parent_id: living_expenses },
+  });
+  const { id: weekend } = await prisma.account.create({
+    data: { name: 'Discretionary Expenses - Weekend', type: 'allocation', user_id: shreyansh, parent_id: discretionary },
+  });
+  const { id: subscriptions } = await prisma.account.create({
+    data: { name: 'Discretionary Expenses - Subscriptions', type: 'allocation', user_id: shreyansh, parent_id: discretionary },
   });
 
   const { id: yearly_expenses } = await prisma.account.create({ data: { name: 'Yearly Expenses', type: 'allocation', user_id: shreyansh } });
@@ -225,64 +226,57 @@ await prisma.$transaction(async prisma => {
 
   const { id: investments } = await prisma.account.create({ data: { name: 'Investments', type: 'allocation', user_id: shreyansh } });
   const { id: house_security } = await prisma.account.create({ data: { name: 'House Security Deposit', type: 'allocation', user_id: shreyansh } });
+  const { id: phantom } = await prisma.account.create({ data: { name: 'Phantom Allocation', type: 'allocation', user_id: shreyansh } });
 
   await prisma.transaction.create({
     data: {
       description: 'Opening Balances',
-      date: new Date(2025, 11, 1, 0, 0),
+      datetime: new Date(2025, 11, 1, 0, 0),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: idfc, asset_id: digital_money, quantity: 39538.17 },
-          { account_id: kotak, asset_id: digital_money, quantity: 83576.5 },
-          { account_id: bhim, asset_id: digital_money, quantity: 1922.5 },
-          { account_id: super_money, asset_id: digital_money, quantity: 3866.03 },
-          { account_id: ten_rs, asset_id: cash, quantity: 700 },
-          { account_id: wallet, asset_id: cash, quantity: 370 },
-          { account_id: coin_pouch, asset_id: cash_coins, quantity: 166 },
-          { account_id: aviral, asset_id: blocked_money, quantity: 117.85 },
-          { account_id: pankaj, asset_id: liability_money, quantity: -176.32 },
-          { account_id: sbi_card, asset_id: liability_money, quantity: -5041 },
-          { account_id: axis_card, asset_id: liability_money, quantity: -152 },
-          { account_id: dmrc_wallet, asset_id: blocked_money, quantity: 69 },
-          { account_id: rapido_wallet, asset_id: blocked_money, quantity: 143 },
-          { account_id: supercard_uncredited_cashbacks, asset_id: blocked_money, quantity: 4.56 },
-          { account_id: supermoney_rewards, asset_id: blocked_money, quantity: 10.35 },
+          { account_id: idfc, asset_id: money, quantity: 39538.17 },
+          { account_id: kotak, asset_id: money, quantity: 83576.5 },
+          { account_id: bhim, asset_id: money, quantity: 1922.5 },
+          { account_id: super_money, asset_id: money, quantity: 3866.03 },
+          { account_id: ten_rs, asset_id: money, quantity: 700 },
+          { account_id: wallet, asset_id: money, quantity: 370 },
+          { account_id: coin_pouch, asset_id: money, quantity: 166 },
+          { account_id: aviral, asset_id: money, quantity: 117.85 },
+          { account_id: pankaj, asset_id: money, quantity: -176.32 },
+          { account_id: sbi_card, asset_id: money, quantity: -5041 },
+          { account_id: axis_card, asset_id: money, quantity: -152 },
+          { account_id: dmrc_wallet, asset_id: money, quantity: 69 },
+          { account_id: rapido_wallet, asset_id: money, quantity: 143 },
+          { account_id: supercard_uncredited_cashbacks, asset_id: money, quantity: 4.56 },
+          { account_id: supermoney_rewards, asset_id: money, quantity: 10.35 },
 
-          { account_id: opening_balance, asset_id: digital_money, quantity: -128903.2 },
-          { account_id: opening_balance, asset_id: cash, quantity: -1070 },
-          { account_id: opening_balance, asset_id: cash_coins, quantity: -166 },
-          { account_id: opening_balance, asset_id: blocked_money, quantity: -344.76 },
-          { account_id: opening_balance, asset_id: liability_money, quantity: 5369.32 },
+          { account_id: opening_balance, asset_id: money, quantity: 125114.64 },
 
-          { account_id: rent, asset_id: digital_money, quantity: 25000 },
-          { account_id: office_food, asset_id: digital_money, quantity: 2300 },
-          { account_id: dinner_tiffin, asset_id: digital_money, quantity: 1500 },
-          { account_id: dinner_tiffin, asset_id: digital_money, quantity: 1500, description: 'pichle mahine ka allocation' },
-          { account_id: commute, asset_id: digital_money, quantity: 600 },
-          { account_id: electricity, asset_id: digital_money, quantity: 2600 },
-          { account_id: maid, asset_id: cash, quantity: 400 },
-          { account_id: weekend, asset_id: digital_money, quantity: 2500 },
-          { account_id: daily_expenses, asset_id: digital_money, quantity: 1000 },
-          { account_id: subscriptions, asset_id: digital_money, quantity: 200 },
-          { account_id: mobile_recharge, asset_id: digital_money, quantity: 285, description: 'pichle mahine ka allocation' },
-          { account_id: mobile_recharge, asset_id: digital_money, quantity: 570 },
-          { account_id: mandir_charity, asset_id: digital_money, quantity: 625 },
-          { account_id: human_charity, asset_id: digital_money, quantity: 625 },
-          { account_id: my_health_insurance, asset_id: digital_money, quantity: 1100 },
-          { account_id: my_life_insurance, asset_id: digital_money, quantity: 1100 },
-          { account_id: parents_life_insurance, asset_id: digital_money, quantity: 3000 },
-          { account_id: savings_for_surprise, asset_id: digital_money, quantity: 9188.56 },
-          { account_id: savings_for_surprise, asset_id: cash, quantity: 670 },
-          { account_id: savings_for_surprise, asset_id: cash_coins, quantity: 166 },
-          { account_id: savings_for_surprise, asset_id: blocked_money, quantity: 344.76 },
-          { account_id: savings_for_surprise, asset_id: liability_money, quantity: -5369.32 },
-          { account_id: wifi, asset_id: digital_money, quantity: 250 },
-          { account_id: rent_brokerage, asset_id: digital_money, quantity: 2400 },
-          { account_id: big_ticket, asset_id: digital_money, quantity: 5000 },
-          { account_id: send_to_home, asset_id: digital_money, quantity: 5000 },
-          { account_id: siddhu, asset_id: digital_money, quantity: 40000 },
-          { account_id: investments, asset_id: digital_money, quantity: 22559.64 },
+          { account_id: rent, asset_id: money, quantity: 25000 },
+          { account_id: office_food, asset_id: money, quantity: 2300 },
+          { account_id: dinner_tiffin, asset_id: money, quantity: 1500 },
+          { account_id: dinner_tiffin, asset_id: money, quantity: 1500, description: 'pichle mahine ka allocation' },
+          { account_id: commute, asset_id: money, quantity: 600 },
+          { account_id: electricity, asset_id: money, quantity: 2600 },
+          { account_id: maid, asset_id: money, quantity: 400 },
+          { account_id: weekend, asset_id: money, quantity: 2500 },
+          { account_id: discretionary, asset_id: money, quantity: 1000 },
+          { account_id: subscriptions, asset_id: money, quantity: 200 },
+          { account_id: mobile_recharge, asset_id: money, quantity: 285, description: 'pichle mahine ka allocation' },
+          { account_id: mobile_recharge, asset_id: money, quantity: 570 },
+          { account_id: mandir_charity, asset_id: money, quantity: 625 },
+          { account_id: human_charity, asset_id: money, quantity: 625 },
+          { account_id: my_health_insurance, asset_id: money, quantity: 1100 },
+          { account_id: my_life_insurance, asset_id: money, quantity: 1100 },
+          { account_id: parents_life_insurance, asset_id: money, quantity: 3000 },
+          { account_id: savings_for_surprise, asset_id: money, quantity: 5000 },
+          { account_id: wifi, asset_id: money, quantity: 250 },
+          { account_id: rent_brokerage, asset_id: money, quantity: 2400 },
+          { account_id: big_ticket, asset_id: money, quantity: 5000 },
+          { account_id: send_to_home, asset_id: money, quantity: 5000 },
+          { account_id: siddhu, asset_id: money, quantity: 40000 },
+          { account_id: investments, asset_id: money, quantity: 22559.64 },
         ],
       },
     },
@@ -291,16 +285,17 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'Opening Balances of Buffers',
-      date: new Date(2025, 11, 1, 0, 0),
+      datetime: new Date(2025, 11, 1, 0, 0),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: sbi, asset_id: digital_money, quantity: 100000 },
-          { account_id: cash_at_flat_wardrobe, asset_id: cash, quantity: 10000 },
-          { account_id: opening_balance, asset_id: digital_money, quantity: -100000 },
-          { account_id: opening_balance, asset_id: cash, quantity: -10000 },
-          { account_id: buffer_in_bank, asset_id: digital_money, quantity: 100000 },
-          { account_id: buffer_in_cash, asset_id: cash, quantity: 10000 },
+          { account_id: sbi, asset_id: money, quantity: 100000 },
+          { account_id: cash_at_flat_wardrobe, asset_id: money, quantity: 10000 },
+
+          { account_id: opening_balance, asset_id: money, quantity: 110000 },
+
+          { account_id: buffer_in_bank, asset_id: money, quantity: 100000 },
+          { account_id: buffer_in_cash, asset_id: money, quantity: 10000 },
         ],
       },
     },
@@ -309,39 +304,58 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'Opening Balances of Investments',
-      date: new Date(2025, 11, 1, 0, 0),
+      datetime: new Date(2025, 11, 1, 0, 0),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: groww_balance, asset_id: blocked_money, quantity: 80.18 },
-          { account_id: groww_mfs, asset_id: parag_parikh, quantity: 184.861, book_value: 0 },
-          { account_id: groww_mfs, asset_id: hdfc_flexicap, quantity: 5.79, book_value: 0 },
-          { account_id: groww_mfs, asset_id: hdfc_midcap, quantity: 78.342, book_value: 0 },
-          { account_id: groww_mfs, asset_id: bandhan_small_cap, quantity: 166.354, book_value: 0 },
-          { account_id: groww_mfs, asset_id: invesco_small_cap, quantity: 183.637, book_value: 0 },
-          { account_id: groww_etfs_shares, asset_id: motilal_nasdaq, quantity: 73, book_value: 0 },
-          { account_id: groww_etfs_shares, asset_id: mirae_gold, quantity: 36, book_value: 0 },
-          { account_id: epf, asset_id: not_really_money, quantity: 40800 },
+          { account_id: groww_balance, asset_id: money, quantity: 80.18 },
+          { account_id: groww_mfs, asset_id: parag_parikh, quantity: 11.848, book_value: 999.95, datetime: new Date(2025, 3, 11), description: 'nav 84.3987' },
+          { account_id: groww_mfs, asset_id: parag_parikh, quantity: 11.168, book_value: 999.95, datetime: new Date(2025, 4, 12), description: 'nav 89.5367' },
+          { account_id: groww_mfs, asset_id: parag_parikh, quantity: 54.43, book_value: 4999.75, datetime: new Date(2025, 5, 9), description: 'nav 91.8572' },
+          { account_id: groww_mfs, asset_id: parag_parikh, quantity: 54.312, book_value: 4999.75, datetime: new Date(2025, 6, 25), description: 'nav 92.0559' },
+          { account_id: groww_mfs, asset_id: parag_parikh, quantity: 10.547, book_value: 999.95, datetime: new Date(2025, 9, 20), description: 'nav 94.8065' },
+          { account_id: groww_mfs, asset_id: parag_parikh, quantity: 42.556, book_value: 3980.8, datetime: new Date(2025, 10, 7), description: 'nav 93.5428' },
+          { account_id: groww_mfs, asset_id: hdfc_flexicap, quantity: 2.739, book_value: 6020.7, datetime: new Date(2025, 8, 26), description: 'nav 2198.255' },
+          { account_id: groww_mfs, asset_id: hdfc_flexicap, quantity: 1.683, book_value: 3819.81, datetime: new Date(2025, 9, 20), description: 'nav 2270.299' },
+          { account_id: groww_mfs, asset_id: hdfc_flexicap, quantity: 1.368, book_value: 3071.85, datetime: new Date(2025, 10,7), description: 'nav 2245.314' },
+          { account_id: groww_mfs, asset_id: hdfc_midcap, quantity: 38.205, book_value: 8028.60, datetime: new Date(2025, 8, 26), description: 'nav 210.143' },
+          { account_id: groww_mfs, asset_id: hdfc_midcap, quantity: 22.838, book_value: 5025.75, datetime: new Date(2025, 9, 20), description: 'nav 220.059' },
+          { account_id: groww_mfs, asset_id: hdfc_midcap, quantity: 17.299, book_value: 3832.81, datetime: new Date(2025, 10,7), description: 'nav 221.567' },
+          { account_id: groww_mfs, asset_id: bandhan_small_cap, quantity: 97, book_value: 4999.75, datetime: new Date(2025, 6, 11), description: 'nav 51.544' },
+          { account_id: groww_mfs, asset_id: bandhan_small_cap, quantity: 32.096, book_value: 1662.92, datetime: new Date(2025, 9, 20), description: 'nav 51.811' },
+          { account_id: groww_mfs, asset_id: bandhan_small_cap, quantity: 37.258, book_value: 1944.9, datetime: new Date(2025, 10,7), description: 'nav 52.201' },
+          { account_id: groww_mfs, asset_id: invesco_small_cap, quantity: 88.644, book_value: 4013.8, datetime: new Date(2025, 8, 26), description: 'nav 45.28' },
+          { account_id: groww_mfs, asset_id: invesco_small_cap, quantity: 51.814, book_value: 2467.88, datetime: new Date(2025, 9, 20), description: 'nav 47.63' },
+          { account_id: groww_mfs, asset_id: invesco_small_cap, quantity: 43.179, book_value: 2038.9, datetime: new Date(2025, 10,7), description: 'nav 47.22' },
+          { account_id: groww_mfs, asset_id: motilal_nasdaq, quantity: 38, book_value: 8097.04, datetime: new Date(2025, 8, 26), description: 'price 213.08' },
+          { account_id: groww_mfs, asset_id: motilal_nasdaq, quantity: 18, book_value: 4296.06, datetime: new Date(2025, 9, 20), description: 'price 238.67' },
+          { account_id: groww_mfs, asset_id: motilal_nasdaq, quantity: 17, book_value: 3971.20, datetime: new Date(2025, 10,7), description: 'price 233.6' },
+          { account_id: groww_mfs, asset_id: mirae_gold, quantity: 18, book_value: 1997.82, datetime: new Date(2025, 8, 26), description: 'price 110.99' },
+          { account_id: groww_mfs, asset_id: mirae_gold, quantity: 9, book_value: 1113.12, datetime: new Date(2025, 9, 20), description: 'price 123.68' },
+          { account_id: groww_mfs, asset_id: mirae_gold, quantity: 9, book_value: 1065.6, datetime: new Date(2025, 10,7), description: 'price 118.4' },
+          { account_id: epf, asset_id: long_term, quantity: 13600, datetime: new Date(2025, 8, 25) },
+          { account_id: epf, asset_id: long_term, quantity: 13600, datetime: new Date(2025, 9, 17) },
+          { account_id: epf, asset_id: long_term, quantity: 13600, datetime: new Date(2025, 10, 25) },
 
-          { account_id: opening_balance, asset_id: blocked_money, quantity: -80.18 },
-          { account_id: opening_balance, asset_id: parag_parikh, quantity: -184.861, book_value: 0 },
-          { account_id: opening_balance, asset_id: hdfc_flexicap, quantity: -5.79, book_value: 0 },
-          { account_id: opening_balance, asset_id: hdfc_midcap, quantity: -78.342, book_value: 0 },
-          { account_id: opening_balance, asset_id: bandhan_small_cap, quantity: -166.354, book_value: 0 },
-          { account_id: opening_balance, asset_id: invesco_small_cap, quantity: -183.637, book_value: 0 },
-          { account_id: opening_balance, asset_id: motilal_nasdaq, quantity: -73, book_value: 0 },
-          { account_id: opening_balance, asset_id: mirae_gold, quantity: -36, book_value: 0 },
-          { account_id: opening_balance, asset_id: not_really_money, quantity: -40800 },
+          { account_id: opening_balance, asset_id: money, quantity: 80.18 },
+          { account_id: opening_balance, asset_id: parag_parikh, quantity: 184.861, book_value: 16980.15 },
+          { account_id: opening_balance, asset_id: hdfc_flexicap, quantity: 5.79, book_value: 12912.36 },
+          { account_id: opening_balance, asset_id: hdfc_midcap, quantity: 78.342, book_value: 16887.16 },
+          { account_id: opening_balance, asset_id: bandhan_small_cap, quantity: 166.354, book_value: 8607.57 },
+          { account_id: opening_balance, asset_id: invesco_small_cap, quantity: 183.637, book_value: 8520.58 },
+          { account_id: opening_balance, asset_id: motilal_nasdaq, quantity: 73, book_value: 16364.3 },
+          { account_id: opening_balance, asset_id: mirae_gold, quantity: 36, book_value: 4176.54 },
+          { account_id: opening_balance, asset_id: long_term, quantity: 40800 },
 
-          { account_id: investments, asset_id: blocked_money, quantity: 80.18 },
-          { account_id: investments, asset_id: parag_parikh, quantity: 184.861, book_value: 0 },
-          { account_id: investments, asset_id: hdfc_flexicap, quantity: 5.79, book_value: 0 },
-          { account_id: investments, asset_id: hdfc_midcap, quantity: 78.342, book_value: 0 },
-          { account_id: investments, asset_id: bandhan_small_cap, quantity: 166.354, book_value: 0 },
-          { account_id: investments, asset_id: invesco_small_cap, quantity: 183.637, book_value: 0 },
-          { account_id: investments, asset_id: motilal_nasdaq, quantity: 73, book_value: 0 },
-          { account_id: investments, asset_id: mirae_gold, quantity: 36, book_value: 0 },
-          { account_id: investments, asset_id: not_really_money, quantity: 40800 },
+          { account_id: investments, asset_id: money, quantity: 80.18 },
+          { account_id: investments, asset_id: parag_parikh, quantity: 184.861, book_value: 16980.15 },
+          { account_id: investments, asset_id: hdfc_flexicap, quantity: 5.79, book_value: 12912.36 },
+          { account_id: investments, asset_id: hdfc_midcap, quantity: 78.342, book_value: 16887.16 },
+          { account_id: investments, asset_id: bandhan_small_cap, quantity: 166.354, book_value: 8607.57 },
+          { account_id: investments, asset_id: invesco_small_cap, quantity: 183.637, book_value: 8520.58 },
+          { account_id: investments, asset_id: motilal_nasdaq, quantity: 73, book_value: 16364.3 },
+          { account_id: investments, asset_id: mirae_gold, quantity: 36, book_value: 4176.54 },
+          { account_id: investments, asset_id: long_term, quantity: 40800 },
         ],
       },
     },
@@ -350,7 +364,7 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'Opening Balances of Short Term Allocations',
-      date: new Date(2025, 11, 1, 0, 0),
+      datetime: new Date(2025, 11, 1, 0, 0),
       user_id: shreyansh,
       line_items: {
         create: [
@@ -360,17 +374,18 @@ await prisma.$transaction(async prisma => {
           { account_id: groww_mfs, asset_id: hdfc_low_duration, quantity: 50.13, book_value: 0 },
           { account_id: groww_mfs, asset_id: nippon_ultra_short_term, quantity: 2.21, book_value: 0 },
 
-          { account_id: opening_balance, asset_id: sundaram_low_duration, quantity: -21.156, book_value: 0 },
-          { account_id: opening_balance, asset_id: aditya_birla_liquid, quantity: -46.231, book_value: 0 },
-          { account_id: opening_balance, asset_id: lic_low_duration, quantity: -344.205, book_value: 0 },
-          { account_id: opening_balance, asset_id: hdfc_low_duration, quantity: -50.13, book_value: 0 },
-          { account_id: opening_balance, asset_id: nippon_ultra_short_term, quantity: -2.21, book_value: 0 },
+          { account_id: opening_balance, asset_id: sundaram_low_duration, quantity: 21.156, book_value: 0 },
+          { account_id: opening_balance, asset_id: aditya_birla_liquid, quantity: 46.231, book_value: 0 },
+          { account_id: opening_balance, asset_id: lic_low_duration, quantity: 344.205, book_value: 0 },
+          { account_id: opening_balance, asset_id: hdfc_low_duration, quantity: 50.13, book_value: 0 },
+          { account_id: opening_balance, asset_id: nippon_ultra_short_term, quantity: 2.21, book_value: 0 },
 
-          { account_id: yearly_expenses, asset_id: sundaram_low_duration, quantity: 21.156, book_value: 0 },
-          { account_id: yearly_expenses, asset_id: aditya_birla_liquid, quantity: 46.231, book_value: 0 },
+          { account_id: siddhu, asset_id: sundaram_low_duration, quantity: 21.156, book_value: 0 },
+          { account_id: send_to_home, asset_id: aditya_birla_liquid, quantity: 46.231, book_value: 0 },
           { account_id: yearly_expenses, asset_id: lic_low_duration, quantity: 344.205, book_value: 0 },
-          { account_id: yearly_expenses, asset_id: hdfc_low_duration, quantity: 50.13, book_value: 0 },
-          { account_id: yearly_expenses, asset_id: nippon_ultra_short_term, quantity: 2.21, book_value: 0 },
+          { account_id: mandir_charity, asset_id: hdfc_low_duration, quantity: 25.065, book_value: 0 },
+          { account_id: human_charity, asset_id: hdfc_low_duration, quantity: 25.065, book_value: 0 },
+          { account_id: big_ticket, asset_id: nippon_ultra_short_term, quantity: 2.21, book_value: 0 },
         ],
       },
     },
@@ -379,13 +394,13 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'Opening Balance of House Security Deposit',
-      date: new Date(2025, 11, 1, 0, 0),
+      datetime: new Date(2025, 11, 1, 0, 0),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: dhaval, asset_id: blocked_money, quantity: 50000 },
-          { account_id: opening_balance, asset_id: blocked_money, quantity: -50000 },
-          { account_id: house_security, asset_id: blocked_money, quantity: 50000 },
+          { account_id: dhaval, asset_id: money, quantity: 50000 },
+          { account_id: opening_balance, asset_id: money, quantity: 50000 },
+          { account_id: house_security, asset_id: money, quantity: 50000 },
         ],
       },
     },
@@ -394,13 +409,13 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'Momos from swiggy on sick leave',
-      date: new Date(2025, 11, 1, 9, 35),
+      datetime: new Date(2025, 11, 1, 9, 35),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: idfc, asset_id: digital_money, quantity: -198 },
-          { account_id: expenses, asset_id: digital_money, quantity: 198 },
-          { account_id: daily_expenses, asset_id: digital_money, quantity: -198 },
+          { account_id: idfc, asset_id: money, quantity: -198 },
+          { account_id: expenses, asset_id: money, quantity: -198 },
+          { account_id: discretionary, asset_id: money, quantity: -198 },
         ],
       },
     },
@@ -409,17 +424,17 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'zepto',
-      date: new Date(2025, 11, 1, 3, 40),
+      datetime: new Date(2025, 11, 1, 15, 40),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: idfc, asset_id: digital_money, quantity: -225 },
-          { account_id: expenses, asset_id: digital_money, quantity: 89, description: 'maggie' },
-          { account_id: expenses, asset_id: digital_money, quantity: 19, description: 'chips' },
-          { account_id: expenses, asset_id: digital_money, quantity: 39, description: 'tedhe medhe' },
-          { account_id: expenses, asset_id: digital_money, quantity: 46, description: 'dal biji' },
-          { account_id: expenses, asset_id: digital_money, quantity: 32, description: 'oreo' },
-          { account_id: daily_expenses, asset_id: digital_money, quantity: -225 },
+          { account_id: idfc, asset_id: money, quantity: -225 },
+          { account_id: expenses, asset_id: money, quantity: -89, description: 'maggie' },
+          { account_id: expenses, asset_id: money, quantity: -19, description: 'chips' },
+          { account_id: expenses, asset_id: money, quantity: -39, description: 'tedhe medhe' },
+          { account_id: expenses, asset_id: money, quantity: -46, description: 'dal biji' },
+          { account_id: expenses, asset_id: money, quantity: -32, description: 'oreo' },
+          { account_id: discretionary, asset_id: money, quantity: -225 },
         ],
       },
     },
@@ -428,14 +443,12 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: "refund. aviral's balance cleared",
-      date: new Date(2025, 11, 1, 19, 49),
+      datetime: new Date(2025, 11, 1, 19, 49),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: sbi, asset_id: digital_money, quantity: +117.85 },
-          { account_id: aviral, asset_id: blocked_money, quantity: -117.85 },
-          { account_id: savings_for_surprise, asset_id: digital_money, quantity: +117.85 },
-          { account_id: savings_for_surprise, asset_id: blocked_money, quantity: -117.85 },
+          { account_id: sbi, asset_id: money, quantity: +117.85 },
+          { account_id: aviral, asset_id: money, quantity: -117.85 },
         ],
       },
     },
@@ -444,13 +457,13 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'biryani from swiggy',
-      date: new Date(2025, 11, 1, 22, 23),
+      datetime: new Date(2025, 11, 1, 22, 23),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: idfc, asset_id: digital_money, quantity: -139 },
-          { account_id: expenses, asset_id: digital_money, quantity: 139 },
-          { account_id: daily_expenses, asset_id: digital_money, quantity: -139 },
+          { account_id: idfc, asset_id: money, quantity: -139 },
+          { account_id: expenses, asset_id: money, quantity: -139 },
+          { account_id: discretionary, asset_id: money, quantity: -139 },
         ],
       },
     },
@@ -459,13 +472,13 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'mobile repair',
-      date: new Date(2025, 11, 1, 23, 1),
+      datetime: new Date(2025, 11, 1, 23, 1),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: idfc, asset_id: digital_money, quantity: -2000 },
-          { account_id: expenses, asset_id: digital_money, quantity: 2000 },
-          { account_id: savings_for_surprise, asset_id: digital_money, quantity: -2000 },
+          { account_id: idfc, asset_id: money, quantity: -2000 },
+          { account_id: expenses, asset_id: money, quantity: -2000 },
+          { account_id: savings_for_surprise, asset_id: money, quantity: -2000 },
         ],
       },
     },
@@ -474,16 +487,17 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'zomato chole bhature',
-      date: new Date(2025, 11, 2, 16, 31),
+      datetime: new Date(2025, 11, 2, 16, 31),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: axis_card, asset_id: digital_money, quantity: -486.2 },
-          { account_id: supercard_uncredited_cashbacks, asset_id: blocked_money, quantity: +14.586 },
-          { account_id: expenses, asset_id: digital_money, quantity: 486.2 },
-          { account_id: cashbacks, asset_id: blocked_money, quantity: -14.586 },
-          { account_id: daily_expenses, asset_id: digital_money, quantity: -486.2 },
-          { account_id: daily_expenses, asset_id: blocked_money, quantity: +14.586 },
+          { account_id: axis_card, asset_id: money, quantity: -486.2 },
+          { account_id: supercard_uncredited_cashbacks, asset_id: money, quantity: +14.586 },
+
+          { account_id: expenses, asset_id: money, quantity: -486.2 },
+          { account_id: cashbacks, asset_id: money, quantity: +14.586 },
+
+          { account_id: discretionary, asset_id: money, quantity: -471.614 },
         ],
       },
     },
@@ -492,17 +506,18 @@ await prisma.$transaction(async prisma => {
   await prisma.transaction.create({
     data: {
       description: 'zepto',
-      date: new Date(2025, 11, 2, 16, 49),
+      datetime: new Date(2025, 11, 2, 16, 49),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: axis_card, asset_id: digital_money, quantity: -113 },
-          { account_id: supercard_uncredited_cashbacks, asset_id: blocked_money, quantity: +3.39 },
-          { account_id: expenses, asset_id: digital_money, quantity: 24, description: 'ice cream' },
-          { account_id: expenses, asset_id: digital_money, quantity: 89, description: 'thums up' },
-          { account_id: cashbacks, asset_id: blocked_money, quantity: -3.39 },
-          { account_id: daily_expenses, asset_id: digital_money, quantity: -113 },
-          { account_id: daily_expenses, asset_id: blocked_money, quantity: +3.39 },
+          { account_id: axis_card, asset_id: money, quantity: -113 },
+          { account_id: supercard_uncredited_cashbacks, asset_id: money, quantity: +3.39 },
+
+          { account_id: expenses, asset_id: money, quantity: -24, description: 'ice cream' },
+          { account_id: expenses, asset_id: money, quantity: -89, description: 'thums up' },
+          { account_id: cashbacks, asset_id: money, quantity: +3.39 },
+
+          { account_id: discretionary, asset_id: money, quantity: -109.61 },
         ],
       },
     },
@@ -510,13 +525,329 @@ await prisma.$transaction(async prisma => {
 
   await prisma.transaction.create({
     data: {
-      description: 'zepto',
-      date: new Date(2025, 11, 3, 8, 23),
+      datetime: new Date(2025, 11, 3, 14, 53),
       user_id: shreyansh,
       line_items: {
         create: [
-          { account_id: sbi, asset_id: digital_money, quantity: -117.85 },
-          { account_id: idfc, asset_id: digital_money, quantity: +117.85 },
+          { account_id: sbi, asset_id: money, quantity: -117.85 },
+          { account_id: idfc, asset_id: money, quantity: +117.85 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'auto to office',
+      datetime: new Date(2025, 11, 3, 9, 52),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: pankaj, asset_id: money, quantity: -33.33 },
+          { account_id: expenses, asset_id: money, quantity: -33.33 },
+          { account_id: commute, asset_id: money, quantity: -33.33 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'breakfast',
+      datetime: new Date(2025, 11, 3, 10, 0),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: bhim, asset_id: money, quantity: -36.5 },
+          { account_id: idfc, asset_id: money, quantity: +2 },
+
+          { account_id: expenses, asset_id: money, quantity: -36.5 },
+          { account_id: cashbacks, asset_id: money, quantity: +2 },
+
+          { account_id: office_food, asset_id: money, quantity: -34.5 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'zepto in office. lipbalm and vick inhaler',
+      datetime: new Date(2025, 11, 3, 12, 29),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: axis_card, asset_id: money, quantity: -132 },
+          { account_id: supercard_uncredited_cashbacks, asset_id: money, quantity: +3.96 },
+
+          { account_id: expenses, asset_id: money, quantity: -132 },
+          { account_id: cashbacks, asset_id: money, quantity: +3.96 },
+
+          { account_id: discretionary, asset_id: money, quantity: -128.04 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'credit card payment',
+      datetime: new Date(2025, 11, 3, 12, 31),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: idfc, asset_id: money, quantity: -5041 },
+          { account_id: sbi_card, asset_id: money, quantity: +5041 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'lunch',
+      datetime: new Date(2025, 11, 3, 14, 12),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: bhim, asset_id: money, quantity: -50 },
+          { account_id: expenses, asset_id: money, quantity: -50 },
+          { account_id: office_food, asset_id: money, quantity: -50 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'evening snacks',
+      datetime: new Date(2025, 11, 3, 18, 15),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: bhim, asset_id: money, quantity: -29 },
+          { account_id: expenses, asset_id: money, quantity: -29 },
+          { account_id: office_food, asset_id: money, quantity: -29 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'metro from office',
+      datetime: new Date(2025, 11, 3, 18, 51),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: super_money, asset_id: money, quantity: -10 },
+          { account_id: supermoney_rewards, asset_id: money, quantity: +0.15 },
+
+          { account_id: expenses, asset_id: money, quantity: -10 },
+          { account_id: cashbacks, asset_id: money, quantity: +0.15 },
+
+          { account_id: commute, asset_id: money, quantity: -9.85 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'tiffin payment for november',
+      datetime: new Date(2025, 11, 3, 20, 3),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: idfc, asset_id: money, quantity: -4760 },
+          { account_id: pankaj, asset_id: money, quantity: +1586.67 },
+          { account_id: aviral, asset_id: money, quantity: +1586.67 },
+
+          { account_id: expenses, asset_id: money, quantity: -1586.66 },
+
+          { account_id: dinner_tiffin, asset_id: money, quantity: -1586.66 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'Upendra sir birthday cake',
+      datetime: new Date(2025, 11, 3, 20, 32),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: idfc, asset_id: money, quantity: -48 },
+          { account_id: expenses, asset_id: money, quantity: -48 },
+          { account_id: discretionary, asset_id: money, quantity: -48 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'buying ipo',
+      datetime: new Date(2025, 11, 3, 21, 0),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: sbi, asset_id: money, quantity: -14976, description: 'vidya wires' },
+          { account_id: sbi, asset_id: money, quantity: -14985, description: 'meesho' },
+          { account_id: sbi, asset_id: money, quantity: -14880, description: 'aequs' },
+          { account_id: sbi, asset_id: blocked_money, quantity: 14976, description: 'vidya wires' },
+          { account_id: sbi, asset_id: blocked_money, quantity: 14985, description: 'meesho' },
+          { account_id: sbi, asset_id: blocked_money, quantity: 14880, description: 'aequs' },
+
+          { account_id: trading_acc, asset_id: money, quantity: -44841 },
+          { account_id: trading_acc, asset_id: blocked_money, quantity: 44841 },
+
+          { account_id: investments, asset_id: money, quantity: -44841 },
+          { account_id: investments, asset_id: blocked_money, quantity: 44841 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'buying mfs/etfs',
+      datetime: new Date(2025, 11, 3, 21, 22),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: kotak, asset_id: money, quantity: -81080 },
+          { account_id: iccl, asset_id: money, quantity: +81080 },
+          { account_id: idfc, asset_id: money, quantity: -3163.5 },
+          { account_id: kotak, asset_id: money, quantity: 3163.5 },
+          { account_id: kotak, asset_id: money, quantity: -80 },
+          { account_id: idfc, asset_id: money, quantity: +80 },
+          { account_id: kotak, asset_id: money, quantity: -5580 },
+          { account_id: groww_balance, asset_id: money, quantity: +5580 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'allotment of mfs/etfs for investment',
+      datetime: new Date(2025, 11, 4, 0, 0),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: iccl, asset_id: money, quantity: -16980 },
+          { account_id: groww_balance, asset_id: money, quantity: -5621.57 },
+          { account_id: groww_mfs, asset_id: parag_parikh, quantity: 47.688, book_value: 4527.77, description: 'nav 94.946' },
+          { account_id: groww_mfs, asset_id: hdfc_flexicap, quantity: 1.493, book_value: 3395.83, description: 'nav 2273.845' },
+          { account_id: groww_mfs, asset_id: hdfc_midcap, quantity: 20.189, book_value: 4527.77, description: 'nav 224.265' },
+          { account_id: groww_mfs, asset_id: bandhan_small_cap, quantity: 44.272, book_value: 2263.89, description: 'nav 51.136' },
+          { account_id: groww_mfs, asset_id: invesco_small_cap, quantity: 48.291, book_value: 2263.89, description: 'nav 46.88' },
+          { account_id: groww_mfs, asset_id: motilal_nasdaq, quantity: 19, book_value: 4484, description: 'price 236' },
+          { account_id: groww_mfs, asset_id: mirae_gold, quantity: 9, book_value: 1124.55, description: 'price 124.95' },
+
+          { account_id: expenses, asset_id: money, quantity: -0.23, description: 'stamp duty on parag parikh' },
+          { account_id: expenses, asset_id: money, quantity: -0.17, description: 'stamp duty on hdfc flexi' },
+          { account_id: expenses, asset_id: money, quantity: -0.23, description: 'stamp duty on hdfc midcap' },
+          { account_id: expenses, asset_id: money, quantity: -0.11, description: 'stamp duty on bandhan small cap' },
+          { account_id: expenses, asset_id: money, quantity: -0.11, description: 'stamp duty on invesco small cap' },
+          { account_id: expenses, asset_id: money, quantity: -10, description: 'brokerage on etf' },
+          { account_id: expenses, asset_id: money, quantity: -0.17, description: 'exchange transaction charges on etf' },
+          { account_id: expenses, asset_id: money, quantity: -0.01, description: 'ipft charges on etf' },
+          { account_id: expenses, asset_id: money, quantity: -0.01, description: 'sebi turnover fees for etf' },
+          { account_id: expenses, asset_id: money, quantity: -1, description: 'stamp duty on etf' },
+          { account_id: expenses, asset_id: money, quantity: -1.83, description: 'gst on etf charges' },
+
+          { account_id: trading_acc, asset_id: money, quantity: -22587.7 },
+          { account_id: trading_acc, asset_id: parag_parikh, quantity: 47.688, book_value: 4527.77 },
+          { account_id: trading_acc, asset_id: hdfc_flexicap, quantity: 1.493, book_value: 3395.83 },
+          { account_id: trading_acc, asset_id: hdfc_midcap, quantity: 20.189, book_value: 4527.77 },
+          { account_id: trading_acc, asset_id: bandhan_small_cap, quantity: 44.272, book_value: 2263.89 },
+          { account_id: trading_acc, asset_id: invesco_small_cap, quantity: 48.291, book_value: 2263.89 },
+          { account_id: trading_acc, asset_id: motilal_nasdaq, quantity: 19, book_value: 4484 },
+          { account_id: trading_acc, asset_id: mirae_gold, quantity: 9, book_value: 1124.55 },
+
+          { account_id: investments, asset_id: money, quantity: -22601.57 },
+          { account_id: investments, asset_id: parag_parikh, quantity: 47.688, book_value: 4527.77 },
+          { account_id: investments, asset_id: hdfc_flexicap, quantity: 1.493, book_value: 3395.83 },
+          { account_id: investments, asset_id: hdfc_midcap, quantity: 20.189, book_value: 4527.77 },
+          { account_id: investments, asset_id: bandhan_small_cap, quantity: 44.272, book_value: 2263.89 },
+          { account_id: investments, asset_id: invesco_small_cap, quantity: 48.291, book_value: 2263.89 },
+          { account_id: investments, asset_id: motilal_nasdaq, quantity: 19, book_value: 4484 },
+          { account_id: investments, asset_id: mirae_gold, quantity: 9, book_value: 1124.55 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'allotment correction of mfs/etfs for short term allocation',
+      datetime: new Date(2025, 11, 4, 0, 0),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: iccl, asset_id: money, quantity: -64100 },
+          { account_id: groww_mfs, asset_id: aditya_birla_liquid, quantity: 11.455, book_value: 4999.75, description: 'nav 436.4803' },
+          { account_id: groww_mfs, asset_id: lic_low_duration, quantity: 404.556, book_value: 17849.11, description: 'nav 44.1202' },
+          { account_id: groww_mfs, asset_id: sundaram_low_duration, quantity: 10.476, book_value: 39998, description: 'nav 3817.9689' },
+          { account_id: groww_mfs, asset_id: hdfc_low_duration, quantity: 19.376, book_value: 1249.94, description: 'nav 64.5093' },
+
+          { account_id: expenses, asset_id: money, quantity: -0.25, description: 'stamp duty on aditya birla liquid' },
+          { account_id: expenses, asset_id: money, quantity: -0.89, description: 'stamp duty on lic low duration' },
+          { account_id: expenses, asset_id: money, quantity: -2, description: 'stamp duty on sundaram low duration' },
+          { account_id: expenses, asset_id: money, quantity: -0.06, description: 'stamp duty on hdfc low duration' },
+          { account_id: trading_acc, asset_id: money, quantity: -64096.8 },
+          { account_id: trading_acc, asset_id: aditya_birla_liquid, quantity: 11.455, book_value: 4999.75 },
+          { account_id: trading_acc, asset_id: lic_low_duration, quantity: 404.556, book_value: 17849.11 },
+          { account_id: trading_acc, asset_id: sundaram_low_duration, quantity: 10.476, book_value: 39998 },
+          { account_id: trading_acc, asset_id: hdfc_low_duration, quantity: 19.376, book_value: 1249.94 },
+
+          { account_id: siddhu, asset_id: money, quantity: -40000 },
+          { account_id: siddhu, asset_id: sundaram_low_duration, quantity: 10.476, book_value: 39998 },
+          { account_id: mandir_charity, asset_id: money, quantity: -625 },
+          { account_id: mandir_charity, asset_id: hdfc_low_duration, quantity: 9.688, book_value: 624.97 },
+          { account_id: human_charity, asset_id: money, quantity: -625 },
+          { account_id: human_charity, asset_id: hdfc_low_duration, quantity: 9.688, book_value: 624.97 },
+          { account_id: send_to_home, asset_id: money, quantity: -5000 },
+          { account_id: send_to_home, asset_id: aditya_birla_liquid, quantity: 11.455, book_value: 4999.75 },
+
+          { account_id: my_health_insurance, asset_id: money, quantity: -1100 },
+          { account_id: my_health_insurance, asset_id: lic_low_duration, quantity: 24.931, book_value: 1099.96 },
+          { account_id: my_life_insurance, asset_id: money, quantity: -1100 },
+          { account_id: my_life_insurance, asset_id: lic_low_duration, quantity: 24.931, book_value: 1099.96 },
+          { account_id: parents_life_insurance, asset_id: money, quantity: -3000 },
+          { account_id: parents_life_insurance, asset_id: lic_low_duration, quantity: 67.993, book_value: 2999.86 },
+          { account_id: savings_for_surprise, asset_id: money, quantity: -5000 },
+          { account_id: savings_for_surprise, asset_id: lic_low_duration, quantity: 113.32, book_value: 4999.71 },
+          { account_id: wifi, asset_id: money, quantity: -250 },
+          { account_id: wifi, asset_id: lic_low_duration, quantity: 5.667, book_value: 250.03 },
+          { account_id: rent_brokerage, asset_id: money, quantity: -2400 },
+          { account_id: rent_brokerage, asset_id: lic_low_duration, quantity: 54.394, book_value: 2399.88 },
+          { account_id: big_ticket, asset_id: money, quantity: -5000 },
+          { account_id: big_ticket, asset_id: lic_low_duration, quantity: 113.32, book_value: 4999.71 },
+        ],
+      },
+    },
+  });
+
+  await prisma.transaction.create({
+    data: {
+      description: 'redeeming lic mf 2000 rs for reconciliation of savings allocation',
+      datetime: new Date(2025, 11, 10, 0, 0),
+      user_id: shreyansh,
+      line_items: {
+        create: [
+          { account_id: groww_mfs, asset_id: lic_low_duration, quantity: -45.291, book_value: -1977.88 },
+          { account_id: kotak, asset_id: money, quantity: 1999.28, datetime: new Date(2025, 11, 11, 10, 3) },
+
+          { account_id: trading_acc, asset_id: lic_low_duration, quantity: -45.291, book_value: -1977.88 },
+          { account_id: trading_acc, asset_id: money, quantity: 1977.88 },
+          { account_id: income, asset_id: money, quantity: 21.4 },
+
+          { account_id: savings_for_surprise, asset_id: lic_low_duration, quantity: -45.291, book_value: -1977.88 },
+          { account_id: savings_for_surprise, asset_id: money, quantity: 1999.28 },
         ],
       },
     },

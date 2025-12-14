@@ -9,7 +9,3 @@ export function get_date_obj_from_indian_date(dateStr: string): Date {
 export function get_indian_date_from_date_obj(date: Date): string {
   return formatInTimeZone(date, 'Asia/Kolkata', 'dd-MM-yyyy');
 }
-
-export function getCurrentIndianDate(): string {
-  return formatInTimeZone(new Date(), 'Asia/Kolkata', 'dd-MM-yyyy');
-}

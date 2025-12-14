@@ -74,31 +74,6 @@ async function checkAssetTickersAndPrices(): Promise<Issue[]> {
   return issues;
 }
 
-async function checkAccountParentTypes(): Promise<Issue[]> {
-  const issues: Issue[] = [];
-  const accounts = await prisma.account.findMany({ select: { id: true, name: true, type: true, parent_id: true } });
-  const byId = new Map(accounts.map(a => [a.id, a]));
-
-  for (const a of accounts) {
-    if (a.parent_id) {
-      const p =
-        byId.get(a.parent_id) ?? (await prisma.account.findUnique({ where: { id: a.parent_id }, select: { id: true, name: true, type: true } }));
-      if (!p) {
-        issues.push({ kind: 'warning', message: `account ${a.id} (${a.name}) has parent_id ${a.parent_id} that does not exist` });
-        continue;
-      }
-      if (p.type !== a.type) {
-        issues.push({
-          kind: 'error',
-          message: `account ${a.id} (${a.name}) has parent ${p.id} (${(p as any).name}) with different type: child=${a.type} parent=${p.type}`,
-        });
-      }
-    }
-  }
-
-  return issues;
-}
-
 async function checkLineItemsBookValue(): Promise<Issue[]> {
   const issues: Issue[] = [];
   const line_items = await prisma.line_item.findMany({ include: { asset: true, transaction: true } });
@@ -145,11 +120,12 @@ async function checkTransactionsInvariants(): Promise<Issue[]> {
   for (const tx of txs) {
     const qty_by_asset_real = new Map<string, Prisma.Decimal>();
     const qty_by_asset_alloc = new Map<string, Prisma.Decimal>();
+    const qty_by_asset_nominal = new Map<string, Prisma.Decimal>();
 
     const ZERO = new Prisma.Decimal(0);
-    let sum_book_value_real = ZERO;
-    let sum_book_value_alloc = ZERO;
-    let sum_book_value_nominal = ZERO;
+    let sum_value_real = ZERO;
+    let sum_value_alloc = ZERO;
+    let sum_value_nominal = ZERO;
 
     for (const li of tx.line_items) {
       const acc_type = li.account.type;
@@ -162,11 +138,14 @@ async function checkTransactionsInvariants(): Promise<Issue[]> {
       } else if (acc_type === 'allocation') {
         const prev = qty_by_asset_alloc.get(li.asset_id) ?? ZERO;
         qty_by_asset_alloc.set(li.asset_id, prev.add(qty));
+      } else {
+        const prev = qty_by_asset_nominal.get(li.asset_id) ?? ZERO;
+        qty_by_asset_nominal.set(li.asset_id, prev.add(qty));
       }
 
-      if (acc_type === 'real') sum_book_value_real = sum_book_value_real.add(book_val);
-      else if (acc_type === 'allocation') sum_book_value_alloc = sum_book_value_alloc.add(book_val);
-      else if (acc_type === 'nominal') sum_book_value_nominal = sum_book_value_nominal.add(book_val);
+      if (acc_type === 'real') sum_value_real = sum_value_real.add(book_val);
+      else if (acc_type === 'allocation') sum_value_alloc = sum_value_alloc.add(book_val);
+      else if (acc_type === 'nominal') sum_value_nominal = sum_value_nominal.add(book_val);
     }
 
     // check per-asset qty equality
@@ -174,32 +153,25 @@ async function checkTransactionsInvariants(): Promise<Issue[]> {
     for (const aid of asset_ids) {
       const real_qty = qty_by_asset_real.get(aid) ?? ZERO;
       const alloc_qty = qty_by_asset_alloc.get(aid) ?? ZERO;
-      if (!real_qty.equals(alloc_qty)) {
+      const nomin_qty = qty_by_asset_nominal.get(aid) ?? ZERO;
+      if (!real_qty.equals(alloc_qty) || !real_qty.equals(nomin_qty)) {
         const assetName = tx.line_items.find(li => li.asset_id === aid)?.asset.name ?? aid;
         issues.push({
           kind: 'error',
           message: `transaction ${
             tx.id
-          }: quantity mismatch for asset ${aid} (${assetName}) real=${real_qty.toString()} allocation=${alloc_qty.toString()}`,
+          }: quantity mismatch for asset ${aid} (${assetName}) real=${real_qty.toString()} allocation=${alloc_qty.toString()} nominal=${nomin_qty.toString()}`,
         });
       }
     }
 
     // check book value sums
-    if (!sum_book_value_real.add(sum_book_value_nominal).equals(ZERO)) {
+    if (!sum_value_real.equals(sum_value_nominal) || !sum_value_alloc.equals(sum_value_nominal)) {
       issues.push({
         kind: 'error',
         message: `transaction ${
           tx.id
-        }: invariant failed: sum(book_value) in real + nominal !== 0 (real=${sum_book_value_real.toString()} nominal=${sum_book_value_nominal.toString()})`,
-      });
-    }
-    if (!sum_book_value_alloc.add(sum_book_value_nominal).equals(ZERO)) {
-      issues.push({
-        kind: 'error',
-        message: `transaction ${
-          tx.id
-        }: invariant failed: sum(book_value) in allocation + nominal !== 0 (alloc=${sum_book_value_alloc.toString()} nominal=${sum_book_value_nominal.toString()})`,
+        }: invariant failed: book_value in real (${sum_value_real.toString()}), allocation (${sum_value_alloc.toString()}), nominal (${sum_value_nominal.toString()}) do not match`,
       });
     }
   }

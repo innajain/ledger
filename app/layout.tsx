@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import Navbar from './Navbar';
+import Navbar from './_components/Navbar';
 import { get_current_user } from './_actions/auth';
 import './globals.css';
+import Link from 'next/link';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -33,15 +34,16 @@ export default async function RootLayout({
           <Navbar isLoggedIn={!!user} />
 
           {/* Main Content */}
-          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {children}
-          </main>
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
 
           {/* Footer */}
           <footer className="bg-white border-t border-slate-200 mt-auto">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
               <p className="text-center text-sm text-slate-500">
-                © {new Date().getFullYear()} Ledger App. All rights reserved.
+                Made with ♥ by
+                <Link href="https://github.com/innajain" target="_blank" rel="noopener noreferrer" className="text-slate-700 hover:underline mx-1">
+                  Shreyansh Jain
+                </Link>
               </p>
             </div>
           </footer>

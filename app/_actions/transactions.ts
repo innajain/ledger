@@ -10,12 +10,19 @@ export type CreateLineItemInput = {
   quantity: number;
   book_value?: number | null | undefined;
   description?: string | null | undefined;
+  datetime?: Date | null | undefined;
 };
 
-export async function create_transaction(date: Date, line_items: CreateLineItemInput[], description?: string | null | undefined) {
+export async function create_transaction(datetime: Date, line_items: CreateLineItemInput[], description?: string | null | undefined) {
   if (line_items.length === 0) throw new Error('line_items are required');
   if (line_items.some(li => li.quantity === 0)) throw new Error('quantity cannot be zero in any line item');
   if (description && description.length === 0) description = null;
+  line_items.forEach(li => {
+    if (li.description !== undefined && li.description !== null && li.description.length === 0) {
+      li.description = null;
+    }
+  });
+
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
 
@@ -44,14 +51,15 @@ export async function create_transaction(date: Date, line_items: CreateLineItemI
     }
 
     // Invariant checks
-    // 1) For each asset: sum(quantity) in real accounts == sum(quantity) in allocation accounts
+    // 1) For each asset: sum(quantity) in real accounts == sum(quantity) in allocation accounts == sum(quantity) in nominal accounts
     const qty_by_asset_real = new Map<string, Prisma.Decimal>();
     const qty_by_asset_alloc = new Map<string, Prisma.Decimal>();
+    const qty_by_asset_nominal = new Map<string, Prisma.Decimal>();
 
-    // 2 & 3) sums of book_value by account type
-    let sum_book_value_real = new Prisma.Decimal(0);
-    let sum_book_value_alloc = new Prisma.Decimal(0);
-    let sum_book_value_nominal = new Prisma.Decimal(0);
+    // 2) sums of val (book_value ?? quantity) by account type
+    let sum_value_real = new Prisma.Decimal(0);
+    let sum_value_alloc = new Prisma.Decimal(0);
+    let sum_value_nominal = new Prisma.Decimal(0);
 
     // Validate and accumulate
     for (const li of line_items) {
@@ -59,7 +67,7 @@ export async function create_transaction(date: Date, line_items: CreateLineItemI
 
       // convert quantity and book_value
       const qty = new Prisma.Decimal(li.quantity);
-      const book_val = new Prisma.Decimal(li.book_value ?? li.quantity);
+      const val = new Prisma.Decimal(li.book_value ?? li.quantity);
 
       // accumulate quantity by asset & account type
       if (acc_type === 'real') {
@@ -68,39 +76,40 @@ export async function create_transaction(date: Date, line_items: CreateLineItemI
       } else if (acc_type === 'allocation') {
         const prev = qty_by_asset_alloc.get(li.asset_id) ?? new Prisma.Decimal(0);
         qty_by_asset_alloc.set(li.asset_id, prev.add(qty));
+      } else {
+        const prev = qty_by_asset_nominal.get(li.asset_id) ?? new Prisma.Decimal(0);
+        qty_by_asset_nominal.set(li.asset_id, prev.add(qty));
       }
 
-      // accumulate book values by account type
-      if (acc_type === 'real') sum_book_value_real = sum_book_value_real.add(book_val);
-      else if (acc_type === 'allocation') sum_book_value_alloc = sum_book_value_alloc.add(book_val);
-      else if (acc_type === 'nominal') sum_book_value_nominal = sum_book_value_nominal.add(book_val);
+      // accumulate values by account type
+      if (acc_type === 'real') sum_value_real = sum_value_real.add(val);
+      else if (acc_type === 'allocation') sum_value_alloc = sum_value_alloc.add(val);
+      else if (acc_type === 'nominal') sum_value_nominal = sum_value_nominal.add(val);
     }
 
-    // Check invariant 1: per-asset quantities equal between real and allocation
+    // Check invariant 1: per-asset quantities equal between real and allocation and nominal
     for (const asset_id of asset_ids) {
       const real_qty = qty_by_asset_real.get(asset_id) ?? new Prisma.Decimal(0);
       const alloc_qty = qty_by_asset_alloc.get(asset_id) ?? new Prisma.Decimal(0);
-      if (!real_qty.equals(alloc_qty)) {
+      const nominal_qty = qty_by_asset_nominal.get(asset_id) ?? new Prisma.Decimal(0);
+      if (!real_qty.equals(alloc_qty) || !real_qty.equals(nominal_qty)) {
         throw new Error(
-          `quantity mismatch for asset ${asset_by_id.get(asset_id)!.name}: real=${real_qty.toString()} allocation=${alloc_qty.toString()}`
+          `quantity mismatch for asset ${
+            asset_by_id.get(asset_id)!.name
+          }: real=${real_qty.toString()} allocation=${alloc_qty.toString()} nominal=${nominal_qty.toString()}`
         );
       }
     }
 
-    // Check invariant 2: sum(book_value) in real + nominal == 0
-    if (!sum_book_value_real.add(sum_book_value_nominal).equals(new Prisma.Decimal(0))) {
-      throw new Error('invariant failed: sum(book_value) in real + nominal must equal 0');
-    }
-
-    // Check invariant 3: sum(book_value) in allocation + nominal == 0
-    if (!sum_book_value_alloc.add(sum_book_value_nominal).equals(new Prisma.Decimal(0))) {
-      throw new Error('invariant failed: sum(book_value) in allocation + nominal must equal 0');
+    // Check invariant 2: sum(value) in real == nominal == allocation
+    if (!sum_value_real.equals(sum_value_nominal) || !sum_value_real.equals(sum_value_alloc)) {
+      throw new Error('invariant failed: sum(value) in real, nominal, and allocation must be equal');
     }
 
     // All checks passed — create the transaction with nested line_items
     await prisma.transaction.create({
       data: {
-        date,
+        datetime,
         description,
         user_id: user.id,
         line_items: {
@@ -110,6 +119,7 @@ export async function create_transaction(date: Date, line_items: CreateLineItemI
             account_id: li.account_id,
             asset_id: li.asset_id,
             description: li.description !== undefined && li.description !== null && li.description.length === 0 ? null : li.description,
+            datetime: li.datetime,
           })),
         },
       },

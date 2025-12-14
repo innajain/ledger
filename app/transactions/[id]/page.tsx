@@ -32,6 +32,7 @@ export default async function Page({ params }: Props) {
     book_value: number | null;
     current_value: number;
     description: string | null;
+    datetime: Date | null;
   }[];
   for (const li of tx.line_items) {
     const qty = li.quantity;
@@ -57,7 +58,7 @@ export default async function Page({ params }: Props) {
     }
 
     // accumulate nominal book value for transaction total_book
-    total_book = total_book.add(li.account.type === 'nominal' ? (li.book_value ?? li.quantity) : new Prisma.Decimal(0));
+    total_book = total_book.add(li.account.type === 'nominal' ? li.book_value ?? li.quantity : new Prisma.Decimal(0));
 
     items.push({
       id: li.id,
@@ -71,12 +72,13 @@ export default async function Page({ params }: Props) {
       book_value: li.book_value ? li.book_value.toNumber() : null,
       current_value: current_value.toNumber(),
       description: li.description,
+      datetime: li.datetime,
     });
   }
 
   const txForClient = {
     id: tx.id,
-    date: tx.date.toISOString(),
+    date: tx.datetime.toISOString(),
     description: tx.description,
     total: total_book.mul(-1).toNumber(),
     total_book: total_book.mul(-1).toNumber(),
