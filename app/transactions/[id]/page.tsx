@@ -80,8 +80,7 @@ export default async function Page({ params }: Props) {
     id: tx.id,
     date: tx.datetime.toISOString(),
     description: tx.description,
-    total: total_book.mul(-1).toNumber(),
-    total_book: total_book.mul(-1).toNumber(),
+    total: total_book.toNumber(),
     line_items: items,
   };
 
