@@ -27,7 +27,6 @@ export default async function Page() {
     total_book: t.line_items
       .filter(li => li.account.type === 'nominal')
       .reduce((s, li) => s.add(li.book_value ? li.book_value : li.quantity), new Prisma.Decimal(0))
-      .mul(-1)
       .toNumber(),
   }));
 
