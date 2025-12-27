@@ -9,18 +9,21 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - name: Install PostgreSQL Client
+      - name: Install PostgreSQL 17 Client
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
       
       - name: Create Backup
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
-          # Ignore version mismatch
-          export PGOPTIONS='--client-min-messages=warning'
-          pg_dump "$DATABASE_URL" --no-owner --no-acl --no-sync > backup-$(date +%Y%m%d-%H%M%S).sql
+          pg_dump "$DATABASE_URL" --no-owner --no-acl > backup-$(date +%Y%m%d-%H%M%S).sql
       
       - name: Upload to Artifacts
         uses: actions/upload-artifact@v4
