@@ -2,6 +2,12 @@ import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
 import ClientPage from './ClientPage';
 import { Prisma } from '@/generated/prisma/client';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Transactions',
+  description: 'View and manage all your financial transactions',
+};
 
 export default async function Page() {
   const user = await get_current_user();
