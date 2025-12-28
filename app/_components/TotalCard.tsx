@@ -7,28 +7,28 @@ type TotalCardProps = {
 
 const colorSchemes = {
   purple: {
-    bg: 'from-purple-50 to-purple-100',
-    border: 'border-purple-200',
-    text: 'text-purple-900',
-    iconBg: 'bg-purple-600',
+    bg: 'from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900',
+    border: 'border-purple-200 dark:border-purple-800',
+    text: 'text-purple-900 dark:text-purple-100',
+    iconBg: 'bg-purple-600 dark:bg-purple-500',
   },
   green: {
-    bg: 'from-green-50 to-green-100',
-    border: 'border-green-200',
-    text: 'text-green-900',
-    iconBg: 'bg-green-600',
+    bg: 'from-green-50 to-green-100 dark:from-green-950 dark:to-green-900',
+    border: 'border-green-200 dark:border-green-800',
+    text: 'text-green-900 dark:text-green-100',
+    iconBg: 'bg-green-600 dark:bg-green-500',
   },
   orange: {
-    bg: 'from-orange-50 to-orange-100',
-    border: 'border-orange-200',
-    text: 'text-orange-900',
-    iconBg: 'bg-orange-600',
+    bg: 'from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900',
+    border: 'border-orange-200 dark:border-orange-800',
+    text: 'text-orange-900 dark:text-orange-100',
+    iconBg: 'bg-orange-600 dark:bg-orange-500',
   },
   blue: {
-    bg: 'from-blue-50 to-blue-100',
-    border: 'border-blue-200',
-    text: 'text-blue-900',
-    iconBg: 'bg-blue-600',
+    bg: 'from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900',
+    border: 'border-blue-200 dark:border-blue-800',
+    text: 'text-blue-900 dark:text-blue-100',
+    iconBg: 'bg-blue-600 dark:bg-blue-500',
   },
 };
 
@@ -36,7 +36,7 @@ export function TotalCard({ title, total, colorScheme, icon }: TotalCardProps) {
   const colors = colorSchemes[colorScheme];
 
   return (
-    <div className={`bg-gradient-to-br ${colors.bg} rounded-xl shadow-sm border ${colors.border} p-6`}>
+    <div className={`bg-gradient-to-br ${colors.bg} rounded-xl shadow-sm border ${colors.border} p-6 transition-colors`}>
       <div className="flex items-center justify-between">
         <div>
           <h2 className={`text-sm font-medium ${colors.text} mb-1`}>{title}</h2>

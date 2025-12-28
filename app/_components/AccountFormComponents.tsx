@@ -13,14 +13,14 @@ interface PageHeaderProps {
 export function PageHeader({ backLink, backText, title, description }: PageHeaderProps) {
   return (
     <div>
-      <Link href={backLink} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors font-medium mb-4">
+      <Link href={backLink} className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         {backText}
       </Link>
-      <h1 className="text-3xl font-bold text-slate-900">{title}</h1>
-      <p className="text-slate-600 mt-1">{description}</p>
+      <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
+      <p className="text-slate-600 dark:text-slate-400 mt-1">{description}</p>
     </div>
   );
 }
@@ -33,8 +33,8 @@ interface FormCardProps {
 
 export function FormCard({ title, children }: FormCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-      <h2 className="text-lg font-semibold text-slate-900 mb-4">{title}</h2>
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">{title}</h2>
       <div className="space-y-4">{children}</div>
     </div>
   );
@@ -52,14 +52,14 @@ interface TextInputProps {
 export function TextInput({ label, value, onChange, placeholder, required }: TextInputProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       />
     </div>
   );
@@ -75,11 +75,11 @@ interface AccountTypeSelectProps {
 export function AccountTypeSelect({ label, value, onChange }: AccountTypeSelectProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
       <select
         value={value}
         onChange={e => onChange(e.target.value as account_type)}
-        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       >
         <option value="real">Real</option>
         <option value="allocation">Allocation</option>
@@ -104,11 +104,11 @@ export function ParentSelect({ label, value, onChange, parents, excludeId, helpT
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
       <select
         value={value ?? ''}
         onChange={e => onChange(e.target.value || null)}
-        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       >
         <option value="">-- None (Top Level) --</option>
         {filteredParents.map(p => (
@@ -117,7 +117,7 @@ export function ParentSelect({ label, value, onChange, parents, excludeId, helpT
           </option>
         ))}
       </select>
-      {helpText && <p className="text-xs text-slate-500 mt-1">{helpText}</p>}
+      {helpText && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{helpText}</p>}
     </div>
   );
 }
@@ -132,11 +132,11 @@ interface AssetTypeSelectProps {
 export function AssetTypeSelect({ label, value, onChange }: AssetTypeSelectProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       >
         <option value="rupees">Rupees</option>
         <option value="mf">Mutual Fund</option>
@@ -167,7 +167,7 @@ export function ParentAssetSelect({ label, value, onChange, parents, excludeId, 
       <select
         value={value ?? ''}
         onChange={e => onChange(e.target.value || null)}
-        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
       >
         <option value="">-- None (Top Level) --</option>
         {filteredParents.map(p => (
@@ -212,7 +212,7 @@ export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText
         <button
           type="submit"
           disabled={busy}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+          className="px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
           {submitText}
         </button>

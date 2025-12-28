@@ -72,12 +72,12 @@ export function HierarchyTree<T extends BaseItem>({
 
     return (
       <li key={item.id} className="mb-2">
-        <div className={`flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors ${depth === 0 ? 'bg-white border border-slate-200' : ''}`}>
+        <div className={`flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${depth === 0 ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700' : ''}`}>
           {node.children.length > 0 ? (
             <button
               onClick={() => toggle(item.id)}
               aria-expanded={isExpanded}
-              className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-200 rounded transition-colors"
+              className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
             >
               <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -91,7 +91,7 @@ export function HierarchyTree<T extends BaseItem>({
             <div className="flex-1 min-w-0">
               <Link
                 href={getItemUrl(item.id)}
-                className="font-medium text-slate-900 hover:text-blue-600 transition-colors inline-block"
+                className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors inline-block"
               >
                 {item.name}
               </Link>
@@ -102,7 +102,7 @@ export function HierarchyTree<T extends BaseItem>({
               )}
             </div>
             <div className="flex-shrink-0 text-right">
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
                 {formatCurrency(displayCurr)}
               </span>
             </div>
@@ -110,14 +110,14 @@ export function HierarchyTree<T extends BaseItem>({
         </div>
 
         {node.children.length > 0 && isExpanded && (
-          <ul className="mt-2 ml-9 space-y-1 border-l-2 border-slate-200 pl-4">
+          <ul className="mt-2 ml-9 space-y-1 border-l-2 border-slate-200 dark:border-slate-700 pl-4">
             {/* pseudo-child showing non-aggregate "self" value */}
             <li key={`${item.id}-self`} className="mb-2">
-              <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-50">
+              <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
                 <span className="w-6 flex-shrink-0"></span>
                 <div className="flex-1 min-w-0 flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm italic text-slate-600">self</span>
+                    <span className="text-sm italic text-slate-600 dark:text-slate-400">self</span>
                     {renderExtraInfo && (
                       <span className="ml-3">
                         {renderExtraInfo(item, node)}
@@ -125,7 +125,7 @@ export function HierarchyTree<T extends BaseItem>({
                     )}
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <span className="text-sm font-medium text-slate-700">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                       {formatCurrency(ownCurr)}
                     </span>
                   </div>

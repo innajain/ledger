@@ -103,7 +103,7 @@ export default function ClientPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
@@ -118,7 +118,7 @@ export default function ClientPage({
                 </svg>
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">Transaction Details</h1>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Transaction Details</h1>
                 <p className="text-sm text-slate-500">
                   {new Date(transaction.date).toLocaleDateString('en-US', {
                     year: 'numeric',
@@ -130,7 +130,7 @@ export default function ClientPage({
                 </p>
               </div>
             </div>
-            {transaction.description && <p className="text-slate-700 mt-2">{transaction.description}</p>}
+            {transaction.description && <p className="text-slate-700 dark:text-slate-300 mt-2">{transaction.description}</p>}
           </div>
         </div>
 
@@ -146,7 +146,7 @@ export default function ClientPage({
         <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200">
           <Link
             href={`/transactions/${transaction.id}/update`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -178,7 +178,7 @@ export default function ClientPage({
 
       {/* Line Items */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-slate-900">Line Items</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line Items</h2>
 
         {(['real', 'allocation', 'nominal'] as const).map(typeKey => {
           const items = groups[typeKey] || [];
@@ -186,13 +186,13 @@ export default function ClientPage({
 
           const config = accountTypeConfig[typeKey];
           const colorClasses = {
-            green: 'bg-green-50 border-green-200 text-green-900',
-            orange: 'bg-orange-50 border-orange-200 text-orange-900',
-            purple: 'bg-purple-50 border-purple-200 text-purple-900',
+            green: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
+            orange: 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100',
+            purple: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-100',
           };
 
           return (
-            <div key={typeKey} className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+            <div key={typeKey} className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
               <div className={`px-6 py-3 border-b ${colorClasses[config.color as keyof typeof colorClasses]}`}>
                 <div className="flex items-center gap-2">
                   {config.icon}
@@ -201,20 +201,20 @@ export default function ClientPage({
               </div>
               <ul className="divide-y divide-slate-200">
                 {items.map(li => (
-                  <li key={li.id} className="p-4 hover:bg-slate-50 transition-colors">
+                  <li key={li.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <Link href={`/accounts/${li.account_id}`} className="font-medium text-slate-900 hover:text-blue-600 transition-colors">
+                          <Link href={`/accounts/${li.account_id}`} className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                             {li.account_name}
                           </Link>
                           <span className="text-slate-400">→</span>
-                          <Link href={`/assets/${li.asset_id}`} className="text-slate-700 hover:text-blue-600 transition-colors">
+                          <Link href={`/assets/${li.asset_id}`} className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                             {li.asset_name}
                           </Link>
                         </div>
 
-                        <div className="text-sm text-slate-600">
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
                           {li.asset_type === asset_type.rupees ? (
                             <span className="font-medium">{currency_fmt.format(li.quantity)}</span>
                           ) : (
@@ -225,7 +225,7 @@ export default function ClientPage({
                           )}
                         </div>
 
-                        {li.description && <p className="text-sm italic text-slate-500 mt-2">{li.description}</p>}
+                        {li.description && <p className="text-sm italic text-slate-500 dark:text-slate-400 mt-2">{li.description}</p>}
                         {li.datetime && (
                           <p className="text-xs text-slate-400 mt-1">
                             {new Date(li.datetime).toLocaleString('en-US', {

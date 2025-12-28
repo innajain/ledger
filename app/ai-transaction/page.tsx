@@ -12,8 +12,8 @@ export default async function AITransactionPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">AI Transaction Entry</h1>
-        <p className="text-slate-600 mt-2">Use natural language to create transactions</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">AI Transaction Entry</h1>
+        <p className="text-slate-600 dark:text-slate-400 mt-2">Use natural language to create transactions</p>
       </div>
       
       <ClientPage />

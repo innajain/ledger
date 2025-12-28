@@ -16,7 +16,7 @@ interface ViewPageHeaderProps {
 export function ViewPageHeader({ backLink, backText, title, description, editLink, editText }: ViewPageHeaderProps) {
   return (
     <div>
-      <Link href={backLink} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors font-medium mb-4">
+      <Link href={backLink} className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
@@ -25,12 +25,12 @@ export function ViewPageHeader({ backLink, backText, title, description, editLin
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">{title}</h1>
-          <p className="text-slate-600 mt-1">{description}</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">{description}</p>
         </div>
         <Link
           href={editLink}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium inline-flex items-center gap-2"
+          className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -60,13 +60,13 @@ interface InfoCardProps {
 
 export function InfoCard({ title, fields }: InfoCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-      <h2 className="text-lg font-semibold text-slate-900 mb-4">{title}</h2>
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">{title}</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {fields.map((field, idx) => (
           <div key={idx}>
-            <p className="text-sm text-slate-500 mb-1">{field.label}</p>
-            {typeof field.value === 'string' ? <p className="text-slate-900 font-medium">{field.value}</p> : field.value}
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{field.label}</p>
+            {typeof field.value === 'string' ? <p className="text-slate-900 dark:text-slate-100 font-medium">{field.value}</p> : field.value}
           </div>
         ))}
       </div>
@@ -82,8 +82,8 @@ interface HoldingsHeaderProps {
 
 export function HoldingsHeader({ title = 'Holdings', count }: HoldingsHeaderProps) {
   return (
-    <div className="p-6 border-b border-slate-200">
-      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+    <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
       <p className="text-sm text-slate-500 mt-1">
         {count} line item{count !== 1 ? 's' : ''}
       </p>
@@ -144,39 +144,39 @@ export function LineItemRow({
   assetType,
 }: LineItemRowProps) {
   return (
-    <div className="p-4 hover:bg-slate-50 transition-colors">
+    <div className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           {assetLink ? (
-            <Link href={assetLink} className="text-slate-900 font-semibold hover:text-blue-600 transition-colors">
+            <Link href={assetLink} className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
               {assetName}
             </Link>
           ) : (
-            <span className="text-slate-900 font-semibold">{assetName}</span>
+            <span className="text-slate-900 dark:text-slate-100 font-semibold">{assetName}</span>
           )}
 
           {/* Line Item Description */}
-          {lineItemDescription && <p className="text-sm text-slate-600 mt-1">{lineItemDescription}</p>}
+          {lineItemDescription && <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{lineItemDescription}</p>}
 
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
             {assetType === asset_type.rupees ? (
-              <div className="text-slate-600">
-                <span className="font-medium text-slate-900">{currency_fmt.format(currentValue)}</span>
+              <div className="text-slate-600 dark:text-slate-400">
+                <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(currentValue)}</span>
               </div>
             ) : (
               <>
-                <div className="text-slate-600">
-                  <span className="text-slate-500">Quantity:</span> <span className="font-medium text-slate-900">{quantity} units</span>
+                <div className="text-slate-600 dark:text-slate-400">
+                  <span className="text-slate-500 dark:text-slate-400">Quantity:</span> <span className="font-medium text-slate-900 dark:text-slate-100">{quantity} units</span>
                 </div>
-                <div className="text-slate-600">
-                  <span className="text-slate-500">Book:</span>{' '}
-                  <span className="font-medium text-slate-900">
+                <div className="text-slate-600 dark:text-slate-400">
+                  <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
+                  <span className="font-medium text-slate-900 dark:text-slate-100">
                     {bookValue === null || bookValue === undefined ? '—' : currency_fmt.format(bookValue)}
                   </span>
                 </div>
-                <div className="text-slate-600">
-                  <span className="text-slate-500">Current:</span>{' '}
-                  <span className="font-medium text-slate-900">{currency_fmt.format(currentValue)}</span>
+                <div className="text-slate-600 dark:text-slate-400">
+                  <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(currentValue)}</span>
                 </div>
               </>
             )}

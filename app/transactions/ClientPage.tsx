@@ -17,19 +17,19 @@ export default function ClientPage({ transactions }: { transactions: { id: strin
       />
 
       {transactions.length > 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-            <h2 className="text-lg font-semibold text-slate-900">All Transactions</h2>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
+          <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All Transactions</h2>
           </div>
-          <ul className="divide-y divide-slate-200">
+          <ul className="divide-y divide-slate-200 dark:divide-slate-700">
             {transactions.map(tx => (
-              <li key={tx.id} className="hover:bg-slate-50 transition-colors">
+              <li key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                 <Link href={`/transactions/${tx.id}`} className="block px-6 py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -39,8 +39,8 @@ export default function ClientPage({ transactions }: { transactions: { id: strin
                           </svg>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">{tx.description || 'No description'}</p>
-                          <p className="text-sm text-slate-500">
+                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{tx.description || 'No description'}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
                             {tx.date.toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'short',
@@ -55,7 +55,7 @@ export default function ClientPage({ transactions }: { transactions: { id: strin
                     <div className="ml-4 flex-shrink-0">
                       <span
                         className={`text-lg font-semibold ${
-                          tx.total_book > 0 ? 'text-green-600' : tx.total_book < 0 ? 'text-red-600' : 'text-gray-500'
+                          tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : tx.total_book < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
                         }`}
                       >
                         {currency_fmt.format(tx.total_book)}

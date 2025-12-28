@@ -119,41 +119,41 @@ export default function ClientPage({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <Link href="/transactions" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors font-medium mb-4">
+        <Link href="/transactions" className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Back to Transactions
         </Link>
-        <h1 className="text-3xl font-bold text-slate-900">Create Transaction</h1>
-        <p className="text-slate-600 mt-1">Add a new transaction with line items</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Create Transaction</h1>
+        <p className="text-slate-600 dark:text-slate-400 mt-1">Add a new transaction with line items</p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
         {/* Basic Info Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Transaction Details</h2>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Transaction Details</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Date & Time</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date & Time</label>
               <input
                 type="datetime-local"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
               />
-              {formattedDate && <div className="text-sm text-slate-600 mt-2 italic">{formattedDate}</div>}
+              {formattedDate && <div className="text-sm text-slate-600 dark:text-slate-400 mt-2 italic">{formattedDate}</div>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description</label>
               <input
                 type="text"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Enter transaction description"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
               />
             </div>
           </div>
@@ -162,7 +162,7 @@ export default function ClientPage({
         {/* Line Items */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900">Line Items</h2>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line Items</h2>
           </div>
 
           {(['real', 'allocation', 'nominal'] as const).map(typeKey => {
@@ -170,20 +170,20 @@ export default function ClientPage({
 
             const config = accountTypeConfig[typeKey];
             const colorClasses = {
-              green: 'bg-green-50 border-green-200 text-green-900',
-              orange: 'bg-orange-50 border-orange-200 text-orange-900',
-              purple: 'bg-purple-50 border-purple-200 text-purple-900',
+              green: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
+              orange: 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100',
+              purple: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-100',
             };
 
             return (
-              <div key={typeKey} className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+              <div key={typeKey} className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
                 <div className={`px-6 py-3 border-b ${colorClasses[config.color as keyof typeof colorClasses]}`}>
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold">{config.title}</h3>
                     <button
                       type="button"
                       onClick={() => addItemForType(typeKey)}
-                      className="inline-flex items-center gap-2 px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                      className="inline-flex items-center gap-2 px-2 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -193,15 +193,15 @@ export default function ClientPage({
                   </div>
                 </div>
                 <div className="p-6 space-y-4">
-                  {list.length === 0 && <div className="text-sm text-slate-500 italic">No items in this section. Use Add to create one.</div>}
+                  {list.length === 0 && <div className="text-sm text-slate-500 dark:text-slate-400 italic">No items in this section. Use Add to create one.</div>}
                   {list.length > 0 &&
                     list.map(({ item: it, idx }) => {
                       const asset = assets.find(a => a.id === it.asset_id);
                       return (
-                        <div key={idx} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                        <div key={idx} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600">
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-2">Account</label>
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Account</label>
                               <select
                                 value={it.account_id}
                                 onChange={e =>
@@ -211,7 +211,7 @@ export default function ClientPage({
                                     return copy;
                                   })
                                 }
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
                               >
                                 {accounts
                                   .filter(a => a.type === typeKey)
@@ -224,7 +224,7 @@ export default function ClientPage({
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-2">Asset</label>
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Asset</label>
                               <select
                                 value={it.asset_id}
                                 onChange={e =>
@@ -236,7 +236,7 @@ export default function ClientPage({
                                     return copy;
                                   })
                                 }
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
                               >
                                 {assets.map(a => (
                                   <option key={a.id} value={a.id}>
@@ -247,7 +247,7 @@ export default function ClientPage({
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-2">Quantity</label>
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Quantity</label>
                               <input
                                 type="number"
                                 step="any"
@@ -259,13 +259,13 @@ export default function ClientPage({
                                     return copy;
                                   })
                                 }
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
                               />
                             </div>
 
                             {!(asset?.type === asset_type.rupees) && (
                               <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Book Value</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Book Value</label>
                                 <input
                                   type="number"
                                   step="any"
@@ -278,12 +278,12 @@ export default function ClientPage({
                                       return copy;
                                     })
                                   }
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
                                 />
                               </div>
                             )}
                             <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-2">Line Item Description</label>
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Line Item Description</label>
                               <input
                                 type="text"
                                 value={it.description}
@@ -295,11 +295,11 @@ export default function ClientPage({
                                   })
                                 }
                                 placeholder="Optional description for this line item"
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
                               />
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-2">Line Item Date & Time</label>
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Line Item Date & Time</label>
                               <input
                                 type="datetime-local"
                                 value={it.datetime}
@@ -311,7 +311,7 @@ export default function ClientPage({
                                   })
                                 }
                                 placeholder="Optional datetime for this line item"
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
                               />
                             </div>
                           </div>
@@ -320,7 +320,7 @@ export default function ClientPage({
                             <button
                               type="button"
                               onClick={() => removeItem(idx)}
-                              className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-700 font-medium"
+                              className="inline-flex items-center gap-1 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path
@@ -344,13 +344,13 @@ export default function ClientPage({
 
         {/* Submit Button */}
         <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
-          <Link href="/transactions" className="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium">
+          <Link href="/transactions" className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium">
             Cancel
           </Link>
           <button
             type="submit"
             disabled={busy}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
             {busy ? 'Creating...' : 'Create Transaction'}
           </button>

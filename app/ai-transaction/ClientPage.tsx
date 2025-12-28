@@ -99,15 +99,15 @@ export default function AITransactionClient() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <h2 className="text-xl font-semibold text-slate-900 mb-4">AI Transaction Entry</h2>
-        <p className="text-sm text-slate-600 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">AI Transaction Entry</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
           Describe your transaction in natural language and let AI create the ledger entries for you.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="ai-input" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="ai-input" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Transaction Description
             </label>
             <textarea
@@ -115,7 +115,7 @@ export default function AITransactionClient() {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="e.g., breakfast for 50rs using gpay"
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+              className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors resize-none"
               rows={3}
               disabled={loading}
             />
@@ -124,7 +124,7 @@ export default function AITransactionClient() {
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -155,34 +155,34 @@ export default function AITransactionClient() {
         </form>
 
         {parsedTransaction && !result && (
-          <div className="mt-6 p-4 rounded-lg border border-blue-200 bg-blue-50 space-y-4">
+          <div className="mt-6 p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">Transaction Preview</h3>
-              <p className="text-sm text-slate-600 mb-4">Please review the transaction before confirming:</p>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Transaction Preview</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Please review the transaction before confirming:</p>
             </div>
 
-            <div className="bg-white rounded-lg p-4 border border-blue-100 space-y-3">
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-blue-100 dark:border-blue-900 space-y-3">
               <div>
-                <p className="text-sm text-slate-500">Description</p>
-                <p className="font-medium text-slate-900">{parsedTransaction.description}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Description</p>
+                <p className="font-medium text-slate-900 dark:text-slate-100">{parsedTransaction.description}</p>
               </div>
               <div>
-                <p className="text-sm text-slate-500">Date & Time</p>
-                <p className="font-medium text-slate-900">
+                <p className="text-sm text-slate-500 dark:text-slate-400">Date & Time</p>
+                <p className="font-medium text-slate-900 dark:text-slate-100">
                   {new Date(parsedTransaction.date).toLocaleDateString()} {new Date(parsedTransaction.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
 
-              <div className="border-t pt-3">
-                <p className="text-sm font-medium text-slate-700 mb-3">Line Items:</p>
+              <div className="border-t dark:border-slate-700 pt-3">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Line Items:</p>
                 <div className="space-y-2">
                   {parsedTransaction.line_items.map((item, idx) => {
                     const colorMap: Record<string, string> = {
-                      real: 'bg-purple-50 border-purple-200 text-purple-900',
-                      allocation: 'bg-blue-50 border-blue-200 text-blue-900',
-                      nominal: 'bg-green-50 border-green-200 text-green-900',
+                      real: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-100',
+                      allocation: 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-100',
+                      nominal: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
                     };
-                    const color = colorMap[item.account_type] || 'bg-slate-50 border-slate-200 text-slate-900';
+                    const color = colorMap[item.account_type] || 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100';
 
                     return (
                       <div key={idx} className={`p-3 rounded border ${color} text-sm`}>
@@ -236,7 +236,7 @@ export default function AITransactionClient() {
               <button
                 onClick={handleCancel}
                 disabled={confirming}
-                className="px-4 py-3 bg-slate-200 text-slate-900 rounded-lg font-medium hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-3 bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-lg font-medium hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Cancel
               </button>
@@ -279,51 +279,19 @@ export default function AITransactionClient() {
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">Example Inputs</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Example Inputs</h3>
         <div className="space-y-2">
           {examples.map((example, idx) => (
             <button
               key={idx}
               onClick={() => setInput(example)}
-              className="w-full text-left px-4 py-2 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-sm text-slate-700"
+              className="w-full text-left px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-sm text-slate-700 dark:text-slate-300"
             >
               {example}
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-2 flex items-center gap-2">
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fillRule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-              clipRule="evenodd"
-            />
-          </svg>
-          How it works
-        </h3>
-        <ul className="space-y-2 text-sm text-blue-900">
-          <li className="flex items-start gap-2">
-            <span className="font-medium">•</span>
-            <span>
-              The AI analyzes your input and creates balanced ledger entries across real accounts (payment methods), allocation
-              accounts (categories), and nominal accounts (income/expenses).
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="font-medium">•</span>
-            <span>It learns from your existing accounts and assets to make accurate suggestions.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="font-medium">•</span>
-            <span>
-              If required accounts or assets don't exist, it will notify you to create them first.
-            </span>
-          </li>
-        </ul>
       </div>
     </div>
   );
