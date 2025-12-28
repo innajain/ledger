@@ -9,18 +9,25 @@ import { EmptyState } from '../_components/EmptyState';
 
 type Transaction = { id: string; date: Date; description: string | null; total_book: number };
 
+type Account = { id: string; name: string };
+type Asset = { id: string; name: string };
+
 export default function ClientPage({
   transactions,
   totalCount,
   currentPage,
   pageSize,
   searchParams,
+  accounts,
+  assets,
 }: {
   transactions: Transaction[];
   totalCount: number;
   currentPage: number;
   pageSize: number;
   searchParams: Record<string, string | undefined>;
+  accounts: Account[];
+  assets: Asset[];
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -30,6 +37,8 @@ export default function ClientPage({
   const [dateTo, setDateTo] = useState(searchParams.dateTo || '');
   const [minAmount, setMinAmount] = useState(searchParams.minAmount || '');
   const [maxAmount, setMaxAmount] = useState(searchParams.maxAmount || '');
+  const [accountId, setAccountId] = useState(searchParams.accountId || '');
+  const [assetId, setAssetId] = useState(searchParams.assetId || '');
   const [selectedPageSize, setSelectedPageSize] = useState(pageSize);
 
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -49,6 +58,8 @@ export default function ClientPage({
     if (dateTo) query.set('dateTo', dateTo);
     if (minAmount) query.set('minAmount', minAmount);
     if (maxAmount) query.set('maxAmount', maxAmount);
+    if (accountId) query.set('accountId', accountId);
+    if (assetId) query.set('assetId', assetId);
     router.push(`/transactions?${query.toString()}`);
   };
 
@@ -58,6 +69,8 @@ export default function ClientPage({
     setDateTo('');
     setMinAmount('');
     setMaxAmount('');
+    setAccountId('');
+    setAssetId('');
     router.push('/transactions');
   };
 
@@ -67,7 +80,7 @@ export default function ClientPage({
     router.push(`/transactions?${query.toString()}`);
   };
 
-  const hasFilters = searchParams.search || searchParams.dateFrom || searchParams.dateTo || searchParams.minAmount || searchParams.maxAmount;
+  const hasFilters = searchParams.dateFrom || searchParams.dateTo || searchParams.minAmount || searchParams.maxAmount || searchParams.accountId || searchParams.assetId;
 
   return (
     <div className="space-y-6">
@@ -143,6 +156,36 @@ export default function ClientPage({
                 placeholder="0.00"
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account</label>
+              <select
+                value={accountId}
+                onChange={e => setAccountId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+              >
+                <option value="">All Accounts</option>
+                {accounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Asset</label>
+              <select
+                value={assetId}
+                onChange={e => setAssetId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+              >
+                <option value="">All Assets</option>
+                {assets.map(asset => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="md:col-span-2 flex gap-2 justify-end">
               <button

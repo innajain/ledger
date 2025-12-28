@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; dateFrom?: string; dateTo?: string; minAmount?: string; maxAmount?: string; pageSize?: string }>;
+  searchParams: Promise<{ page?: string; search?: string; dateFrom?: string; dateTo?: string; minAmount?: string; maxAmount?: string; pageSize?: string; accountId?: string; assetId?: string }>;
 }) {
   const user = await get_current_user();
   if (!user) {
@@ -30,6 +30,14 @@ export default async function Page({
   const dateTo = params.dateTo ? new Date(params.dateTo) : undefined;
   const minAmount = params.minAmount ? parseFloat(params.minAmount) : undefined;
   const maxAmount = params.maxAmount ? parseFloat(params.maxAmount) : undefined;
+  const accountId = params.accountId || undefined;
+  const assetId = params.assetId || undefined;
+
+  // Fetch accounts and assets for filter dropdowns
+  const [accounts, assets] = await Promise.all([
+    prisma.account.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } }),
+    prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } }),
+  ]);
 
   // Build where clause
   const where: Prisma.transactionWhereInput = {
@@ -42,6 +50,8 @@ export default async function Page({
     }),
     ...(dateFrom && { datetime: { gte: dateFrom } }),
     ...(dateTo && { datetime: { lte: dateTo } }),
+    ...(accountId && { line_items: { some: { account_id: accountId } } }),
+    ...(assetId && { line_items: { some: { asset_id: assetId } } }),
   };
 
   // Get total count first
@@ -88,6 +98,8 @@ export default async function Page({
       currentPage={page}
       pageSize={pageSize}
       searchParams={params}
+      accounts={accounts}
+      assets={assets}
     />
   );
 }
