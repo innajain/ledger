@@ -3,6 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
 import { get_price_for_asset, get_latest_etf_price } from '@/app/_utils/price_fetcher';
 import { asset_type, Prisma } from '@/generated/prisma/client';
+import type { Metadata } from 'next';
+
+// Route segment config for performance
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Accounts',
+  description: 'View and manage your financial accounts',
+};
 
 export default async function Page() {
   const user = await get_current_user();

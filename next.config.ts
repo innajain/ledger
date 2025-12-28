@@ -7,7 +7,9 @@ const nextConfig: NextConfig = {
   
   // Experimental features for better performance
   experimental: {
-    optimizePackageImports: ['@/generated/prisma/client'],
+    optimizePackageImports: ['@/generated/prisma/client', 'react-datepicker'],
+    // Enable partial prerendering when stable
+    // ppr: 'incremental',
   },
   
   // Reduce bundle size by tree-shaking
@@ -16,6 +18,12 @@ const nextConfig: NextConfig = {
       transform: 'lucide-react/dist/esm/icons/{{member}}',
     },
   },
+
+  // Optimize fonts
+  optimizeFonts: true,
+
+  // Enable React strict mode for better development
+  reactStrictMode: true,
 };
 
 export default nextConfig;
