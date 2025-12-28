@@ -19,9 +19,6 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // Optimize fonts
-  optimizeFonts: true,
-
   // Enable React strict mode for better development
   reactStrictMode: true,
 };
