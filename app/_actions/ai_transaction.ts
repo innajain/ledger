@@ -2,7 +2,9 @@
 
 import { get_current_user } from './auth';
 import { prisma } from '@/lib/prisma';
+import { redis } from '@/lib/redis';
 import OpenAI from 'openai';
+import type { Prisma } from '@/generated/prisma/client';
 
 type AITransactionResponse = {
   date: string;
@@ -15,6 +17,26 @@ type AITransactionResponse = {
   }[];
 };
 
+type TransactionWithLineItems = Prisma.transactionGetPayload<{
+  include: {
+    line_items: {
+      include: { account: true; asset: true };
+    };
+  };
+}>;
+
+type AccountSelect = {
+  id: string;
+  name: string;
+  type: 'real' | 'nominal' | 'allocation';
+};
+
+type AssetSelect = {
+  id: string;
+  name: string;
+  type: string | null;
+};
+
 export async function parse_transaction_with_ai(input: string): Promise<{
   success: boolean;
   message: string;
@@ -25,7 +47,7 @@ export async function parse_transaction_with_ai(input: string): Promise<{
       account_name: string;
       account_type: string;
       asset_name: string;
-      asset_type?: string;
+      asset_type?: string | null;
       quantity: number;
       book_value: number | null;
       description?: string | null;
@@ -41,30 +63,52 @@ export async function parse_transaction_with_ai(input: string): Promise<{
       throw new Error('OPENAI_API_KEY not configured');
     }
 
-    // Get recent transactions
-    const transactions = await prisma.transaction.findMany({
-      where: { user_id: user.id },
-      include: {
-        line_items: {
-          include: { account: true, asset: true },
-          orderBy: { id: 'asc' },
-        },
-      },
-      orderBy: { datetime: 'desc' },
-      take: 30,
-    });
+    const CACHE_TTL = 60 * 60 * 24 * 2; // 2 days in seconds
+    const cacheKey = `ai_context:${user.id}`;
 
-    // Get all accounts and assets
-    const [accounts, assets] = await Promise.all([
-      prisma.account.findMany({
+    // Try to get cached data
+    let cachedData = await redis.get(cacheKey);
+    let transactions: TransactionWithLineItems[];
+    let accounts: AccountSelect[];
+    let assets: AssetSelect[];
+
+    if (cachedData) {
+      const parsed = JSON.parse(cachedData);
+      transactions = parsed.transactions;
+      accounts = parsed.accounts;
+      assets = parsed.assets;
+    } else {
+      // Cache miss - fetch from DB
+      transactions = await prisma.transaction.findMany({
         where: { user_id: user.id },
-        select: { id: true, name: true, type: true },
-      }),
-      prisma.asset.findMany({
-        where: { user_id: user.id },
-        select: { id: true, name: true, type: true },
-      }),
-    ]);
+        include: {
+          line_items: {
+            include: { account: true, asset: true },
+            orderBy: { id: 'asc' },
+          },
+        },
+        orderBy: { datetime: 'desc' },
+        take: 30,
+      });
+
+      [accounts, assets] = await Promise.all([
+        prisma.account.findMany({
+          where: { user_id: user.id },
+          select: { id: true, name: true, type: true },
+        }),
+        prisma.asset.findMany({
+          where: { user_id: user.id },
+          select: { id: true, name: true, type: true },
+        }),
+      ]);
+
+      // Cache for 2 days
+      await redis.setex(
+        cacheKey,
+        CACHE_TTL,
+        JSON.stringify({ transactions, accounts, assets })
+      );
+    }
 
     // Build examples focusing on common patterns
     const simpleExamples = transactions
@@ -235,11 +279,17 @@ Current time in India: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Ko
     const response = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o',
       messages: [
-        { role: 'system', content: systemPrompt },
+        { 
+          role: 'system', 
+          content: systemPrompt,
+          // Note: OpenAI uses automatic caching for repeated prompts
+          // For Anthropic Claude, you'd use: cache_control: { type: 'ephemeral' }
+        },
         { role: 'user', content: input },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.05, // Very low for consistency
+      temperature: 0.05,
+      // OpenAI caches system prompts automatically when they're consistent
     });
 
     const rawContent = response.choices[0].message.content || '{}';
@@ -255,7 +305,19 @@ Current time in India: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Ko
     }
 
     // Resolve accounts and assets
-    const resolvedLineItems: any[] = [];
+    type ResolvedLineItem = {
+      account_id: string;
+      asset_id: string;
+      account_name: string;
+      account_type: 'real' | 'nominal' | 'allocation';
+      asset_name: string;
+      asset_type: string | null;
+      quantity: number;
+      book_value: number | null;
+      description: string | null;
+    };
+    
+    const resolvedLineItems: ResolvedLineItem[] = [];
     const errors: string[] = [];
 
     for (const li of aiResponse.line_items) {
@@ -266,7 +328,7 @@ Current time in India: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Ko
         const searchLower = li.account_name.toLowerCase();
         const matches = accounts.filter(a => {
           const nameLower = a.name.toLowerCase();
-          return nameLower.includes(searchLower) || searchLower.includes(nameLower) || nameLower.split(' ').some(word => searchLower.includes(word));
+          return nameLower.includes(searchLower) || searchLower.includes(nameLower) || nameLower.split(' ').some((word: string) => searchLower.includes(word));
         });
 
         if (matches.length === 0) {

@@ -12,7 +12,7 @@ type ParsedTransaction = {
     account_name: string;
     account_type: string;
     asset_name: string;
-    asset_type?: string;
+    asset_type?: string | null;
     quantity: number;
     book_value: number | null;
     description?: string | null;
