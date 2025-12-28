@@ -77,6 +77,7 @@ export async function log_in(payload: { username: string; password: string }): P
     path: '/',
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
+    maxAge: JWT_EXPIRY_SECONDS,
   });
 
   // no return value — form action expected to return void
