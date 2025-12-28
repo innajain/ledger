@@ -57,10 +57,10 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
         ]}
       />
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holdings (aggregated by asset)</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {account.breakdown.filter(b => b.quantity !== 0).length} asset{account.breakdown.filter(b => b.quantity !== 0).length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -73,7 +73,7 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
               {account.breakdown
                 .filter(x => x.quantity !== 0)
                 .map((b, i) => (
-                  <div key={i} className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+                  <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm transition-colors">
                     <div className="flex flex-col h-full justify-between">
                       <div>
                         <Link href={`/assets/${b.asset_id}`} className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
@@ -130,7 +130,7 @@ export default function ClientPage({ account, currencyLocale, currency }: { acco
         {account.line_items.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="max-h-96 overflow-y-auto divide-y divide-slate-200">
+          <div className="max-h-96 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-700">
             {account.line_items.map(li => (
               <LineItemRow
                 key={li.id}

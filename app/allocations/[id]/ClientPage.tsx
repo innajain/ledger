@@ -55,14 +55,14 @@ export default function ClientPage({
         fields={[
           { label: 'Allocation Type', value: <span className="capitalize">{allocation.type}</span> },
           { label: 'Parent Allocation', value: allocation.parent ? allocation.parent.name : '—' },
-          { label: 'Total Value', value: <p className="text-2xl font-bold text-slate-900">{currency_fmt.format(allocation.total)}</p> },
+          { label: 'Total Value', value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(allocation.total)}</p> },
         ]}
       />
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-lg font-semibold text-slate-900">Holdings (aggregated by asset)</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holdings (aggregated by asset)</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {allocation.breakdown.filter(b => b.quantity !== 0).length} asset
             {allocation.breakdown.filter(b => b.quantity !== 0).length !== 1 ? 's' : ''}
           </p>
@@ -76,32 +76,32 @@ export default function ClientPage({
               {allocation.breakdown
                 .filter(b => b.quantity !== 0)
                 .map((b, i) => (
-                  <div key={i} className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+                  <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm transition-colors">
                     <div className="flex flex-col h-full justify-between">
                       <div>
                         <Link href={`/assets/${b.asset_id}`} className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                           {b.asset_name}
                         </Link>
 
-                        <div className="mt-3 text-sm text-slate-600 space-y-2">
+                        <div className="mt-3 text-sm text-slate-600 dark:text-slate-400 space-y-2">
                           {b.asset_type === asset_type.rupees ? (
                             <div>
-                              <span className="text-slate-500">Value:</span>{' '}
-                              <span className="font-medium text-slate-900">{currency_fmt.format(b.current_value)}</span>
+                              <span className="text-slate-500 dark:text-slate-400">Value:</span>{' '}
+                              <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
                             </div>
                           ) : (
                             <>
                               <div>
-                                <span className="text-slate-500">Quantity:</span>{' '}
-                                <span className="font-medium text-slate-900">{b.quantity} units</span>
+                                <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{b.quantity} units</span>
                               </div>
                               <div>
-                                <span className="text-slate-500">Book:</span>{' '}
-                                <span className="font-medium text-slate-900">{b.book_value === null ? '—' : currency_fmt.format(b.book_value)}</span>
+                                <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{b.book_value === null ? '—' : currency_fmt.format(b.book_value)}</span>
                               </div>
                               <div>
-                                <span className="text-slate-500">Current:</span>{' '}
-                                <span className="font-medium text-slate-900">{currency_fmt.format(b.current_value)}</span>
+                                <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
                               </div>
                             </>
                           )}
@@ -109,7 +109,7 @@ export default function ClientPage({
                       </div>
 
                       <div className="mt-4 text-right">
-                        <Link href={`/assets/${b.asset_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                        <Link href={`/assets/${b.asset_id}`} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
                           View Asset →
                         </Link>
                       </div>
@@ -133,7 +133,7 @@ export default function ClientPage({
         {allocation.line_items.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="max-h-96 overflow-y-auto divide-y divide-slate-200">
+          <div className="max-h-96 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-700">
             {allocation.line_items.map(li => (
               <LineItemRow
                 key={li.id}
