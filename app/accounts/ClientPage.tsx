@@ -50,7 +50,7 @@ export default function ClientPage({ accounts, totals, assetQuantities, grand_to
       {accounts.length > 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">Account Hierarchy</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Account Hierarchy</h2>
             <button
               onClick={() => setExpandAll(!expandAll)}
               className="px-3 py-1 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
