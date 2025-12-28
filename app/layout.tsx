@@ -18,18 +18,18 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Ledger App - Professional Asset Management',
+    default: 'Ledger App',
     template: '%s | Ledger App',
   },
   description: 'Professional ledger and asset management system for tracking investments, accounts, and financial transactions',
   keywords: ['ledger', 'asset management', 'portfolio', 'finance', 'investments', 'accounting'],
   authors: [{ name: 'Shreyansh Jain', url: 'https://github.com/innajain' }],
   creator: 'Shreyansh Jain',
-  metadataBase: new URL('https://ledger.example.com'), // Update with your actual domain
+  metadataBase: new URL('https://ledger.shreyansh.space'), // Update with your actual domain
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    title: 'Ledger App - Professional Asset Management',
+    title: 'Ledger App',
     description: 'Track your investments, accounts, and financial transactions',
     siteName: 'Ledger App',
   },
