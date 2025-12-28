@@ -17,6 +17,32 @@ export default async function Home() {
     include: { line_items: { include: { asset: true } } },
   });
 
+  // Collect unique assets that need price fetching
+  const uniqueAssets = new Map<string, { type: asset_type; ticker: string | null }>();
+  for (const acc of allocations) {
+    for (const li of acc.line_items) {
+      const asset = li.asset;
+      if (asset.ticker && (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares')) {
+        const key = `${asset.type}:${asset.ticker}`;
+        if (!uniqueAssets.has(key)) {
+          uniqueAssets.set(key, { type: asset.type, ticker: asset.ticker });
+        }
+      }
+    }
+  }
+
+  // Fetch all prices in parallel
+  const pricePromises = Array.from(uniqueAssets.entries()).map(async ([key, { type, ticker }]) => {
+    const price = await get_price_for_asset(type, ticker);
+    return { key, price };
+  });
+
+  const priceResults = await Promise.all(pricePromises);
+  const priceCache = new Map<string, { price: number; date: Date }>();
+  for (const { key, price } of priceResults) {
+    if (price) priceCache.set(key, price);
+  }
+
   const allocationsForClient: { id: string; name: string; total: number }[] = [];
 
   for (const acc of allocations) {
@@ -26,20 +52,16 @@ export default async function Home() {
       const asset = li.asset;
       let current_value = new Prisma.Decimal(0);
 
-      if (asset.type === 'mf') {
-        const nav = await get_price_for_asset(asset.type, asset.ticker ?? null);
-        if (nav) current_value = new Prisma.Decimal(nav.price).mul(qty);
-        else current_value = li.book_value!;
-      } else if (asset.type === 'etf') {
-        const p = await get_price_for_asset(asset.type, asset.ticker ?? null);
-        if (p) current_value = new Prisma.Decimal(p.price).mul(qty);
-        else current_value = li.book_value!;
-      } else if (asset.type === 'shares') {
-        const p = await get_latest_etf_price(asset.ticker ?? '');
-        if (p) current_value = new Prisma.Decimal(p.close).mul(qty);
-        else current_value = li.book_value!;
-      } else if (asset.type === asset_type.rupees) {
+      if (asset.type === asset_type.rupees) {
         current_value = qty;
+      } else if (asset.ticker && (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares')) {
+        const key = `${asset.type}:${asset.ticker}`;
+        const priceData = priceCache.get(key);
+        if (priceData) {
+          current_value = new Prisma.Decimal(priceData.price).mul(qty);
+        } else {
+          current_value = li.book_value!;
+        }
       } else {
         current_value = li.book_value!;
       }

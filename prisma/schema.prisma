@@ -34,6 +34,8 @@ model account {
   line_items line_item[]
 
   @@unique([name, user_id])
+  @@index([user_id, type])
+  @@index([parent_id])
 }
 
 model asset {
@@ -53,6 +55,8 @@ model asset {
   line_items line_item[]
 
   @@unique([name, user_id])
+  @@index([user_id])
+  @@index([parent_id])
 }
 
 model transaction {
@@ -63,6 +67,9 @@ model transaction {
 
   user       user        @relation(fields: [user_id], references: [id])
   line_items line_item[]
+
+  @@index([user_id])
+  @@index([datetime])
 }
 
 model line_item {
@@ -78,6 +85,10 @@ model line_item {
 
   asset_id String
   asset    asset  @relation(fields: [asset_id], references: [id])
+
+  @@index([transaction_id])
+  @@index([account_id])
+  @@index([asset_id])
 
   quantity   Decimal  @db.Decimal(14, 4)
   book_value Decimal? @db.Decimal(14, 4)

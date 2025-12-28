@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 
 type BaseItem = {
@@ -42,21 +42,24 @@ export function HierarchyTree<T extends BaseItem>({
   }, [expandAll, items]);
   const toggle = (id: string) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
-  // Build tree structure
-  const nodeById = new Map<string, Node<T>>();
-  for (const item of items) {
-    nodeById.set(item.id, { item, children: [] });
-  }
-
-  const roots: Node<T>[] = [];
-  for (const node of nodeById.values()) {
-    const pid = node.item.parent_id;
-    if (pid && nodeById.has(pid)) {
-      nodeById.get(pid)!.children.push(node);
-    } else {
-      roots.push(node);
+  // Build tree structure - memoized to avoid rebuilding on every render
+  const roots = useMemo(() => {
+    const nodeById = new Map<string, Node<T>>();
+    for (const item of items) {
+      nodeById.set(item.id, { item, children: [] });
     }
-  }
+
+    const rootNodes: Node<T>[] = [];
+    for (const node of nodeById.values()) {
+      const pid = node.item.parent_id;
+      if (pid && nodeById.has(pid)) {
+        nodeById.get(pid)!.children.push(node);
+      } else {
+        rootNodes.push(node);
+      }
+    }
+    return rootNodes;
+  }, [items]);
 
   function aggregateCurr(n: Node<T>): number {
     const own = totals[n.item.id] || 0;

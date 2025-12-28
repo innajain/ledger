@@ -3,6 +3,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 import type { user } from '@/generated/prisma/client';
 
@@ -90,7 +91,8 @@ export async function log_out(): Promise<void> {
   cookieStore.set({ name: token_name, value: '', path: '/', expires: new Date(0) });
 }
 
-export async function get_current_user(): Promise<user | null> {
+// Cache the current user for the duration of the request
+export const get_current_user = cache(async (): Promise<user | null> => {
   const cookieStore = await cookies();
   const cookie = cookieStore.get(token_name)?.value;
   if (!cookie) return null;
@@ -101,4 +103,4 @@ export async function get_current_user(): Promise<user | null> {
   } catch {
     return null;
   }
-}
+});
