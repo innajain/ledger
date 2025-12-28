@@ -9,7 +9,11 @@ export const metadata: Metadata = {
   description: 'View and manage all your financial transactions',
 };
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; search?: string; dateFrom?: string; dateTo?: string; minAmount?: string; maxAmount?: string; pageSize?: string }>;
+}) {
   const user = await get_current_user();
   if (!user) {
     return (
@@ -20,21 +24,70 @@ export default async function Page() {
     );
   }
 
+  const params = await searchParams;
+  const search = params.search || '';
+  const dateFrom = params.dateFrom ? new Date(params.dateFrom) : undefined;
+  const dateTo = params.dateTo ? new Date(params.dateTo) : undefined;
+  const minAmount = params.minAmount ? parseFloat(params.minAmount) : undefined;
+  const maxAmount = params.maxAmount ? parseFloat(params.maxAmount) : undefined;
+
+  // Build where clause
+  const where: Prisma.transactionWhereInput = {
+    user_id: user.id,
+    ...(search && {
+      OR: [
+        { description: { contains: search, mode: 'insensitive' as Prisma.QueryMode } },
+        { line_items: { some: { description: { contains: search, mode: 'insensitive' as Prisma.QueryMode } } } },
+      ],
+    }),
+    ...(dateFrom && { datetime: { gte: dateFrom } }),
+    ...(dateTo && { datetime: { lte: dateTo } }),
+  };
+
+  // Get total count first
+  const totalCount = await prisma.transaction.count({ where });
+  
+  // Calculate page size (handle ALL option)
+  const page = parseInt(params.page || '1');
+  const pageSizeParam = params.pageSize;
+  const pageSize = pageSizeParam === 'all' ? totalCount : parseInt(pageSizeParam || '20');
+
+  // Fetch paginated transactions
   const transactions = await prisma.transaction.findMany({
-    where: { user_id: user.id },
+    where,
     include: { line_items: { include: { asset: true, account: true } } },
     orderBy: { datetime: 'desc' },
+    skip: pageSizeParam === 'all' ? 0 : (page - 1) * pageSize,
+    take: pageSizeParam === 'all' ? undefined : pageSize,
   });
 
-  const txForClient = transactions.map(t => ({
-    id: t.id,
-    date: t.datetime,
-    description: t.description,
-    total_book: t.line_items
+  const txForClient = transactions.map(t => {
+    const total = t.line_items
       .filter(li => li.account.type === 'nominal')
       .reduce((s, li) => s.add(li.book_value ? li.book_value : li.quantity), new Prisma.Decimal(0))
-      .toNumber(),
-  }));
+      .toNumber();
+    return {
+      id: t.id,
+      date: t.datetime,
+      description: t.description,
+      total_book: total,
+    };
+  });
 
-  return <ClientPage transactions={txForClient} />;
+  // Filter by amount if specified (done client-side as it depends on calculation)
+  const filteredTx = txForClient.filter(tx => {
+    if (minAmount !== undefined && tx.total_book < minAmount) return false;
+    if (maxAmount !== undefined && tx.total_book > maxAmount) return false;
+    return true;
+  });
+
+  return (
+    <ClientPage
+      transactions={filteredTx}
+      totalCount={totalCount}
+      currentPage={page}
+      pageSize={pageSize}
+      searchParams={params}
+    />
+  );
 }
