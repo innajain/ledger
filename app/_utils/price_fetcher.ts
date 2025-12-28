@@ -36,8 +36,8 @@ export async function get_latest_etf_price(symbol: string) {
     date = fromZonedTime(date, 'Asia/Kolkata');
     const priceData = { price: result.regularMarketPrice!, date };
 
-    // Cache in Redis (no TTL — persistent until explicitly deleted)
-    await redis.set(cacheKey, JSON.stringify(priceData));
+    // Cache in Redis with 2-day TTL
+    await redis.set(cacheKey, JSON.stringify(priceData), 'EX', 2 * 24 * 60 * 60);
 
     return { date, close: result.regularMarketPrice as number };
   } catch (err) {
@@ -75,8 +75,8 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
         const istDate = fromZonedTime(localDate, 'Asia/Kolkata');
         const navData = { schemeCode, schemeName, nav, date: istDate };
 
-        // Cache in Redis (no TTL — persistent until explicitly deleted)
-        await redis.set(cacheKey, JSON.stringify(navData));
+        // Cache in Redis with 2-day TTL
+        await redis.set(cacheKey, JSON.stringify(navData), 'EX', 2 * 24 * 60 * 60);
 
         return navData;
       }
