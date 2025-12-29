@@ -58,9 +58,9 @@ export async function parse_transaction_with_ai(input: string): Promise<{
   if (!user) throw new Error('unauthorized');
 
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY not configured');
+      throw new Error('GROQ_API_KEY not configured');
     }
 
     const CACHE_TTL = 60 * 60 * 24 * 2; // 2 days in seconds
@@ -103,27 +103,20 @@ export async function parse_transaction_with_ai(input: string): Promise<{
       ]);
 
       // Cache for 2 days
-      await redis.setex(
-        cacheKey,
-        CACHE_TTL,
-        JSON.stringify({ transactions, accounts, assets })
-      );
+      await redis.setex(cacheKey, CACHE_TTL, JSON.stringify({ transactions, accounts, assets }));
     }
 
     // Build examples focusing on common patterns
-    const simpleExamples = transactions
-      .filter(t => t.line_items.length <= 5)
-      .slice(0, 15)
-      .map(t => ({
-        description: t.description || 'no description',
-        line_items: t.line_items.map(li => ({
-          account: li.account.name,
-          account_type: li.account.type,
-          asset: li.asset.name,
-          quantity: Number(li.quantity),
-          description: li.description,
-        })),
-      }));
+    const simpleExamples = transactions.map(t => ({
+      description: t.description,
+      line_items: t.line_items.map(li => ({
+        account: li.account.name,
+        account_type: li.account.type,
+        asset: li.asset.name,
+        quantity: Number(li.quantity),
+        description: li.description,
+      })),
+    }));
 
     // Group accounts
     const accountsByType = {
@@ -151,104 +144,22 @@ ASSETS:
 ${assets.map(a => `  • ${a.name}${a.type ? ` (${a.type})` : ''}`).join('\n')}
 
 ═══════════════════════════════════════════════════════════
-TRANSACTION PATTERNS (from user's actual ledger)
+RULES
 ═══════════════════════════════════════════════════════════
-
-1. SIMPLE EXPENSE (3 line items):
-   Pattern: "breakfast for 50rs using bhim"
-   
-   Line items:
-   • bhim (real): -50
-   • expenses (nominal): -50
-   • office_food (allocation): -50
-   
-   Rule: All three are NEGATIVE. They represent money/budget flowing OUT.
-
-2. TRANSFER (2 line items - ONLY case that balances to zero):
-   Pattern: "moved 1000 from sbi to idfc"
-   
-   Line items:
-   • sbi (real): -1000
-   • idfc (real): +1000
-   
-   Rule: Source negative, destination positive. No nominal/allocation needed.
-
-3. EXPENSE WITH CASHBACK (5 line items):
-   Pattern: "breakfast 36.5rs using bhim got 2rs cashback in idfc"
-   
-   Line items:
-   • bhim (real): -36.5 (payment)
-   • idfc (real): +2 (cashback received)
-   • expenses (nominal): -36.5 (total expense)
-   • cashbacks (nominal): +2 (cashback income)
-   • office_food (allocation): -34.5 (net cost)
-   
-   Rule: Allocation = payment amount - cashback amount (the net expense)
-
-4. INCOME (3 line items):
-   Pattern: "salary 50000 in sbi"
-   
-   Line items:
-   • sbi (real): +50000
-   • income (nominal): +50000
-   • salary_allocation (allocation): +50000
-
-5. MULTI-ITEM EXPENSE:
-   Pattern: "zepto order"
-   
-   Can have multiple "expenses" line items with descriptions:
-   • axis_card (real): -225
-   • expenses (nominal): -89, description: "maggie"
-   • expenses (nominal): -19, description: "chips"  
-   • expenses (nominal): -39, description: "tedhe medhe"
-   • expenses (nominal): -46, description: "dal biji"
-   • expenses (nominal): -32, description: "oreo"
-   • discretionary (allocation): -225
+Asset-wise sum of quantities should be equal in all account types.
 
 ═══════════════════════════════════════════════════════════
 REAL EXAMPLES FROM USER'S LEDGER
 ═══════════════════════════════════════════════════════════
+From these examples, learn these things:
+- How transactions are structured
+- Typical accounts and assets used
+- Common quantity patterns
+- How descriptions are formatted
+- Try to learn patterns of which accounts and assets are used for what kinds of transactions. Also try to learn patterns of which accounts and assets are used together. Use these patterns to guide your selections when multiple options are possible or when the input is ambiguous.
 
 ${JSON.stringify(simpleExamples, null, 2)}
 
-═══════════════════════════════════════════════════════════
-ACCOUNT NAME MAPPING
-═══════════════════════════════════════════════════════════
-
-Payment Method Keywords:
-• "gpay", "google pay", "g pay", "upi" → google_pay
-• "bhim", "bhim upi" → bhim  
-• "sbi card", "credit card" → sbi_card
-• "axis card", "supercard", "super card" → axis_card
-• "bank", "idfc bank" → idfc
-• "sbi", "sbi bank" → sbi
-• "kotak" → kotak
-• "wallet" → wallet or google_pay
-• "cash" → cash_at_flat_wardrobe
-
-Category Keywords:
-• "breakfast", "lunch", "snacks" (at/from office) → office_food
-• "dinner", "tiffin" → dinner_tiffin
-• "auto", "metro", "uber", "rapido", "cab" → commute
-• "movie", "entertainment", "outing" → weekend
-• "groceries", "shopping", general → discretionary
-• "rent" → rent
-• "maid", "cleaning" → maid
-• "electricity", "wifi", "internet" → electricity, wifi
-• "recharge", "mobile" → mobile_recharge
-
-═══════════════════════════════════════════════════════════
-IMPORTANT RULES
-═══════════════════════════════════════════════════════════
-
-1. Use EXACT account names from the available accounts list
-2. Default asset is "money" (unless specifically mentioned)
-3. For expenses: real, nominal, allocation are ALL negative
-4. For income: real and allocation positive, nominal positive
-5. For transfers: source negative, dest positive. only real accounts. any number of line items
-6. Expenses with cashback: following pattern #3
-7. Study the examples carefully - match their exact structure
-8. For salary, use "unallocated" allocation
 
 ═══════════════════════════════════════════════════════════
 OUTPUT FORMAT
@@ -273,23 +184,20 @@ Current time in India: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Ko
 
     const openai = new OpenAI({
       apiKey,
-      baseURL: process.env.OPENAI_BASE_URL,
+      baseURL: 'https://api.groq.com/openai/v1', // Standard Groq URL
     });
 
     const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o',
+      model: 'llama-3.3-70b-versatile',
       messages: [
-        { 
-          role: 'system', 
+        {
+          role: 'system',
           content: systemPrompt,
-          // Note: OpenAI uses automatic caching for repeated prompts
-          // For Anthropic Claude, you'd use: cache_control: { type: 'ephemeral' }
         },
         { role: 'user', content: input },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.05,
-      // OpenAI caches system prompts automatically when they're consistent
+      temperature: 0.1,
     });
 
     const rawContent = response.choices[0].message.content || '{}';
@@ -316,7 +224,7 @@ Current time in India: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Ko
       book_value: number | null;
       description: string | null;
     };
-    
+
     const resolvedLineItems: ResolvedLineItem[] = [];
     const errors: string[] = [];
 
@@ -328,7 +236,11 @@ Current time in India: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Ko
         const searchLower = li.account_name.toLowerCase();
         const matches = accounts.filter(a => {
           const nameLower = a.name.toLowerCase();
-          return nameLower.includes(searchLower) || searchLower.includes(nameLower) || nameLower.split(' ').some((word: string) => searchLower.includes(word));
+          return (
+            nameLower.includes(searchLower) ||
+            searchLower.includes(nameLower) ||
+            nameLower.split(' ').some((word: string) => searchLower.includes(word))
+          );
         });
 
         if (matches.length === 0) {
@@ -382,50 +294,14 @@ Current time in India: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Ko
       };
     }
 
-    // Basic structure validation
-    const accountTypes = resolvedLineItems.map(li => li.account_type);
-    const realCount = accountTypes.filter(t => t === 'real').length;
-    const nominalCount = accountTypes.filter(t => t === 'nominal').length;
-    const allocationCount = accountTypes.filter(t => t === 'allocation').length;
-
-    // Check if it's a transfer (2 real accounts only)
-    if (resolvedLineItems.length === 2 && realCount === 2 && nominalCount === 0 && allocationCount === 0) {
-      // Valid transfer
-      return {
-        success: true,
-        message: '✓ Transfer transaction ready',
-        transaction: {
-          description: aiResponse.description,
-          date: aiResponse.date,
-          line_items: resolvedLineItems,
-        },
-      };
-    }
-
-    // Check if it's an expense/income (needs at least 1 of each type)
-    if (realCount >= 1 && nominalCount >= 1 && allocationCount >= 1) {
-      return {
-        success: true,
-        message: '✓ Transaction ready',
-        transaction: {
-          description: aiResponse.description,
-          date: aiResponse.date,
-          line_items: resolvedLineItems,
-        },
-      };
-    }
-
-    // Invalid structure
     return {
-      success: false,
-      message:
-        `⚠️ Invalid structure detected:\n\n` +
-        `Real accounts: ${realCount}\n` +
-        `Nominal accounts: ${nominalCount}\n` +
-        `Allocation accounts: ${allocationCount}\n\n` +
-        `Expected:\n` +
-        `• For expenses/income: At least 1 of each type\n` +
-        `• For transfers: Exactly 2 real accounts, nothing else`,
+      success: true,
+      message: '✓ Transaction ready',
+      transaction: {
+        description: aiResponse.description,
+        date: aiResponse.date,
+        line_items: resolvedLineItems,
+      },
     };
   } catch (error) {
     console.error('AI transaction error:', error);

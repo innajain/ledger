@@ -137,7 +137,11 @@ export default function ClientPage({
         {/* Total */}
         <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
           <p className="text-sm text-blue-900 dark:text-blue-100 mb-1">Transaction Total</p>
-          <p className={`text-3xl font-bold ${transaction.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p
+            className={`text-3xl font-bold ${
+              transaction.total > 0 ? 'text-green-600' : transaction.total < 0 ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
             {currency_fmt.format(transaction.total)}
           </p>
         </div>
@@ -192,7 +196,10 @@ export default function ClientPage({
           };
 
           return (
-            <div key={typeKey} className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
+            <div
+              key={typeKey}
+              className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors"
+            >
               <div className={`px-6 py-3 border-b ${colorClasses[config.color as keyof typeof colorClasses]}`}>
                 <div className="flex items-center gap-2">
                   {config.icon}
@@ -205,11 +212,17 @@ export default function ClientPage({
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <Link href={`/accounts/${li.account_id}`} className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                          <Link
+                            href={`/accounts/${li.account_id}`}
+                            className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
                             {li.account_name}
                           </Link>
                           <span className="text-slate-400">→</span>
-                          <Link href={`/assets/${li.asset_id}`} className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                          <Link
+                            href={`/assets/${li.asset_id}`}
+                            className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
                             {li.asset_name}
                           </Link>
                         </div>
