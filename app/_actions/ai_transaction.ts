@@ -244,9 +244,9 @@ IMPORTANT RULES
 1. Use EXACT account names from the available accounts list
 2. Default asset is "money" (unless specifically mentioned)
 3. For expenses: real, nominal, allocation are ALL negative
-4. For income: real and allocation positive, nominal negative
-5. For transfers: ONLY 2 line items, source negative, dest positive
-6. Expenses with cashback: 5+ line items following pattern #3
+4. For income: real and allocation positive, nominal positive
+5. For transfers: source negative, dest positive. only real accounts. any number of line items
+6. Expenses with cashback: following pattern #3
 7. Study the examples carefully - match their exact structure
 8. For salary, use "unallocated" allocation
 
