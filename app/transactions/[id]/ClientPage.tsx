@@ -107,8 +107,8 @@ export default function ClientPage({
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -119,7 +119,7 @@ export default function ClientPage({
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Transaction Details</h1>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {new Date(transaction.date).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'long',
@@ -135,15 +135,15 @@ export default function ClientPage({
         </div>
 
         {/* Total */}
-        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-          <p className="text-sm text-blue-900 mb-1">Transaction Total</p>
+        <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+          <p className="text-sm text-blue-900 dark:text-blue-100 mb-1">Transaction Total</p>
           <p className={`text-3xl font-bold ${transaction.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {currency_fmt.format(transaction.total)}
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200">
+        <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
           <Link
             href={`/transactions/${transaction.id}/update`}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium"
@@ -161,7 +161,7 @@ export default function ClientPage({
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -199,7 +199,7 @@ export default function ClientPage({
                   <h3 className="font-semibold">{config.title}</h3>
                 </div>
               </div>
-              <ul className="divide-y divide-slate-200">
+              <ul className="divide-y divide-slate-200 dark:divide-slate-700">
                 {items.map(li => (
                   <li key={li.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                     <div className="flex items-start justify-between gap-4">
