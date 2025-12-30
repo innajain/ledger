@@ -32,6 +32,7 @@ A modern, full-stack personal finance management application built with Next.js,
 ### 🤖 AI-Powered Features
 - **AI Transaction Creation** - Use natural language to create complex transactions
 - **Smart Suggestions** - Get intelligent recommendations for transaction categorization
+- **Flexible AI Provider** - Choose between Groq (llama-3.3-70b-versatile) or OpenAI (gpt-4o) models
 
 ### 📊 Allocations & Reporting
 - **Portfolio Allocation** - Visualize and manage asset allocation across different categories
@@ -65,7 +66,7 @@ A modern, full-stack personal finance management application built with Next.js,
 - **[Redis](https://redis.io/)** - Caching layer (via ioredis)
 
 ### Additional Services
-- **[OpenAI API](https://openai.com/)** - AI-powered transaction processing
+- **AI Models** - Support for both Groq (llama-3.3-70b-versatile) and OpenAI (gpt-4o) for AI-powered transaction processing
 - **[Yahoo Finance API](https://github.com/gadicc/node-yahoo-finance2)** - Market data fetching
 - **[Axios](https://axios-http.com/)** - HTTP client
 
@@ -106,7 +107,15 @@ REDIS_URL="redis://localhost:6379"
 # Authentication
 JWT_SECRET="your-secure-jwt-secret-key"
 
-# OpenAI API (for AI features)
+# AI Model Configuration
+# Choose AI provider: 'groq' (default) or 'openai'
+AI_MODEL_PROVIDER="groq"
+
+# API Keys (configure based on your chosen provider)
+# For Groq (uses llama-3.3-70b-versatile)
+GROQ_API_KEY="your-groq-api-key"
+
+# For OpenAI (uses gpt-4o)
 OPENAI_API_KEY="your-openai-api-key"
 
 # Node Environment
