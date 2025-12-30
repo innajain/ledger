@@ -44,14 +44,15 @@ async function getSmartExamples(userId: string) {
     })),
   }));
 
+  const modelProvider = process.env.AI_MODEL_PROVIDER || 'groq';
   const openai = new OpenAI({
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: 'https://api.groq.com/openai/v1',
+    apiKey: modelProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GROQ_API_KEY,
+    baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
   });
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: modelProvider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile',
       messages: [
         {
           role: 'system',
@@ -98,8 +99,11 @@ export async function parse_transaction_with_ai(input: string) {
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+  const modelProvider = process.env.AI_MODEL_PROVIDER || 'groq';
+  const apiKey = modelProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error(`${modelProvider === 'openai' ? 'OPENAI_API_KEY' : 'GROQ_API_KEY'} not configured`);
+  }
 
   try {
     const [examples, accounts, assets] = await Promise.all([
@@ -147,11 +151,11 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
 
     const openai = new OpenAI({
       apiKey,
-      baseURL: 'https://api.groq.com/openai/v1',
+      baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
     });
 
     const response = await openai.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: modelProvider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: input },
