@@ -45,8 +45,11 @@ async function getSmartExamples(userId: string) {
   }));
 
   const modelProvider = process.env.AI_MODEL_PROVIDER || 'groq';
+  const apiKey = modelProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GROQ_API_KEY;
+  if (!apiKey) return simplifiedList.slice(0, 15);
+
   const openai = new OpenAI({
-    apiKey: modelProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GROQ_API_KEY,
+    apiKey,
     baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
   });
 
