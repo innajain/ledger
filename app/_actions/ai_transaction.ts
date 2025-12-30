@@ -4,6 +4,7 @@ import { get_current_user } from './auth';
 import { prisma } from '@/lib/prisma';
 import { redis } from '@/lib/redis';
 import OpenAI from 'openai';
+import { formatInTimeZone } from 'date-fns-tz';
 
 type AITransactionResponse = {
   date: string;
@@ -113,6 +114,7 @@ export async function parse_transaction_with_ai(input: string) {
       }),
     ]);
 
+    const currentTimeIST = formatInTimeZone(new Date(), 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
     const systemPrompt = `You are a ledger assistant. Parse the input into line items.
 
 ACCOUNTS:
@@ -126,7 +128,7 @@ ${JSON.stringify(examples, null, 2)}
 
 OUTPUT FORMAT (JSON ONLY):
 {
-  "date": "ISO 8601 string",
+  "date": "ISO 8601 string in IST timezone (Asia/Kolkata, UTC+05:30)",
   "description": "Short description" | null,
   "line_items": [
     { 
@@ -137,7 +139,11 @@ OUTPUT FORMAT (JSON ONLY):
     }
   ]
 }
-Current Time: ${new Date().toISOString()}`;
+
+IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
+When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.
+Current Time in IST: ${currentTimeIST}
+Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}`;
 
     const openai = new OpenAI({
       apiKey,
