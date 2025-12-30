@@ -17,6 +17,23 @@ type AITransactionResponse = {
   }[];
 };
 
+type ChatMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+type AccountInfo = {
+  id: string;
+  name: string;
+  type: string;
+};
+
+type AssetInfo = {
+  id: string;
+  name: string;
+  type: string;
+};
+
 async function getSmartExamples(userId: string) {
   const CACHE_KEY = `ai_patterns_v2:${userId}`;
   const cached = await redis.get(CACHE_KEY);
@@ -118,24 +135,29 @@ function findBestMatch(input: string, items: { id: string; name: string; type: s
  * - Automatic cache expiry (1 hour) prevents stale data
  */
 
-async function getContextHash(userId: string, accounts: any[], assets: any[], examples: any[]) {
-  // Create a hash of the context to detect changes
+async function getContextHash(userId: string, accounts: AccountInfo[], assets: AssetInfo[], examples: any[]) {
+  // Create a deterministic hash of the context to detect changes
+  // Sort keys to ensure consistent JSON output
   const contextData = {
-    accounts: accounts.map(a => ({ name: a.name, type: a.type })),
-    assets: assets.map(a => a.name),
+    accounts: accounts
+      .map(a => ({ name: a.name, type: a.type }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    assets: assets
+      .map(a => a.name)
+      .sort(),
     examplesCount: examples.length,
   };
   return JSON.stringify(contextData);
 }
 
-async function getConversationHistory(userId: string) {
+async function getConversationHistory(userId: string): Promise<ChatMessage[] | null> {
   const HISTORY_KEY = `ai_conversation_v1:${userId}`;
   const cached = await redis.get(HISTORY_KEY);
   if (cached) return JSON.parse(cached);
   return null;
 }
 
-async function setConversationHistory(userId: string, messages: any[]) {
+async function setConversationHistory(userId: string, messages: ChatMessage[]) {
   const HISTORY_KEY = `ai_conversation_v1:${userId}`;
   // Cache for 1 hour (3600 seconds) - conversation context timeout
   await redis.setex(HISTORY_KEY, 3600, JSON.stringify(messages));
@@ -206,7 +228,7 @@ export async function parse_transaction_with_ai(input: string) {
       baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
     });
 
-    let messages: any[];
+    let messages: ChatMessage[];
 
     if (!conversationHistory) {
       // First request or context changed - send full context
@@ -275,8 +297,8 @@ Parse this transaction: ${input}`
     const aiResponse: AITransactionResponse = JSON.parse(response.choices[0].message.content || '{}');
 
     // Save conversation history for future requests
-    // Limit to system + last 5 exchanges to prevent unbounded growth
-    const assistantMessage = { role: 'assistant', content: response.choices[0].message.content || '{}' };
+    // Limit to system + last 10 messages (5 user-assistant pairs) to prevent unbounded growth
+    const assistantMessage: ChatMessage = { role: 'assistant', content: response.choices[0].message.content || '{}' };
     const updatedHistory = [...messages, assistantMessage];
     
     // Keep only system message + last 10 messages (5 user-assistant pairs)
