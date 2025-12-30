@@ -98,6 +98,50 @@ function findBestMatch(input: string, items: { id: string; name: string; type: s
   return match;
 }
 
+async function getContextHash(userId: string, accounts: any[], assets: any[], examples: any[]) {
+  // Create a hash of the context to detect changes
+  const contextData = {
+    accounts: accounts.map(a => ({ name: a.name, type: a.type })),
+    assets: assets.map(a => a.name),
+    examplesCount: examples.length,
+  };
+  return JSON.stringify(contextData);
+}
+
+async function getConversationHistory(userId: string) {
+  const HISTORY_KEY = `ai_conversation_v1:${userId}`;
+  const cached = await redis.get(HISTORY_KEY);
+  if (cached) return JSON.parse(cached);
+  return null;
+}
+
+async function setConversationHistory(userId: string, messages: any[]) {
+  const HISTORY_KEY = `ai_conversation_v1:${userId}`;
+  // Cache for 1 hour (3600 seconds) - conversation context timeout
+  await redis.setex(HISTORY_KEY, 3600, JSON.stringify(messages));
+}
+
+async function clearConversationHistory(userId: string) {
+  const HISTORY_KEY = `ai_conversation_v1:${userId}`;
+  await redis.del(HISTORY_KEY);
+}
+
+// Export this function so it can be called when accounts/assets change
+export async function invalidateAICache(userId: string) {
+  await clearConversationHistory(userId);
+}
+
+async function getContextHashCache(userId: string) {
+  const HASH_KEY = `ai_context_hash_v1:${userId}`;
+  return await redis.get(HASH_KEY);
+}
+
+async function setContextHashCache(userId: string, hash: string) {
+  const HASH_KEY = `ai_context_hash_v1:${userId}`;
+  // Cache for 7 days (604800 seconds)
+  await redis.setex(HASH_KEY, 604800, hash);
+}
+
 export async function parse_transaction_with_ai(input: string) {
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
@@ -121,8 +165,32 @@ export async function parse_transaction_with_ai(input: string) {
       }),
     ]);
 
+    // Calculate hash of current context
+    const currentHash = await getContextHash(user.id, accounts, assets, examples);
+    const cachedHash = await getContextHashCache(user.id);
+    const contextChanged = cachedHash !== currentHash;
+
     const currentTimeIST = formatInTimeZone(new Date(), 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
-    const systemPrompt = `You are a ledger assistant. Parse the input into line items.
+    
+    // Get or initialize conversation history
+    let conversationHistory = await getConversationHistory(user.id);
+    
+    // If context changed, clear conversation history to force re-sending context
+    if (contextChanged && conversationHistory) {
+      await clearConversationHistory(user.id);
+      conversationHistory = null;
+    }
+
+    const openai = new OpenAI({
+      apiKey,
+      baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
+    });
+
+    let messages: any[];
+
+    if (!conversationHistory) {
+      // First request or context changed - send full context
+      const staticContext = `You are a ledger assistant. Parse the input into line items.
 
 ACCOUNTS:
 ${accounts.map(a => `- ${a.name} (${a.type})`).join('\n')}
@@ -148,26 +216,55 @@ OUTPUT FORMAT (JSON ONLY):
 }
 
 IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
-When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.
-Current Time in IST: ${currentTimeIST}
-Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}`;
+When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.`;
 
-    const openai = new OpenAI({
-      apiKey,
-      baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
-    });
+      messages = [
+        { role: 'system', content: staticContext },
+        { 
+          role: 'user', 
+          content: `Current Time in IST: ${currentTimeIST}
+Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}
+
+Parse this transaction: ${input}` 
+        },
+      ];
+
+      // Cache the hash
+      await setContextHashCache(user.id, currentHash);
+    } else {
+      // Use cached conversation - only send new user input
+      messages = [
+        ...conversationHistory,
+        { 
+          role: 'user', 
+          content: `Current Time in IST: ${currentTimeIST}
+Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}
+
+Parse this transaction: ${input}` 
+        },
+      ];
+    }
 
     const response = await openai.chat.completions.create({
       model: modelProvider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: input },
-      ],
+      messages,
       response_format: { type: 'json_object' },
       temperature: 0.1,
     });
 
     const aiResponse: AITransactionResponse = JSON.parse(response.choices[0].message.content || '{}');
+
+    // Save conversation history for future requests
+    // Limit to system + last 5 exchanges to prevent unbounded growth
+    const assistantMessage = { role: 'assistant', content: response.choices[0].message.content || '{}' };
+    const updatedHistory = [...messages, assistantMessage];
+    
+    // Keep only system message + last 10 messages (5 user-assistant pairs)
+    const trimmedHistory = updatedHistory.length > 11 
+      ? [updatedHistory[0], ...updatedHistory.slice(-10)]
+      : updatedHistory;
+    
+    await setConversationHistory(user.id, trimmedHistory);
 
     if (!aiResponse.line_items || aiResponse.line_items.length === 0) {
       return { success: false, message: 'AI returned no line items.' };

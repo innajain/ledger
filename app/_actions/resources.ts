@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
 import type { account_type, asset_type } from '@/generated/prisma/client';
 import { get_latest_etf_price, get_nav } from '../_utils/price_fetcher';
+import { invalidateAICache } from './ai_transaction';
 
 export async function create_account(name: string, type: account_type, parent_id?: string | null) {
   name = name.trim();
@@ -13,6 +14,9 @@ export async function create_account(name: string, type: account_type, parent_id
   if (!user) throw new Error('unauthorized');
 
   await prisma.account.create({ data: { name, type, user_id: user.id, parent_id } });
+  
+  // Invalidate AI cache since accounts changed
+  await invalidateAICache(user.id);
 }
 
 export async function update_account(id: string, name?: string | undefined, type?: account_type | undefined, parent_id?: string | null | undefined) {
@@ -46,6 +50,9 @@ export async function update_account(id: string, name?: string | undefined, type
   }
 
   await prisma.account.update({ where: { id, user_id: user.id }, data: { name, type, parent_id } });
+  
+  // Invalidate AI cache since accounts changed
+  await invalidateAICache(user.id);
 }
 
 export async function delete_account(id: string): Promise<void> {
@@ -53,6 +60,9 @@ export async function delete_account(id: string): Promise<void> {
   if (!user) throw new Error('unauthorized');
 
   await prisma.account.delete({ where: { id, user_id: user.id } });
+  
+  // Invalidate AI cache since accounts changed
+  await invalidateAICache(user.id);
 }
 
 // Assets
@@ -74,6 +84,9 @@ export async function create_asset(name: string, type: asset_type, ticker?: stri
   if (!user) throw new Error('unauthorized');
 
   await prisma.asset.create({ data: { name, type, ticker, user_id: user.id, parent_id: parent_id } });
+  
+  // Invalidate AI cache since assets changed
+  await invalidateAICache(user.id);
 }
 
 export async function update_asset(
@@ -123,6 +136,9 @@ export async function update_asset(
       throw new Error('ticker cannot non-null for asset type ' + type);
     }
   });
+  
+  // Invalidate AI cache since assets changed
+  await invalidateAICache(user.id);
 }
 
 export async function delete_asset(id: string): Promise<void> {
@@ -132,4 +148,7 @@ export async function delete_asset(id: string): Promise<void> {
   if (!user) throw new Error('unauthorized');
 
   await prisma.asset.delete({ where: { id, user_id: user.id } });
+  
+  // Invalidate AI cache since assets changed
+  await invalidateAICache(user.id);
 }
