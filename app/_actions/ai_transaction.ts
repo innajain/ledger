@@ -269,10 +269,26 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
 
 Remember this context for future requests in this session.`;
     } else {
-      // Minimal context prompt (subsequent requests in same session)
-      systemPrompt = `You are a ledger assistant. Continue parsing transactions using the context you learned earlier.
+      // Optimized context prompt (subsequent requests in same session)
+      // Still need to provide account/asset lists but in compact format
+      systemPrompt = `You are a ledger assistant. Parse the input into line items.
 
-Parse the user input into line items with the same JSON format as before.
+ACCOUNTS: ${accounts.map(a => a.name).join(', ')}
+ASSETS: ${assets.map(a => a.name).join(', ')}
+
+OUTPUT FORMAT (JSON ONLY):
+{
+  "date": "ISO 8601 string in IST timezone (Asia/Kolkata, UTC+05:30)",
+  "description": "Short description" | null,
+  "line_items": [
+    { 
+      "account_name": "Exact Name from list above", 
+      "asset_name": "Exact Name from list above", 
+      "quantity": number, 
+      "description": "optional details" | null
+    }
+  ]
+}
 
 Current Time in IST: ${currentTimeIST}
 Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}`;
