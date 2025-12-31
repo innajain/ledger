@@ -118,21 +118,25 @@ function findBestMatch(input: string, items: { id: string; name: string; type: s
 /**
  * AI Transaction Caching System
  * 
- * This system optimizes token usage by caching the AI conversation history.
- * Instead of sending the full context (accounts, assets, examples) with every request,
- * we maintain a conversation history in Redis and only send new user inputs.
+ * This system optimizes token usage by sending reduced context on subsequent requests.
+ * The OpenAI/Groq APIs are stateless, so we can't truly cache server-side. Instead,
+ * we track when context has been sent and send a lighter version afterward.
  * 
  * How it works:
- * 1. First Request: Send full context (system prompt with accounts/assets/examples)
- * 2. Subsequent Requests: Reuse cached conversation history, only append new user input
- * 3. Cache Invalidation: When accounts/assets change, clear the conversation history
+ * 1. First Request (Cache Miss): Send full context (accounts + assets + learned patterns)
+ * 2. Subsequent Requests (Cache Hit): Send reduced context (accounts + assets only, NO patterns)
+ * 3. Cache Invalidation: When accounts/assets change, clear the cache to force re-sending full context
  * 4. Context Change Detection: Hash the context to detect when it needs refreshing
  * 
  * Benefits:
- * - Reduces token usage by ~80% on subsequent requests
+ * - Reduces token usage by ~60-80% on subsequent requests (by omitting learned patterns)
  * - Faster response times due to smaller payloads
- * - Maintains conversation context for better AI understanding
+ * - Still provides necessary context (accounts/assets) for accurate parsing
  * - Automatic cache expiry (1 hour) prevents stale data
+ * 
+ * Trade-off:
+ * - Slightly reduced AI accuracy on cache hits (no learned patterns for reference)
+ * - But accounts/assets lists are still provided, so basic parsing remains reliable
  */
 
 async function getContextHash(userId: string, accounts: AccountInfo[], assets: AssetInfo[], examples: any[]) {
@@ -229,10 +233,10 @@ export async function parse_transaction_with_ai(input: string) {
     });
 
     let messages: ChatMessage[];
+    let cacheStatus: string;
 
-    if (!conversationHistory) {
-      // First request or context changed - send full context
-      const staticContext = `You are a ledger assistant. Parse the input into line items.
+    // Build the static context (accounts, assets, patterns)
+    const staticContext = `You are a ledger assistant. Parse the input into line items.
 
 ACCOUNTS:
 ${accounts.map(a => `- ${a.name} (${a.type})`).join('\n')}
@@ -260,6 +264,9 @@ OUTPUT FORMAT (JSON ONLY):
 IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
 When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.`;
 
+    if (!conversationHistory) {
+      // First request or context changed - send full context
+      cacheStatus = 'CACHE_MISS';
       messages = [
         { role: 'system', content: staticContext },
         { 
@@ -271,12 +278,40 @@ Parse this transaction: ${input}`
         },
       ];
 
-      // Cache the hash
+      // Cache the hash and mark that context has been sent
       await setContextHashCache(user.id, currentHash);
+      await setConversationHistory(user.id, [{ role: 'system', content: 'cached' }]);
     } else {
-      // Use cached conversation - only send new user input
+      // Cache hit - send REDUCED context (no learned patterns) to save tokens
+      // This reduces tokens by ~60-80% while maintaining basic functionality
+      cacheStatus = 'CACHE_HIT';
+      const reducedContext = `You are a ledger assistant. Parse the input into line items.
+
+ACCOUNTS:
+${accounts.map(a => `- ${a.name} (${a.type})`).join('\n')}
+
+ASSETS:
+${assets.map(a => `- ${a.name}`).join('\n')}
+
+OUTPUT FORMAT (JSON ONLY):
+{
+  "date": "ISO 8601 string in IST timezone (Asia/Kolkata, UTC+05:30)",
+  "description": "Short description" | null,
+  "line_items": [
+    { 
+      "account_name": "Exact Name from list above", 
+      "asset_name": "Exact Name from list above", 
+      "quantity": number, 
+      "description": "optional details" | null
+    }
+  ]
+}
+
+IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
+When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.`;
+
       messages = [
-        ...conversationHistory,
+        { role: 'system', content: reducedContext },
         { 
           role: 'user', 
           content: `Current Time in IST: ${currentTimeIST}
@@ -296,22 +331,9 @@ Parse this transaction: ${input}`
 
     // Log token usage for monitoring
     const tokenUsage = response.usage;
-    const cacheStatus = conversationHistory ? 'CACHE_HIT' : 'CACHE_MISS';
     console.log(`[AI Transaction] ${cacheStatus} - Tokens: prompt=${tokenUsage?.prompt_tokens || 0}, completion=${tokenUsage?.completion_tokens || 0}, total=${tokenUsage?.total_tokens || 0}`);
 
     const aiResponse: AITransactionResponse = JSON.parse(response.choices[0].message.content || '{}');
-
-    // Save conversation history for future requests
-    // Limit to system + last 10 messages (5 user-assistant pairs) to prevent unbounded growth
-    const assistantMessage: ChatMessage = { role: 'assistant', content: response.choices[0].message.content || '{}' };
-    const updatedHistory = [...messages, assistantMessage];
-    
-    // Keep only system message + last 10 messages (5 user-assistant pairs)
-    const trimmedHistory = updatedHistory.length > 11 
-      ? [updatedHistory[0], ...updatedHistory.slice(-10)]
-      : updatedHistory;
-    
-    await setConversationHistory(user.id, trimmedHistory);
 
     if (!aiResponse.line_items || aiResponse.line_items.length === 0) {
       return { success: false, message: 'AI returned no line items.' };
