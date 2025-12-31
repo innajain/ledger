@@ -111,10 +111,15 @@ function findBestMatch(input: string, items: { id: string; name: string; type: s
   return match;
 }
 
-async function getUserContext(userId: string) {
+type UserContext = {
+  accounts: { id: string; name: string; type: string }[];
+  assets: { id: string; name: string; type: string }[];
+};
+
+async function getUserContext(userId: string): Promise<{ context: UserContext; fromCache: boolean }> {
   const CACHE_KEY = `user_context_v1:${userId}`;
   const cached = await redis.get(CACHE_KEY);
-  if (cached) return { context: JSON.parse(cached), fromCache: true };
+  if (cached) return { context: JSON.parse(cached) as UserContext, fromCache: true };
 
   const [accounts, assets] = await Promise.all([
     prisma.account.findMany({
@@ -127,7 +132,7 @@ async function getUserContext(userId: string) {
     }),
   ]);
 
-  const context = { accounts, assets };
+  const context: UserContext = { accounts, assets };
   // Cache for 24 hours (accounts/assets don't change frequently)
   await redis.setex(CACHE_KEY, 86400, JSON.stringify(context));
   
