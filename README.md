@@ -33,6 +33,9 @@ A modern, full-stack personal finance management application built with Next.js,
 - **AI Transaction Creation** - Use natural language to create complex transactions
 - **Smart Suggestions** - Get intelligent recommendations for transaction categorization
 - **Flexible AI Provider** - Choose between Groq (llama-3.3-70b-versatile) or OpenAI (gpt-4o) models
+- **Context Caching** - Efficient Redis-based caching of user context (accounts, assets, patterns) to reduce token usage
+- **Token Usage Monitoring** - Real-time visibility into API token consumption for each AI request
+- **Optimized Pattern Learning** - One-time pattern curation with 48-hour cache TTL to minimize repeated context sending
 
 ### 📊 Allocations & Reporting
 - **Portfolio Allocation** - Visualize and manage asset allocation across different categories
@@ -222,6 +225,17 @@ The application uses a robust double-entry bookkeeping system with the following
 1. Go to **AI Transaction**
 2. Describe your transaction in natural language (e.g., "I spent ₹500 on groceries")
 3. The AI will parse and create the transaction with appropriate accounts
+4. **View Token Usage** - After parsing, see detailed statistics:
+   - Pattern Curation tokens (only used on first request or after cache expiry)
+   - Transaction Parsing tokens (used for each request)
+   - Context Status indicator (showing if cached data was used)
+   - Grand Total token count for cost tracking
+
+**Optimization Benefits:**
+- **Reduced Token Usage** - Context (accounts, assets) is cached for 24 hours
+- **Faster Response Times** - Cached patterns and context eliminate redundant AI calls
+- **Cost Savings** - Pattern curation only runs once every 48 hours
+- **Transparency** - Full visibility into token consumption and cache status
 
 ### Portfolio Allocation
 
