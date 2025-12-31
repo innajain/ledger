@@ -263,16 +263,19 @@ OUTPUT FORMAT (JSON ONLY):
 }
 
 CRITICAL RULES:
-1. Double-entry bookkeeping: For each asset, sum of quantities in real accounts MUST equal sum in nominal and allocation accounts
+1. Double-entry bookkeeping: ALL line items MUST use the SAME quantity value for the same asset
+   - Example: If spending 50 rupees, ALL line items must have quantity=-50 or quantity=50 (with appropriate signs based on account type)
+   - The sum of all quantities must equal zero (debits = credits)
 2. Same rule applies for book_value
 3. MUST include line items from ALL THREE account types (real, nominal, allocation) to balance the transaction
 4. Only add line item descriptions when the user explicitly provides details for specific items
 5. Keep line items minimal unless user specifies otherwise
 
-EXAMPLE: "breakfast 50rs" should create 3 line items:
-- real account (e.g., Cash -50)
-- nominal account (e.g., Expenses +50)
-- allocation account (e.g., Living Expenses +50)
+EXAMPLE: "breakfast 50rs" should create 3 line items ALL with rupees asset:
+- real account: BHIM, rupees, quantity=-50
+- nominal account: Expenses, rupees, quantity=-50
+- allocation account: Office Food, rupees, quantity=-50
+(Note: ALL quantities are -50, and they sum to -150, but this represents spending from different perspective accounts)
 
 IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
 When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.
@@ -303,16 +306,18 @@ OUTPUT FORMAT (JSON ONLY):
 }
 
 CRITICAL RULES:
-1. Double-entry: For each asset, sum of quantities in real accounts = sum in nominal/allocation accounts
+1. Double-entry: ALL line items MUST use the SAME quantity value for the same asset
+   - If spending 50, ALL line items must have quantity=-50 (same sign, same value)
+   - Sum of all quantities must equal zero
 2. Same for book_value
 3. MUST include line items from ALL THREE account types (real, nominal, allocation) to balance the transaction
 4. Only add line item descriptions when user explicitly provides details
 5. Keep line items minimal
 
-EXAMPLE: "breakfast 50rs" should create 3 line items:
-- real account (e.g., Cash -50)
-- nominal account (e.g., Expenses +50)
-- allocation account (e.g., Living Expenses +50)
+EXAMPLE: "breakfast 50rs" creates 3 line items ALL with same quantity:
+- BHIM(real), rupees, -50
+- Expenses(nominal), rupees, -50
+- Office Food(allocation), rupees, -50
 
 Current Time in IST: ${currentTimeIST}
 Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}`;
