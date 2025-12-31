@@ -19,11 +19,26 @@ type ParsedTransaction = {
   }[];
 };
 
+type UsageInfo = {
+  patternCuration: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  } | null;
+  transactionParsing: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  } | null;
+  contextFromCache: boolean;
+};
+
 export default function AITransactionClient() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [parsedTransaction, setParsedTransaction] = useState<ParsedTransaction | null>(null);
+  const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
   const [confirming, setConfirming] = useState(false);
   const router = useRouter();
 
@@ -33,12 +48,14 @@ export default function AITransactionClient() {
 
     setLoading(true);
     setResult(null);
+    setUsageInfo(null);
 
     try {
       const response = await parse_transaction_with_ai(input);
       
       if (response.success && response.transaction) {
         setParsedTransaction(response.transaction);
+        setUsageInfo(response.usage || null);
       } else {
         // Show error message
         setResult({
@@ -85,6 +102,7 @@ export default function AITransactionClient() {
 
   const handleCancel = () => {
     setParsedTransaction(null);
+    setUsageInfo(null);
     setResult(null);
     setInput('');
   };
@@ -153,6 +171,69 @@ export default function AITransactionClient() {
             )}
           </button>
         </form>
+
+        {usageInfo && parsedTransaction && !result && (
+          <div className="mt-4 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">API Usage Statistics</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-400">Context Status:</span>
+                <span className={`font-medium px-2 py-1 rounded ${usageInfo.contextFromCache ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'}`}>
+                  {usageInfo.contextFromCache ? '✓ From Cache' : '⟳ Fresh Load'}
+                </span>
+              </div>
+              
+              {usageInfo.patternCuration && (
+                <div className="pt-2 border-t dark:border-slate-700">
+                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Pattern Curation:</p>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                      <div className="text-slate-500 dark:text-slate-400">Input</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.patternCuration.prompt_tokens.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                      <div className="text-slate-500 dark:text-slate-400">Output</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.patternCuration.completion_tokens.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                      <div className="text-slate-500 dark:text-slate-400">Total</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.patternCuration.total_tokens.toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {usageInfo.transactionParsing && (
+                <div className="pt-2 border-t dark:border-slate-700">
+                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Transaction Parsing:</p>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                      <div className="text-slate-500 dark:text-slate-400">Input</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.transactionParsing.prompt_tokens.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                      <div className="text-slate-500 dark:text-slate-400">Output</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.transactionParsing.completion_tokens.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                      <div className="text-slate-500 dark:text-slate-400">Total</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.transactionParsing.total_tokens.toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="pt-2 border-t dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400">
+                <div className="flex justify-between">
+                  <span>Grand Total:</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    {((usageInfo.patternCuration?.total_tokens || 0) + (usageInfo.transactionParsing?.total_tokens || 0)).toLocaleString()} tokens
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {parsedTransaction && !result && (
           <div className="mt-6 p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 space-y-4">

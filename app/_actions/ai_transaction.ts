@@ -17,10 +17,16 @@ type AITransactionResponse = {
   }[];
 };
 
-async function getSmartExamples(userId: string) {
+type TokenUsage = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+};
+
+async function getSmartExamples(userId: string): Promise<{ examples: any[]; usage: TokenUsage | null }> {
   const CACHE_KEY = `ai_patterns_v2:${userId}`;
   const cached = await redis.get(CACHE_KEY);
-  if (cached) return JSON.parse(cached);
+  if (cached) return { examples: JSON.parse(cached), usage: null };
 
   const rawTransactions = await prisma.transaction.findMany({
     where: { user_id: userId },
@@ -33,7 +39,7 @@ async function getSmartExamples(userId: string) {
     take: 100,
   });
 
-  if (rawTransactions.length === 0) return [];
+  if (rawTransactions.length === 0) return { examples: [], usage: null };
 
   const simplifiedList = rawTransactions.map(t => ({
     desc: t.description,
@@ -46,7 +52,7 @@ async function getSmartExamples(userId: string) {
 
   const modelProvider = process.env.AI_MODEL_PROVIDER || 'groq';
   const apiKey = modelProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GROQ_API_KEY;
-  if (!apiKey) return simplifiedList.slice(0, 15);
+  if (!apiKey) return { examples: simplifiedList.slice(0, 15), usage: null };
 
   const openai = new OpenAI({
     apiKey,
@@ -77,9 +83,16 @@ Rules:
     const curatedExamples = content.examples || content.patterns || simplifiedList.slice(0, 15);
 
     await redis.setex(CACHE_KEY, 172800, JSON.stringify(curatedExamples));
-    return curatedExamples;
+    
+    const usage: TokenUsage | null = response.usage ? {
+      prompt_tokens: response.usage.prompt_tokens,
+      completion_tokens: response.usage.completion_tokens,
+      total_tokens: response.usage.total_tokens,
+    } : null;
+    
+    return { examples: curatedExamples, usage };
   } catch (e) {
-    return simplifiedList.slice(0, 15);
+    return { examples: simplifiedList.slice(0, 15), usage: null };
   }
 }
 
@@ -98,6 +111,29 @@ function findBestMatch(input: string, items: { id: string; name: string; type: s
   return match;
 }
 
+async function getUserContext(userId: string) {
+  const CACHE_KEY = `user_context_v1:${userId}`;
+  const cached = await redis.get(CACHE_KEY);
+  if (cached) return { context: JSON.parse(cached), fromCache: true };
+
+  const [accounts, assets] = await Promise.all([
+    prisma.account.findMany({
+      where: { user_id: userId },
+      select: { id: true, name: true, type: true },
+    }),
+    prisma.asset.findMany({
+      where: { user_id: userId },
+      select: { id: true, name: true, type: true },
+    }),
+  ]);
+
+  const context = { accounts, assets };
+  // Cache for 24 hours (accounts/assets don't change frequently)
+  await redis.setex(CACHE_KEY, 86400, JSON.stringify(context));
+  
+  return { context, fromCache: false };
+}
+
 export async function parse_transaction_with_ai(input: string) {
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
@@ -109,17 +145,15 @@ export async function parse_transaction_with_ai(input: string) {
   }
 
   try {
-    const [examples, accounts, assets] = await Promise.all([
+    const [smartExamplesData, userContextData] = await Promise.all([
       getSmartExamples(user.id),
-      prisma.account.findMany({
-        where: { user_id: user.id },
-        select: { id: true, name: true, type: true },
-      }),
-      prisma.asset.findMany({
-        where: { user_id: user.id },
-        select: { id: true, name: true, type: true },
-      }),
+      getUserContext(user.id),
     ]);
+
+    const examples = smartExamplesData.examples;
+    const { accounts, assets } = userContextData.context;
+    const contextFromCache = userContextData.fromCache;
+    const patternCurationUsage = smartExamplesData.usage;
 
     const currentTimeIST = formatInTimeZone(new Date(), 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
     const systemPrompt = `You are a ledger assistant. Parse the input into line items.
@@ -170,7 +204,11 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
     const aiResponse: AITransactionResponse = JSON.parse(response.choices[0].message.content || '{}');
 
     if (!aiResponse.line_items || aiResponse.line_items.length === 0) {
-      return { success: false, message: 'AI returned no line items.' };
+      return { 
+        success: false, 
+        message: 'AI returned no line items.',
+        usage: null,
+      };
     }
 
     const resolvedLineItems = [];
@@ -205,8 +243,18 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
     }
 
     if (errors.length > 0) {
-      return { success: false, message: errors.join('\n') };
+      return { 
+        success: false, 
+        message: errors.join('\n'),
+        usage: null,
+      };
     }
+
+    const parsingUsage: TokenUsage | null = response.usage ? {
+      prompt_tokens: response.usage.prompt_tokens,
+      completion_tokens: response.usage.completion_tokens,
+      total_tokens: response.usage.total_tokens,
+    } : null;
 
     return {
       success: true,
@@ -216,12 +264,18 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
         date: aiResponse.date,
         line_items: resolvedLineItems,
       },
+      usage: {
+        patternCuration: patternCurationUsage,
+        transactionParsing: parsingUsage,
+        contextFromCache,
+      },
     };
   } catch (error) {
     console.error('AI Parse Error:', error);
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Failed to parse transaction',
+      usage: null,
     };
   }
 }
