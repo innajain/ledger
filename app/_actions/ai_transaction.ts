@@ -230,6 +230,7 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Failed to parse transaction',
+      token_usage: undefined,
     };
   }
 }
