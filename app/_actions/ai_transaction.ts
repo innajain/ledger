@@ -294,6 +294,11 @@ Parse this transaction: ${input}`
       temperature: 0.1,
     });
 
+    // Log token usage for monitoring
+    const tokenUsage = response.usage;
+    const cacheStatus = conversationHistory ? 'CACHE_HIT' : 'CACHE_MISS';
+    console.log(`[AI Transaction] ${cacheStatus} - Tokens: prompt=${tokenUsage?.prompt_tokens || 0}, completion=${tokenUsage?.completion_tokens || 0}, total=${tokenUsage?.total_tokens || 0}`);
+
     const aiResponse: AITransactionResponse = JSON.parse(response.choices[0].message.content || '{}');
 
     // Save conversation history for future requests
@@ -354,6 +359,12 @@ Parse this transaction: ${input}`
         description: aiResponse.description,
         date: aiResponse.date,
         line_items: resolvedLineItems,
+      },
+      tokenUsage: {
+        promptTokens: tokenUsage?.prompt_tokens || 0,
+        completionTokens: tokenUsage?.completion_tokens || 0,
+        totalTokens: tokenUsage?.total_tokens || 0,
+        cacheStatus: cacheStatus,
       },
     };
   } catch (error) {

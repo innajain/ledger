@@ -19,11 +19,19 @@ type ParsedTransaction = {
   }[];
 };
 
+type TokenUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cacheStatus: string;
+};
+
 export default function AITransactionClient() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [parsedTransaction, setParsedTransaction] = useState<ParsedTransaction | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
   const [confirming, setConfirming] = useState(false);
   const router = useRouter();
 
@@ -33,12 +41,16 @@ export default function AITransactionClient() {
 
     setLoading(true);
     setResult(null);
+    setTokenUsage(null);
 
     try {
       const response = await parse_transaction_with_ai(input);
       
       if (response.success && response.transaction) {
         setParsedTransaction(response.transaction);
+        if (response.tokenUsage) {
+          setTokenUsage(response.tokenUsage);
+        }
       } else {
         // Show error message
         setResult({
@@ -70,6 +82,7 @@ export default function AITransactionClient() {
       setResult(confirmResult);
       if (confirmResult.success) {
         setParsedTransaction(null);
+        setTokenUsage(null);
         setInput('');
         router.refresh();
       }
@@ -86,6 +99,7 @@ export default function AITransactionClient() {
   const handleCancel = () => {
     setParsedTransaction(null);
     setResult(null);
+    setTokenUsage(null);
     setInput('');
   };
 
@@ -210,6 +224,40 @@ export default function AITransactionClient() {
                 </div>
               </div>
             </div>
+
+            {tokenUsage && (
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Token Usage</p>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                    tokenUsage.cacheStatus === 'CACHE_HIT' 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                  }`}>
+                    {tokenUsage.cacheStatus === 'CACHE_HIT' ? '✓ Cache Hit' : '○ Cache Miss'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Input</p>
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{tokenUsage.promptTokens}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Output</p>
+                    <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{tokenUsage.completionTokens}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Total</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{tokenUsage.totalTokens}</p>
+                  </div>
+                </div>
+                {tokenUsage.cacheStatus === 'CACHE_HIT' && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-2 text-center">
+                    🎉 ~80% token savings using cached context
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <button
