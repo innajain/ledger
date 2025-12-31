@@ -262,6 +262,12 @@ OUTPUT FORMAT (JSON ONLY):
   ]
 }
 
+CRITICAL RULES:
+1. Double-entry bookkeeping: For each asset, sum of quantities in real accounts MUST equal sum in nominal and allocation accounts
+2. Same rule applies for book_value
+3. Only add line item descriptions when the user explicitly provides details for specific items
+4. Keep line items minimal unless user specifies otherwise
+
 IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
 When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.
 Current Time in IST: ${currentTimeIST}
@@ -289,6 +295,12 @@ OUTPUT FORMAT (JSON ONLY):
     }
   ]
 }
+
+CRITICAL RULES:
+1. Double-entry: For each asset, sum of quantities in real accounts = sum in nominal/allocation accounts
+2. Same for book_value
+3. Only add line item descriptions when user explicitly provides details
+4. Keep line items minimal
 
 Current Time in IST: ${currentTimeIST}
 Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}`;
