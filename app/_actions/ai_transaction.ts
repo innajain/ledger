@@ -265,8 +265,14 @@ OUTPUT FORMAT (JSON ONLY):
 CRITICAL RULES:
 1. Double-entry bookkeeping: For each asset, sum of quantities in real accounts MUST equal sum in nominal and allocation accounts
 2. Same rule applies for book_value
-3. Only add line item descriptions when the user explicitly provides details for specific items
-4. Keep line items minimal unless user specifies otherwise
+3. MUST include line items from ALL THREE account types (real, nominal, allocation) to balance the transaction
+4. Only add line item descriptions when the user explicitly provides details for specific items
+5. Keep line items minimal unless user specifies otherwise
+
+EXAMPLE: "breakfast 50rs" should create 3 line items:
+- real account (e.g., Cash -50)
+- nominal account (e.g., Expenses +50)
+- allocation account (e.g., Living Expenses +50)
 
 IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
 When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.
@@ -279,7 +285,7 @@ Remember this context for future requests in this session.`;
       // Still need to provide account/asset lists but in compact format
       systemPrompt = `You are a ledger assistant. Parse the input into line items.
 
-ACCOUNTS: ${accounts.map(a => a.name).join(', ')}
+ACCOUNTS: ${accounts.map(a => `${a.name}(${a.type})`).join(', ')}
 ASSETS: ${assets.map(a => a.name).join(', ')}
 
 OUTPUT FORMAT (JSON ONLY):
@@ -299,8 +305,14 @@ OUTPUT FORMAT (JSON ONLY):
 CRITICAL RULES:
 1. Double-entry: For each asset, sum of quantities in real accounts = sum in nominal/allocation accounts
 2. Same for book_value
-3. Only add line item descriptions when user explicitly provides details
-4. Keep line items minimal
+3. MUST include line items from ALL THREE account types (real, nominal, allocation) to balance the transaction
+4. Only add line item descriptions when user explicitly provides details
+5. Keep line items minimal
+
+EXAMPLE: "breakfast 50rs" should create 3 line items:
+- real account (e.g., Cash -50)
+- nominal account (e.g., Expenses +50)
+- allocation account (e.g., Living Expenses +50)
 
 Current Time in IST: ${currentTimeIST}
 Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}`;
