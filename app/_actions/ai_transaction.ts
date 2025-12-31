@@ -263,19 +263,28 @@ OUTPUT FORMAT (JSON ONLY):
 }
 
 CRITICAL RULES:
-1. Double-entry bookkeeping: ALL line items MUST use the SAME quantity value for the same asset
-   - Example: If spending 50 rupees, ALL line items must have quantity=-50 or quantity=50 (with appropriate signs based on account type)
-   - The sum of all quantities must equal zero (debits = credits)
+1. Double-entry bookkeeping for SAME ASSET:
+   - For SIMPLE transactions (single real account): ALL line items use the SAME quantity
+     Example: "breakfast 50rs" → all line items: -50
+   - For COMPLEX transactions (multiple real accounts): Each nominal/allocation line item must match ONE real account's quantity
+     Example: "10rs metro, 2rs cashback" → Metro card: -10, IDFC: +2, Expenses: -10, Commute: -10, Cashbacks: +2
+   - The nominal account quantity MUST match the PRIMARY transaction (main expense/income)
 2. Same rule applies for book_value
 3. MUST include line items from ALL THREE account types (real, nominal, allocation) to balance the transaction
 4. Only add line item descriptions when the user explicitly provides details for specific items
 5. Keep line items minimal unless user specifies otherwise
 
-EXAMPLE: "breakfast 50rs" should create 3 line items ALL with rupees asset:
+EXAMPLE 1 (Simple): "breakfast 50rs" creates 3 line items ALL with same quantity:
 - real account: BHIM, rupees, quantity=-50
 - nominal account: Expenses, rupees, quantity=-50
 - allocation account: Office Food, rupees, quantity=-50
-(Note: ALL quantities are -50, and they sum to -150, but this represents spending from different perspective accounts)
+
+EXAMPLE 2 (Complex): "10rs metro, 2rs cashback in IDFC" creates 5 line items:
+- real: Mumbai Metro Card, rupees, -10
+- real: IDFC, rupees, +2
+- nominal: Expenses, rupees, -10 (matches primary expense)
+- allocation: Commute, rupees, -10 (matches primary expense)
+- allocation: Cashbacks, rupees, +2 (matches cashback)
 
 IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
 When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.
@@ -306,18 +315,26 @@ OUTPUT FORMAT (JSON ONLY):
 }
 
 CRITICAL RULES:
-1. Double-entry: ALL line items MUST use the SAME quantity value for the same asset
-   - If spending 50, ALL line items must have quantity=-50 (same sign, same value)
-   - Sum of all quantities must equal zero
+1. Double-entry for SAME ASSET:
+   - SIMPLE (1 real account): ALL line items use SAME quantity
+   - COMPLEX (multiple real accounts): Each nominal/allocation matches ONE real account
+   - Nominal MUST match PRIMARY transaction
 2. Same for book_value
-3. MUST include line items from ALL THREE account types (real, nominal, allocation) to balance the transaction
+3. MUST include line items from ALL THREE account types (real, nominal, allocation)
 4. Only add line item descriptions when user explicitly provides details
 5. Keep line items minimal
 
-EXAMPLE: "breakfast 50rs" creates 3 line items ALL with same quantity:
+EXAMPLE 1 (Simple): "breakfast 50rs" → ALL same quantity:
 - BHIM(real), rupees, -50
 - Expenses(nominal), rupees, -50
 - Office Food(allocation), rupees, -50
+
+EXAMPLE 2 (Complex): "10rs metro, 2rs cashback in IDFC":
+- Mumbai Metro Card(real), rupees, -10
+- IDFC(real), rupees, +2
+- Expenses(nominal), rupees, -10 (matches primary)
+- Commute(allocation), rupees, -10 (matches primary)
+- Cashbacks(allocation), rupees, +2 (matches cashback)
 
 Current Time in IST: ${currentTimeIST}
 Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}`;
