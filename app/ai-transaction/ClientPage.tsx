@@ -31,6 +31,7 @@ type UsageInfo = {
     total_tokens: number;
   } | null;
   contextFromCache: boolean;
+  fullContextSent: boolean;
 };
 
 export default function AITransactionClient() {
@@ -180,6 +181,13 @@ export default function AITransactionClient() {
                 <span className="text-slate-600 dark:text-slate-400">Context Status:</span>
                 <span className={`font-medium px-2 py-1 rounded ${usageInfo.contextFromCache ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'}`}>
                   {usageInfo.contextFromCache ? '✓ From Cache' : '⟳ Fresh Load'}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-400">Full Context Sent:</span>
+                <span className={`font-medium px-2 py-1 rounded ${!usageInfo.fullContextSent ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'}`}>
+                  {usageInfo.fullContextSent ? '📤 Yes (First/Changed)' : '⚡ No (Remembered)'}
                 </span>
               </div>
               

@@ -23,6 +23,13 @@ type TokenUsage = {
   total_tokens: number;
 };
 
+type ConversationContext = {
+  timestamp: number;
+  accountsDigest: string;
+  assetsDigest: string;
+  patternsDigest: string;
+};
+
 async function getSmartExamples(userId: string): Promise<{ examples: any[]; usage: TokenUsage | null }> {
   const CACHE_KEY = `ai_patterns_v2:${userId}`;
   const cached = await redis.get(CACHE_KEY);
@@ -139,6 +146,62 @@ async function getUserContext(userId: string): Promise<{ context: UserContext; f
   return { context, fromCache: false };
 }
 
+// Create a digest of context to detect changes
+function createContextDigest(data: any): string {
+  return JSON.stringify(data).substring(0, 100);
+}
+
+// Check if context has changed and needs to be resent
+async function shouldSendFullContext(
+  userId: string,
+  accounts: UserContext['accounts'],
+  assets: UserContext['assets'],
+  examples: any[]
+): Promise<{ sendFull: boolean; isFirstRequest: boolean }> {
+  const CONTEXT_KEY = `ai_conversation_context:${userId}`;
+  const cached = await redis.get(CONTEXT_KEY);
+  
+  const currentDigests = {
+    accountsDigest: createContextDigest(accounts),
+    assetsDigest: createContextDigest(assets),
+    patternsDigest: createContextDigest(examples),
+  };
+  
+  if (!cached) {
+    // First request - send full context and cache digests
+    const context: ConversationContext = {
+      timestamp: Date.now(),
+      ...currentDigests,
+    };
+    await redis.setex(CONTEXT_KEY, 3600, JSON.stringify(context)); // 1 hour TTL
+    return { sendFull: true, isFirstRequest: true };
+  }
+  
+  const cachedContext = JSON.parse(cached) as ConversationContext;
+  
+  // Check if context has changed
+  const contextChanged =
+    cachedContext.accountsDigest !== currentDigests.accountsDigest ||
+    cachedContext.assetsDigest !== currentDigests.assetsDigest ||
+    cachedContext.patternsDigest !== currentDigests.patternsDigest;
+  
+  if (contextChanged) {
+    // Context changed - resend full context
+    const context: ConversationContext = {
+      timestamp: Date.now(),
+      ...currentDigests,
+    };
+    await redis.setex(CONTEXT_KEY, 3600, JSON.stringify(context));
+    return { sendFull: true, isFirstRequest: false };
+  }
+  
+  // Context unchanged - use minimal prompt
+  // Update timestamp to keep session alive
+  cachedContext.timestamp = Date.now();
+  await redis.setex(CONTEXT_KEY, 3600, JSON.stringify(cachedContext));
+  return { sendFull: false, isFirstRequest: false };
+}
+
 export async function parse_transaction_with_ai(input: string) {
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
@@ -160,8 +223,21 @@ export async function parse_transaction_with_ai(input: string) {
     const contextFromCache = userContextData.fromCache;
     const patternCurationUsage = smartExamplesData.usage;
 
+    // Check if we should send full context or use minimal prompt
+    const { sendFull: sendFullContext, isFirstRequest } = await shouldSendFullContext(
+      user.id,
+      accounts,
+      assets,
+      examples
+    );
+
     const currentTimeIST = formatInTimeZone(new Date(), 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
-    const systemPrompt = `You are a ledger assistant. Parse the input into line items.
+    
+    let systemPrompt: string;
+    
+    if (sendFullContext) {
+      // Full context prompt (first request or context changed)
+      systemPrompt = `You are a ledger assistant. Parse the input into line items.
 
 ACCOUNTS:
 ${accounts.map(a => `- ${a.name} (${a.type})`).join('\n')}
@@ -189,7 +265,18 @@ OUTPUT FORMAT (JSON ONLY):
 IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
 When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.
 Current Time in IST: ${currentTimeIST}
+Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}
+
+Remember this context for future requests in this session.`;
+    } else {
+      // Minimal context prompt (subsequent requests in same session)
+      systemPrompt = `You are a ledger assistant. Continue parsing transactions using the context you learned earlier.
+
+Parse the user input into line items with the same JSON format as before.
+
+Current Time in IST: ${currentTimeIST}
 Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}`;
+    }
 
     const openai = new OpenAI({
       apiKey,
@@ -273,6 +360,7 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
         patternCuration: patternCurationUsage,
         transactionParsing: parsingUsage,
         contextFromCache,
+        fullContextSent: sendFullContext,
       },
     };
   } catch (error) {
