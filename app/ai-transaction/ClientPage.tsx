@@ -19,11 +19,18 @@ type ParsedTransaction = {
   }[];
 };
 
+type TokenUsage = {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+};
+
 export default function AITransactionClient() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [parsedTransaction, setParsedTransaction] = useState<ParsedTransaction | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
   const [confirming, setConfirming] = useState(false);
   const router = useRouter();
 
@@ -36,6 +43,11 @@ export default function AITransactionClient() {
 
     try {
       const response = await parse_transaction_with_ai(input);
+      
+      // Store token usage if available
+      if (response.token_usage) {
+        setTokenUsage(response.token_usage);
+      }
       
       if (response.success && response.transaction) {
         setParsedTransaction(response.transaction);
@@ -70,6 +82,7 @@ export default function AITransactionClient() {
       setResult(confirmResult);
       if (confirmResult.success) {
         setParsedTransaction(null);
+        setTokenUsage(null);
         setInput('');
         router.refresh();
       }
@@ -86,6 +99,7 @@ export default function AITransactionClient() {
   const handleCancel = () => {
     setParsedTransaction(null);
     setResult(null);
+    setTokenUsage(null);
     setInput('');
   };
 
@@ -153,6 +167,31 @@ export default function AITransactionClient() {
             )}
           </button>
         </form>
+
+        {tokenUsage && (
+          <div className="mt-6 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Token Usage</h3>
+            </div>
+            <div className="flex gap-4 text-sm">
+              <div>
+                <span className="text-slate-600 dark:text-slate-400">Input: </span>
+                <span className="font-medium text-slate-900 dark:text-slate-100">{tokenUsage.input_tokens.toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-slate-600 dark:text-slate-400">Output: </span>
+                <span className="font-medium text-slate-900 dark:text-slate-100">{tokenUsage.output_tokens.toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-slate-600 dark:text-slate-400">Total: </span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{tokenUsage.total_tokens.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {parsedTransaction && !result && (
           <div className="mt-6 p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 space-y-4">

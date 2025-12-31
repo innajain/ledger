@@ -169,8 +169,15 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
 
     const aiResponse: AITransactionResponse = JSON.parse(response.choices[0].message.content || '{}');
 
+    // Extract token usage information
+    const tokenUsage = response.usage ? {
+      input_tokens: response.usage.prompt_tokens,
+      output_tokens: response.usage.completion_tokens,
+      total_tokens: response.usage.total_tokens,
+    } : undefined;
+
     if (!aiResponse.line_items || aiResponse.line_items.length === 0) {
-      return { success: false, message: 'AI returned no line items.' };
+      return { success: false, message: 'AI returned no line items.', token_usage: tokenUsage };
     }
 
     const resolvedLineItems = [];
@@ -205,7 +212,7 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
     }
 
     if (errors.length > 0) {
-      return { success: false, message: errors.join('\n') };
+      return { success: false, message: errors.join('\n'), token_usage: tokenUsage };
     }
 
     return {
@@ -216,6 +223,7 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
         date: aiResponse.date,
         line_items: resolvedLineItems,
       },
+      token_usage: tokenUsage,
     };
   } catch (error) {
     console.error('AI Parse Error:', error);
