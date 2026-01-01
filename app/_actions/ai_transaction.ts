@@ -5,7 +5,9 @@ import { prisma } from '@/lib/prisma';
 import { redis } from '@/lib/redis';
 import OpenAI from 'openai';
 import { formatInTimeZone } from 'date-fns-tz';
+import { Prisma } from '@/generated/prisma/client';
 
+// --- Types ---
 type AITransactionResponse = {
   date: string;
   description?: string;
@@ -13,7 +15,8 @@ type AITransactionResponse = {
     account_name: string;
     asset_name: string;
     quantity: number | string;
-    description?: string;
+    description?: string | null;
+    book_value?: number | null;
   }[];
 };
 
@@ -23,17 +26,21 @@ type TokenUsage = {
   total_tokens: number;
 };
 
-type ConversationContext = {
-  timestamp: number;
-  accountsDigest: string;
-  assetsDigest: string;
-  patternsDigest: string;
-};
+// --- Configuration ---
+const modelProvider = process.env.AI_MODEL_PROVIDER || 'groq';
+const apiKey = modelProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GROQ_API_KEY;
+if (!apiKey) throw new Error('AI API key not configured');
 
-async function getSmartExamples(userId: string): Promise<{ examples: any[]; usage: TokenUsage | null }> {
-  const CACHE_KEY = `ai_patterns_v2:${userId}`;
+const openai = new OpenAI({
+  apiKey,
+  baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
+});
+
+// --- Helper: Learn User Patterns (Valid Cache Strategy) ---
+async function getPatterns(userId: string): Promise<{ patterns: string; usage: TokenUsage | null }> {
+  const CACHE_KEY = `patterns:${userId}`;
   const cached = await redis.get(CACHE_KEY);
-  if (cached) return { examples: JSON.parse(cached), usage: null };
+  if (cached) return { patterns: cached, usage: null };
 
   const rawTransactions = await prisma.transaction.findMany({
     where: { user_id: userId },
@@ -46,25 +53,17 @@ async function getSmartExamples(userId: string): Promise<{ examples: any[]; usag
     take: 100,
   });
 
-  if (rawTransactions.length === 0) return { examples: [], usage: null };
+  if (rawTransactions.length === 0) return { patterns: '', usage: null };
 
   const simplifiedList = rawTransactions.map(t => ({
     desc: t.description,
     items: t.line_items.map(li => ({
       ac: li.account.name,
+      acc_type: li.account.type,
       as: li.asset.name,
       qty: Number(li.quantity),
     })),
   }));
-
-  const modelProvider = process.env.AI_MODEL_PROVIDER || 'groq';
-  const apiKey = modelProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GROQ_API_KEY;
-  if (!apiKey) return { examples: simplifiedList.slice(0, 15), usage: null };
-
-  const openai = new OpenAI({
-    apiKey,
-    baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
-  });
 
   try {
     const response = await openai.chat.completions.create({
@@ -72,37 +71,42 @@ async function getSmartExamples(userId: string): Promise<{ examples: any[]; usag
       messages: [
         {
           role: 'system',
-          content: `You are a Data Curator. Analyze the user's transaction history.
-Select the top 15-20 distinct transaction patterns that best teach how this user categorizes money.
-Rules:
-- Include common items.
-- MUST include rare/complex items if present.
-- If multiple transactions look similar, only keep the most recent 1.
-- Return valid JSON: { "examples": [...] }`,
+          content: `Analyze the user's transaction data. Find common patterns like:
+          - Which real, nominal, and allocation accounts are used for specific transaction types.
+          - Which assets are used.
+          - Typical quantities.
+          
+          OUTPUT FORMAT:
+          - <pattern 1>
+          - <pattern 2>
+          ...`,
         },
         { role: 'user', content: JSON.stringify(simplifiedList) },
       ],
-      response_format: { type: 'json_object' },
       temperature: 0.1,
     });
 
-    const content = JSON.parse(response.choices[0].message.content || '{}');
-    const curatedExamples = content.examples || content.patterns || simplifiedList.slice(0, 15);
+    const patterns = response.choices[0].message.content || '';
 
-    await redis.setex(CACHE_KEY, 172800, JSON.stringify(curatedExamples));
-    
-    const usage: TokenUsage | null = response.usage ? {
-      prompt_tokens: response.usage.prompt_tokens,
-      completion_tokens: response.usage.completion_tokens,
-      total_tokens: response.usage.total_tokens,
-    } : null;
-    
-    return { examples: curatedExamples, usage };
+    // Cache for 2 days      temperature: 0.1,
+
+    await redis.setex(CACHE_KEY, 172800, patterns);
+
+    const usage: TokenUsage | null = response.usage
+      ? {
+          prompt_tokens: response.usage.prompt_tokens,
+          completion_tokens: response.usage.completion_tokens,
+          total_tokens: response.usage.total_tokens,
+        }
+      : null;
+
+    return { patterns, usage };
   } catch (e) {
-    return { examples: simplifiedList.slice(0, 15), usage: null };
+    return { patterns: '', usage: null };
   }
 }
 
+// --- Helper: Fuzzy Matcher ---
 function findBestMatch(input: string, items: { id: string; name: string; type: string }[]) {
   const search = input.toLowerCase().trim();
 
@@ -118,232 +122,117 @@ function findBestMatch(input: string, items: { id: string; name: string; type: s
   return match;
 }
 
-type UserContext = {
-  accounts: { id: string; name: string; type: string }[];
-  assets: { id: string; name: string; type: string }[];
-};
-
-async function getUserContext(userId: string): Promise<{ context: UserContext; fromCache: boolean }> {
-  const CACHE_KEY = `user_context_v1:${userId}`;
+// --- Helper: Get User Accounts/Assets ---
+async function getEntities(userId: string) {
+  const CACHE_KEY = `entities:${userId}`;
   const cached = await redis.get(CACHE_KEY);
-  if (cached) return { context: JSON.parse(cached) as UserContext, fromCache: true };
+  if (cached)
+    return JSON.parse(cached) as {
+      accounts: Prisma.accountGetPayload<{ include: { parent: true } }>[];
+      assets: Prisma.assetGetPayload<{ include: { parent: true } }>[];
+    };
 
   const [accounts, assets] = await Promise.all([
-    prisma.account.findMany({
-      where: { user_id: userId },
-      select: { id: true, name: true, type: true },
-    }),
-    prisma.asset.findMany({
-      where: { user_id: userId },
-      select: { id: true, name: true, type: true },
-    }),
+    prisma.account.findMany({ where: { user_id: userId }, include: { parent: true } }),
+    prisma.asset.findMany({ where: { user_id: userId }, include: { parent: true } }),
   ]);
 
-  const context: UserContext = { accounts, assets };
-  // Cache for 24 hours (accounts/assets don't change frequently)
-  await redis.setex(CACHE_KEY, 86400, JSON.stringify(context));
-  
-  return { context, fromCache: false };
+  const entities = { accounts, assets };
+  await redis.setex(CACHE_KEY, 172800, JSON.stringify(entities));
+  return entities;
 }
 
-// Create a digest of context to detect changes
-function createContextDigest(data: any): string {
-  return JSON.stringify(data).substring(0, 100);
-}
-
-// Check if context has changed and needs to be resent
-async function shouldSendFullContext(
-  userId: string,
-  accounts: UserContext['accounts'],
-  assets: UserContext['assets'],
-  examples: any[]
-): Promise<{ sendFull: boolean; isFirstRequest: boolean }> {
-  const CONTEXT_KEY = `ai_conversation_context:${userId}`;
-  const cached = await redis.get(CONTEXT_KEY);
-  
-  const currentDigests = {
-    accountsDigest: createContextDigest(accounts),
-    assetsDigest: createContextDigest(assets),
-    patternsDigest: createContextDigest(examples),
-  };
-  
-  if (!cached) {
-    // First request - send full context and cache digests
-    const context: ConversationContext = {
-      timestamp: Date.now(),
-      ...currentDigests,
-    };
-    await redis.setex(CONTEXT_KEY, 3600, JSON.stringify(context)); // 1 hour TTL
-    return { sendFull: true, isFirstRequest: true };
-  }
-  
-  const cachedContext = JSON.parse(cached) as ConversationContext;
-  
-  // Check if context has changed
-  const contextChanged =
-    cachedContext.accountsDigest !== currentDigests.accountsDigest ||
-    cachedContext.assetsDigest !== currentDigests.assetsDigest ||
-    cachedContext.patternsDigest !== currentDigests.patternsDigest;
-  
-  if (contextChanged) {
-    // Context changed - resend full context
-    const context: ConversationContext = {
-      timestamp: Date.now(),
-      ...currentDigests,
-    };
-    await redis.setex(CONTEXT_KEY, 3600, JSON.stringify(context));
-    return { sendFull: true, isFirstRequest: false };
-  }
-  
-  // Context unchanged - use minimal prompt
-  // Update timestamp to keep session alive
-  cachedContext.timestamp = Date.now();
-  await redis.setex(CONTEXT_KEY, 3600, JSON.stringify(cachedContext));
-  return { sendFull: false, isFirstRequest: false };
-}
-
+// --- MAIN FUNCTION ---
 export async function parse_transaction_with_ai(input: string) {
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
 
-  const modelProvider = process.env.AI_MODEL_PROVIDER || 'groq';
-  const apiKey = modelProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    throw new Error(`${modelProvider === 'openai' ? 'OPENAI_API_KEY' : 'GROQ_API_KEY'} not configured`);
-  }
-
   try {
-    const [smartExamplesData, userContextData] = await Promise.all([
-      getSmartExamples(user.id),
-      getUserContext(user.id),
-    ]);
+    // 1. Fetch Context (Parallel)
+    const [patternsData, entities] = await Promise.all([getPatterns(user.id), getEntities(user.id)]);
 
-    const examples = smartExamplesData.examples;
-    const { accounts, assets } = userContextData.context;
-    const contextFromCache = userContextData.fromCache;
-    const patternCurationUsage = smartExamplesData.usage;
+    const { patterns } = patternsData;
+    const { accounts, assets } = entities;
 
-    // Check if we should send full context or use minimal prompt
-    const { sendFull: sendFullContext, isFirstRequest } = await shouldSendFullContext(
-      user.id,
-      accounts,
-      assets,
-      examples
-    );
+    // 2. Pre-calculate Date (Fixes Timezone Issue)
+    // We generate the exact string we want the AI to return
+    const currentISTTime = formatInTimeZone(new Date(), 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
 
-    const currentTimeIST = formatInTimeZone(new Date(), 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
-    
-    let systemPrompt: string;
-    
-    if (sendFullContext) {
-      // Full context prompt (first request or context changed)
-      systemPrompt = `You are a ledger assistant. Parse the input into line items.
+    // 3. Build the FULL System Prompt
+    const systemPrompt = `You are an AI assistant for a Ledger App. Your goal is to parse user input into a specific JSON transaction format.
 
-ACCOUNTS:
-${accounts.map(a => `- ${a.name} (${a.type})`).join('\n')}
+CONTEXT - ACCOUNTS:
+REAL ACCOUNTS (Wallets, Banks):
+${accounts
+  .filter(a => a.type === 'real')
+  .map(a => `- ${a.name} (parent: ${a.parent?.name})`)
+  .join('\n')}
+
+NOMINAL ACCOUNTS (Income/Expenses):
+${accounts
+  .filter(a => a.type === 'nominal')
+  .map(a => `- ${a.name} (parent: ${a.parent?.name})`)
+  .join('\n')}
+
+ALLOCATION ACCOUNTS (Budgets/Envelopes):
+${accounts
+  .filter(a => a.type === 'allocation')
+  .map(a => `- ${a.name} (parent: ${a.parent?.name})`)
+  .join('\n')}
 
 ASSETS:
-${assets.map(a => `- ${a.name}`).join('\n')}
+${assets.map(a => `- ${a.name} (${a.type})`).join('\n')}
 
-LEARNED USER PATTERNS:
-${JSON.stringify(examples, null, 2)}
+---
 
-OUTPUT FORMAT (JSON ONLY):
-{
-  "date": "ISO 8601 string in IST timezone (Asia/Kolkata, UTC+05:30)",
-  "description": "Short description" | null,
-  "line_items": [
-    { 
-      "account_name": "Exact Name from list above", 
-      "asset_name": "Exact Name from list above", 
-      "quantity": number, 
-      "description": "optional details" | null
-    }
-  ]
-}
+CRITICAL LOGIC RULES (Override Standard Accounting):
+This system uses a specific "Triple Entry" consistency. Directions must match across all involved account types.
 
-CRITICAL RULES:
-1. Double-entry bookkeeping for SAME ASSET:
-   - For SIMPLE transactions (single real account): ALL line items use the SAME quantity
-     Example: "breakfast 50rs" → all line items: -50
-   - For COMPLEX transactions (multiple real accounts): Each nominal/allocation line item must match ONE real account's quantity
-     Example: "10rs metro, 2rs cashback" → Metro card: -10, IDFC: +2, Expenses: -10, Commute: -10, Cashbacks: +2
-   - The nominal account quantity MUST match the PRIMARY transaction (main expense/income)
-2. Same rule applies for book_value
-3. MUST include line items from ALL THREE account types (real, nominal, allocation) to balance the transaction
-4. Only add line item descriptions when the user explicitly provides details for specific items
-5. Keep line items minimal unless user specifies otherwise
+1. **Expenses / Outflows (Spending money):**
+   - Real Account Quantity: **NEGATIVE** (-)
+   - Nominal Account Quantity: **NEGATIVE** (-)
+   - Allocation Account Quantity: **NEGATIVE** (-)
+   *Example: "Lunch 50rs"* -> Google Pay: -50, Expenses: -50, Office Food: -50.
 
-EXAMPLE 1 (Simple): "breakfast 50rs" creates 3 line items ALL with same quantity:
-- real account: BHIM, rupees, quantity=-50
-- nominal account: Expenses, rupees, quantity=-50
-- allocation account: Office Food, rupees, quantity=-50
+2. **Income / Inflows (Receiving money):**
+   - Real Account Quantity: **POSITIVE** (+)
+   - Nominal Account Quantity: **POSITIVE** (+)
+   - Allocation Account Quantity: **POSITIVE** (+)
+   *Example: "Salary 50000"* -> Bank: 50000, Salary: 50000, Unallocated: 50000.
 
-EXAMPLE 2 (Complex): "10rs metro, 2rs cashback in IDFC" creates 5 line items:
-- real: Mumbai Metro Card, rupees, -10
-- real: IDFC, rupees, +2
-- nominal: Expenses, rupees, -10 (matches primary expense)
-- allocation: Commute, rupees, -10 (matches primary expense)
-- allocation: Cashbacks, rupees, +2 (matches cashback)
+3. **Transfers (Moving money):**
+   - Real Accounts sum to 0 (e.g., Bank -500, Wallet +500).
+   - Nominal/Allocation are usually not involved, or sum to 0.
 
-IMPORTANT: The user is in IST timezone (Asia/Kolkata, UTC+05:30).
-When the user mentions a time like "10 am" or "3:30 pm", interpret it as IST time.
-Current Time in IST: ${currentTimeIST}
-Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}
+**Constraint:** The group-wise sum of quantities for "Real" accounts must equal the sum for "Nominal" accounts, which must equal the sum for "Allocation" accounts. (Equal in Sign AND Magnitude).
 
-Remember this context for future requests in this session.`;
-    } else {
-      // Optimized context prompt (subsequent requests in same session)
-      // Still need to provide account/asset lists but in compact format
-      systemPrompt = `You are a ledger assistant. Parse the input into line items.
+---
 
-ACCOUNTS: ${accounts.map(a => `${a.name}(${a.type})`).join(', ')}
-ASSETS: ${assets.map(a => a.name).join(', ')}
+OTHER INSTRUCTIONS:
+1. **Date:** Use this EXACT timestamp string: "${currentISTTime}". Do not calculate or convert timezones yourself.
+2. **Book Value:** For non-rupee assets, if book_value is not specified, assume book_value = quantity.
+3. **Structure:** Group line items by account type.
+4. **Description:** Keep line item descriptions empty unless specific details are needed (e.g., specific stock ticker).
+
+---
+
+USER PATTERNS (Use for inference):
+${patterns}
 
 OUTPUT FORMAT (JSON ONLY):
 {
-  "date": "ISO 8601 string in IST timezone (Asia/Kolkata, UTC+05:30)",
-  "description": "Short description" | null,
+  "date": "Use the exact timestamp string provided above",
+  "description": "Short description",
   "line_items": [
     { 
-      "account_name": "Exact Name from list above", 
-      "asset_name": "Exact Name from list above", 
+      "account_name": "Exact Name from list", 
+      "asset_name": "Exact Name from list", 
       "quantity": number, 
-      "description": "optional details" | null
+      "description": string | null,
+      "book_value": number | null
     }
   ]
-}
-
-CRITICAL RULES:
-1. Double-entry for SAME ASSET:
-   - SIMPLE (1 real account): ALL line items use SAME quantity
-   - COMPLEX (multiple real accounts): Each nominal/allocation matches ONE real account
-   - Nominal MUST match PRIMARY transaction
-2. Same for book_value
-3. MUST include line items from ALL THREE account types (real, nominal, allocation)
-4. Only add line item descriptions when user explicitly provides details
-5. Keep line items minimal
-
-EXAMPLE 1 (Simple): "breakfast 50rs" → ALL same quantity:
-- BHIM(real), rupees, -50
-- Expenses(nominal), rupees, -50
-- Office Food(allocation), rupees, -50
-
-EXAMPLE 2 (Complex): "10rs metro, 2rs cashback in IDFC":
-- Mumbai Metro Card(real), rupees, -10
-- IDFC(real), rupees, +2
-- Expenses(nominal), rupees, -10 (matches primary)
-- Commute(allocation), rupees, -10 (matches primary)
-- Cashbacks(allocation), rupees, +2 (matches cashback)
-
-Current Time in IST: ${currentTimeIST}
-Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM d, yyyy')}`;
-    }
-
-    const openai = new OpenAI({
-      apiKey,
-      baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
-    });
+}`;
 
     const response = await openai.chat.completions.create({
       model: modelProvider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile',
@@ -352,14 +241,15 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
         { role: 'user', content: input },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.1,
+      temperature: 0.0, // Strict adherence
     });
 
+    // 4. Resolve & Validate
     const aiResponse: AITransactionResponse = JSON.parse(response.choices[0].message.content || '{}');
 
     if (!aiResponse.line_items || aiResponse.line_items.length === 0) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: 'AI returned no line items.',
         usage: null,
       };
@@ -391,24 +281,26 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
         asset_name: asset.name,
         asset_type: asset.type,
         quantity: quantity,
-        book_value: asset.type === 'rupees' ? null : quantity,
+        book_value: li.book_value ?? quantity, // Default to quantity if null
         description: li.description || null,
       });
     }
 
     if (errors.length > 0) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: errors.join('\n'),
         usage: null,
       };
     }
 
-    const parsingUsage: TokenUsage | null = response.usage ? {
-      prompt_tokens: response.usage.prompt_tokens,
-      completion_tokens: response.usage.completion_tokens,
-      total_tokens: response.usage.total_tokens,
-    } : null;
+    const parsingUsage: TokenUsage | null = response.usage
+      ? {
+          prompt_tokens: response.usage.prompt_tokens,
+          completion_tokens: response.usage.completion_tokens,
+          total_tokens: response.usage.total_tokens,
+        }
+      : null;
 
     return {
       success: true,
@@ -419,10 +311,8 @@ Current Date in IST: ${formatInTimeZone(new Date(), 'Asia/Kolkata', 'EEEE, MMMM 
         line_items: resolvedLineItems,
       },
       usage: {
-        patternCuration: patternCurationUsage,
+        patternCuration: patternsData.usage,
         transactionParsing: parsingUsage,
-        contextFromCache,
-        fullContextSent: sendFullContext,
       },
     };
   } catch (error) {

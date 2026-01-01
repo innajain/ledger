@@ -14,24 +14,20 @@ type ParsedTransaction = {
     asset_name: string;
     asset_type?: string | null;
     quantity: number;
-    book_value: number | null;
+    book_value?: number | null;
     description?: string | null;
   }[];
 };
 
+type TokenStats = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+};
+
 type UsageInfo = {
-  patternCuration: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  } | null;
-  transactionParsing: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  } | null;
-  contextFromCache: boolean;
-  fullContextSent: boolean;
+  patternCuration: TokenStats | null;
+  transactionParsing: TokenStats | null;
 };
 
 export default function AITransactionClient() {
@@ -53,12 +49,11 @@ export default function AITransactionClient() {
 
     try {
       const response = await parse_transaction_with_ai(input);
-      
+
       if (response.success && response.transaction) {
         setParsedTransaction(response.transaction);
         setUsageInfo(response.usage || null);
       } else {
-        // Show error message
         setResult({
           success: false,
           message: response.message,
@@ -160,12 +155,7 @@ export default function AITransactionClient() {
             ) : (
               <>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 Parse with AI
               </>
@@ -177,65 +167,63 @@ export default function AITransactionClient() {
           <div className="mt-4 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">API Usage Statistics</h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-400">Context Status:</span>
-                <span className={`font-medium px-2 py-1 rounded ${usageInfo.contextFromCache ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'}`}>
-                  {usageInfo.contextFromCache ? '✓ From Cache' : '⟳ Fresh Load'}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-400">Full Context Sent:</span>
-                <span className={`font-medium px-2 py-1 rounded ${!usageInfo.fullContextSent ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'}`}>
-                  {usageInfo.fullContextSent ? '📤 Yes (First/Changed)' : '⚡ No (Remembered)'}
-                </span>
-              </div>
-              
               {usageInfo.patternCuration && (
                 <div className="pt-2 border-t dark:border-slate-700">
-                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Pattern Curation:</p>
+                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Context Loading (Pattern Analysis):</p>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div className="bg-white dark:bg-slate-800 p-2 rounded">
                       <div className="text-slate-500 dark:text-slate-400">Input</div>
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.patternCuration.prompt_tokens.toLocaleString()}</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                        {usageInfo.patternCuration.prompt_tokens.toLocaleString()}
+                      </div>
                     </div>
                     <div className="bg-white dark:bg-slate-800 p-2 rounded">
                       <div className="text-slate-500 dark:text-slate-400">Output</div>
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.patternCuration.completion_tokens.toLocaleString()}</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                        {usageInfo.patternCuration.completion_tokens.toLocaleString()}
+                      </div>
                     </div>
                     <div className="bg-white dark:bg-slate-800 p-2 rounded">
                       <div className="text-slate-500 dark:text-slate-400">Total</div>
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.patternCuration.total_tokens.toLocaleString()}</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                        {usageInfo.patternCuration.total_tokens.toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
-              
+
               {usageInfo.transactionParsing && (
                 <div className="pt-2 border-t dark:border-slate-700">
-                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Transaction Parsing:</p>
+                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Transaction Processing:</p>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div className="bg-white dark:bg-slate-800 p-2 rounded">
                       <div className="text-slate-500 dark:text-slate-400">Input</div>
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.transactionParsing.prompt_tokens.toLocaleString()}</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                        {usageInfo.transactionParsing.prompt_tokens.toLocaleString()}
+                      </div>
                     </div>
                     <div className="bg-white dark:bg-slate-800 p-2 rounded">
                       <div className="text-slate-500 dark:text-slate-400">Output</div>
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.transactionParsing.completion_tokens.toLocaleString()}</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                        {usageInfo.transactionParsing.completion_tokens.toLocaleString()}
+                      </div>
                     </div>
                     <div className="bg-white dark:bg-slate-800 p-2 rounded">
                       <div className="text-slate-500 dark:text-slate-400">Total</div>
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">{usageInfo.transactionParsing.total_tokens.toLocaleString()}</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">
+                        {usageInfo.transactionParsing.total_tokens.toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
-              
+
               <div className="pt-2 border-t dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400">
                 <div className="flex justify-between">
-                  <span>Grand Total:</span>
+                  <span>Total Tokens:</span>
                   <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    {((usageInfo.patternCuration?.total_tokens || 0) + (usageInfo.transactionParsing?.total_tokens || 0)).toLocaleString()} tokens
+                    {((usageInfo.patternCuration?.total_tokens || 0) + (usageInfo.transactionParsing?.total_tokens || 0)).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -258,7 +246,8 @@ export default function AITransactionClient() {
               <div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Date & Time</p>
                 <p className="font-medium text-slate-900 dark:text-slate-100">
-                  {new Date(parsedTransaction.date).toLocaleDateString()} {new Date(parsedTransaction.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(parsedTransaction.date).toLocaleDateString()}{' '}
+                  {new Date(parsedTransaction.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
 
@@ -271,7 +260,9 @@ export default function AITransactionClient() {
                       allocation: 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-100',
                       nominal: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
                     };
-                    const color = colorMap[item.account_type] || 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100';
+                    const color =
+                      colorMap[item.account_type] ||
+                      'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100';
 
                     return (
                       <div key={idx} className={`p-3 rounded border ${color} text-sm`}>
@@ -284,7 +275,9 @@ export default function AITransactionClient() {
                             </div>
                             <div className="text-right whitespace-nowrap">
                               <p className="font-semibold">{item.quantity}</p>
-                              {item.book_value !== null && <p className="text-xs opacity-75">₹{item.book_value.toFixed(2)}</p>}
+                              {item.book_value !== null && item.book_value !== undefined && (
+                                <p className="text-xs opacity-75">₹{item.book_value.toFixed(2)}</p>
+                              )}
                             </div>
                           </div>
                           {item.description && (
@@ -336,9 +329,7 @@ export default function AITransactionClient() {
         {result && (
           <div
             className={`mt-4 p-4 rounded-lg border ${
-              result.success
-                ? 'bg-green-50 border-green-200 text-green-800'
-                : 'bg-red-50 border-red-200 text-red-800'
+              result.success ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
             }`}
           >
             <div className="flex items-start gap-2">

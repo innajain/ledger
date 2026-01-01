@@ -12,7 +12,7 @@ export async function confirm_and_create_transaction(
     account_type: string;
     asset_name: string;
     quantity: number;
-    book_value: number | null;
+    book_value?: number | null;
     description?: string | null;
   }[]
 ): Promise<{ success: boolean; message: string }> {
