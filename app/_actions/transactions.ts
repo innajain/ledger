@@ -16,11 +16,11 @@ export type CreateLineItemInput = {
 export async function create_transaction(datetime: Date, line_items: CreateLineItemInput[], description?: string | null | undefined) {
   if (line_items.length === 0) throw new Error('line_items are required');
   if (line_items.some(li => new Prisma.Decimal(li.quantity).equals(0))) throw new Error('quantity cannot be zero in any line item');
-  if (description && description.length === 0) description = null;
+  if (description) description = description.trim();
+  if (description === '') description = null;
   line_items.forEach(li => {
-    if (li.description !== undefined && li.description !== null && li.description.length === 0) {
-      li.description = null;
-    }
+    if (li.description) li.description = li.description.trim();
+    if (li.description === '') li.description = null;
   });
 
   const user = await get_current_user();
