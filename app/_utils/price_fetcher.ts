@@ -1,4 +1,4 @@
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
 import axios from 'axios';
 import { parse } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
@@ -30,6 +30,7 @@ export async function get_latest_etf_price(symbol: string) {
     }
 
     // Fetch from Yahoo Finance
+    const yahooFinance = new YahooFinance();
     const result = await yahooFinance.quote(symbol);
     let date = result.regularMarketTime as Date;
     date.setHours(0, 0, 0, 0); // Normalize to start of the day
