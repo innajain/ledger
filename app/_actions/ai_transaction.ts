@@ -84,12 +84,11 @@ async function getPatterns(userId: string): Promise<{ patterns: string; usage: T
         },
         { role: 'user', content: JSON.stringify(simplifiedList) },
       ],
-      temperature: 0.1,
     });
 
     const patterns = response.choices[0].message.content || '';
 
-    // Cache for 2 days      temperature: 0.1,
+    // Cache for 2 days
 
     await redis.setex(CACHE_KEY, 172800, patterns);
 
@@ -242,7 +241,6 @@ OUTPUT FORMAT (JSON ONLY):
         { role: 'user', content: input },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.0, // Strict adherence
     });
 
     // 4. Resolve & Validate
