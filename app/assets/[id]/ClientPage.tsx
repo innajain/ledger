@@ -69,8 +69,8 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holdings (aggregated by account)</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {asset.breakdown.filter(b => b.current_value !== 0).length} account
-            {asset.breakdown.filter(b => b.current_value !== 0).length !== 1 ? 's' : ''}
+            {asset.breakdown.length} account
+            {asset.breakdown.length !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -92,7 +92,6 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
             <div className="p-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
                 {asset.breakdown
-                  .filter(b => b.current_value !== 0)
                   .map((b, i) => (
                     <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm">
                       <div className="flex flex-col h-full justify-between">

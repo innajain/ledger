@@ -13,7 +13,7 @@ export async function update_transaction(
 ) {
   if (!id || id.length === 0) throw new Error('id is required');
   if (line_items.length === 0) throw new Error('line_items are required');
-  if (line_items.some(li => li.quantity === 0)) throw new Error('quantity cannot be zero in any line item');
+  if (line_items.some(li => new Prisma.Decimal(li.quantity).equals(0))) throw new Error('quantity cannot be zero in any line item');
   if (description && description.length === 0) description = null;
   line_items.forEach(li => {
     if (li.description !== undefined && li.description !== null && li.description.length === 0) {

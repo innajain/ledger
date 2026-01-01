@@ -93,8 +93,11 @@ export default async function Page() {
       acc_total = acc_total.add(current_value);
     }
     totalsByAccount[acc.id] = acc_total.toNumber();
+    // Filter to only include non-zero quantities and convert to number
     assetQuantitiesByAccount[acc.id] = Object.fromEntries(
-      Object.entries(assetQtyMap).map(([assetId, qty]) => [assetId, qty.toNumber()])
+      Object.entries(assetQtyMap)
+        .filter(([_, qty]) => !qty.equals(0))
+        .map(([assetId, qty]) => [assetId, qty.toNumber()])
     );
     grand_total = grand_total.add(acc_total);
   }

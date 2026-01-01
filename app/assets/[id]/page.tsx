@@ -64,6 +64,7 @@ export default async function Page({ params }: Props) {
 
   for (const k of Object.keys(map)) {
     const entry = map[k];
+    
     let current_value = new Prisma.Decimal(0);
     if (asset.type === asset_type.rupees) {
       current_value = entry.total_qty;
@@ -72,6 +73,9 @@ export default async function Page({ params }: Props) {
     } else {
       current_value = entry.total_book;
     }
+    
+    // Skip if current_value is zero
+    if (current_value.equals(0)) continue;
 
     asset_total = asset_total.add(current_value);
 
