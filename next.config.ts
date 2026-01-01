@@ -18,9 +18,6 @@ const nextConfig: NextConfig = {
       transform: 'lucide-react/dist/esm/icons/{{member}}',
     },
   },
-
-  // Enable React strict mode for better development
-  reactStrictMode: true,
 };
 
 export default nextConfig;

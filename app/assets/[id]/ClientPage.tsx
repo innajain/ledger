@@ -33,6 +33,7 @@ type AssetForClient = {
   ticker: string | null;
   parent: { id: string; name: string } | null;
   total: number;
+  price: number | null;
   breakdown: BreakdownItem[];
   line_items?: LineItem[];
 };
@@ -55,6 +56,9 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
           { label: 'Asset Type', value: <span className="capitalize">{asset.type}</span> },
           { label: 'Ticker', value: asset.ticker ?? '—' },
           { label: 'Parent Asset', value: asset.parent ? asset.parent.name : '—' },
+          ...((asset.type === asset_type.mf || asset.type === asset_type.etf || asset.type === asset_type.shares) && asset.price !== null
+            ? [{ label: 'Current Price', value: currency_fmt.format(asset.price) }]
+            : []),
         ]}
       />
 
@@ -91,50 +95,52 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             <div className="p-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
-                {asset.breakdown
-                  .map((b, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm">
-                      <div className="flex flex-col h-full justify-between">
-                        <div>
-                          <Link href={`/accounts/${b.account_id}`} className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                            {b.account_name}
-                          </Link>
+                {asset.breakdown.map((b, i) => (
+                  <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm">
+                    <div className="flex flex-col h-full justify-between">
+                      <div>
+                        <Link
+                          href={`/accounts/${b.account_id}`}
+                          className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          {b.account_name}
+                        </Link>
 
-                          <div className="mt-3 text-sm text-slate-600 dark:text-slate-400 space-y-2">
-                            {asset.type === asset_type.rupees ? (
+                        <div className="mt-3 text-sm text-slate-600 dark:text-slate-400 space-y-2">
+                          {asset.type === asset_type.rupees ? (
+                            <div>
+                              <span className="text-slate-500 dark:text-slate-400">Value:</span>{' '}
+                              <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
+                            </div>
+                          ) : (
+                            <>
                               <div>
-                                <span className="text-slate-500 dark:text-slate-400">Value:</span>{' '}
+                                <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{b.quantity} units</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">
+                                  {b.book_value === null ? '—' : currency_fmt.format(b.book_value)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
                               </div>
-                            ) : (
-                              <>
-                                <div>
-                                  <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
-                                  <span className="font-medium text-slate-900 dark:text-slate-100">{b.quantity} units</span>
-                                </div>
-                                <div>
-                                  <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
-                                  <span className="font-medium text-slate-900 dark:text-slate-100">
-                                    {b.book_value === null ? '—' : currency_fmt.format(b.book_value)}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
-                                  <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mt-4 text-right">
-                          <Link href={`/accounts/${b.account_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                            View Account →
-                          </Link>
+                            </>
+                          )}
                         </div>
                       </div>
+
+                      <div className="mt-4 text-right">
+                        <Link href={`/accounts/${b.account_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                          View Account →
+                        </Link>
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -160,17 +166,27 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                        <Link href={`/accounts/${li.account_id}`} className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        <Link
+                          href={`/accounts/${li.account_id}`}
+                          className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
                           {li.account_name}
                         </Link>
                         <span>•</span>
-                        <Link href={`/transactions/${li.transaction_id}`} className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400">
+                        <Link
+                          href={`/transactions/${li.transaction_id}`}
+                          className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+                        >
                           {new Date(li.transaction_date).toLocaleString()}
                         </Link>
                       </div>
 
-                      {li.line_item_description && <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 italic">{li.line_item_description}</p>}
-                      {li.transaction_description && <p className="text-xs text-slate-500 dark:text-slate-400 italic">Transaction: {li.transaction_description}</p>}
+                      {li.line_item_description && (
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 italic">{li.line_item_description}</p>
+                      )}
+                      {li.transaction_description && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 italic">Transaction: {li.transaction_description}</p>
+                      )}
 
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                         {asset.type === asset_type.rupees ? (
@@ -185,7 +201,9 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
                             </div>
                             <div className="text-slate-600 dark:text-slate-400">
                               <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
-                              <span className="font-medium text-slate-900 dark:text-slate-100">{li.book_value === null ? '—' : currency_fmt.format(li.book_value)}</span>
+                              <span className="font-medium text-slate-900 dark:text-slate-100">
+                                {li.book_value === null ? '—' : currency_fmt.format(li.book_value)}
+                              </span>
                             </div>
                             <div className="text-slate-600 dark:text-slate-400">
                               <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}

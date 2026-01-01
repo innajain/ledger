@@ -122,6 +122,7 @@ export default async function Page({ params }: Props) {
     ticker: asset.ticker,
     parent: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
     total: asset_total.toNumber(),
+    price: priceDecimal ? priceDecimal.toNumber() : null,
     breakdown,
     line_items,
   };
