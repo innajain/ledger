@@ -36,6 +36,7 @@ const openai = new OpenAI({
   baseURL: modelProvider === 'openai' ? undefined : 'https://api.groq.com/openai/v1',
 });
 
+const model = modelProvider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile';
 // --- Helper: Learn User Patterns (Valid Cache Strategy) ---
 async function getPatterns(userId: string): Promise<{ patterns: string; usage: TokenUsage | null }> {
   const CACHE_KEY = `patterns:${userId}`;
@@ -67,7 +68,7 @@ async function getPatterns(userId: string): Promise<{ patterns: string; usage: T
 
   try {
     const response = await openai.chat.completions.create({
-      model: modelProvider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile',
+      model,
       messages: [
         {
           role: 'system',
@@ -235,7 +236,7 @@ OUTPUT FORMAT (JSON ONLY):
 }`;
 
     const response = await openai.chat.completions.create({
-      model: modelProvider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile',
+      model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: input },
