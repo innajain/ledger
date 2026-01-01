@@ -33,11 +33,16 @@ type AssetForClient = {
   ticker: string | null;
   parent: { id: string; name: string } | null;
   total: number;
+  price: number | null;
+  priceDate: string | null;
   breakdown: BreakdownItem[];
   line_items?: LineItem[];
 };
 
 export default function ClientPage({ asset, currencyLocale, currency }: { asset: AssetForClient; currencyLocale: string; currency: string }) {
+  // Only show price for mf, etf, and shares types
+  const shouldShowPrice = asset.type === asset_type.mf || asset.type === asset_type.etf || asset.type === asset_type.shares;
+  
   return (
     <div className="space-y-6">
       <ViewPageHeader
@@ -54,6 +59,21 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
         fields={[
           { label: 'Asset Type', value: <span className="capitalize">{asset.type}</span> },
           { label: 'Ticker', value: asset.ticker ?? '—' },
+          ...(shouldShowPrice && asset.price !== null ? [
+            { 
+              label: 'Current Price', 
+              value: (
+                <div className="flex flex-col">
+                  <span className="font-semibold">{currency_fmt.format(asset.price)}</span>
+                  {asset.priceDate && (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      as of {new Date(asset.priceDate).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              )
+            }
+          ] : []),
           { label: 'Parent Asset', value: asset.parent ? asset.parent.name : '—' },
         ]}
       />

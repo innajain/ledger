@@ -98,7 +98,7 @@ export async function get_price_for_asset(type: asset_type, code: string | null)
       if (nav_data) {
         return { price: nav_data.nav, date: nav_data.date };
       } else return null;
-    } else if (type === 'etf') {
+    } else if (type === 'etf' || type === 'shares') {
       const price_data = await get_latest_etf_price(code);
       if (price_data) {
         return { price: price_data.close, date: price_data.date };

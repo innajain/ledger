@@ -122,6 +122,8 @@ export default async function Page({ params }: Props) {
     ticker: asset.ticker,
     parent: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
     total: asset_total.toNumber(),
+    price: priceResp ? priceResp.price : null,
+    priceDate: priceResp ? priceResp.date.toISOString() : null,
     breakdown,
     line_items,
   };
