@@ -30,7 +30,7 @@ export async function get_latest_etf_price(symbol: string) {
     }
 
     // Fetch from Yahoo Finance
-    const result = await new yahooFinance().quote(symbol);
+    const result = await yahooFinance.quote(symbol);
     let date = result.regularMarketTime as Date;
     date.setHours(0, 0, 0, 0); // Normalize to start of the day
     date = fromZonedTime(date, 'Asia/Kolkata');
