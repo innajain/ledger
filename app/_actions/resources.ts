@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
 import type { account_type, asset_type } from '@/generated/prisma/client';
-import { get_latest_etf_price, get_nav } from '../_utils/price_fetcher';
+import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher';
 
 export async function create_account(name: string, type: account_type, parent_id?: string | null) {
   name = name.trim();
@@ -64,7 +64,7 @@ export async function create_asset(name: string, type: asset_type, ticker?: stri
     if (type === 'mf') {
       if ((await get_nav({ code: ticker })) === null) throw new Error('invalid ticker for mutual fund: ' + ticker);
     } else if (type === 'etf' || type === 'shares') {
-      if ((await get_latest_etf_price(ticker)) === null) throw new Error('invalid ticker for etf/shares: ' + ticker);
+      if ((await get_latest_etf_or_shares_price(ticker)) === null) throw new Error('invalid ticker for etf/shares: ' + ticker);
     }
   } else if (ticker !== undefined && ticker !== null) {
     throw new Error('ticker cannot be non-null for asset type ' + type);
@@ -117,7 +117,7 @@ export async function update_asset(
       if (type === 'mf') {
         if ((await get_nav({ code: asset.ticker })) === null) throw new Error('invalid ticker for mutual fund: ' + asset.ticker);
       } else if (type === 'etf' || type === 'shares') {
-        if ((await get_latest_etf_price(asset.ticker)) === null) throw new Error('invalid ticker for etf/shares: ' + asset.ticker);
+        if ((await get_latest_etf_or_shares_price(asset.ticker)) === null) throw new Error('invalid ticker for etf/shares: ' + asset.ticker);
       }
     } else if (asset.ticker !== null) {
       throw new Error('ticker cannot non-null for asset type ' + type);

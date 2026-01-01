@@ -1,5 +1,5 @@
 import { prisma } from './lib/prisma';
-import { get_price_for_asset, get_latest_etf_price, get_nav } from './app/_utils/price_fetcher';
+import { get_price_for_asset, get_latest_etf_or_shares_price, get_nav } from './app/_utils/price_fetcher';
 import { asset_type, Prisma } from '@/generated/prisma/client';
 import { fileURLToPath } from 'url';
 
@@ -62,7 +62,7 @@ async function checkAssetTickersAndPrices(): Promise<Issue[]> {
         continue;
       }
       try {
-        const p = await get_latest_etf_price(a.ticker ?? '');
+        const p = await get_latest_etf_or_shares_price(a.ticker ?? '');
         if (!p || (p as any).close == null)
           issues.push({ kind: 'error', message: `could not fetch price for shares asset ${a.id} (${a.name}) ticker=${a.ticker}` });
       } catch (e) {

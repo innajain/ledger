@@ -18,7 +18,9 @@ type PriceData = {
   date: Date;
 };
 
-export async function get_latest_etf_price(symbol: string) {
+const yf = new yahooFinance({suppressNotices: ["yahooSurvey"]});
+
+export async function get_latest_etf_or_shares_price(symbol: string) {
   const cacheKey = `price:etf:${symbol}`;
 
   try {
@@ -30,7 +32,7 @@ export async function get_latest_etf_price(symbol: string) {
     }
 
     // Fetch from Yahoo Finance
-    const result = await new yahooFinance().quote(symbol);
+    const result = await yf.quote(symbol);
     let date = result.regularMarketTime as Date;
     date.setHours(0, 0, 0, 0); // Normalize to start of the day
     date = fromZonedTime(date, 'Asia/Kolkata');
@@ -98,8 +100,8 @@ export async function get_price_for_asset(type: asset_type, code: string | null)
       if (nav_data) {
         return { price: nav_data.nav, date: nav_data.date };
       } else return null;
-    } else if (type === 'etf') {
-      const price_data = await get_latest_etf_price(code);
+    } else if (type === 'etf' || type === 'shares') {
+      const price_data = await get_latest_etf_or_shares_price(code);
       if (price_data) {
         return { price: price_data.close, date: price_data.date };
       } else return null;
