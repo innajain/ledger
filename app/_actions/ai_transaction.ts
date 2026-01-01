@@ -37,6 +37,7 @@ const openai = new OpenAI({
 });
 
 const model = modelProvider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile';
+
 // --- Helper: Learn User Patterns (Valid Cache Strategy) ---
 async function getPatterns(userId: string): Promise<{ patterns: string; usage: TokenUsage | null }> {
   const CACHE_KEY = `patterns:${userId}`;
@@ -89,7 +90,6 @@ async function getPatterns(userId: string): Promise<{ patterns: string; usage: T
     const patterns = response.choices[0].message.content || '';
 
     // Cache for 2 days
-
     await redis.setex(CACHE_KEY, 172800, patterns);
 
     const usage: TokenUsage | null = response.usage
@@ -154,74 +154,45 @@ export async function parse_transaction_with_ai(input: string) {
     const { patterns } = patternsData;
     const { accounts, assets } = entities;
 
-    // 2. Pre-calculate Date (Fixes Timezone Issue)
-    // We generate the exact string we want the AI to return
+    // 2. Pre-calculate Date
     const currentISTTime = formatInTimeZone(new Date(), 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
 
-    // 3. Build the FULL System Prompt
-    const systemPrompt = `You are an AI assistant for a Ledger App. Your goal is to parse user input into a specific JSON transaction format.
+    // 3. Build Prompt Segments for Caching
 
-CONTEXT - ACCOUNTS:
-REAL ACCOUNTS (Wallets, Banks):
-${accounts
-  .filter(a => a.type === 'real')
-  .map(a => `- ${a.name} (parent: ${a.parent?.name})`)
-  .join('\n')}
-
-NOMINAL ACCOUNTS (Income/Expenses):
-${accounts
-  .filter(a => a.type === 'nominal')
-  .map(a => `- ${a.name} (parent: ${a.parent?.name})`)
-  .join('\n')}
-
-ALLOCATION ACCOUNTS (Budgets/Envelopes):
-${accounts
-  .filter(a => a.type === 'allocation')
-  .map(a => `- ${a.name} (parent: ${a.parent?.name})`)
-  .join('\n')}
-
-ASSETS:
-${assets.map(a => `- ${a.name} (${a.type})`).join('\n')}
-
----
+    // SEGMENT A: GLOBAL STATIC (Cached across all users)
+    const staticSystemPrompt = `You are an AI assistant for a Ledger App. Parse user input into a specific JSON format.
 
 CRITICAL LOGIC RULES (Override Standard Accounting):
 This system uses a specific "Triple Entry" consistency. Directions must match across all involved account types.
 
-1. **Expenses / Outflows (Spending money):**
+1. **Expenses / Outflows:**
    - Real Account Quantity: **NEGATIVE** (-)
    - Nominal Account Quantity: **NEGATIVE** (-)
    - Allocation Account Quantity: **NEGATIVE** (-)
    *Example: "Lunch 50rs"* -> Google Pay: -50, Expenses: -50, Office Food: -50.
 
-2. **Income / Inflows (Receiving money):**
+2. **Income / Inflows:**
    - Real Account Quantity: **POSITIVE** (+)
    - Nominal Account Quantity: **POSITIVE** (+)
    - Allocation Account Quantity: **POSITIVE** (+)
    *Example: "Salary 50000"* -> Bank: 50000, Salary: 50000, Unallocated: 50000.
 
-3. **Transfers (Moving money):**
+3. **Transfers:**
    - Real Accounts sum to 0 (e.g., Bank -500, Wallet +500).
-   - Nominal/Allocation are usually not involved, or sum to 0.
+   - Nominal/Allocation are usually not involved.
 
-**Constraint:** The group-wise sum of quantities for "Real" accounts must equal the sum for "Nominal" accounts, which must equal the sum for "Allocation" accounts. (Equal in Sign AND Magnitude).
+4. **Other Transactions:**
+   - In general. there can be any number of line items for each account type. some could have positive quantities, some negative. it is totally generalised. Only thing is that the following constraint must be met:
 
----
+**Constraint:** For each asset, the group-wise sum of quantities for "Real" accounts must equal "Nominal", which must equal "Allocation". (Equal in Sign AND Magnitude). also, the group-wise sum of book_values for "Real", "Nominal", and "Allocation" must be equal. book_value defaults to quantity for rupee assets.
 
-OTHER INSTRUCTIONS:
-1. **Date:** Use this EXACT timestamp string: "${currentISTTime}". Do not calculate or convert timezones yourself.
-2. **Book Value:** For non-rupee assets, if book_value is not specified, assume book_value = quantity.
-3. **Structure:** Group line items by account type.
-4. **Description:** Keep line item descriptions empty unless specific details are needed (e.g., specific stock ticker).
+I want you to be extra careful while verifying for this constraint because this is different from standard accounting principles, on which you may have been trained. Do this: seggregate line items by account type. Then, for each asset, sum up the quantities in real accounts, nominal accounts, and allocation accounts. do not skip considering those type of accounts which have no line items. the sum of quantities for each asset shall be equal in all three account types.
 
----
-
-USER PATTERNS (Use for inference):
-${patterns}
+add line item descriptions only if necessary and if it provides additional info about that line item.
 
 OUTPUT FORMAT (JSON ONLY):
 {
-  "date": "Use the exact timestamp string provided above",
+  "date": "ISO string provided in user context",
   "description": "Short description",
   "line_items": [
     { 
@@ -234,11 +205,47 @@ OUTPUT FORMAT (JSON ONLY):
   ]
 }`;
 
+    // SEGMENT B: USER STATIC (Cached for this specific user)
+    // We attach this to the System prompt. Since it comes after staticSystemPrompt, 
+    // the first part remains cached globally, and this combo is cached per user.
+    const userContextPrompt = `
+CONTEXT - ACCOUNTS:
+REAL ACCOUNTS:
+${accounts.filter(a => a.type === 'real').map(a => `- ${a.name} (parent: ${a.parent?.name})`).join('\n')}
+
+NOMINAL ACCOUNTS:
+${accounts.filter(a => a.type === 'nominal').map(a => `- ${a.name} (parent: ${a.parent?.name})`).join('\n')}
+
+ALLOCATION ACCOUNTS:
+${accounts.filter(a => a.type === 'allocation').map(a => `- ${a.name} (parent: ${a.parent?.name})`).join('\n')}
+
+ASSETS:
+${assets.map(a => `- ${a.name} (${a.type})`).join('\n')}
+
+USER PATTERNS:
+${patterns}`;
+
+    // SEGMENT C: DYNAMIC (Never Cached)
+    // This goes into the User message so it doesn't break the System prompt cache prefix.
+    const dynamicUserPrompt = `
+CURRENT TIMESTAMP: ${currentISTTime}
+INSTRUCTION: Use the timestamp above for the "date" field, if no other datetime is specified in the input.
+Book Value Rule: For non-rupee assets, if book_value is not specified, assume book_value = quantity.
+
+USER INPUT:
+${input}`;
+
     const response = await openai.chat.completions.create({
       model,
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: input },
+        { 
+            role: 'system', 
+            content: staticSystemPrompt + "\n\n" + userContextPrompt 
+        },
+        { 
+            role: 'user', 
+            content: dynamicUserPrompt 
+        },
       ],
       response_format: { type: 'json_object' },
     });
@@ -280,7 +287,7 @@ OUTPUT FORMAT (JSON ONLY):
         asset_name: asset.name,
         asset_type: asset.type,
         quantity: quantity,
-        book_value: li.book_value ?? quantity, // Default to quantity if null
+        book_value: li.book_value ?? quantity,
         description: li.description || null,
       });
     }
