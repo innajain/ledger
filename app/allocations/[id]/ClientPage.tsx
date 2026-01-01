@@ -38,7 +38,6 @@ export default function ClientPage({
   currencyLocale: string;
   currency: string;
 }) {
-  console.log(allocation.breakdown.filter(b => b.quantity !== 0));
   return (
     <div className="space-y-6">
       <ViewPageHeader
@@ -63,18 +62,17 @@ export default function ClientPage({
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holdings (aggregated by asset)</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {allocation.breakdown.filter(b => b.quantity !== 0).length} asset
-            {allocation.breakdown.filter(b => b.quantity !== 0).length !== 1 ? 's' : ''}
+            {allocation.breakdown.length} asset
+            {allocation.breakdown.length !== 1 ? 's' : ''}
           </p>
         </div>
 
-        {allocation.breakdown.filter(b => b.quantity !== 0).length === 0 ? (
+        {allocation.breakdown.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
               {allocation.breakdown
-                .filter(b => b.quantity !== 0)
                 .map((b, i) => (
                   <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm transition-colors">
                     <div className="flex flex-col h-full justify-between">

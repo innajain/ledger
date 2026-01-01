@@ -115,6 +115,10 @@ export default async function Page({ params }: Props) {
   }[] = [];
   for (const k of Object.keys(map)) {
     const e = map[k];
+    
+    // Skip if quantity is zero
+    if (e.total_qty.equals(0)) continue;
+    
     let current_value = new Prisma.Decimal(0);
     if (e.asset_type === asset_type.rupees) current_value = e.total_qty;
     else if (priceCache[k]) current_value = priceCache[k]!.mul(e.total_qty);
