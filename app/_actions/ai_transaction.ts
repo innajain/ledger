@@ -38,74 +38,6 @@ const openai = new OpenAI({
 
 const model = modelProvider === 'openai' ? 'gpt-4o' : 'llama-3.3-70b-versatile';
 
-// --- Helper: Learn User Patterns (Valid Cache Strategy) ---
-async function getPatterns(userId: string): Promise<{ patterns: string; usage: TokenUsage | null }> {
-  const CACHE_KEY = `patterns:${userId}`;
-  const cached = await redis.get(CACHE_KEY);
-  if (cached) return { patterns: cached, usage: null };
-
-  const rawTransactions = await prisma.transaction.findMany({
-    where: { user_id: userId },
-    include: {
-      line_items: {
-        include: { account: true, asset: true },
-      },
-    },
-    orderBy: { datetime: 'desc' },
-    take: 100,
-  });
-
-  if (rawTransactions.length === 0) return { patterns: '', usage: null };
-
-  const simplifiedList = rawTransactions.map(t => ({
-    desc: t.description,
-    items: t.line_items.map(li => ({
-      ac: li.account.name,
-      acc_type: li.account.type,
-      as: li.asset.name,
-      qty: Number(li.quantity),
-    })),
-  }));
-
-  try {
-    const response = await openai.chat.completions.create({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: `Analyze the user's transaction data. Find common patterns like:
-          - Which real, nominal, and allocation accounts are used for specific transaction types.
-          - Which assets are used.
-          - Typical quantities.
-          
-          OUTPUT FORMAT:
-          - <pattern 1>
-          - <pattern 2>
-          ...`,
-        },
-        { role: 'user', content: JSON.stringify(simplifiedList) },
-      ],
-    });
-
-    const patterns = response.choices[0].message.content || '';
-
-    // Cache for 2 days
-    await redis.setex(CACHE_KEY, 172800, patterns);
-
-    const usage: TokenUsage | null = response.usage
-      ? {
-          prompt_tokens: response.usage.prompt_tokens,
-          completion_tokens: response.usage.completion_tokens,
-          total_tokens: response.usage.total_tokens,
-        }
-      : null;
-
-    return { patterns, usage };
-  } catch (e) {
-    return { patterns: '', usage: null };
-  }
-}
-
 // --- Helper: Fuzzy Matcher ---
 function findBestMatch(input: string, items: { id: string; name: string; type: string }[]) {
   const search = input.toLowerCase().trim();
@@ -148,8 +80,8 @@ export async function parse_transaction_with_ai(input: string) {
   if (!user) throw new Error('unauthorized');
 
   try {
-    // 1. Fetch Context (Parallel)
-    const [patternsData, entities] = await Promise.all([getPatterns(user.id), getEntities(user.id)]);
+    // 1. Fetch entities 
+    const entities = await getEntities(user.id);
 
     const { patterns } = patternsData;
     const { accounts, assets } = entities;
