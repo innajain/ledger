@@ -188,7 +188,8 @@ This system uses a specific "Triple Entry" consistency. Directions must match ac
 
 I want you to be extra careful while verifying for this constraint because this is different from standard accounting principles, on which you may have been trained. Do this: seggregate line items by account type. Then, for each asset, sum up the quantities in real accounts, nominal accounts, and allocation accounts. do not skip considering those type of accounts which have no line items. the sum of quantities for each asset shall be equal in all three account types.
 
-add line item descriptions only if necessary and if it provides additional info about that line item.
+add line item descriptions only if necessary and if it provides additional info about that line item. otherwise usually only transaction level description suffice.
+for transactions with cashbacks, do like this: let's say expense was 100 rs and cashback was 3rs, so there shall be a line item for the real acc from which 100rs went out, a line item for the real acc to which cashback was credited, a line item for allocation account from which 97 rs went out in effect, a line item for nominal account for 100rs expense and a line item for nominal acc for 3 rs cashback
 
 OUTPUT FORMAT (JSON ONLY):
 {
