@@ -247,7 +247,7 @@ ${input}`;
         line_items: resolvedLineItems,
       },
       usage: {
-        patternCuration: 0,
+        patternCuration: null,
         transactionParsing: parsingUsage,
       },
     };
