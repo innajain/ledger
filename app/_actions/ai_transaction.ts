@@ -83,7 +83,6 @@ export async function parse_transaction_with_ai(input: string) {
     // 1. Fetch entities 
     const entities = await getEntities(user.id);
 
-    const { patterns } = patternsData;
     const { accounts, assets } = entities;
 
     // 2. Pre-calculate Date
