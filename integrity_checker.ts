@@ -81,7 +81,7 @@ async function checkLineItemsBookValue(): Promise<Issue[]> {
     if (!(li.asset.type === asset_type.rupees) && li.book_value == null) {
       issues.push({
         kind: 'error',
-        message: `line_item ${li.id} (tx=${li.transaction_id}) asset ${li.asset.id} (${li.asset.name}) is of type rupees but book_value is null`,
+        message: `line_item ${li.id} (tx=${li.transaction_id}) asset ${li.asset.id} (${li.asset.name}) is NOT of type rupees but book_value is null`,
       });
     } else if (li.asset.type === asset_type.rupees && li.book_value != null) {
       issues.push({

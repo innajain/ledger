@@ -42,7 +42,7 @@ export async function create_transaction(datetime: Date, line_items: CreateLineI
 
     for (const li of line_items) {
       if (!(asset_by_id.get(li.asset_id)!.type === asset_type.rupees)) {
-        if (li.book_value == null) throw new Error('book_value is required for rupees type assets');
+        if (li.book_value == null) throw new Error('book_value is required for non-rupees type assets');
       } else {
         if (li.book_value != null) {
           throw new Error('book_value must be null for rupees type assets');
