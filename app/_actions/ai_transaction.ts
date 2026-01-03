@@ -163,7 +163,8 @@ export async function parse_transaction_with_ai(input: string) {
     const staticSystemPrompt = `You are an AI assistant for a Ledger App. Parse user input into a specific JSON format.
 
 CRITICAL LOGIC RULES (Override Standard Accounting):
-This system uses a specific "Triple Entry" consistency. Directions must match across all involved account types.
+This system uses a specific "Triple Entry" consistency. Directions must match across all involved account types. A transaction is a collection of line items. each line item is related to an account. there are 3 types of accounts: real, allocation and nominal.
+**Constraint:** For each asset, the group-wise sum of quantities for "Real" accounts must equal "Nominal", which must equal "Allocation". (Equal in Sign AND Magnitude). also, the group-wise sum of book_values for "Real", "Nominal", and "Allocation" must be equal. book_value defaults to quantity for rupee assets.
 
 1. **Expenses / Outflows:**
    - Real Account Quantity: **NEGATIVE** (-)
@@ -184,8 +185,6 @@ This system uses a specific "Triple Entry" consistency. Directions must match ac
 4. **Other Transactions:**
    - In general. there can be any number of line items for each account type. some could have positive quantities, some negative. it is totally generalised. Only thing is that the following constraint must be met:
 
-**Constraint:** For each asset, the group-wise sum of quantities for "Real" accounts must equal "Nominal", which must equal "Allocation". (Equal in Sign AND Magnitude). also, the group-wise sum of book_values for "Real", "Nominal", and "Allocation" must be equal. book_value defaults to quantity for rupee assets.
-
 I want you to be extra careful while verifying for this constraint because this is different from standard accounting principles, on which you may have been trained. Do this: seggregate line items by account type. Then, for each asset, sum up the quantities in real accounts, nominal accounts, and allocation accounts. do not skip considering those type of accounts which have no line items. the sum of quantities for each asset shall be equal in all three account types.
 
 add line item descriptions only if necessary and if it provides additional info about that line item. otherwise usually only transaction level description suffice.
@@ -199,10 +198,10 @@ OUTPUT FORMAT (JSON ONLY):
   "line_items": [
     { 
       "account_name": "Exact Name from list", 
-      "asset_name": "Exact Name from list", 
+      "asset_name": "Exact Name from list" ("Money" mostly), 
       "quantity": number, 
       "description": string | null,
-      "book_value": number | null
+      "book_value": number | null (null mostly)
     }
   ]
 }`;
@@ -223,9 +222,7 @@ ${accounts.filter(a => a.type === 'allocation').map(a => `- ${a.name} (parent: $
 
 ASSETS:
 ${assets.map(a => `- ${a.name} (${a.type})`).join('\n')}
-
-USER PATTERNS:
-${patterns}`;
+`;
 
     // SEGMENT C: DYNAMIC (Never Cached)
     // This goes into the User message so it doesn't break the System prompt cache prefix.
