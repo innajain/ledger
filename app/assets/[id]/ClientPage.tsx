@@ -215,7 +215,7 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{currency_fmt.format(li.current_value)}</div>
+                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{currency_fmt.format((li.book_value !== null) ? li.book_value : li.quantity)}</div>
                       <Link
                         href={`/transactions/${li.transaction_id}`}
                         className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 inline-block"
