@@ -203,7 +203,7 @@ export function LineItemRow({
         </div>
 
         <div className="text-right flex-shrink-0">
-          <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{currency_fmt.format(currentValue)}</div>
+          <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{currency_fmt.format(bookValue)}</div>
           <Link href={`/transactions/${transactionId}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1 inline-block">
             View Transaction →
           </Link>
