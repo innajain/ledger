@@ -36,13 +36,13 @@ export function TotalCard({ title, total, colorScheme, icon }: TotalCardProps) {
   const colors = colorSchemes[colorScheme];
 
   return (
-    <div className={`bg-gradient-to-br ${colors.bg} rounded-xl shadow-sm border ${colors.border} p-6 transition-colors`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className={`text-sm font-medium ${colors.text} mb-1`}>{title}</h2>
-          <p className={`text-4xl font-bold ${colors.text}`}>{total}</p>
+    <div className={`bg-gradient-to-br ${colors.bg} rounded-xl shadow-sm border ${colors.border} p-4 sm:p-6 transition-colors`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h2 className={`text-xs sm:text-sm font-medium ${colors.text} mb-1`}>{title}</h2>
+          <p className={`text-2xl sm:text-3xl lg:text-4xl font-bold ${colors.text} truncate`}>{total}</p>
         </div>
-        <div className={`w-16 h-16 ${colors.iconBg} rounded-lg flex items-center justify-center`}>
+        <div className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 ${colors.iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}>
           {icon}
         </div>
       </div>
