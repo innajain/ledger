@@ -65,6 +65,130 @@
   }
 }
 
+/* Fun and quirky animations */
+@keyframes wobble {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-5deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(-50px);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+  75% {
+    transform: rotate(-10deg);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes confetti {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes heart-beat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.1);
+  }
+  50% {
+    transform: scale(1);
+  }
+  75% {
+    transform: scale(1.15);
+  }
+}
+
 .animate-slide-in-right {
   animation: slide-in-right 0.3s ease-out;
 }
@@ -83,6 +207,38 @@
 
 .animate-pulse-success {
   animation: pulse-success 0.5s ease-in-out;
+}
+
+.animate-wobble {
+  animation: wobble 0.5s ease-in-out;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 0.3s ease-in-out;
+}
+
+.animate-pop {
+  animation: pop 0.3s ease-in-out;
+}
+
+.animate-heart-beat {
+  animation: heart-beat 1s ease-in-out infinite;
 }
 
 /* Smooth scroll behavior */
@@ -183,3 +339,101 @@ html {
 .stagger-item:nth-child(6) { animation-delay: 0.3s; }
 .stagger-item:nth-child(7) { animation-delay: 0.35s; }
 .stagger-item:nth-child(8) { animation-delay: 0.4s; }
+
+/* Fun hover effects */
+.hover-bounce:hover {
+  animation: pop 0.3s ease-in-out;
+}
+
+.hover-wiggle:hover {
+  animation: wiggle 0.3s ease-in-out;
+}
+
+.hover-float {
+  transition: transform 0.3s ease;
+}
+
+.hover-float:hover {
+  transform: translateY(-5px);
+}
+
+/* Playful interactions */
+.fun-button {
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.fun-button:hover {
+  transform: scale(1.05) rotate(-2deg);
+}
+
+.fun-button:active {
+  transform: scale(0.95) rotate(2deg);
+}
+
+/* Easter egg sparkle effect */
+.sparkle-on-hover {
+  position: relative;
+}
+
+.sparkle-on-hover::before,
+.sparkle-on-hover::after {
+  content: '✨';
+  position: absolute;
+  opacity: 0;
+  font-size: 1.5rem;
+  pointer-events: none;
+}
+
+.sparkle-on-hover::before {
+  top: -10px;
+  right: -10px;
+}
+
+.sparkle-on-hover::after {
+  bottom: -10px;
+  left: -10px;
+}
+
+.sparkle-on-hover:hover::before,
+.sparkle-on-hover:hover::after {
+  animation: sparkle 1s ease-in-out;
+}
+
+/* Celebration confetti */
+.confetti-piece {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  background: currentColor;
+  animation: confetti 3s ease-out forwards;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Fun loading spinner */
+.fun-spinner {
+  width: 40px;
+  height: 40px;
+  position: relative;
+  animation: spin-slow 2s linear infinite;
+}
+
+.fun-spinner::before,
+.fun-spinner::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+}
+
+.fun-spinner::before {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+  animation: pulse-success 1s ease-in-out infinite;
+}
+
+/* Random rotation on hover */
+.random-tilt:hover {
+  transform: rotate(var(--random-rotation, 0deg));
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
