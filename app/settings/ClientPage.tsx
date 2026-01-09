@@ -56,8 +56,8 @@ export default function ClientPage({ user }: Props) {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
-      setPasswordError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setPasswordError(err instanceof Error ? err.message : String(err));
     } finally {
       setPasswordLoading(false);
     }
@@ -84,10 +84,10 @@ export default function ClientPage({ user }: Props) {
       await change_username({ new_username: newUsername, password: usernamePassword });
       setUsernameSuccess('Username changed successfully! Redirecting...');
       setTimeout(() => {
-        router.refresh();
+        window.location.reload();
       }, 1500);
-    } catch (err: any) {
-      setUsernameError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setUsernameError(err instanceof Error ? err.message : String(err));
     } finally {
       setUsernameLoading(false);
     }
