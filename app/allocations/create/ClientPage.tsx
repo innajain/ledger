@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import { create_account } from '@/app/_actions/resources';
-import type { account_type, Prisma } from '@/generated/prisma/client';
-import { PageHeader, FormCard, TextInput, AccountTypeSelect, ParentSelect, FormActions } from '@/app/_components/AccountFormComponents';
+import type { Prisma } from '@/generated/prisma/client';
+import { PageHeader, FormCard, TextInput, ParentSelect, FormActions } from '@/app/_components/AccountFormComponents';
 
 export default function ClientPage({ parents }: { parents: Prisma.accountGetPayload<{}>[] }) {
   const [name, setName] = useState('');
-  const [type, setType] = useState<account_type>('allocation');
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -15,7 +14,7 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
     e.preventDefault();
     setBusy(true);
     try {
-      await create_account(name, type, parentId ?? undefined);
+      await create_account(name, 'allocation', parentId ?? undefined);
       window.location.href = '/allocations';
     } catch (err: any) {
       alert('Failed: ' + (err?.message ?? String(err)));
@@ -36,8 +35,6 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
       <form onSubmit={onCreate} className="space-y-6">
         <FormCard title="Allocation Details">
           <TextInput label="Allocation Name" value={name} onChange={setName} placeholder="Enter allocation name" required />
-
-          <AccountTypeSelect label="Allocation Type" value={type} onChange={setType} restrictedTo={['allocation']} />
 
           <ParentSelect
             label="Parent Allocation (Optional)"

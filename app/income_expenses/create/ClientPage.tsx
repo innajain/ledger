@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import { create_account } from '@/app/_actions/resources';
-import type { account_type, Prisma } from '@/generated/prisma/client';
-import { PageHeader, FormCard, TextInput, AccountTypeSelect, ParentSelect, FormActions } from '@/app/_components/AccountFormComponents';
+import type { Prisma } from '@/generated/prisma/client';
+import { PageHeader, FormCard, TextInput, ParentSelect, FormActions } from '@/app/_components/AccountFormComponents';
 
 export default function ClientPage({ parents }: { parents: Prisma.accountGetPayload<{}>[] }) {
   const [name, setName] = useState('');
-  const [type, setType] = useState<account_type>('nominal');
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -15,7 +14,7 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
     e.preventDefault();
     setBusy(true);
     try {
-      await create_account(name, type, parentId ?? undefined);
+      await create_account(name, 'nominal', parentId ?? undefined);
       window.location.href = '/income_expenses';
     } catch (err: any) {
       alert('Failed: ' + (err?.message ?? String(err)));
@@ -31,8 +30,6 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
       <form onSubmit={onCreate} className="space-y-6">
         <FormCard title="Account Details">
           <TextInput label="Account Name" value={name} onChange={setName} placeholder="Enter account name" required />
-
-          <AccountTypeSelect label="Account Type" value={type} onChange={setType} restrictedTo={['nominal']} />
 
           <ParentSelect
             label="Parent Account (Optional)"
