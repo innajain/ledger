@@ -24,7 +24,7 @@ export default function ClientPage({
     e.preventDefault();
     setBusy(true);
     try {
-      await update_asset(asset.id, name, type, ticker || undefined, parentId ?? undefined);
+      await update_asset(asset.id, name, type, ticker || undefined, parentId);
       window.location.href = '/assets';
     } catch (err: any) {
       alert('Failed: ' + (err?.message ?? String(err)));

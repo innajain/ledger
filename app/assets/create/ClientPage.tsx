@@ -16,7 +16,7 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
     e.preventDefault();
     setBusy(true);
     try {
-      await create_asset(name, type, ticker || undefined, parentId ?? undefined);
+      await create_asset(name, type, ticker || undefined, parentId);
       window.location.href = '/assets';
     } catch (err: any) {
       alert('Failed: ' + (err?.message ?? String(err)));

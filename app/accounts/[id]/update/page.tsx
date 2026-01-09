@@ -10,7 +10,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!user) {
     return (
       <div>
-        <h1>Update Allocation</h1>
+        <h1>Update Account</h1>
         <p>User not authenticated.</p>
       </div>
     );
@@ -26,7 +26,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   }
 
   const parents: Prisma.accountGetPayload<{}>[] = user
-    ? await prisma.account.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } })
+    ? await prisma.account.findMany({ where: { user_id: user.id, type: 'real' }, orderBy: { name: 'asc' } })
     : [];
 
   return <ClientPage account={account as Prisma.accountGetPayload<{}>} parents={parents} deleteAccount={delete_account} />;
