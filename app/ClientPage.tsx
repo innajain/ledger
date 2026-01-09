@@ -28,7 +28,7 @@ export default function ClientPage({
     <div className="space-y-8">
       {/* Welcome Header */}
       <div>
-        <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">Welcome to Ledger</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">Welcome to Ledger</h1>
         <p className="text-slate-600 dark:text-slate-400">Your financial overview and quick actions</p>
       </div>
 
