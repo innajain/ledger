@@ -31,12 +31,12 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   };
 
   return (
-    <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50 shadow-sm transition-colors">
+    <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50 shadow-sm transition-all backdrop-blur-sm bg-white/95 dark:bg-slate-800/95">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
         <div className="flex items-center justify-between h-16">
           {/* Logo/Brand */}
-          <Link href="/" className="flex items-center space-x-2 text-slate-900 dark:text-slate-100 hover:text-slate-700 dark:hover:text-slate-300 transition-colors flex-shrink-0" onClick={closeMenu}>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+          <Link href="/" className="flex items-center space-x-2 text-slate-900 dark:text-slate-100 hover:text-slate-700 dark:hover:text-slate-300 transition-all flex-shrink-0 group" onClick={closeMenu}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform">
               <img src="/favicon.ico" alt="Ledger" className="w-6 h-6" />
             </div>
             <span className="font-semibold text-lg">Ledger</span>
@@ -133,7 +133,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
             {/* Dark Mode Toggle */}
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all hover:scale-110"
               aria-label="Toggle dark mode"
             >
               {!mounted ? (
@@ -154,7 +154,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
             {/* Mobile Menu Button */}
             {isLoggedIn && (
               <button
-                className="lg:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className="lg:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all hover:scale-110"
                 onClick={toggleMenu}
                 aria-label="Toggle menu"
                 aria-expanded={isMenuOpen}
@@ -175,7 +175,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
 
         {/* Mobile Navigation Menu */}
         {isLoggedIn && isMenuOpen && (
-          <div className="lg:hidden pb-4">
+          <div className="lg:hidden pb-4 animate-slide-in-up">
             <ul className="flex flex-col gap-1 list-none p-0 m-0">
               <li>
                 <Link
