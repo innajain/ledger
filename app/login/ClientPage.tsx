@@ -182,7 +182,7 @@ export default function ClientPage({ user }: Props) {
               </div>
               {isSignup && (
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  Choose a strong password with at least 8 characters
+                  Choose a password you'll remember
                 </p>
               )}
             </div>
