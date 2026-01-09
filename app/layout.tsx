@@ -5,6 +5,7 @@ import { get_current_user } from './_actions/auth';
 import { ThemeProvider } from './_components/ThemeProvider';
 import { ToastProvider } from './_components/Toast';
 import { BackToTop } from './_components/BackToTop';
+import { KeyboardShortcuts } from './_components/KeyboardShortcuts';
 import './globals.css';
 import Link from 'next/link';
 
@@ -69,16 +70,24 @@ export default async function RootLayout({
               {/* Footer */}
               <footer className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 mt-auto transition-colors">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                  <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-                    Made with ♥ by
-                    <Link href="https://github.com/innajain" target="_blank" rel="noopener noreferrer" className="text-slate-700 dark:text-slate-300 hover:underline mx-1">
-                      Shreyansh Jain
-                    </Link>
-                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                    <p className="text-center sm:text-left text-sm text-slate-500 dark:text-slate-400">
+                      Made with ♥ by
+                      <Link href="https://github.com/innajain" target="_blank" rel="noopener noreferrer" className="text-slate-700 dark:text-slate-300 hover:underline mx-1">
+                        Shreyansh Jain
+                      </Link>
+                    </p>
+                    {user && (
+                      <p className="text-xs text-slate-400 dark:text-slate-500">
+                        Press <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-xs font-mono">Cmd/Ctrl + /</kbd> for shortcuts
+                      </p>
+                    )}
+                  </div>
                 </div>
               </footer>
             </div>
             <BackToTop />
+            {user && <KeyboardShortcuts />}
           </ToastProvider>
         </ThemeProvider>
       </body>
