@@ -154,7 +154,7 @@ export default function ClientPage({
           </svg>
           Back to Transaction
         </Link>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Edit Transaction</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Edit Transaction</h1>
         <p className="text-slate-600 dark:text-slate-400 mt-1">Update transaction details and line items</p>
       </div>
 

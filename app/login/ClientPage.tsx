@@ -119,7 +119,7 @@ export default function ClientPage({ user }: Props) {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br mb-4 shadow-lg">
             <img src="/favicon.ico" alt="Ledger" className="w-10 h-10" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
             {isSignup ? 'Create Account' : 'Welcome To Ledger'}
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
