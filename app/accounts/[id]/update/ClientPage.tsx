@@ -23,7 +23,7 @@ export default function ClientPage({
     e.preventDefault();
     setBusy(true);
     try {
-      await update_account(account.id, name, type, parentId ?? undefined);
+      await update_account(account.id, name, type, parentId);
       window.location.href = '/accounts';
     } catch (err: any) {
       alert('Failed: ' + (err?.message ?? String(err)));
