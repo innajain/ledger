@@ -7,7 +7,7 @@ import { PageHeader, FormCard, TextInput, AccountTypeSelect, ParentSelect, FormA
 
 export default function ClientPage({ parents }: { parents: Prisma.accountGetPayload<{}>[] }) {
   const [name, setName] = useState('');
-  const [type, setType] = useState<account_type>('real');
+  const [type, setType] = useState<account_type>('allocation');
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -37,7 +37,7 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
         <FormCard title="Allocation Details">
           <TextInput label="Allocation Name" value={name} onChange={setName} placeholder="Enter allocation name" required />
 
-          <AccountTypeSelect label="Allocation Type" value={type} onChange={setType} />
+          <AccountTypeSelect label="Allocation Type" value={type} onChange={setType} restrictedTo={['allocation']} />
 
           <ParentSelect
             label="Parent Allocation (Optional)"

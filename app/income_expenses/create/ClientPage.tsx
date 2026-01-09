@@ -32,7 +32,7 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
         <FormCard title="Account Details">
           <TextInput label="Account Name" value={name} onChange={setName} placeholder="Enter account name" required />
 
-          <AccountTypeSelect label="Account Type" value={type} onChange={setType} />
+          <AccountTypeSelect label="Account Type" value={type} onChange={setType} restrictedTo={['nominal']} />
 
           <ParentSelect
             label="Parent Account (Optional)"

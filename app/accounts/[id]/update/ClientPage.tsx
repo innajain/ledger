@@ -51,7 +51,7 @@ export default function ClientPage({
         <FormCard title="Account Details">
           <TextInput label="Account Name" value={name} onChange={setName} placeholder="Enter account name" required />
 
-          <AccountTypeSelect label="Account Type" value={type} onChange={setType} />
+          <AccountTypeSelect label="Account Type" value={type} onChange={setType} disabled restrictedTo={['real']} />
 
           <ParentSelect
             label="Parent Account (Optional)"

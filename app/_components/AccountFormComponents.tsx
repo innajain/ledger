@@ -70,20 +70,25 @@ interface AccountTypeSelectProps {
   label: string;
   value: account_type;
   onChange: (value: account_type) => void;
+  disabled?: boolean;
+  restrictedTo?: account_type[];
 }
 
-export function AccountTypeSelect({ label, value, onChange }: AccountTypeSelectProps) {
+export function AccountTypeSelect({ label, value, onChange, disabled, restrictedTo }: AccountTypeSelectProps) {
+  const allowedTypes = restrictedTo || ['real', 'allocation', 'nominal'];
+  
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
       <select
         value={value}
         onChange={e => onChange(e.target.value as account_type)}
-        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+        disabled={disabled}
+        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <option value="real">Real</option>
-        <option value="allocation">Allocation</option>
-        <option value="nominal">Nominal</option>
+        {allowedTypes.includes('real') && <option value="real">Real</option>}
+        {allowedTypes.includes('allocation') && <option value="allocation">Allocation</option>}
+        {allowedTypes.includes('nominal') && <option value="nominal">Nominal</option>}
       </select>
     </div>
   );
@@ -163,11 +168,11 @@ export function ParentAssetSelect({ label, value, onChange, parents, excludeId, 
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
       <select
         value={value ?? ''}
         onChange={e => onChange(e.target.value || null)}
-        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       >
         <option value="">-- None (Top Level) --</option>
         {filteredParents.map(p => (
@@ -176,7 +181,7 @@ export function ParentAssetSelect({ label, value, onChange, parents, excludeId, 
           </option>
         ))}
       </select>
-      {helpText && <p className="text-xs text-slate-500 mt-1">{helpText}</p>}
+      {helpText && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{helpText}</p>}
     </div>
   );
 }
@@ -192,13 +197,13 @@ interface FormActionsProps {
 
 export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText }: FormActionsProps) {
   return (
-    <div className="flex justify-between items-center pt-6 border-t border-slate-200">
+    <div className="flex justify-between items-center pt-6 border-t border-slate-200 dark:border-slate-700">
       {/* Delete Button - Left Side */}
       {onDelete && (
         <button
           type="button"
           onClick={onDelete}
-          className="px-6 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors font-medium border border-red-200"
+          className="px-6 py-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors font-medium border border-red-200 dark:border-red-800"
         >
           {deleteText || 'Delete'}
         </button>
@@ -206,7 +211,7 @@ export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText
 
       {/* Submit/Cancel Buttons - Right Side */}
       <div className={`flex gap-3 ${onDelete ? 'ml-auto' : 'ml-0 w-full justify-end'}`}>
-        <Link href={cancelLink} className="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium">
+        <Link href={cancelLink} className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium">
           Cancel
         </Link>
         <button

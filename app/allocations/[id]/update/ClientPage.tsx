@@ -56,7 +56,7 @@ export default function ClientPage({
         <FormCard title="Allocation Details">
           <TextInput label="Allocation Name" value={name} onChange={setName} placeholder="Enter allocation name" required />
 
-          <AccountTypeSelect label="Allocation Type" value={type} onChange={setType} />
+          <AccountTypeSelect label="Allocation Type" value={type} onChange={setType} disabled restrictedTo={['allocation']} />
 
           <ParentSelect
             label="Parent Allocation (Optional)"
