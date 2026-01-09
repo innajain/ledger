@@ -41,16 +41,6 @@ export default function ClientPage({ user }: Props) {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setPasswordError('New password must be at least 8 characters long');
-      return;
-    }
-
-    if (currentPassword === newPassword) {
-      setPasswordError('New password must be different from current password');
-      return;
-    }
-
     setPasswordLoading(true);
     try {
       await change_password({ current_password: currentPassword, new_password: newPassword });
@@ -187,9 +177,6 @@ export default function ClientPage({ user }: Props) {
                   )}
                 </button>
               </div>
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Must be at least 8 characters long
-              </p>
             </div>
 
             <div>
