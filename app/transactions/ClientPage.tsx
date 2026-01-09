@@ -102,13 +102,13 @@ export default function ClientPage({
           <div className="flex gap-2 w-full md:w-auto">
             <button
               onClick={applyFilters}
-              className="flex-1 md:flex-none px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium"
+              className="flex-1 md:flex-none px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all font-medium ripple hover-lift"
             >
               Search
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex-1 md:flex-none px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium"
+              className="flex-1 md:flex-none px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-medium hover-lift"
             >
               Filters {hasFilters && <span className="ml-1 text-blue-600 dark:text-blue-400">●</span>}
             </button>
@@ -116,7 +116,7 @@ export default function ClientPage({
         </div>
 
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-in-up">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">From Date</label>
               <input
@@ -190,11 +190,11 @@ export default function ClientPage({
             <div className="md:col-span-2 flex gap-2 justify-end">
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all hover:scale-105"
               >
                 Clear All
               </button>
-              <button onClick={applyFilters} className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors">
+              <button onClick={applyFilters} className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all ripple hover-lift">
                 Apply Filters
               </button>
             </div>
@@ -230,13 +230,13 @@ export default function ClientPage({
               </div>
             </div>
             <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-              {transactions.map(tx => (
-                <li key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                  <Link href={`/transactions/${tx.id}`} className="block px-6 py-4">
+              {transactions.map((tx, index) => (
+                <li key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all stagger-item" style={{animationDelay: `${index * 0.03}s`}}>
+                  <Link href={`/transactions/${tx.id}`} className="block px-6 py-4 group">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3">
-                          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                             <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path
                                 strokeLinecap="round"
@@ -247,7 +247,7 @@ export default function ClientPage({
                             </svg>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{tx.description || 'No description'}</p>
+                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{tx.description || 'No description'}</p>
                             <p className="text-sm text-slate-500 dark:text-slate-400">
                               {tx.date.toLocaleDateString('en-US', {
                                 year: 'numeric',
@@ -262,7 +262,7 @@ export default function ClientPage({
                       </div>
                       <div className="ml-4 flex-shrink-0">
                         <span
-                          className={`text-lg font-semibold ${
+                          className={`text-lg font-semibold transition-transform group-hover:scale-110 inline-block ${
                             tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : tx.total_book < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
                           }`}
                         >
