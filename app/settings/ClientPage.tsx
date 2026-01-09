@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 
 type Props = { user: user };
 
+const REDIRECT_DELAY_MS = 1500;
+
 export default function ClientPage({ user }: Props) {
   const router = useRouter();
 
@@ -85,7 +87,7 @@ export default function ClientPage({ user }: Props) {
       setUsernameSuccess('Username changed successfully! Redirecting...');
       setTimeout(() => {
         window.location.reload();
-      }, 1500);
+      }, REDIRECT_DELAY_MS);
     } catch (err: unknown) {
       setUsernameError(err instanceof Error ? err.message : String(err));
     } finally {
