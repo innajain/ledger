@@ -77,11 +77,6 @@ export default async function RootLayout({
                         Shreyansh Jain
                       </Link>
                     </p>
-                    {user && (
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
-                        Press <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-xs font-mono">Cmd/Ctrl + /</kbd> for shortcuts
-                      </p>
-                    )}
                   </div>
                 </div>
               </footer>
