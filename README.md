@@ -30,12 +30,21 @@ A modern, full-stack personal finance management application built with Next.js,
 - **Advanced Filtering** - Search and filter transactions by date, account, asset, and more
 
 ### 🤖 AI-Powered Features
-- **AI Transaction Creation** - Use natural language to create complex transactions
-- **Smart Suggestions** - Get intelligent recommendations for transaction categorization
+- **AI Transaction Creation** - Use natural language to create complex transactions with intelligent parsing
+- **AI Financial Insights** - Personalized analysis of spending patterns, trends, and actionable recommendations on the homepage
+- **AI Chat Assistant** - Floating chat interface accessible throughout the app to answer questions about your finances
+- **Natural Language Search** - Search transactions using plain English (e.g., "groceries last month" or "expenses over 1000")
+- **Smart Name Suggestions** - AI-powered naming suggestions for accounts and assets based on description and existing patterns
+- **Transaction Categorization** - Automatic account suggestions based on transaction description and historical patterns
+- **AI Report Generation** - Generate comprehensive financial reports:
+  - Monthly Summary - Complete overview of financial activity
+  - Spending Analysis - Detailed spending breakdown and insights
+  - Allocation Report - Budget allocation analysis
+  - Income vs Expenses - Comparative analysis and trends
 - **Flexible AI Provider** - Choose between Groq (llama-3.3-70b-versatile) or OpenAI (gpt-4o) models
 - **Context Caching** - Efficient Redis-based caching of user context (accounts, assets, patterns) to reduce token usage
 - **Token Usage Monitoring** - Real-time visibility into API token consumption for each AI request
-- **Optimized Pattern Learning** - One-time pattern curation with 48-hour cache TTL to minimize repeated context sending
+- **Optimized Pattern Learning** - Intelligent caching with configurable TTL to minimize repeated context sending
 
 ### 📊 Allocations & Reporting
 - **Portfolio Allocation** - Visualize and manage asset allocation across different categories
@@ -152,10 +161,21 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the a
 ledger/
 ├── app/                      # Next.js App Router
 │   ├── _actions/            # Server Actions
+│   │   ├── ai_insights.ts   # AI financial insights generation
+│   │   ├── ai_reports.ts    # AI report generation
+│   │   ├── ai_search.ts     # Natural language search
+│   │   ├── ai_suggestions.ts # Smart naming suggestions
+│   │   └── ai_transaction.ts # AI transaction parsing
 │   ├── _components/         # Shared React components
+│   │   ├── AIChatAssistant.tsx # Floating AI chat
+│   │   ├── AIInsights.tsx   # Financial insights widget
+│   │   ├── AINameSuggestion.tsx # Smart naming component
+│   │   └── AITransactionSearch.tsx # Natural language search
 │   ├── _utils/              # Utility functions
+│   │   └── ai_helper.ts     # AI utility functions
 │   ├── accounts/            # Account management pages
 │   ├── ai-transaction/      # AI-powered transaction creation
+│   ├── reports/             # AI report generation pages
 │   ├── allocations/         # Portfolio allocation views
 │   ├── api/                 # API routes
 │   ├── assets/              # Asset management pages
@@ -220,8 +240,9 @@ The application uses a robust double-entry bookkeeping system with the following
 3. Add line items with account, asset, and quantity
 4. The system automatically maintains double-entry integrity
 
-### AI-Powered Transaction Creation
+### AI-Powered Features
 
+#### AI Transaction Creation
 1. Go to **AI Transaction**
 2. Describe your transaction in natural language (e.g., "I spent ₹500 on groceries")
 3. The AI will parse and create the transaction with appropriate accounts
@@ -230,6 +251,42 @@ The application uses a robust double-entry bookkeeping system with the following
    - Transaction Parsing tokens (used for each request)
    - Context Status indicator (showing if cached data was used)
    - Grand Total token count for cost tracking
+
+#### AI Financial Insights
+1. View the **AI Insights** widget on the homepage
+2. Get personalized analysis of your spending patterns
+3. Receive actionable recommendations
+4. Refresh anytime for updated insights
+5. Insights are cached for 1 hour for optimal performance
+
+#### AI Chat Assistant
+1. Click the floating AI button in the bottom-right corner
+2. Ask questions about your finances:
+   - "What's my current financial status?"
+   - "Show me my top expense categories"
+   - "How much do I have in investments?"
+3. Get instant, context-aware responses
+4. Use suggested questions for quick insights
+
+#### Natural Language Search
+1. Go to **Transactions** page
+2. Use the AI search box at the top
+3. Enter queries in plain English:
+   - "groceries last month"
+   - "expenses over ₹1000"
+   - "all bank transactions this year"
+4. View interpreted search and results instantly
+
+#### AI Reports
+1. Navigate to **Reports** page
+2. Choose from 4 report types:
+   - **Monthly Summary** - Complete financial overview
+   - **Spending Analysis** - Detailed spending breakdown
+   - **Allocation Report** - Budget allocation analysis
+   - **Income vs Expenses** - Comparative trends
+3. Select month and year
+4. Generate comprehensive AI-written reports
+5. Copy reports for external use
 
 **Optimization Benefits:**
 - **Reduced Token Usage** - Context (accounts, assets) is cached for 24 hours
