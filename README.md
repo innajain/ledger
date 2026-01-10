@@ -64,7 +64,7 @@ A modern, full-stack personal finance management application built with Next.js,
 
 ### Backend
 - **[Prisma 7](https://www.prisma.io/)** - Type-safe ORM
-- **[PostgreSQL](https://www.postgresql.org/)** - Primary database
+- **[PostgreSQL](https://www.postgresql.org/)** - Primary database ([Why PostgreSQL?](docs/DATABASE_EVALUATION.md))
 - **[Neon Database](https://neon.tech/)** - Serverless Postgres
 - **[Redis](https://redis.io/)** - Caching layer (via ioredis)
 
@@ -210,6 +210,17 @@ The application uses a robust double-entry bookkeeping system with the following
 - ✅ Support for decimal precision (14,4)
 - ✅ Cascade deletion for data integrity
 - ✅ Optimized indexes for performance
+
+### Why PostgreSQL?
+
+PostgreSQL is the optimal database choice for this application due to:
+- **ACID Compliance** - Essential for financial data integrity
+- **Relational Model** - Perfect fit for double-entry bookkeeping
+- **Foreign Keys** - Native support for referential integrity
+- **Decimal Precision** - Exact financial calculations without floating-point errors
+- **Mature Ecosystem** - Excellent Prisma ORM support
+
+📖 **[Read the full database evaluation](docs/DATABASE_EVALUATION.md)** for a comprehensive comparison of PostgreSQL vs MongoDB and other alternatives.
 
 ## 🎯 Usage Examples
 
