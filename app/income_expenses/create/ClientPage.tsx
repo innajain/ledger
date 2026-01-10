@@ -3,21 +3,23 @@
 import { useState } from 'react';
 import { create_account } from '@/app/_actions/resources';
 import type { Prisma } from '@/generated/prisma/client';
-import { PageHeader, FormCard, TextInput, ParentSelect, FormActions } from '@/app/_components/AccountFormComponents';
+import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents';
 
 export default function ClientPage({ parents }: { parents: Prisma.accountGetPayload<{}>[] }) {
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     setBusy(true);
     try {
       await create_account(name, 'nominal', parentId ?? undefined);
       window.location.href = '/income_expenses';
     } catch (err: any) {
-      alert('Failed: ' + (err?.message ?? String(err)));
+      setError(err?.message ?? String(err));
     } finally {
       setBusy(false);
     }
@@ -39,6 +41,8 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
             helpText="Select a parent to create a sub-account"
           />
         </FormCard>
+
+        {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
         <FormActions cancelLink="/income_expenses" submitText={busy ? 'Creating...' : 'Create Account'} busy={busy} />
       </form>

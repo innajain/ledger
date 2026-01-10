@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { update_account } from '@/app/_actions/resources';
 import type { Prisma } from '@/generated/prisma/client';
-import { PageHeader, FormCard, TextInput, ParentSelect, FormActions } from '@/app/_components/AccountFormComponents';
+import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents';
 
 export default function ClientPage({
   account,
@@ -17,28 +17,34 @@ export default function ClientPage({
   const [name, setName] = useState(account.name);
   const [parentId, setParentId] = useState<string | null>(account.parent_id ?? null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onUpdate(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     setBusy(true);
     try {
       await update_account(account.id, name, 'real', parentId);
       window.location.href = '/accounts';
     } catch (err: any) {
-      alert('Failed: ' + (err?.message ?? String(err)));
+      setError(err?.message ?? String(err));
     } finally {
       setBusy(false);
     }
   }
 
   async function onDelete() {
-    if (!deleteAccount) return alert('Delete not available');
+    if (!deleteAccount) {
+      setError('Delete operation is not available');
+      return;
+    }
     if (!confirm('Delete this account? This action cannot be undone.')) return;
+    setError(null);
     try {
       await deleteAccount(account.id);
       window.location.href = '/accounts';
     } catch (err: any) {
-      alert('Delete failed: ' + (err?.message ?? String(err)));
+      setError('Delete failed: ' + (err?.message ?? String(err)));
     }
   }
 
@@ -59,6 +65,8 @@ export default function ClientPage({
             helpText="Select a parent to create a sub-account"
           />
         </FormCard>
+
+        {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
         <FormActions
           cancelLink="/accounts"
