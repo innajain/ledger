@@ -66,7 +66,16 @@ Current date: ${new Date().toISOString().split('T')[0]}`;
       };
     }
 
-    const parsedParams = result.data;
+    const parsedParams = result.data as {
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      minAmount?: number;
+      maxAmount?: number;
+      accountIds?: string[];
+      assetIds?: string[];
+      explanation?: string;
+    };
 
     // Build Prisma query
     const where: Record<string, unknown> = {
@@ -85,25 +94,25 @@ Current date: ${new Date().toISOString().split('T')[0]}`;
     }
 
     if (parsedParams.dateFrom || parsedParams.dateTo) {
-      where.date = {};
+      where.datetime = {};
       if (parsedParams.dateFrom) {
-        where.date.gte = new Date(parsedParams.dateFrom);
+        (where.datetime as Record<string, unknown>).gte = new Date(parsedParams.dateFrom);
       }
       if (parsedParams.dateTo) {
-        where.date.lte = new Date(parsedParams.dateTo);
+        (where.datetime as Record<string, unknown>).lte = new Date(parsedParams.dateTo);
       }
     }
 
     // Account or asset filters
-    if (parsedParams.accountIds?.length > 0 || parsedParams.assetIds?.length > 0) {
+    if ((parsedParams.accountIds && parsedParams.accountIds.length > 0) || (parsedParams.assetIds && parsedParams.assetIds.length > 0)) {
       where.line_items = {
         some: {
           AND: [
             { account: { user_id: user.id } },
-            ...(parsedParams.accountIds?.length > 0
+            ...(parsedParams.accountIds && parsedParams.accountIds.length > 0
               ? [{ account_id: { in: parsedParams.accountIds } }]
               : []),
-            ...(parsedParams.assetIds?.length > 0
+            ...(parsedParams.assetIds && parsedParams.assetIds.length > 0
               ? [{ asset_id: { in: parsedParams.assetIds } }]
               : []),
           ],
@@ -121,7 +130,7 @@ Current date: ${new Date().toISOString().split('T')[0]}`;
           },
         },
       },
-      orderBy: { date: 'desc' },
+      orderBy: { datetime: 'desc' },
       take: 50,
     });
 
@@ -144,7 +153,7 @@ Current date: ${new Date().toISOString().split('T')[0]}`;
       data: {
         transactions: filteredTransactions.map(t => ({
           id: t.id,
-          date: t.date,
+          date: t.datetime,
           description: t.description,
           line_items: t.line_items.map(li => ({
             account_name: li.account.name,

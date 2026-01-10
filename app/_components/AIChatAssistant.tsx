@@ -56,7 +56,7 @@ export default function AIChatAssistant() {
 
       const assistantMessage: Message = {
         role: 'assistant',
-        content: result.success ? result.data : `I encountered an error: ${result.message}`,
+        content: result.success ? (result.data as string) : `I encountered an error: ${result.message}`,
         timestamp: new Date(),
       };
 

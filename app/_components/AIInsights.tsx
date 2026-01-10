@@ -27,7 +27,7 @@ export default function AIInsights() {
     try {
       const result = await generate_financial_insights();
       if (result.success && result.data) {
-        setInsights(result.data);
+        setInsights(result.data as InsightsData);
       } else {
         setError(result.message);
       }

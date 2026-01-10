@@ -35,7 +35,7 @@ export async function generate_financial_report(type: ReportType, options?: { mo
             account: { user_id: user.id },
           },
         },
-        date: {
+        datetime: {
           gte: startDate,
           lte: endDate,
         },
@@ -48,7 +48,7 @@ export async function generate_financial_report(type: ReportType, options?: { mo
           },
         },
       },
-      orderBy: { date: 'desc' },
+      orderBy: { datetime: 'desc' },
     });
 
     const accounts = await prisma.account.findMany({
@@ -57,7 +57,7 @@ export async function generate_financial_report(type: ReportType, options?: { mo
         line_items: {
           where: {
             transaction: {
-              date: {
+              datetime: {
                 gte: startDate,
                 lte: endDate,
               },
@@ -71,7 +71,24 @@ export async function generate_financial_report(type: ReportType, options?: { mo
     });
 
     // Calculate statistics
-    const stats = calculateStatistics(transactions, accounts);
+    const stats = calculateStatistics(
+      transactions as Array<{
+        description: string | null;
+        datetime: Date;
+        line_items: Array<{
+          account: { name: string; type: string } & Record<string, unknown>;
+          asset: { name: string } & Record<string, unknown>;
+          book_value: number | null;
+        } & Record<string, unknown>>;
+      } & Record<string, unknown>>,
+      accounts as Array<{
+        type: string;
+        name: string;
+        line_items: Array<{
+          book_value: number | null;
+        } & Record<string, unknown>>;
+      } & Record<string, unknown>>
+    );
 
     // Generate AI report
     let systemPrompt = '';
@@ -153,19 +170,21 @@ Data:
 
 function calculateStatistics(
   transactions: Array<{
+    description: string | null;
+    datetime: Date;
     line_items: Array<{
-      account: { name: string; type: string };
-      asset: { name: string };
+      account: { name: string; type: string } & Record<string, unknown>;
+      asset: { name: string } & Record<string, unknown>;
       book_value: number | null;
-    }>;
-  }>,
+    } & Record<string, unknown>>;
+  } & Record<string, unknown>>,
   accounts: Array<{
     type: string;
     name: string;
     line_items: Array<{
       book_value: number | null;
-    }>;
-  }>
+    } & Record<string, unknown>>;
+  } & Record<string, unknown>>
 ) {
   let totalIncome = 0;
   let totalExpenses = 0;
@@ -236,7 +255,7 @@ function calculateStatistics(
 
   const transactionSummary = transactions
     .slice(0, 10)
-    .map(t => `${t.description || 'No description'} - ${new Date(t.date).toLocaleDateString()}`)
+    .map(t => `${t.description || 'No description'} - ${new Date(t.datetime).toLocaleDateString()}`)
     .join(', ');
 
   return {

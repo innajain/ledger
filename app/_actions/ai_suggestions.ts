@@ -128,7 +128,7 @@ export async function suggest_transaction_categories(description: string) {
           },
         },
       },
-      orderBy: { date: 'desc' },
+      orderBy: { datetime: 'desc' },
       take: 50,
     });
 

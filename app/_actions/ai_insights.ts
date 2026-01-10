@@ -17,7 +17,6 @@ export async function generate_financial_insights() {
         include: {
           line_items: {
             include: { asset: true },
-            orderBy: { transaction: { date: 'desc' } },
             take: 100,
           },
         },
@@ -38,7 +37,7 @@ export async function generate_financial_insights() {
             },
           },
         },
-        orderBy: { date: 'desc' },
+        orderBy: { datetime: 'desc' },
         take: 50,
       }),
       prisma.account.findMany({
@@ -124,7 +123,7 @@ Top Income Sources (last 20 transactions):
 ${topIncome.join('\n') || 'No income recorded'}
 
 Recent Transaction Descriptions:
-${transactions.slice(0, 10).map(t => `- ${t.description || 'No description'} (${new Date(t.date).toLocaleDateString()})`).join('\n')}
+${transactions.slice(0, 10).map(t => `- ${t.description || 'No description'} (${new Date(t.datetime).toLocaleDateString()})`).join('\n')}
 `;
 
     const systemPrompt = `You are a personal finance advisor analyzing a user's financial data from their ledger application. 
@@ -203,7 +202,7 @@ export async function ask_financial_question(question: string) {
             },
           },
         },
-        orderBy: { date: 'desc' },
+        orderBy: { datetime: 'desc' },
         take: 20,
       }),
     ]);

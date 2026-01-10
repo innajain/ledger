@@ -37,10 +37,16 @@ export default function AINameSuggestion({ type, accountType, assetType, onSelec
       }
 
       if (result.success && result.data) {
-        setSuggestions(result.data.suggestions || []);
-        setRecommended(result.data.recommended || '');
-        setParentSuggestion(result.data.parentSuggestion || null);
-        setTickerSuggestion(result.data.tickerSuggestion || null);
+        const data = result.data as {
+          suggestions?: string[];
+          recommended?: string;
+          parentSuggestion?: string | null;
+          tickerSuggestion?: string | null;
+        };
+        setSuggestions(data.suggestions || []);
+        setRecommended(data.recommended || '');
+        setParentSuggestion(data.parentSuggestion || null);
+        setTickerSuggestion(data.tickerSuggestion || null);
         setShowSuggestions(true);
       }
     } catch (error) {
