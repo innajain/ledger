@@ -6,6 +6,7 @@ import { ThemeProvider } from './_components/ThemeProvider';
 import { ToastProvider } from './_components/Toast';
 import { BackToTop } from './_components/BackToTop';
 import { KeyboardShortcuts } from './_components/KeyboardShortcuts';
+import AIChatAssistant from './_components/AIChatAssistant';
 import './globals.css';
 import Link from 'next/link';
 
@@ -88,6 +89,7 @@ export default async function RootLayout({
             </div>
             <BackToTop />
             {user && <KeyboardShortcuts />}
+            {user && <AIChatAssistant />}
           </ToastProvider>
         </ThemeProvider>
       </body>

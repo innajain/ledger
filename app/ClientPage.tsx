@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { currency_fmt } from './_utils/currency formatter';
+import AIInsights from './_components/AIInsights';
 
 const WELCOME_MESSAGES = [
   'Welcome back! Ready to crush your financial goals? 💪',
@@ -46,6 +47,13 @@ export default function ClientPage({
         <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">{welcomeMessage}</h1>
         <p className="text-slate-600 dark:text-slate-400">Your financial overview and quick actions</p>
       </div>
+
+      {/* AI Insights */}
+      {allocations.length > 0 && (
+        <div className="stagger-item">
+          <AIInsights />
+        </div>
+      )}
 
       {/* Key Allocations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

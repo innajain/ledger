@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { currency_fmt } from '../_utils/currency formatter';
 import { PageHeader } from '../_components/PageHeader';
 import { EmptyState } from '../_components/EmptyState';
+import AITransactionSearch from '../_components/AITransactionSearch';
 
 type Transaction = { id: string; date: Date; description: string | null; total_book: number };
 
@@ -85,6 +86,9 @@ export default function ClientPage({
   return (
     <div className="space-y-6">
       <PageHeader title="Transactions" description="View and manage all your transactions" createUrl="/transactions/create" createLabel="+ New Transaction" />
+
+      {/* AI Search Section */}
+      <AITransactionSearch />
 
       {/* Search and Filter Section */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 transition-colors">
