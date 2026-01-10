@@ -83,8 +83,12 @@ export default function ClientPage({
         description: it.description === '' ? null : it.description,
         datetime: it.datetime === '' ? null : new Date(it.datetime),
       }));
-      await create_transaction(new Date(date), line_items, description || null);
-      window.location.href = '/transactions';
+      const result = await create_transaction(new Date(date), line_items, description || null);
+      if (result.success) {
+        window.location.href = '/transactions';
+      } else {
+        setError(result.message);
+      }
     } catch (err: any) {
       setError(err?.message ?? String(err));
     } finally {

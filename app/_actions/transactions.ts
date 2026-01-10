@@ -13,42 +13,46 @@ export type CreateLineItemInput = {
   datetime?: Date | null | undefined;
 };
 
-export async function create_transaction(datetime: Date, line_items: CreateLineItemInput[], description?: string | null | undefined) {
-  if (line_items.length === 0) throw new Error('line_items are required');
-  if (line_items.some(li => new Prisma.Decimal(li.quantity).equals(0))) throw new Error('quantity cannot be zero in any line item');
-  if (description) description = description.trim();
-  if (description === '') description = null;
-  line_items.forEach(li => {
-    if (li.description) li.description = li.description.trim();
-    if (li.description === '') li.description = null;
-  });
+export async function create_transaction(datetime: Date, line_items: CreateLineItemInput[], description?: string | null | undefined): Promise<{ success: boolean; message: string }> {
+  try {
+    if (line_items.length === 0) throw new Error('At least one line item is required');
+    if (line_items.some(li => new Prisma.Decimal(li.quantity).equals(0))) throw new Error('Quantity cannot be zero in any line item');
+    if (description) description = description.trim();
+    if (description === '') description = null;
+    line_items.forEach(li => {
+      if (li.description) li.description = li.description.trim();
+      if (li.description === '') li.description = null;
+    });
 
-  const user = await get_current_user();
-  if (!user) throw new Error('unauthorized');
+    const user = await get_current_user();
+    if (!user) throw new Error('You must be logged in to create transactions');
 
-  await prisma.$transaction(async prisma => {
-    const account_ids = Array.from(new Set(line_items.map(li => li.account_id)));
-    const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)));
+    await prisma.$transaction(async prisma => {
+      const account_ids = Array.from(new Set(line_items.map(li => li.account_id)));
+      const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)));
 
-    const accounts = await prisma.account.findMany({ where: { id: { in: account_ids }, user_id: user.id } });
-    if (accounts.length !== account_ids.length) throw new Error('one or more accounts not found');
+      const accounts = await prisma.account.findMany({ where: { id: { in: account_ids }, user_id: user.id } });
+      if (accounts.length !== account_ids.length) throw new Error('One or more accounts not found or do not belong to your user');
 
-    const assets = await prisma.asset.findMany({ where: { id: { in: asset_ids }, user_id: user.id } });
-    if (assets.length !== asset_ids.length) throw new Error('one or more assets not found');
+      const assets = await prisma.asset.findMany({ where: { id: { in: asset_ids }, user_id: user.id } });
+      if (assets.length !== asset_ids.length) throw new Error('One or more assets not found or do not belong to your user');
 
-    // Build maps for account types
-    const account_by_id = new Map(accounts.map(a => [a.id, a]));
-    const asset_by_id = new Map(assets.map(a => [a.id, a]));
+      // Build maps for account types
+      const account_by_id = new Map(accounts.map(a => [a.id, a]));
+      const asset_by_id = new Map(assets.map(a => [a.id, a]));
 
-    for (const li of line_items) {
-      if (!(asset_by_id.get(li.asset_id)!.type === asset_type.rupees)) {
-        if (li.book_value == null) throw new Error('book_value is required for rupees type assets');
-      } else {
-        if (li.book_value != null) {
-          throw new Error('book_value must be null for rupees type assets');
+      for (const li of line_items) {
+        const asset = asset_by_id.get(li.asset_id)!;
+        // For non-rupees assets (stocks, ETFs, etc.), book_value is required
+        if (asset.type !== asset_type.rupees) {
+          if (li.book_value == null) throw new Error(`Book value is required for non-currency asset "${asset.name}"`);
+        } else {
+          // For rupees, book_value must be null (quantity is the value)
+          if (li.book_value != null) {
+            throw new Error(`Book value must not be specified for currency asset "${asset.name}" (quantity is the value)`);
+          }
         }
       }
-    }
 
     // Invariant checks
     // 1) For each asset: sum(quantity) in real accounts == sum(quantity) in allocation accounts == sum(quantity) in nominal accounts
@@ -93,17 +97,16 @@ export async function create_transaction(datetime: Date, line_items: CreateLineI
       const alloc_qty = qty_by_asset_alloc.get(asset_id) ?? new Prisma.Decimal(0);
       const nominal_qty = qty_by_asset_nominal.get(asset_id) ?? new Prisma.Decimal(0);
       if (!real_qty.equals(alloc_qty) || !real_qty.equals(nominal_qty)) {
+        const asset = asset_by_id.get(asset_id)!;
         throw new Error(
-          `quantity mismatch for asset ${
-            asset_by_id.get(asset_id)!.name
-          }: real=${real_qty.toString()} allocation=${alloc_qty.toString()} nominal=${nominal_qty.toString()}`
+          `Transaction is not balanced for asset "${asset.name}": Real accounts total ${real_qty.toString()}, Allocation accounts total ${alloc_qty.toString()}, Nominal accounts total ${nominal_qty.toString()}. All three must be equal.`
         );
       }
     }
 
     // Check invariant 2: sum(value) in real == nominal == allocation
     if (!sum_value_real.equals(sum_value_nominal) || !sum_value_real.equals(sum_value_alloc)) {
-      throw new Error('invariant failed: sum(value) in real, nominal, and allocation must be equal');
+      throw new Error(`Transaction is not balanced by value: Real accounts total ${sum_value_real.toString()}, Allocation accounts total ${sum_value_alloc.toString()}, Nominal accounts total ${sum_value_nominal.toString()}. All three must be equal.`);
     }
 
     // All checks passed — create the transaction with nested line_items
@@ -125,6 +128,18 @@ export async function create_transaction(datetime: Date, line_items: CreateLineI
       },
     });
   });
+
+  return {
+    success: true,
+    message: 'Transaction created successfully',
+  };
+  } catch (error) {
+    console.error('Error creating transaction:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to create transaction',
+    };
+  }
 }
 
 export async function delete_transaction(id: string): Promise<void> {
