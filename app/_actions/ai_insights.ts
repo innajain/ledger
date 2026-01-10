@@ -116,11 +116,9 @@ Financial Summary:
 - Number of Allocation Accounts: ${allocations.length}
 - Recent Transactions: ${transactions.length}
 
-Top Expense Categories (last 20 transactions):
-${topExpenses.join('\n') || 'No expenses recorded'}
+${topExpenses.length > 0 ? `Top Expense Categories (last 20 transactions):\n${topExpenses.join('\n')}` : ''}
 
-Top Income Sources (last 20 transactions):
-${topIncome.join('\n') || 'No income recorded'}
+${topIncome.length > 0 ? `Top Income Sources (last 20 transactions):\n${topIncome.join('\n')}` : ''}
 
 Recent Transaction Descriptions:
 ${transactions.slice(0, 10).map(t => `- ${t.description || 'No description'} (${new Date(t.datetime).toLocaleDateString()})`).join('\n')}
@@ -129,14 +127,16 @@ ${transactions.slice(0, 10).map(t => `- ${t.description || 'No description'} (${
     const systemPrompt = `You are a personal finance advisor analyzing a user's financial data from their ledger application. 
 The ledger uses a triple-entry bookkeeping system with real accounts (assets/liabilities), nominal accounts (income/expenses), and allocation accounts (budget categories).
 
-Provide 3-5 specific, actionable insights about their financial situation. Focus on:
-1. Spending patterns and trends
-2. Budget allocation effectiveness
-3. Potential savings opportunities
-4. Financial health indicators
-5. Unusual patterns or concerns
+IMPORTANT: Focus on analyzing the data that IS available. Do not create warnings about missing expense or income data unless the user has zero transactions. If expense/income categories are not shown in the summary, it means the recent transactions don't have those types of entries, not that the user isn't tracking finances.
 
-Be concise, friendly, and practical. Format your response as JSON with this structure:
+Provide 3-5 specific, actionable insights about their financial situation. Focus on:
+1. Spending patterns and trends (if expense data is available)
+2. Budget allocation effectiveness (based on allocation accounts)
+3. Asset distribution and growth
+4. Transaction patterns and frequency
+5. Positive behaviors and achievements
+
+Be concise, friendly, and practical. Emphasize positive insights and constructive suggestions. Format your response as JSON with this structure:
 {
   "insights": [
     {
