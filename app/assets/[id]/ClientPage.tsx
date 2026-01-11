@@ -38,7 +38,7 @@ type AssetForClient = {
   line_items?: LineItem[];
 };
 
-export default function ClientPage({ asset, currencyLocale, currency }: { asset: AssetForClient; currencyLocale: string; currency: string }) {
+export default function ClientPage({ asset }: { asset: AssetForClient }) {
   return (
     <div className="space-y-6">
       <ViewPageHeader
@@ -161,7 +161,7 @@ export default function ClientPage({ asset, currencyLocale, currency }: { asset:
         ) : (
           <div className="divide-y divide-slate-200">
             <div className="max-h-96 overflow-y-auto">
-              {(asset.line_items ?? []).map((li, i) => (
+              {(asset.line_items ?? []).map((li) => (
                 <div key={li.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">

@@ -5,7 +5,7 @@ import { create_asset } from '@/app/_actions/resources';
 import type { asset_type, Prisma } from '@/generated/prisma/client';
 import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents';
 
-export default function ClientPage({ parents }: { parents: Prisma.assetGetPayload<{}>[] }) {
+export default function ClientPage({ parents }: { parents: Prisma.assetGetPayload<Record<string, never>>[] }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<asset_type>('other');
   const [ticker, setTicker] = useState('');
@@ -20,8 +20,8 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
     try {
       await create_asset(name, type, ticker || undefined, parentId);
       window.location.href = '/assets';
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }

@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma';
-import Link from 'next/link';
 import { get_current_user } from '@/app/_actions/auth';
-import { get_price_for_asset, get_latest_etf_or_shares_price } from '@/app/_utils/price_fetcher';
+import { get_price_for_asset } from '@/app/_utils/price_fetcher';
 import { asset_type, Prisma } from '@/generated/prisma/client';
 import ClientPage from './ClientPage';
 
@@ -143,5 +142,5 @@ export default async function Page({ params }: Props) {
     breakdown,
   };
 
-  return <ClientPage allocation={allocationForClient} currencyLocale="en-IN" currency="INR" />;
+  return <ClientPage allocation={allocationForClient} />;
 }

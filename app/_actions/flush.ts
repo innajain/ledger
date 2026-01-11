@@ -9,7 +9,7 @@ export async function flush_redis() {
     // Flush all keys from the current Redis instance
     await redis.flushall();
     return { ok: true };
-  } catch (err: any) {
-    throw new Error(err?.message || String(err));
+  } catch (err: unknown) {
+    throw new Error(err instanceof Error ? err.message : String(err));
   }
 }

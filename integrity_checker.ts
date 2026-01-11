@@ -18,7 +18,7 @@ async function checkNoCycles(model: 'account' | 'asset'): Promise<Issue[]> {
     let pid: string | null = it.parent_id ?? null;
     while (pid) {
       if (seen.has(pid)) {
-        issues.push({ kind: 'error', message: `${model} cycle detected starting at ${it.id} (${(it as any).name})` });
+        issues.push({ kind: 'error', message: `${model} cycle detected starting at ${it.id} (${it.name})` });
         break;
       }
       seen.add(pid);
@@ -43,11 +43,11 @@ async function checkAssetTickersAndPrices(): Promise<Issue[]> {
       }
       try {
         const p = await get_price_for_asset(a.type, a.ticker ?? null);
-        if (!p || (p as any).price == null) {
+        if (!p || p.price == null) {
           // try nav for mf as extra
           if (a.type === 'mf') {
             const nav = await get_nav({ code: a.ticker ?? '' });
-            if (!nav || (nav as any).nav == null)
+            if (!nav || nav.nav == null)
               issues.push({ kind: 'error', message: `could not fetch price for asset ${a.id} (${a.name}) ticker=${a.ticker}` });
           } else {
             issues.push({ kind: 'error', message: `could not fetch price for asset ${a.id} (${a.name}) ticker=${a.ticker}` });
@@ -63,7 +63,7 @@ async function checkAssetTickersAndPrices(): Promise<Issue[]> {
       }
       try {
         const p = await get_latest_etf_or_shares_price(a.ticker ?? '');
-        if (!p || (p as any).close == null)
+        if (!p || p.close == null)
           issues.push({ kind: 'error', message: `could not fetch price for shares asset ${a.id} (${a.name}) ticker=${a.ticker}` });
       } catch (e) {
         issues.push({ kind: 'error', message: `price fetch error for shares asset ${a.id} (${a.name}) ticker=${a.ticker}: ${(e as Error).message}` });

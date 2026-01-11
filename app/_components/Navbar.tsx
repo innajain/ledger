@@ -1,19 +1,22 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
+
+// Subscribe function for useSyncExternalStore (no-op since we only care about the snapshot)
+const subscribe = () => () => {};
+// Snapshot functions
+const getServerSnapshot = () => false;
+const getClientSnapshot = () => true;
 
 export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -37,7 +40,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
           {/* Logo/Brand */}
           <Link href="/" className="flex items-center space-x-2 text-slate-900 dark:text-slate-100 hover:text-slate-700 dark:hover:text-slate-300 transition-all flex-shrink-0 group" onClick={closeMenu}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform">
-              <img src="/favicon.ico" alt="Ledger" className="w-6 h-6" />
+              <Image src="/favicon.ico" alt="Ledger" width={24} height={24} />
             </div>
             <span className="font-semibold text-lg">Ledger</span>
           </Link>

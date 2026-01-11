@@ -19,6 +19,12 @@ export function AnimatedCounter({
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   const hasAnimated = useRef(false);
+  const displayValueRef = useRef(displayValue);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    displayValueRef.current = displayValue;
+  }, [displayValue]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -47,7 +53,7 @@ export function AnimatedCounter({
     if (!isVisible) return;
 
     const startTime = Date.now();
-    const startValue = displayValue;
+    const startValue = displayValueRef.current;
     const difference = value - startValue;
 
     const animate = () => {

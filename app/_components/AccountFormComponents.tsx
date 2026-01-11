@@ -99,7 +99,7 @@ interface ParentSelectProps {
   label: string;
   value: string | null;
   onChange: (value: string | null) => void;
-  parents: Prisma.accountGetPayload<{}>[];
+  parents: Prisma.accountGetPayload<Record<string, never>>[];
   excludeId?: string;
   helpText?: string;
 }

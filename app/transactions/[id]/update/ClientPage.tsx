@@ -2,7 +2,24 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { account_type, asset_type } from '@/generated/prisma/enums';
+import { asset_type } from '@/generated/prisma/enums';
+import { CreateLineItemInput } from '@/app/_actions/transactions';
+
+type LineItem = {
+  id: string;
+  account_id: string;
+  account_name: string;
+  account_type: string;
+  asset_id: string;
+  asset_name: string;
+  quantity: number;
+  book_value: number | null;
+  current_value: number;
+  description?: string | null;
+  datetime?: Date | null;
+};
+
+type ItemGroup = { item: { account_id: string; asset_id: string; quantity: string; book_value: string; description: string; datetime: string }; idx: number };
 
 export default function ClientPage({
   transaction,
@@ -15,21 +32,11 @@ export default function ClientPage({
     date: Date;
     description: string | null;
     total: number;
-    line_items: {
-      id: string;
-      account_id: string;
-      account_name: string;
-      account_type: account_type;
-      asset_id: string;
-      asset_name: string;
-      quantity: number;
-      book_value: number | null;
-      current_value: number;
-    }[];
+    line_items: LineItem[];
   };
   accounts: { id: string; name: string; type: string }[];
   assets: { id: string; name: string; type: asset_type }[];
-  updateTransaction: any;
+  updateTransaction: (id: string, line_items: CreateLineItemInput[], datetime?: Date, description?: string | null) => Promise<{ success: boolean; message: string }>;
 }) {
   function toLocalDateTimeInputValue(d: Date | string) {
     const dt = typeof d === 'string' ? new Date(d) : d;
@@ -45,7 +52,7 @@ export default function ClientPage({
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(transaction.date));
   const [description, setDescription] = useState(transaction.description ?? '');
   const [items, setItems] = useState<Array<{ account_id: string; asset_id: string; quantity: string; book_value: string; description: string; datetime: string }>>(
-    transaction.line_items.map((li: any) => ({
+    transaction.line_items.map((li) => ({
       account_id: li.account_id,
       asset_id: li.asset_id,
       quantity: String(li.quantity ?? 0),
@@ -56,10 +63,6 @@ export default function ClientPage({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  function addItem() {
-    setItems(prev => [{ account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' }, ...prev]);
-  }
 
   function addItemForType(typeKey: string) {
     const defaultAcc = accounts.find(a => a.type === typeKey) ?? accounts[0];
@@ -89,15 +92,15 @@ export default function ClientPage({
       } else {
         setError(result.message);
       }
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
   }
 
   // Group items by account type
-  const groups: Record<string, any[]> = { real: [], allocation: [], nominal: [] };
+  const groups: Record<string, ItemGroup[]> = { real: [], allocation: [], nominal: [] };
   for (let idx = 0; idx < items.length; idx++) {
     const it = items[idx];
     const acc = accounts.find(a => a.id === it.account_id);

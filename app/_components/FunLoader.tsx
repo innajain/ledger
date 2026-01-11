@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 const LOADING_MESSAGES = [
   'Crunching numbers... 🔢',
@@ -14,26 +14,23 @@ const LOADING_MESSAGES = [
 ];
 
 export function FunLoader({ message }: { message?: string }) {
-  const [loadingMessage, setLoadingMessage] = useState('Loading...');
+  const getRandomMessage = useCallback(() => {
+    return LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
+  }, []);
+  
+  // Initialize message directly without using ref during render
+  const [loadingMessage, setLoadingMessage] = useState(() => message || getRandomMessage());
 
   useEffect(() => {
-    if (message) {
-      setLoadingMessage(message);
-    } else {
-      const randomMessage = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
-      setLoadingMessage(randomMessage);
-    }
-
-    // Rotate messages every 2 seconds
+    // Rotate messages every 2 seconds only if no specific message is provided
     if (!message) {
       const interval = setInterval(() => {
-        const randomMessage = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
-        setLoadingMessage(randomMessage);
+        setLoadingMessage(getRandomMessage());
       }, 2000);
 
       return () => clearInterval(interval);
     }
-  }, [message]);
+  }, [message, getRandomMessage]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">

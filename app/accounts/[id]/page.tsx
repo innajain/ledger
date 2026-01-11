@@ -148,5 +148,5 @@ export default async function Page({ params }: Props) {
     line_items: lineItemsWithValues,
   };
 
-  return <ClientPage account={accountForClient} currencyLocale="en-IN" currency="INR" />;
+  return <ClientPage account={accountForClient} />;
 }

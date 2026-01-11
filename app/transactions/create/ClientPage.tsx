@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { asset_type } from '@/generated/prisma/enums';
 import { create_transaction } from '@/app/_actions/transactions';
 
+type ItemGroup = { item: { account_id: string; asset_id: string; quantity: string; book_value: string; description: string; datetime: string }; idx: number };
+
 export default function ClientPage({
   accounts,
   assets,
@@ -57,10 +59,6 @@ export default function ClientPage({
     }
   })();
 
-  function addItem() {
-    setItems(prev => [{ account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' }, ...prev]);
-  }
-
   function addItemForType(typeKey: string) {
     const defaultAcc = accounts.find(a => a.type === typeKey) ?? accounts[0];
     setItems(prev => [{ account_id: defaultAcc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' }, ...prev]);
@@ -89,15 +87,15 @@ export default function ClientPage({
       } else {
         setError(result.message);
       }
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
   }
 
   // Group items by account type
-  const groups: Record<string, any[]> = { real: [], allocation: [], nominal: [] };
+  const groups: Record<string, ItemGroup[]> = { real: [], allocation: [], nominal: [] };
   for (let idx = 0; idx < items.length; idx++) {
     const it = items[idx];
     const acc = accounts.find(a => a.id === it.account_id);

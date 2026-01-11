@@ -1,7 +1,7 @@
 import ClientPage from './ClientPage';
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
-import { get_price_for_asset, get_latest_etf_or_shares_price } from '@/app/_utils/price_fetcher';
+import { get_price_for_asset } from '@/app/_utils/price_fetcher';
 import { asset_type, Prisma } from '@/generated/prisma/client';
 import { flush_redis } from '@/app/_actions/flush';
 import { log_out } from '@/app/_actions/auth';
@@ -72,5 +72,5 @@ export default async function Home() {
     allocationsForClient.push({ id: acc.id, name: acc.name, total: acc_total.toNumber() });
   }
 
-  return <ClientPage allocations={allocationsForClient} currencyLocale="en-IN" currency="INR" flushRedis={flush_redis} logOut={log_out} />;
+  return <ClientPage allocations={allocationsForClient} flushRedis={flush_redis} logOut={log_out} />;
 }
