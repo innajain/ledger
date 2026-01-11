@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { create_asset } from '@/app/_actions/resources';
 import type { asset_type, Prisma } from '@/generated/prisma/client';
-import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions } from '@/app/_components/AccountFormComponents';
+import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents';
 
 export default function ClientPage({ parents }: { parents: Prisma.assetGetPayload<{}>[] }) {
   const [name, setName] = useState('');
@@ -11,15 +11,17 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
   const [ticker, setTicker] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     setBusy(true);
     try {
       await create_asset(name, type, ticker || undefined, parentId);
       window.location.href = '/assets';
     } catch (err: any) {
-      alert('Failed: ' + (err?.message ?? String(err)));
+      setError(err?.message ?? String(err));
     } finally {
       setBusy(false);
     }
@@ -45,6 +47,8 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
             helpText="Select a parent to create a sub-asset"
           />
         </FormCard>
+
+        {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
         <FormActions cancelLink="/assets" submitText={busy ? 'Creating...' : 'Create Asset'} busy={busy} />
       </form>

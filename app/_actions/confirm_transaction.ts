@@ -55,7 +55,11 @@ export async function confirm_and_create_transaction(
 
     // Create the transaction
     const transactionDate = new Date(date);
-    await create_transaction(transactionDate, createLineItems, description);
+    const result = await create_transaction(transactionDate, createLineItems, description);
+
+    if (!result.success) {
+      throw new Error(result.message);
+    }
 
     return {
       success: true,

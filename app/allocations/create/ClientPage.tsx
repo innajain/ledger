@@ -3,21 +3,23 @@
 import { useState } from 'react';
 import { create_account } from '@/app/_actions/resources';
 import type { Prisma } from '@/generated/prisma/client';
-import { PageHeader, FormCard, TextInput, ParentSelect, FormActions } from '@/app/_components/AccountFormComponents';
+import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents';
 
 export default function ClientPage({ parents }: { parents: Prisma.accountGetPayload<{}>[] }) {
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     setBusy(true);
     try {
       await create_account(name, 'allocation', parentId ?? undefined);
       window.location.href = '/allocations';
     } catch (err: any) {
-      alert('Failed: ' + (err?.message ?? String(err)));
+      setError(err?.message ?? String(err));
     } finally {
       setBusy(false);
     }
@@ -44,6 +46,8 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
             helpText="Select a parent to create a sub-allocation"
           />
         </FormCard>
+
+        {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
         <FormActions cancelLink="/allocations" submitText={busy ? 'Creating...' : 'Create Allocation'} busy={busy} />
       </form>
