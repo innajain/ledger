@@ -10,6 +10,7 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
   const [type, setType] = useState<asset_type>('other');
   const [ticker, setTicker] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
+  const [isActive, setIsActive] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,7 +19,7 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
     setError(null);
     setBusy(true);
     try {
-      await create_asset(name, type, ticker || undefined, parentId);
+      await create_asset(name, type, ticker || undefined, parentId, isActive);
       window.location.href = '/assets';
     } catch (err: any) {
       setError(err?.message ?? String(err));
@@ -46,6 +47,19 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
             parents={parents}
             helpText="Select a parent to create a sub-asset"
           />
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Active</span>
+            </label>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Inactive assets can be archived and hidden from default views</p>
+          </div>
         </FormCard>
 
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}

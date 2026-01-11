@@ -7,6 +7,7 @@ import { PageHeader } from '../_components/PageHeader';
 import { TotalCard } from '../_components/TotalCard';
 import { EmptyState } from '../_components/EmptyState';
 import { currency_fmt } from '../_utils/currency formatter';
+import { useRouter } from 'next/navigation';
 
 type Props = {
   allocations: (Prisma.accountGetPayload<{ include: { parent: true } }> & {
@@ -18,10 +19,18 @@ type Props = {
   totals: Record<string, number>;
   assetQuantities: Record<string, Record<string, number>>;
   grand_total: number;
+  showInactive: boolean;
 };
 
-export default function ClientPage({ allocations, totals, assetQuantities, grand_total }: Props) {
+export default function ClientPage({ allocations, totals, assetQuantities, grand_total, showInactive }: Props) {
   const [expandAll, setExpandAll] = useState(false);
+  const router = useRouter();
+
+  const toggleShowInactive = () => {
+    const newShowInactive = !showInactive;
+    router.push(`/allocations${newShowInactive ? '?showInactive=true' : ''}`);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -47,12 +56,20 @@ export default function ClientPage({ allocations, totals, assetQuantities, grand
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Allocation Hierarchy</h2>
-            <button
-              onClick={() => setExpandAll(!expandAll)}
-              className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
-            >
-              {expandAll ? 'Collapse All' : 'Expand All'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={toggleShowInactive}
+                className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
+              >
+                {showInactive ? 'Hide Inactive' : 'Show Inactive'}
+              </button>
+              <button
+                onClick={() => setExpandAll(!expandAll)}
+                className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
+              >
+                {expandAll ? 'Collapse All' : 'Expand All'}
+              </button>
+            </div>
           </div>
           <HierarchyTree
             items={allocations}

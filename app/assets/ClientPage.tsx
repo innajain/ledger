@@ -7,6 +7,7 @@ import { PageHeader } from '../_components/PageHeader';
 import { TotalCard } from '../_components/TotalCard';
 import { EmptyState } from '../_components/EmptyState';
 import { currency_fmt } from '../_utils/currency formatter';
+import { useRouter } from 'next/navigation';
 
 // Lightweight shapes for client component
 type LineItemNumbered = {
@@ -27,11 +28,18 @@ type Props = {
   assets: AssetNumbered[];
   totals: Record<string, number>;
   grand_total: number;
+  showInactive: boolean;
 };
 
-export default function ClientPage({ assets, totals, grand_total }: Props) {
+export default function ClientPage({ assets, totals, grand_total, showInactive }: Props) {
   const [expandAll, setExpandAll] = useState(false);
+  const router = useRouter();
   const qtyFmt = (n: number) => n.toFixed(2);
+
+  const toggleShowInactive = () => {
+    const newShowInactive = !showInactive;
+    router.push(`/assets${newShowInactive ? '?showInactive=true' : ''}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -57,12 +65,20 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Asset Hierarchy</h2>
-            <button
-              onClick={() => setExpandAll(!expandAll)}
-              className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
-            >
-              {expandAll ? 'Collapse All' : 'Expand All'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={toggleShowInactive}
+                className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
+              >
+                {showInactive ? 'Hide Inactive' : 'Show Inactive'}
+              </button>
+              <button
+                onClick={() => setExpandAll(!expandAll)}
+                className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
+              >
+                {expandAll ? 'Collapse All' : 'Expand All'}
+              </button>
+            </div>
           </div>
           <HierarchyTree
             items={assets}

@@ -5,17 +5,17 @@ import { get_current_user } from '@/app/_actions/auth';
 import type { account_type, asset_type } from '@/generated/prisma/client';
 import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher';
 
-export async function create_account(name: string, type: account_type, parent_id?: string | null) {
+export async function create_account(name: string, type: account_type, parent_id?: string | null, is_active: boolean = true) {
   name = name.trim();
   if (name.length === 0) throw new Error('name cannot be empty string');
 
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
 
-  await prisma.account.create({ data: { name, type, user_id: user.id, parent_id } });
+  await prisma.account.create({ data: { name, type, user_id: user.id, parent_id, is_active } });
 }
 
-export async function update_account(id: string, name?: string | undefined, type?: account_type | undefined, parent_id?: string | null | undefined) {
+export async function update_account(id: string, name?: string | undefined, type?: account_type | undefined, parent_id?: string | null | undefined, is_active?: boolean | undefined) {
   if (id.length === 0) throw new Error('id is required');
   name = name?.trim();
   if (name !== undefined && name.length === 0) throw new Error('name cannot be empty string');
@@ -45,7 +45,7 @@ export async function update_account(id: string, name?: string | undefined, type
     }
   }
 
-  await prisma.account.update({ where: { id, user_id: user.id }, data: { name, type, parent_id } });
+  await prisma.account.update({ where: { id, user_id: user.id }, data: { name, type, parent_id, is_active } });
 }
 
 export async function delete_account(id: string): Promise<void> {
@@ -56,7 +56,7 @@ export async function delete_account(id: string): Promise<void> {
 }
 
 // Assets
-export async function create_asset(name: string, type: asset_type, ticker?: string | null | undefined, parent_id?: string | null | undefined) {
+export async function create_asset(name: string, type: asset_type, ticker?: string | null | undefined, parent_id?: string | null | undefined, is_active: boolean = true) {
   if (name.length === 0) throw new Error('name cannot be empty string');
 
   if (type === 'etf' || type === 'mf' || type === 'shares') {
@@ -73,7 +73,7 @@ export async function create_asset(name: string, type: asset_type, ticker?: stri
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
 
-  await prisma.asset.create({ data: { name, type, ticker, user_id: user.id, parent_id: parent_id } });
+  await prisma.asset.create({ data: { name, type, ticker, user_id: user.id, parent_id: parent_id, is_active } });
 }
 
 export async function update_asset(
@@ -81,7 +81,8 @@ export async function update_asset(
   name?: string | undefined,
   type?: asset_type | undefined,
   ticker?: string | null | undefined,
-  parent_id?: string | null | undefined
+  parent_id?: string | null | undefined,
+  is_active?: boolean | undefined
 ) {
   if (id.length === 0) throw new Error('id is required');
   if (name !== undefined && name.length === 0) throw new Error('name cannot be empty string');
@@ -111,7 +112,7 @@ export async function update_asset(
   }
 
   await prisma.$transaction(async prisma => {
-    const asset = await prisma.asset.update({ where: { id, user_id: user.id }, data: { name, type, ticker, parent_id } });
+    const asset = await prisma.asset.update({ where: { id, user_id: user.id }, data: { name, type, ticker, parent_id, is_active } });
     if (type === 'etf' || type === 'mf' || type === 'shares') {
       if (!asset.ticker || asset.ticker.length === 0) throw new Error('ticker is required for asset type ' + type);
       if (type === 'mf') {

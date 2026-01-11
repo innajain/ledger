@@ -16,6 +16,7 @@ export default function ClientPage({
 }) {
   const [name, setName] = useState(account.name);
   const [parentId, setParentId] = useState<string | null>(account.parent_id ?? null);
+  const [isActive, setIsActive] = useState(account.is_active);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +25,7 @@ export default function ClientPage({
     setError(null);
     setBusy(true);
     try {
-      await update_account(account.id, name, 'real', parentId);
+      await update_account(account.id, name, 'real', parentId, isActive);
       window.location.href = '/accounts';
     } catch (err: any) {
       setError(err?.message ?? String(err));
@@ -64,6 +65,19 @@ export default function ClientPage({
             excludeId={account.id}
             helpText="Select a parent to create a sub-account"
           />
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Active</span>
+            </label>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Inactive accounts can be archived and hidden from default views</p>
+          </div>
         </FormCard>
 
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}

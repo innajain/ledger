@@ -14,7 +14,10 @@ export const metadata: Metadata = {
   description: 'View and manage all your financial assets',
 };
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ showInactive?: string }> }) {
+  const params = await searchParams;
+  const showInactive = params.showInactive === 'true';
+  
   const user = await get_current_user();
   if (!user) {
     return (
@@ -27,7 +30,10 @@ export default async function Page() {
 
   // fetch assets with their line_items
   const assets = await prisma.asset.findMany({
-    where: { user_id: user.id },
+    where: { 
+      user_id: user.id,
+      ...(showInactive ? {} : { is_active: true })
+    },
     include: { line_items: { include: { asset: true, account: true } }, parent: true },
   });
 
@@ -101,6 +107,7 @@ export default async function Page() {
       }))}
       totals={totalsByAsset}
       grand_total={grand_total.toNumber()}
+      showInactive={showInactive}
     />
   );
 }
