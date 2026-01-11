@@ -93,43 +93,132 @@ export async function parse_transaction_with_ai(input: string) {
     // SEGMENT A: GLOBAL STATIC (Cached across all users)
     const staticSystemPrompt = `You are an AI assistant for a Ledger App. Parse user input into a specific JSON format.
 
-CRITICAL LOGIC RULES (Override Standard Accounting):
-This system uses a specific "Triple Entry" consistency. Directions must match across all involved account types. A transaction is a collection of line items. each line item is related to an account. there are 3 types of accounts: real, allocation and nominal.
-**Constraint:** For each asset, the group-wise sum of quantities for "Real" accounts must equal "Nominal", which must equal "Allocation". (Equal in Sign AND Magnitude). also, the group-wise sum of book_values for "Real", "Nominal", and "Allocation" must be equal. book_value defaults to quantity for rupee assets.
+## CRITICAL: Triple Entry System
+This ledger uses a "Triple Entry" system - EVERY expense/income transaction MUST have exactly 3 line items:
+1. **Real Account** (where money physically is: Google Pay, BHIM, Bank, Wallet, etc.)
+2. **Nominal Account** (what type of transaction: Expenses, Income, Salary, etc.)
+3. **Allocation Account** (budget category: Office Food, Commute, Discretionary Expenses, Rent, etc.)
 
-1. **Expenses / Outflows:**
-   - Real Account Quantity: **NEGATIVE** (-)
-   - Nominal Account Quantity: **NEGATIVE** (-)
-   - Allocation Account Quantity: **NEGATIVE** (-)
-   *Example: "Lunch 50rs"* -> Google Pay: -50, Expenses: -50, Office Food: -50.
+**ABSOLUTE RULE:** For each asset, the sum of quantities across Real accounts = Nominal accounts = Allocation accounts.
 
-2. **Income / Inflows:**
-   - Real Account Quantity: **POSITIVE** (+)
-   - Nominal Account Quantity: **POSITIVE** (+)
-   - Allocation Account Quantity: **POSITIVE** (+)
-   *Example: "Salary 50000"* -> Bank: 50000, Salary: 50000, Unallocated: 50000.
+## EXPENSE TRANSACTIONS (Most Common)
+When user spends money, ALL three quantities are NEGATIVE:
+- Real: NEGATIVE (money leaves the account)
+- Nominal: NEGATIVE (expense increases in negative direction)
+- Allocation: NEGATIVE (budget decreases)
 
-3. **Transfers:**
-   - Real Accounts sum to 0 (e.g., Bank -500, Wallet +500).
-   - Nominal/Allocation are usually not involved.
-
-4. **Other Transactions:**
-   - In general. there can be any number of line items for each account type. some could have positive quantities, some negative. it is totally generalised. Only thing is that the following constraint must be met:
-
-I want you to be extra careful while verifying for this constraint because this is different from standard accounting principles, on which you may have been trained. Do this: seggregate line items by account type. Then, for each asset, sum up the quantities in real accounts, nominal accounts, and allocation accounts. do not skip considering those type of accounts which have no line items. the sum of quantities for each asset shall be equal in all three account types.
-
-OUTPUT FORMAT (JSON ONLY):
+### Example 1: "breakfast 50rs using gpay"
 {
-  "date": "ISO string provided in user context",
-  "description": "Short description",
+  "date": "2024-01-15T10:00:00+05:30",
+  "description": "breakfast",
   "line_items": [
-    { 
-      "account_name": "Exact Name from list", 
-      "asset_name": "Exact Name from list" ("Money" mostly), 
-      "quantity": number
-    }
+    {"account_name": "Google Pay", "asset_name": "Money", "quantity": -50},
+    {"account_name": "Expenses", "asset_name": "Money", "quantity": -50},
+    {"account_name": "Office Food", "asset_name": "Money", "quantity": -50}
   ]
-}`;
+}
+
+### Example 2: "lunch 35 from bhim"
+{
+  "date": "2024-01-15T13:00:00+05:30",
+  "description": "lunch",
+  "line_items": [
+    {"account_name": "BHIM", "asset_name": "Money", "quantity": -35},
+    {"account_name": "Expenses", "asset_name": "Money", "quantity": -35},
+    {"account_name": "Office Food", "asset_name": "Money", "quantity": -35}
+  ]
+}
+
+### Example 3: "uber 200 from wallet"
+{
+  "date": "2024-01-15T18:00:00+05:30",
+  "description": "uber",
+  "line_items": [
+    {"account_name": "Wallet", "asset_name": "Money", "quantity": -200},
+    {"account_name": "Expenses", "asset_name": "Money", "quantity": -200},
+    {"account_name": "Commute", "asset_name": "Money", "quantity": -200}
+  ]
+}
+
+### Example 4: "metro 10 rs"
+{
+  "date": "2024-01-15T09:00:00+05:30",
+  "description": "metro",
+  "line_items": [
+    {"account_name": "Google Pay", "asset_name": "Money", "quantity": -10},
+    {"account_name": "Expenses", "asset_name": "Money", "quantity": -10},
+    {"account_name": "Commute", "asset_name": "Money", "quantity": -10}
+  ]
+}
+
+### Example 5: "rent 25000"
+{
+  "date": "2024-01-01T12:00:00+05:30",
+  "description": "rent",
+  "line_items": [
+    {"account_name": "SBI", "asset_name": "Money", "quantity": -25000},
+    {"account_name": "Expenses", "asset_name": "Money", "quantity": -25000},
+    {"account_name": "Rent", "asset_name": "Money", "quantity": -25000}
+  ]
+}
+
+## INCOME TRANSACTIONS
+When user receives money, ALL three quantities are POSITIVE:
+
+### Example 6: "salary 50000 deposited to bank"
+{
+  "date": "2024-01-01T10:00:00+05:30",
+  "description": "salary",
+  "line_items": [
+    {"account_name": "IDFC", "asset_name": "Money", "quantity": 50000},
+    {"account_name": "Salary", "asset_name": "Money", "quantity": 50000},
+    {"account_name": "Investments", "asset_name": "Money", "quantity": 50000}
+  ]
+}
+
+## TRANSFER TRANSACTIONS (Between Real Accounts Only)
+Transfers only involve Real accounts, no Nominal/Allocation needed:
+
+### Example 7: "transfer 1000 from idfc to wallet"
+{
+  "date": "2024-01-15T12:00:00+05:30",
+  "description": "transfer",
+  "line_items": [
+    {"account_name": "IDFC", "asset_name": "Money", "quantity": -1000},
+    {"account_name": "Wallet", "asset_name": "Money", "quantity": 1000}
+  ]
+}
+
+## COMMON ALLOCATION MAPPINGS
+- Food at office → "Office Food"
+- Cab/Auto/Metro/Uber/Rapido → "Commute"
+- Weekend activities/movies → "Discretionary Expenses - Weekend" or "Weekend"
+- General shopping/snacks → "Discretionary Expenses"
+- Monthly rent → "Rent"
+- Phone recharge → "Mobile Recharge"
+- Electricity bill → "Electricity"
+
+## COMMON REAL ACCOUNT MAPPINGS
+- gpay/google pay → "Google Pay"
+- bhim/upi → "BHIM"
+- wallet/cash → "Wallet"
+- bank/idfc → "IDFC"
+- sbi → "SBI"
+- kotak → "Kotak"
+- credit card/axis card → "Axis Card"
+- sbi card → "SBI Card"
+
+## OUTPUT FORMAT
+Return ONLY valid JSON:
+{
+  "date": "ISO 8601 datetime string",
+  "description": "Brief description",
+  "line_items": [
+    {"account_name": "Exact account name", "asset_name": "Money", "quantity": number}
+  ]
+}
+
+REMEMBER: For expenses, quantities are NEGATIVE. For income, quantities are POSITIVE. Always include Real + Nominal + Allocation accounts for expenses/income.`;
 
     // SEGMENT B: USER STATIC (Cached for this specific user)
     // We attach this to the System prompt. Since it comes after staticSystemPrompt, 
