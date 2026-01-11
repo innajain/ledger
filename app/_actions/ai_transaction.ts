@@ -125,8 +125,8 @@ async function getRecentTransactions(userId: string, limit: number = 10) {
     })
     .join('\n\n');
 
-  // Cache for 1 hour (transactions change more frequently)
-  await redis.setex(CACHE_KEY, 3600, JSON.stringify(examples));
+  // Cache for 48 hours (transaction patterns don't change quickly)
+  await redis.setex(CACHE_KEY, 172800, JSON.stringify(examples));
   return examples;
 }
 
