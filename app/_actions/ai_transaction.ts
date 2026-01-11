@@ -99,7 +99,7 @@ This ledger uses a "Triple Entry" system - EVERY expense/income transaction MUST
 2. **Nominal Account** (what type of transaction: Expenses, Income, Salary, etc.)
 3. **Allocation Account** (budget category: Office Food, Commute, Discretionary Expenses, Rent, etc.)
 
-**ABSOLUTE RULE:** For each asset, the sum of quantities across Real accounts = Nominal accounts = Allocation accounts.
+**ABSOLUTE RULE:** For EACH asset separately, the sum of quantities across Real accounts MUST EQUAL the sum across Nominal accounts MUST EQUAL the sum across Allocation accounts. This constraint must hold for both quantity and book_value.
 
 ## EXPENSE TRANSACTIONS (Most Common)
 When user spends money, ALL three quantities are NEGATIVE:
@@ -172,7 +172,7 @@ When user receives money, ALL three quantities are POSITIVE:
   "line_items": [
     {"account_name": "IDFC", "asset_name": "Money", "quantity": 50000},
     {"account_name": "Salary", "asset_name": "Money", "quantity": 50000},
-    {"account_name": "Investments", "asset_name": "Money", "quantity": 50000}
+    {"account_name": "Buffer in Bank", "asset_name": "Money", "quantity": 50000}
   ]
 }
 
@@ -192,7 +192,7 @@ Transfers only involve Real accounts, no Nominal/Allocation needed:
 ## COMMON ALLOCATION MAPPINGS
 - Food at office → "Office Food"
 - Cab/Auto/Metro/Uber/Rapido → "Commute"
-- Weekend activities/movies → "Discretionary Expenses - Weekend" or "Weekend"
+- Weekend activities/movies → "Discretionary Expenses - Weekend"
 - General shopping/snacks → "Discretionary Expenses"
 - Monthly rent → "Rent"
 - Phone recharge → "Mobile Recharge"
