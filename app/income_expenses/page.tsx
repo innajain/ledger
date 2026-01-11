@@ -14,7 +14,10 @@ export const metadata: Metadata = {
   description: 'View and manage your income and expense accounts',
 };
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ showInactive?: string }> }) {
+  const params = await searchParams;
+  const showInactive = params.showInactive === 'true';
+  
   const user = await get_current_user();
   if (!user) {
     return (
@@ -27,7 +30,11 @@ export default async function Page() {
 
   // fetch nominal accounts with line_items and asset details
   const accounts = await prisma.account.findMany({
-    where: { user_id: user.id, type: 'nominal' },
+    where: { 
+      user_id: user.id, 
+      type: 'nominal',
+      ...(showInactive ? {} : { is_active: true })
+    },
     include: { line_items: { include: { asset: true } }, parent: true },
   });
 
@@ -100,6 +107,7 @@ export default async function Page() {
       }))}
       totals={totalsByAccount}
       grand_total={grand_total.toNumber()}
+      showInactive={showInactive}
     />
   );
 }

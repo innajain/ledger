@@ -13,8 +13,8 @@ export default async function Page() {
     );
   }
 
-  const accounts = await prisma.account.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } });
-  const assets = await prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } });
+  const accounts = await prisma.account.findMany({ where: { user_id: user.id, is_active: true }, orderBy: { name: 'asc' } });
+  const assets = await prisma.asset.findMany({ where: { user_id: user.id, is_active: true }, orderBy: { name: 'asc' } });
 
   const accountsForClient = accounts.map(a => ({ id: a.id, name: a.name, type: a.type }));
   const assetsForClient = assets.map(a => ({ id: a.id, name: a.name, type: a.type }));
