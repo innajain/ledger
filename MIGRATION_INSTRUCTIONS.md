@@ -10,7 +10,7 @@ A new migration has been created to add the `is_active` field to `account` and `
 Run the following command with your production database URL:
 
 ```bash
-export DATABASE_URL="postgresql://neondb_owner:npg_x3CnBhURMQr7@ep-fancy-resonance-a49fveit-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+export DATABASE_URL="your-production-database-url-here"
 pnpm prisma migrate deploy
 ```
 
