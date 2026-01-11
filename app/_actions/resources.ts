@@ -30,7 +30,7 @@ export async function update_account(id: string, name?: string | undefined, type
   if (parent_id) {
     if (parent_id === id) throw new Error('parent cannot be the account itself');
     // ensure parent exists and belongs to user
-    let p = await prisma.account.findUnique({ where: { id: parent_id, user_id: user.id }, select: { id: true, user_id: true, parent_id: true } });
+    const p = await prisma.account.findUnique({ where: { id: parent_id, user_id: user.id }, select: { id: true, user_id: true, parent_id: true } });
     if (!p) throw new Error('invalid parent account');
 
     // prevent cycles: walk up the parent chain
