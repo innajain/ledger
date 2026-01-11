@@ -25,7 +25,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     );
   }
 
-  const parents: Prisma.assetGetPayload<{}>[] = user ? await prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } }) : [];
+  const parents: Prisma.assetGetPayload<Record<string, never>>[] = user ? await prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } }) : [];
 
-  return <ClientPage asset={asset as Prisma.assetGetPayload<{}>} parents={parents} deleteAsset={delete_asset} />;
+  return <ClientPage asset={asset as Prisma.assetGetPayload<Record<string, never>>} parents={parents} deleteAsset={delete_asset} />;
 }

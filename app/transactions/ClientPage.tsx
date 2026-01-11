@@ -39,7 +39,7 @@ export default function ClientPage({
   const [maxAmount, setMaxAmount] = useState(searchParams.maxAmount || '');
   const [accountId, setAccountId] = useState(searchParams.accountId || '');
   const [assetId, setAssetId] = useState(searchParams.assetId || '');
-  const [selectedPageSize, setSelectedPageSize] = useState(pageSize);
+  const [selectedPageSize] = useState(pageSize);
 
   const totalPages = Math.ceil(totalCount / pageSize);
   const isShowingAll = searchParams.pageSize === 'all';

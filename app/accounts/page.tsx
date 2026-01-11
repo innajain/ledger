@@ -1,7 +1,7 @@
 import ClientPage from './ClientPage';
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
-import { get_price_for_asset, get_latest_etf_or_shares_price } from '@/app/_utils/price_fetcher';
+import { get_price_for_asset } from '@/app/_utils/price_fetcher';
 import { asset_type, Prisma } from '@/generated/prisma/client';
 import type { Metadata } from 'next';
 
@@ -96,7 +96,7 @@ export default async function Page() {
     // Filter to only include non-zero quantities and convert to number
     assetQuantitiesByAccount[acc.id] = Object.fromEntries(
       Object.entries(assetQtyMap)
-        .filter(([_, qty]) => !qty.equals(0))
+        .filter(([, qty]) => !qty.equals(0))
         .map(([assetId, qty]) => [assetId, qty.toNumber()])
     );
     grand_total = grand_total.add(acc_total);

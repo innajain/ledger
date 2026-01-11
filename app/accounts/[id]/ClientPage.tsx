@@ -36,7 +36,7 @@ type AccountForClient = {
   line_items: LineItem[];
 };
 
-export default function ClientPage({ account, currencyLocale, currency }: { account: AccountForClient; currencyLocale: string; currency: string }) {
+export default function ClientPage({ account }: { account: AccountForClient }) {
   return (
     <div className="space-y-6">
       <ViewPageHeader

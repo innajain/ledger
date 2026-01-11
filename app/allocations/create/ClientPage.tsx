@@ -5,7 +5,7 @@ import { create_account } from '@/app/_actions/resources';
 import type { Prisma } from '@/generated/prisma/client';
 import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents';
 
-export default function ClientPage({ parents }: { parents: Prisma.accountGetPayload<{}>[] }) {
+export default function ClientPage({ parents }: { parents: Prisma.accountGetPayload<Record<string, never>>[] }) {
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -18,8 +18,8 @@ export default function ClientPage({ parents }: { parents: Prisma.accountGetPayl
     try {
       await create_account(name, 'allocation', parentId ?? undefined);
       window.location.href = '/allocations';
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }

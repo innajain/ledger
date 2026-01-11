@@ -25,7 +25,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     );
   }
 
-  const parents: Prisma.accountGetPayload<{}>[] = user
+  const parents: Prisma.accountGetPayload<Record<string, never>>[] = user
     ? await prisma.account.findMany({ where: { user_id: user.id, type: 'allocation' }, orderBy: { name: 'asc' } })
     : [];
 

@@ -31,12 +31,8 @@ type AllocationForClient = {
 
 export default function ClientPage({
   allocation,
-  currencyLocale,
-  currency,
 }: {
   allocation: AllocationForClient;
-  currencyLocale: string;
-  currency: string;
 }) {
   return (
     <div className="space-y-6">

@@ -1,5 +1,4 @@
 import { asset_type } from './generated/prisma/enums';
-import { runIntegrityChecks } from './integrity_checker';
 import { prisma } from './lib/prisma';
 import bcrypt from 'bcryptjs';
 
@@ -15,16 +14,16 @@ await prisma.$transaction(async prisma => {
   });
 
   const { id: money } = await prisma.asset.create({ data: { name: 'Money', type: asset_type.rupees, user_id: shreyansh } });
-  const { id: cash_notes } = await prisma.asset.create({
+  const { id: _cash_notes } = await prisma.asset.create({
     data: { name: 'Cash - Notes', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
-  const { id: cash_coins } = await prisma.asset.create({
+  const { id: _cash_coins } = await prisma.asset.create({
     data: { name: 'Cash - Coins', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
-  const { id: digital_money } = await prisma.asset.create({
+  const { id: _digital_money } = await prisma.asset.create({
     data: { name: 'Digital Money', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
-  const { id: refundable_money } = await prisma.asset.create({
+  const { id: _refundable_money } = await prisma.asset.create({
     data: { name: 'Refundable Money', type: asset_type.rupees, user_id: shreyansh, parent_id: money },
   });
   const { id: blocked_money } = await prisma.asset.create({
@@ -32,7 +31,7 @@ await prisma.$transaction(async prisma => {
   });
 
   const { id: long_term } = await prisma.asset.create({ data: { name: 'Long Term Assets', type: 'rupees', user_id: shreyansh } });
-  const { id: long_term_refundable_money } = await prisma.asset.create({
+  const { id: _long_term_refundable_money } = await prisma.asset.create({
     data: { name: 'Long Term Refundable Money', type: asset_type.rupees, user_id: shreyansh, parent_id: long_term },
   });
   const { id: parag_parikh } = await prisma.asset.create({
@@ -80,7 +79,7 @@ await prisma.$transaction(async prisma => {
   const { id: idfc } = await prisma.account.create({ data: { name: 'IDFC', type: 'real', user_id: shreyansh, parent_id: bank } });
   const { id: kotak } = await prisma.account.create({ data: { name: 'Kotak', type: 'real', user_id: shreyansh, parent_id: bank } });
   const { id: sbi } = await prisma.account.create({ data: { name: 'SBI', type: 'real', user_id: shreyansh, parent_id: bank } });
-  const { id: pnb } = await prisma.account.create({ data: { name: 'PNB', type: 'real', user_id: shreyansh, parent_id: bank } });
+  const { id: _pnb } = await prisma.account.create({ data: { name: 'PNB', type: 'real', user_id: shreyansh, parent_id: bank } });
 
   const { id: upi_lite } = await prisma.account.create({ data: { name: 'UPI Lite', type: 'real', user_id: shreyansh } });
   const { id: bhim } = await prisma.account.create({ data: { name: 'BHIM', type: 'real', user_id: shreyansh, parent_id: upi_lite } });
@@ -116,7 +115,7 @@ await prisma.$transaction(async prisma => {
   const { id: dhaval } = await prisma.account.create({
     data: { name: 'Mr. Dhaval Mehta', type: 'real', user_id: shreyansh, parent_id: people },
   });
-  const { id: others } = await prisma.account.create({ data: { name: 'Others', type: 'real', user_id: shreyansh, parent_id: people } });
+  const { id: _others } = await prisma.account.create({ data: { name: 'Others', type: 'real', user_id: shreyansh, parent_id: people } });
 
   const { id: credit_cards } = await prisma.account.create({ data: { name: 'Credit Cards', type: 'real', user_id: shreyansh } });
   const { id: sbi_card } = await prisma.account.create({ data: { name: 'SBI Card', type: 'real', user_id: shreyansh, parent_id: credit_cards } });
@@ -141,7 +140,7 @@ await prisma.$transaction(async prisma => {
   const { id: opening_balance } = await prisma.account.create({ data: { name: 'Opening Balance', type: 'nominal', user_id: shreyansh } });
 
   const { id: income } = await prisma.account.create({ data: { name: 'Income', type: 'nominal', user_id: shreyansh } });
-  const { id: salary } = await prisma.account.create({ data: { name: 'Salary', type: 'nominal', user_id: shreyansh, parent_id: income } });
+  const { id: _salary } = await prisma.account.create({ data: { name: 'Salary', type: 'nominal', user_id: shreyansh, parent_id: income } });
   const { id: cashbacks } = await prisma.account.create({ data: { name: 'Cashbacks', type: 'nominal', user_id: shreyansh, parent_id: income } });
   const { id: expenses } = await prisma.account.create({ data: { name: 'Expenses', type: 'nominal', user_id: shreyansh } });
   const { id: trading_acc } = await prisma.account.create({ data: { name: 'Trading Account', type: 'nominal', user_id: shreyansh } });
@@ -226,7 +225,7 @@ await prisma.$transaction(async prisma => {
 
   const { id: investments } = await prisma.account.create({ data: { name: 'Investments', type: 'allocation', user_id: shreyansh } });
   const { id: house_security } = await prisma.account.create({ data: { name: 'House Security Deposit', type: 'allocation', user_id: shreyansh } });
-  const { id: phantom } = await prisma.account.create({ data: { name: 'Phantom Allocation', type: 'allocation', user_id: shreyansh } });
+  const { id: _phantom } = await prisma.account.create({ data: { name: 'Phantom Allocation', type: 'allocation', user_id: shreyansh } });
 
   await prisma.transaction.create({
     data: {

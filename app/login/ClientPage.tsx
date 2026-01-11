@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import Image from 'next/image';
 import type { user } from '@/generated/prisma/client';
 import { log_in, sign_up, log_out } from '@/app/_actions/auth';
 import { useRouter } from 'next/navigation';
@@ -28,8 +29,8 @@ export default function ClientPage({ user }: Props) {
       setSuccess('Login successful! Redirecting...');
       setShowConfetti(true);
       setTimeout(() => router.push('/'), 500);
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -45,8 +46,8 @@ export default function ClientPage({ user }: Props) {
       setSuccess('Account created! Redirecting...');
       setShowConfetti(true);
       setTimeout(() => router.push('/'), 500);
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -60,8 +61,8 @@ export default function ClientPage({ user }: Props) {
       await log_out();
       setSuccess('Logged out successfully');
       setTimeout(() => window.location.reload(), 500);
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -73,12 +74,12 @@ export default function ClientPage({ user }: Props) {
         <div className="w-full max-w-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-8 transition-colors">
           <div className="flex items-center justify-center mb-6">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center shadow-lg">
-              <img src="/favicon.ico" alt="Ledger" className="w-10 h-10" />
+              <Image src="/favicon.ico" alt="Ledger" width={40} height={40} />
             </div>
           </div>
 
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">You're logged in</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">You&apos;re logged in</h2>
             <p className="text-slate-600 dark:text-slate-400 mb-1">Welcome back,</p>
             <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">{user.username}</p>
           </div>
@@ -121,7 +122,7 @@ export default function ClientPage({ user }: Props) {
         {/* Header */}
         <div className="text-center mb-8 animate-slide-in-up">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br mb-4 shadow-lg transition-transform hover:scale-110 hover-wiggle">
-            <img src="/favicon.ico" alt="Ledger" className="w-10 h-10 animate-float" />
+            <Image src="/favicon.ico" alt="Ledger" width={40} height={40} className="animate-float" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
             {isSignup ? 'Create Account' : 'Welcome To Ledger'}
@@ -186,7 +187,7 @@ export default function ClientPage({ user }: Props) {
               </div>
               {isSignup && (
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  Choose a password you'll remember
+                  Choose a password you&apos;ll remember
                 </p>
               )}
             </div>
@@ -243,7 +244,7 @@ export default function ClientPage({ user }: Props) {
                 </>
               ) : (
                 <>
-                  Don't have an account? <span className="font-medium">Sign up</span>
+                  Don&apos;t have an account? <span className="font-medium">Sign up</span>
                 </>
               )}
             </button>

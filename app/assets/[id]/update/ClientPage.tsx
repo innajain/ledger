@@ -10,8 +10,8 @@ export default function ClientPage({
   parents,
   deleteAsset,
 }: {
-  asset: Prisma.assetGetPayload<{}>;
-  parents: Prisma.assetGetPayload<{}>[];
+  asset: Prisma.assetGetPayload<Record<string, never>>;
+  parents: Prisma.assetGetPayload<Record<string, never>>[];
   deleteAsset?: (id: string) => Promise<void>;
 }) {
   const [name, setName] = useState(asset.name);
@@ -28,8 +28,8 @@ export default function ClientPage({
     try {
       await update_asset(asset.id, name, type, ticker || undefined, parentId);
       window.location.href = '/assets';
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -45,8 +45,8 @@ export default function ClientPage({
     try {
       await deleteAsset(asset.id);
       window.location.href = '/assets';
-    } catch (err: any) {
-      setError('Delete failed: ' + (err?.message ?? String(err)));
+    } catch (err: unknown) {
+      setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)));
     }
   }
 

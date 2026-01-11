@@ -45,8 +45,8 @@ export default function ClientPage({
     try {
       await deleteTransaction(transaction.id);
       window.location.href = '/transactions';
-    } catch (err: any) {
-      setError('Delete failed: ' + (err?.message ?? String(err)));
+    } catch (err: unknown) {
+      setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)));
       setIsDeleting(false);
     }
   };

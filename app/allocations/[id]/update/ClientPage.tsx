@@ -10,8 +10,8 @@ export default function ClientPage({
   parents,
   deleteAccount,
 }: {
-  account: Prisma.accountGetPayload<{}>;
-  parents: Prisma.accountGetPayload<{}>[];
+  account: Prisma.accountGetPayload<Record<string, never>>;
+  parents: Prisma.accountGetPayload<Record<string, never>>[];
   deleteAccount?: (id: string) => Promise<void>;
 }) {
   const [name, setName] = useState(account.name);
@@ -26,8 +26,8 @@ export default function ClientPage({
     try {
       await update_account(account.id, name, 'allocation', parentId);
       window.location.href = '/allocations';
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -43,8 +43,8 @@ export default function ClientPage({
     try {
       await deleteAccount(account.id);
       window.location.href = '/allocations';
-    } catch (err: any) {
-      setError('Delete failed: ' + (err?.message ?? String(err)));
+    } catch (err: unknown) {
+      setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)));
     }
   }
 

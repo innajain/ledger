@@ -14,16 +14,12 @@ const WELCOME_MESSAGES = [
 
 export default function ClientPage({
   allocations = [],
-  currencyLocale = 'en-IN',
-  currency = 'INR',
   flushRedis,
   logOut,
 }: {
   allocations?: { id: string; name: string; total: number }[];
-  currencyLocale?: string;
-  currency?: string;
-  flushRedis?: () => Promise<any>;
-  logOut?: () => Promise<any>;
+  flushRedis?: () => Promise<{ ok: boolean }>;
+  logOut?: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const [busyLogout, setBusyLogout] = useState(false);
@@ -177,8 +173,8 @@ export default function ClientPage({
               try {
                 const res = await flushRedis();
                 alert(res?.ok ? 'Redis flushed' : 'Flush returned: ' + JSON.stringify(res));
-              } catch (err: any) {
-                alert('Flush failed: ' + (err?.message ?? String(err)));
+              } catch (err: unknown) {
+                alert('Flush failed: ' + (err instanceof Error ? err.message : String(err)));
               } finally {
                 setBusy(false);
               }
@@ -197,8 +193,8 @@ export default function ClientPage({
               try {
                 await logOut();
                 window.location.reload();
-              } catch (err: any) {
-                alert('Logout failed: ' + (err?.message ?? String(err)));
+              } catch (err: unknown) {
+                alert('Logout failed: ' + (err instanceof Error ? err.message : String(err)));
               } finally {
                 setBusyLogout(false);
               }

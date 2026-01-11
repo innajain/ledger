@@ -2,15 +2,12 @@
 import React, { useState } from 'react';
 import type { user } from '@/generated/prisma/client';
 import { change_password, change_username } from '@/app/_actions/auth';
-import { useRouter } from 'next/navigation';
 
 type Props = { user: user };
 
 const REDIRECT_DELAY_MS = 1500;
 
 export default function ClientPage({ user }: Props) {
-  const router = useRouter();
-
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');

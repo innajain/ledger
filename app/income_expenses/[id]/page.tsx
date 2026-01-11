@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { get_current_user } from '@/app/_actions/auth';
-import { get_price_for_asset, get_latest_etf_or_shares_price } from '@/app/_utils/price_fetcher';
+import { get_price_for_asset } from '@/app/_utils/price_fetcher';
 import { asset_type, Prisma } from '@/generated/prisma/client';
 import ClientPage from './ClientPage';
 
@@ -144,5 +144,5 @@ export default async function Page({ params }: Props) {
     line_items: lineItemsWithValues,
   };
 
-  return <ClientPage account={accountForClient} currencyLocale="en-IN" currency="INR" />;
+  return <ClientPage account={accountForClient} />;
 }
