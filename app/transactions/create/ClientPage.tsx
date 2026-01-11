@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { asset_type } from '@/generated/prisma/enums';
 import { create_transaction } from '@/app/_actions/transactions';
-
-type ItemGroup = { item: { account_id: string; asset_id: string; quantity: string; book_value: string; description: string; datetime: string }; idx: number };
+import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems';
+import { ErrorAlert } from '@/app/_components/AccountFormComponents';
 
 export default function ClientPage({
   accounts,
@@ -27,7 +27,7 @@ export default function ClientPage({
 
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()));
   const [description, setDescription] = useState('');
-  const [items, setItems] = useState<Array<{ account_id: string; asset_id: string; quantity: string; book_value: string; description: string; datetime: string }>>([
+  const [items, setItems] = useState<LineItemData[]>([
     { account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' },
   ]);
   const [busy, setBusy] = useState(false);
@@ -68,6 +68,19 @@ export default function ClientPage({
     setItems(prev => prev.filter((_, idx) => idx !== i));
   }
 
+  function updateItem(idx: number, field: keyof LineItemData, value: string) {
+    setItems(prev => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], [field]: value };
+      // Clear book_value when switching to rupees asset
+      if (field === 'asset_id') {
+        const sel = assets.find(a => a.id === value);
+        if (sel?.type === asset_type.rupees) copy[idx].book_value = '';
+      }
+      return copy;
+    });
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -93,31 +106,6 @@ export default function ClientPage({
       setBusy(false);
     }
   }
-
-  // Group items by account type
-  const groups: Record<string, ItemGroup[]> = { real: [], allocation: [], nominal: [] };
-  for (let idx = 0; idx < items.length; idx++) {
-    const it = items[idx];
-    const acc = accounts.find(a => a.id === it.account_id);
-    const t = acc?.type ?? 'real';
-    groups[t] = groups[t] || [];
-    groups[t].push({ item: it, idx });
-  }
-
-  const accountTypeConfig = {
-    real: {
-      title: 'Real Accounts',
-      color: 'green',
-    },
-    allocation: {
-      title: 'Allocation Accounts',
-      color: 'orange',
-    },
-    nominal: {
-      title: 'Nominal Accounts',
-      color: 'purple',
-    },
-  };
 
   return (
     <div className="space-y-6">
@@ -164,208 +152,17 @@ export default function ClientPage({
         </div>
 
         {/* Line Items */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line Items</h2>
-          </div>
-
-          {(['real', 'allocation', 'nominal'] as const).map(typeKey => {
-            const list = groups[typeKey] || [];
-
-            const config = accountTypeConfig[typeKey];
-            const colorClasses = {
-              green: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
-              orange: 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100',
-              purple: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-100',
-            };
-
-            return (
-              <div key={typeKey} className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
-                <div className={`px-6 py-3 border-b ${colorClasses[config.color as keyof typeof colorClasses]}`}>
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">{config.title}</h3>
-                    <button
-                      type="button"
-                      onClick={() => addItemForType(typeKey)}
-                      className="inline-flex items-center gap-2 px-2 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Add
-                    </button>
-                  </div>
-                </div>
-                <div className="p-6 space-y-4">
-                  {list.length === 0 && <div className="text-sm text-slate-500 dark:text-slate-400 italic">No items in this section. Use Add to create one.</div>}
-                  {list.length > 0 &&
-                    list.map(({ item: it, idx }) => {
-                      const asset = assets.find(a => a.id === it.asset_id);
-                      return (
-                        <div key={idx} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600">
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Account</label>
-                              <select
-                                value={it.account_id}
-                                onChange={e =>
-                                  setItems(prev => {
-                                    const copy = [...prev];
-                                    copy[idx].account_id = e.target.value;
-                                    return copy;
-                                  })
-                                }
-                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                              >
-                                {accounts
-                                  .filter(a => a.type === typeKey)
-                                  .map(a => (
-                                    <option key={a.id} value={a.id}>
-                                      {a.name}
-                                    </option>
-                                  ))}
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Asset</label>
-                              <select
-                                value={it.asset_id}
-                                onChange={e =>
-                                  setItems(prev => {
-                                    const copy = [...prev];
-                                    copy[idx].asset_id = e.target.value;
-                                    const sel = assets.find(a => a.id === e.target.value);
-                                    if (sel?.type === asset_type.rupees) copy[idx].book_value = '';
-                                    return copy;
-                                  })
-                                }
-                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                              >
-                                {assets.map(a => (
-                                  <option key={a.id} value={a.id}>
-                                    {a.name} ({a.type})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Quantity</label>
-                              <input
-                                type="number"
-                                step="any"
-                                value={it.quantity}
-                                onChange={e =>
-                                  setItems(prev => {
-                                    const copy = [...prev];
-                                    copy[idx].quantity = e.target.value;
-                                    return copy;
-                                  })
-                                }
-                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                              />
-                            </div>
-
-                            {!(asset?.type === asset_type.rupees) && (
-                              <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Book Value</label>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  placeholder="Book value"
-                                  value={it.book_value}
-                                  onChange={e =>
-                                    setItems(prev => {
-                                      const copy = [...prev];
-                                      copy[idx].book_value = e.target.value;
-                                      return copy;
-                                    })
-                                  }
-                                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                                />
-                              </div>
-                            )}
-                            <div>
-                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Line Item Description</label>
-                              <input
-                                type="text"
-                                value={it.description}
-                                onChange={e =>
-                                  setItems(prev => {
-                                    const copy = [...prev];
-                                    copy[idx].description = e.target.value;
-                                    return copy;
-                                  })
-                                }
-                                placeholder="Optional description for this line item"
-                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Line Item Date & Time</label>
-                              <input
-                                type="datetime-local"
-                                value={it.datetime}
-                                onChange={e =>
-                                  setItems(prev => {
-                                    const copy = [...prev];
-                                    copy[idx].datetime = e.target.value;
-                                    return copy;
-                                  })
-                                }
-                                placeholder="Optional datetime for this line item"
-                                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => removeItem(idx)}
-                              className="inline-flex items-center gap-1 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <TransactionLineItems
+          items={items}
+          accounts={accounts}
+          assets={assets}
+          onAddItem={addItemForType}
+          onRemoveItem={removeItem}
+          onUpdateItem={updateItem}
+        />
 
         {/* Error Display */}
-        {error && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="flex-1">
-              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-            </div>
-            <button
-              onClick={() => setError(null)}
-              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
-              aria-label="Dismiss error"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        )}
+        {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
         {/* Submit Button */}
         <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">

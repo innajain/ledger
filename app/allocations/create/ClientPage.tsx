@@ -1,56 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { create_account } from '@/app/_actions/resources';
 import type { Prisma } from '@/generated/prisma/client';
-import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents';
+import { CreateAccountForm } from '@/app/_components/AccountForm';
+
+const allocationConfig = {
+  accountType: 'allocation' as const,
+  entityName: 'Allocation',
+  basePath: '/allocations',
+  backText: 'Back to Allocations',
+  parentLabel: 'Parent Allocation (Optional)',
+  parentHelpText: 'Select a parent to create a sub-allocation',
+};
 
 export default function ClientPage({ parents }: { parents: Prisma.accountGetPayload<Record<string, never>>[] }) {
-  const [name, setName] = useState('');
-  const [parentId, setParentId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
-    try {
-      await create_account(name, 'allocation', parentId ?? undefined);
-      window.location.href = '/allocations';
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        backLink="/allocations"
-        backText="Back to Allocations"
-        title="Create Allocation"
-        description="Add a new allocation to your ledger"
-      />
-
-      <form onSubmit={onCreate} className="space-y-6">
-        <FormCard title="Allocation Details">
-          <TextInput label="Allocation Name" value={name} onChange={setName} placeholder="Enter allocation name" required />
-
-          <ParentSelect
-            label="Parent Allocation (Optional)"
-            value={parentId}
-            onChange={setParentId}
-            parents={parents}
-            helpText="Select a parent to create a sub-allocation"
-          />
-        </FormCard>
-
-        {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
-
-        <FormActions cancelLink="/allocations" submitText={busy ? 'Creating...' : 'Create Allocation'} busy={busy} />
-      </form>
-    </div>
-  );
+  return <CreateAccountForm parents={parents} config={allocationConfig} />;
 }
