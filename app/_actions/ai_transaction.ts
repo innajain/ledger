@@ -74,14 +74,73 @@ async function getEntities(userId: string) {
   return entities;
 }
 
+// --- Helper: Get Recent Transactions for Few-Shot Examples ---
+async function getRecentTransactions(userId: string, limit: number = 10) {
+  const CACHE_KEY = `recent_transactions:${userId}`;
+  const cached = await redis.get(CACHE_KEY);
+  if (cached) return JSON.parse(cached) as string;
+
+  const transactions = await prisma.transaction.findMany({
+    where: { user_id: userId },
+    include: {
+      line_items: {
+        include: {
+          account: true,
+          asset: true,
+        },
+      },
+    },
+    orderBy: { datetime: 'desc' },
+    take: limit,
+  });
+
+  // Format transactions as examples
+  const examples = transactions
+    .filter(t => t.line_items.length > 0 && t.description != null)
+    .map((t, index) => {
+      const lineItemsJson = t.line_items.map(li => {
+        const quantity = Number(li.quantity);
+        const bookValue = li.book_value ? Number(li.book_value) : null;
+        const includeBookValue = bookValue !== null && bookValue !== quantity;
+        
+        return {
+          account_name: li.account.name,
+          asset_name: li.asset.name,
+          quantity,
+          ...(includeBookValue ? { book_value: bookValue } : {}),
+        };
+      });
+
+      const formattedLineItems = JSON.stringify(lineItemsJson, null, 2)
+        .split('\n')
+        .map((line, i) => (i === 0 ? line : '  ' + line))
+        .join('\n');
+
+      return `### Your Transaction ${index + 1}: "${t.description}"
+{
+  "date": "${t.datetime.toISOString()}",
+  "description": "${t.description}",
+  "line_items": ${formattedLineItems}
+}`;
+    })
+    .join('\n\n');
+
+  // Cache for 48 hours (transaction patterns don't change quickly)
+  await redis.setex(CACHE_KEY, 172800, JSON.stringify(examples));
+  return examples;
+}
+
 // --- MAIN FUNCTION ---
 export async function parse_transaction_with_ai(input: string) {
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
 
   try {
-    // 1. Fetch entities 
-    const entities = await getEntities(user.id);
+    // 1. Fetch entities and recent transactions
+    const [entities, recentTransactionExamples] = await Promise.all([
+      getEntities(user.id),
+      getRecentTransactions(user.id, 10),
+    ]);
 
     const { accounts, assets } = entities;
 
@@ -93,49 +152,44 @@ export async function parse_transaction_with_ai(input: string) {
     // SEGMENT A: GLOBAL STATIC (Cached across all users)
     const staticSystemPrompt = `You are an AI assistant for a Ledger App. Parse user input into a specific JSON format.
 
-CRITICAL LOGIC RULES (Override Standard Accounting):
-This system uses a specific "Triple Entry" consistency. Directions must match across all involved account types. A transaction is a collection of line items. each line item is related to an account. there are 3 types of accounts: real, allocation and nominal.
-**Constraint:** For each asset, the group-wise sum of quantities for "Real" accounts must equal "Nominal", which must equal "Allocation". (Equal in Sign AND Magnitude). also, the group-wise sum of book_values for "Real", "Nominal", and "Allocation" must be equal. book_value defaults to quantity for rupee assets.
+## CRITICAL: Triple Entry System
+This ledger uses a "Triple Entry" system - EVERY expense/income transaction MUST have exactly 3 line items:
+1. **Real Account** (where money physically is: Google Pay, BHIM, Bank, Wallet, etc.)
+2. **Nominal Account** (what type of transaction: Expenses, Income, Salary, etc.)
+3. **Allocation Account** (budget category: Office Food, Commute, Discretionary Expenses, Rent, etc.)
 
-1. **Expenses / Outflows:**
-   - Real Account Quantity: **NEGATIVE** (-)
-   - Nominal Account Quantity: **NEGATIVE** (-)
-   - Allocation Account Quantity: **NEGATIVE** (-)
-   *Example: "Lunch 50rs"* -> Google Pay: -50, Expenses: -50, Office Food: -50.
+**ABSOLUTE RULE:** For EACH asset separately, the sum of quantities across Real accounts MUST EQUAL the sum across Nominal accounts MUST EQUAL the sum across Allocation accounts. This constraint must hold for both quantity and book_value.
 
-2. **Income / Inflows:**
-   - Real Account Quantity: **POSITIVE** (+)
-   - Nominal Account Quantity: **POSITIVE** (+)
-   - Allocation Account Quantity: **POSITIVE** (+)
-   *Example: "Salary 50000"* -> Bank: 50000, Salary: 50000, Unallocated: 50000.
+## EXPENSE TRANSACTIONS (Most Common)
+When user spends money, ALL three quantities are NEGATIVE:
+- Real: NEGATIVE (money leaves the account)
+- Nominal: NEGATIVE (expense increases in negative direction)
+- Allocation: NEGATIVE (budget decreases)
 
-3. **Transfers:**
-   - Real Accounts sum to 0 (e.g., Bank -500, Wallet +500).
-   - Nominal/Allocation are usually not involved.
+## INCOME TRANSACTIONS
+When user receives money, ALL three quantities are POSITIVE.
 
-4. **Other Transactions:**
-   - In general. there can be any number of line items for each account type. some could have positive quantities, some negative. it is totally generalised. Only thing is that the following constraint must be met:
+## TRANSFER TRANSACTIONS (Between Real Accounts Only)
+Transfers only involve Real accounts, no Nominal/Allocation needed.
 
-I want you to be extra careful while verifying for this constraint because this is different from standard accounting principles, on which you may have been trained. Do this: seggregate line items by account type. Then, for each asset, sum up the quantities in real accounts, nominal accounts, and allocation accounts. do not skip considering those type of accounts which have no line items. the sum of quantities for each asset shall be equal in all three account types.
-
-OUTPUT FORMAT (JSON ONLY):
+## OUTPUT FORMAT
+Return ONLY valid JSON:
 {
-  "date": "ISO string provided in user context",
-  "description": "Short description",
+  "date": "ISO 8601 datetime string",
+  "description": "Brief description",
   "line_items": [
-    { 
-      "account_name": "Exact Name from list", 
-      "asset_name": "Exact Name from list" ("Money" mostly), 
-      "quantity": number
-    }
+    {"account_name": "Exact account name", "asset_name": "Money", "quantity": number}
   ]
-}`;
+}
 
-    // SEGMENT B: USER STATIC (Cached for this specific user)
-    // We attach this to the System prompt. Since it comes after staticSystemPrompt, 
-    // the first part remains cached globally, and this combo is cached per user.
+REMEMBER: For expenses, quantities are NEGATIVE. For income, quantities are POSITIVE. Always include Real + Nominal + Allocation accounts for expenses/income.`;
+
+    // SEGMENT B: USER CONTEXT (User's accounts, assets, and recent transaction examples)
     const userContextPrompt = `
-CONTEXT - ACCOUNTS:
+## YOUR RECENT TRANSACTIONS (Learn from these patterns)
+${recentTransactionExamples || 'No recent transactions found. Follow the rules above.'}
+
+## YOUR ACCOUNTS
 REAL ACCOUNTS:
 ${accounts.filter(a => a.type === 'real').map(a => `- ${a.name} (parent: ${a.parent?.name})`).join('\n')}
 
@@ -145,7 +199,7 @@ ${accounts.filter(a => a.type === 'nominal').map(a => `- ${a.name} (parent: ${a.
 ALLOCATION ACCOUNTS:
 ${accounts.filter(a => a.type === 'allocation').map(a => `- ${a.name} (parent: ${a.parent?.name})`).join('\n')}
 
-ASSETS:
+## YOUR ASSETS
 ${assets.map(a => `- ${a.name} (${a.type})`).join('\n')}
 `;
 
