@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { get_current_user } from '@/app/_actions/auth';
 
-// Allowlist of table names to prevent SQL injection
-const ALLOWED_TABLES = ['user', 'account', 'asset', 'transaction', 'line_item', '_prisma_migrations'];
+// Table query functions - each query is pre-defined to prevent SQL injection.
+// The switch statement pattern is intentional: it ensures table names are never
+// dynamically interpolated into SQL, which is the most secure approach.
+type TableQueryFn = (sql: NeonQueryFunction<false, false>) => Promise<Record<string, unknown>[]>;
+
+const TABLE_QUERIES: Record<string, TableQueryFn> = {
+  'user': (sql) => sql`SELECT * FROM "user"`,
+  'account': (sql) => sql`SELECT * FROM "account"`,
+  'asset': (sql) => sql`SELECT * FROM "asset"`,
+  'transaction': (sql) => sql`SELECT * FROM "transaction"`,
+  'line_item': (sql) => sql`SELECT * FROM "line_item"`,
+  '_prisma_migrations': (sql) => sql`SELECT * FROM "_prisma_migrations"`,
+};
 
 export async function GET() {
   try {
@@ -27,35 +38,13 @@ export async function GET() {
     // Export each table
     for (const { tablename } of tables) {
       // Validate table name against allowlist to prevent SQL injection
-      if (!ALLOWED_TABLES.includes(tablename)) {
-        console.warn(`Skipping unknown table: ${tablename}`);
+      const queryFn = TABLE_QUERIES[tablename];
+      if (!queryFn) {
+        // Skip tables not in our allowlist - this is intentional for security
         continue;
       }
       
-      // Use parameterized approach - table name is validated above
-      let rows: Record<string, unknown>[];
-      switch (tablename) {
-        case 'user':
-          rows = await sql`SELECT * FROM "user"`;
-          break;
-        case 'account':
-          rows = await sql`SELECT * FROM "account"`;
-          break;
-        case 'asset':
-          rows = await sql`SELECT * FROM "asset"`;
-          break;
-        case 'transaction':
-          rows = await sql`SELECT * FROM "transaction"`;
-          break;
-        case 'line_item':
-          rows = await sql`SELECT * FROM "line_item"`;
-          break;
-        case '_prisma_migrations':
-          rows = await sql`SELECT * FROM "_prisma_migrations"`;
-          break;
-        default:
-          continue;
-      }
+      const rows = await queryFn(sql);
       
       dump += `-- Table: ${tablename}\n`;
       dump += `CREATE TABLE IF NOT EXISTS "${tablename}" (...); -- Add schema\n`;
@@ -85,7 +74,10 @@ export async function GET() {
       },
     });
   } catch (err: unknown) {
-    console.error('Database dump error:', err);
+    // Log error for debugging but don't expose details to client
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Database dump error:', err);
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
