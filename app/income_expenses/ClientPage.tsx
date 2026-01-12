@@ -21,6 +21,7 @@ type Props = {
 
 export default function ClientPage({ accounts, totals, grand_total }: Props) {
   const [expandAll, setExpandAll] = useState(false);
+  const [reorderEnabled, setReorderEnabled] = useState(false);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -57,6 +58,9 @@ export default function ClientPage({ accounts, totals, grand_total }: Props) {
             totals={totals}
             formatCurrency={amount => currency_fmt.format(amount)}
             expandAll={expandAll}
+            storageKey="income_expenses"
+            reorderEnabled={reorderEnabled}
+            onReorderToggle={setReorderEnabled}
             getItemUrl={id => `/income_expenses/${id}`}
           />
         </div>
