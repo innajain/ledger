@@ -31,6 +31,7 @@ type Props = {
 
 export default function ClientPage({ assets, totals, grand_total }: Props) {
   const [expandAll, setExpandAll] = useState(false);
+  const [reorderEnabled, setReorderEnabled] = useState(false);
   const qtyFmt = (n: number) => n.toFixed(2);
 
   return (
@@ -70,6 +71,9 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
             formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/assets/${id}`}
             expandAll={expandAll}
+            storageKey="assets"
+            reorderEnabled={reorderEnabled}
+            onReorderToggle={setReorderEnabled}
             renderExtraInfo={asset => {
               if (asset.type === 'rupees') return null;
               const qty = asset.line_items.reduce((s, li) => s + (li.quantity ?? 0), 0);
