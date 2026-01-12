@@ -16,6 +16,12 @@ const TABLE_QUERIES: Record<string, TableQueryFn> = {
   '_prisma_migrations': (sql) => sql`SELECT * FROM "_prisma_migrations"`,
 };
 
+// Helper function to escape SQL identifier (column/table names)
+function escapeIdentifier(identifier: string): string {
+  // Double quotes escape for PostgreSQL identifiers
+  return `"${identifier.replace(/"/g, '""')}"`;
+}
+
 export async function GET() {
   try {
     // Authorization check - require authentication
@@ -51,6 +57,8 @@ export async function GET() {
       // This dump only contains data for backup/restore purposes
       
       for (const row of rows) {
+        // Use explicit column names to ensure correct column order during restore
+        const columnNames = Object.keys(row).map(escapeIdentifier).join(', ');
         const values = Object.values(row)
           .map(v => {
             if (v === null) return 'NULL';
@@ -59,13 +67,16 @@ export async function GET() {
             return String(v);
           })
           .join(', ');
-        dump += `INSERT INTO "${tablename}" VALUES (${values});\n`;
+        dump += `INSERT INTO "${tablename}" (${columnNames}) VALUES (${values});\n`;
       }
       dump += '\n';
     }
 
-    const now = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `db-${now}.sql`;
+    // Generate sanitized filename using simple date format
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+    const fileName = `db-${dateStr}_${timeStr}.sql`;
 
     return new NextResponse(dump, {
       status: 200,
