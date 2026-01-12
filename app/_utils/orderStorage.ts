@@ -1,30 +1,39 @@
 /**
  * Utility for persisting custom order of items in localStorage
+ * Supports hierarchical ordering - each parent group can have its own order
  */
 
 const STORAGE_PREFIX = 'ledger_order_';
 
+// Type for hierarchical order storage: maps parent_id (or 'root' for root items) to ordered child IDs
+export type HierarchicalOrder = Record<string, string[]>;
+
 /**
- * Get the stored order for a given key
- * Returns an array of item IDs in the custom order, or empty array if none stored
+ * Get the stored hierarchical order for a given key
+ * Returns an object mapping parent IDs to ordered child IDs
  */
-export function getStoredOrder(key: string): string[] {
-  if (typeof window === 'undefined') return [];
+export function getStoredOrder(key: string): HierarchicalOrder {
+  if (typeof window === 'undefined') return {};
   try {
     const stored = localStorage.getItem(STORAGE_PREFIX + key);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Handle legacy format (array) by converting to new format
+      if (Array.isArray(parsed)) {
+        return { root: parsed };
+      }
+      return parsed;
     }
   } catch (e) {
     console.error('Failed to load stored order:', e);
   }
-  return [];
+  return {};
 }
 
 /**
- * Save the custom order for a given key
+ * Save the custom hierarchical order for a given key
  */
-export function saveOrder(key: string, order: string[]): void {
+export function saveOrder(key: string, order: HierarchicalOrder): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(order));
@@ -46,9 +55,20 @@ export function clearStoredOrder(key: string): void {
 }
 
 /**
- * Apply stored order to items. Items not in the stored order will be appended at the end.
+ * Get the storage key for a parent (use 'root' for items with no parent)
  */
-export function applyStoredOrder<T extends { id: string }>(items: T[], storedOrder: string[]): T[] {
+export function getParentKey(parentId: string | null): string {
+  return parentId ?? 'root';
+}
+
+/**
+ * Apply stored order to items within a specific parent group
+ * Items not in the stored order will be appended at the end.
+ */
+export function applyStoredOrderToGroup<T extends { id: string }>(
+  items: T[], 
+  storedOrder: string[]
+): T[] {
   if (!storedOrder.length) return items;
   
   const itemsById = new Map(items.map(item => [item.id, item]));
@@ -72,4 +92,11 @@ export function applyStoredOrder<T extends { id: string }>(items: T[], storedOrd
   }
   
   return orderedItems;
+}
+
+/**
+ * Check if there's any custom order stored
+ */
+export function hasAnyCustomOrder(order: HierarchicalOrder): boolean {
+  return Object.keys(order).length > 0 && Object.values(order).some(arr => arr.length > 0);
 }
