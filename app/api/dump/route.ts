@@ -47,7 +47,8 @@ export async function GET() {
       const rows = await queryFn(sql);
       
       dump += `-- Table: ${tablename}\n`;
-      dump += `CREATE TABLE IF NOT EXISTS "${tablename}" (...); -- Add schema\n`;
+      // Note: Schema definitions should be handled by Prisma migrations
+      // This dump only contains data for backup/restore purposes
       
       for (const row of rows) {
         const values = Object.values(row)
