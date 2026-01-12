@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
+import { get_current_user } from '@/app/_actions/auth';
+
+// Allowlist of table names to prevent SQL injection
+const ALLOWED_TABLES = ['user', 'account', 'asset', 'transaction', 'line_item', '_prisma_migrations'];
 
 export async function GET() {
   try {
+    // Authorization check - require authentication
+    const user = await get_current_user();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     const sql = neon(process.env.DATABASE_URL!);
     
     // Get all table names
@@ -16,22 +26,50 @@ export async function GET() {
 
     // Export each table
     for (const { tablename } of tables) {
-      // Create a TemplateStringsArray manually
-      const query = Object.assign(
-        [`SELECT * FROM ${tablename}`],
-        { raw: [`SELECT * FROM ${tablename}`] }
-      ) as unknown as TemplateStringsArray;
+      // Validate table name against allowlist to prevent SQL injection
+      if (!ALLOWED_TABLES.includes(tablename)) {
+        console.warn(`Skipping unknown table: ${tablename}`);
+        continue;
+      }
       
-      const rows = await sql(query);
+      // Use parameterized approach - table name is validated above
+      let rows: Record<string, unknown>[];
+      switch (tablename) {
+        case 'user':
+          rows = await sql`SELECT * FROM "user"`;
+          break;
+        case 'account':
+          rows = await sql`SELECT * FROM "account"`;
+          break;
+        case 'asset':
+          rows = await sql`SELECT * FROM "asset"`;
+          break;
+        case 'transaction':
+          rows = await sql`SELECT * FROM "transaction"`;
+          break;
+        case 'line_item':
+          rows = await sql`SELECT * FROM "line_item"`;
+          break;
+        case '_prisma_migrations':
+          rows = await sql`SELECT * FROM "_prisma_migrations"`;
+          break;
+        default:
+          continue;
+      }
       
       dump += `-- Table: ${tablename}\n`;
-      dump += `CREATE TABLE IF NOT EXISTS ${tablename} (...); -- Add schema\n`;
+      dump += `CREATE TABLE IF NOT EXISTS "${tablename}" (...); -- Add schema\n`;
       
       for (const row of rows) {
         const values = Object.values(row)
-          .map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v)
+          .map(v => {
+            if (v === null) return 'NULL';
+            if (typeof v === 'string') return `'${v.replace(/'/g, "''")}'`;
+            if (v instanceof Date) return `'${v.toISOString()}'`;
+            return String(v);
+          })
           .join(', ');
-        dump += `INSERT INTO ${tablename} VALUES (${values});\n`;
+        dump += `INSERT INTO "${tablename}" VALUES (${values});\n`;
       }
       dump += '\n';
     }
@@ -43,10 +81,11 @@ export async function GET() {
       status: 200,
       headers: {
         'Content-Type': 'application/sql',
-        'Content-Disposition': `attachment; filename=${fileName}`,
+        'Content-Disposition': `attachment; filename="${fileName}"`,
       },
     });
   } catch (err: unknown) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    console.error('Database dump error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

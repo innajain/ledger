@@ -6,7 +6,7 @@ import { HierarchyTree } from '../_components/HeirarchyTree';
 import { PageHeader } from '../_components/PageHeader';
 import { TotalCard } from '../_components/TotalCard';
 import { EmptyState } from '../_components/EmptyState';
-import { currency_fmt } from '../_utils/currency formatter';
+import { currency_fmt } from '../_utils/currency_formatter';
 
 // Lightweight shapes for client component
 type LineItemNumbered = {

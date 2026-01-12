@@ -3,7 +3,7 @@
 import { ViewPageHeader, InfoCard, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents';
 import { HoldingsGrid, HoldingItem } from '@/app/_components/HoldingsGrid';
 import { asset_type } from '@/generated/prisma/enums';
-import { currency_fmt } from '@/app/_utils/currency formatter';
+import { currency_fmt } from '@/app/_utils/currency_formatter';
 
 export type LineItem = {
   id: string;

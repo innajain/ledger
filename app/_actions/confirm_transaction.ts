@@ -49,6 +49,7 @@ export async function confirm_and_create_transaction(
         account_id: account.id,
         asset_id: asset.id,
         quantity: li.quantity,
+        book_value: li.book_value,
         description: li.description,
       };
     });

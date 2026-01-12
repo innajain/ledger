@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { currency_fmt } from '@/app/_utils/currency formatter';
+import { currency_fmt } from '@/app/_utils/currency_formatter';
 import { asset_type } from '@/generated/prisma/enums';
 
 export default function ClientPage({

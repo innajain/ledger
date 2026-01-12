@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { currency_fmt } from './_utils/currency formatter';
+import { currency_fmt } from './_utils/currency_formatter';
 
 const WELCOME_MESSAGES = [
   'Welcome back! Ready to crush your financial goals? 💪',
