@@ -48,9 +48,9 @@ export default function AITransactionClient() {
     setUsageInfo(null);
 
     try {
-      // Get current timestamp from client's timezone
-      const clientTimestamp = new Date().toISOString();
-      const response = await parse_transaction_with_ai(input, clientTimestamp);
+      // Don't send clientTimestamp - let server use IST time
+      // This ensures AI interprets user's time mentions as IST
+      const response = await parse_transaction_with_ai(input);
 
       if (response.success && response.transaction) {
         setParsedTransaction(response.transaction);
