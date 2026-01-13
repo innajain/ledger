@@ -265,8 +265,8 @@ ${input}`;
 
       const quantity = Number(li.quantity);
 
-      // For currency assets (rupees/Money), book_value must be null
-      // For non-currency assets, use provided book_value or default to quantity
+      // For currency assets (type: 'rupees'), book_value must be null
+      // For non-currency assets (mf, etf, shares, other), use provided book_value or default to quantity
       let bookValue: number | null;
       if (asset.type === 'rupees') {
         bookValue = null;
