@@ -206,8 +206,16 @@ ${assets.map(a => `- ${a.name} (${a.type})`).join('\n')}
     // SEGMENT C: DYNAMIC (Never Cached)
     // This goes into the User message so it doesn't break the System prompt cache prefix.
     const dynamicUserPrompt = `
-CURRENT TIMESTAMP: ${currentTime}
-INSTRUCTION: Use the timestamp above for the "date" field, if no other datetime is specified in the input.
+CURRENT TIMESTAMP (in India/IST timezone): ${currentTime}
+
+CRITICAL INSTRUCTIONS FOR DATETIME PARSING:
+1. TIMEZONE CONTEXT: The user is in India (IST/Asia/Kolkata timezone, UTC+5:30). All times mentioned by the user are in IST.
+2. PARSE TIME FROM USER INPUT: If the user mentions any time (e.g., "at 10:32 a.m.", "3:45 pm", "morning 9am"), use that exact time in IST timezone.
+3. PARSE DATE FROM USER INPUT: If the user mentions any date (e.g., "yesterday", "last Monday", "on 15th"), calculate that date relative to the current timestamp above.
+4. DEFAULT FALLBACK: Only use the CURRENT TIMESTAMP above if the user does NOT mention any time or date information.
+5. COMBINE CAREFULLY: If user mentions time but not date, use today's date with their specified time. If they mention date but not time, use their date with current time.
+6. OUTPUT FORMAT: Always return datetime in ISO 8601 format with timezone offset (e.g., "2026-01-13T10:32:00+05:30").
+
 Book Value Rule: For non-rupee assets, if book_value is not specified, assume book_value = quantity.
 
 USER INPUT:
@@ -257,6 +265,15 @@ ${input}`;
 
       const quantity = Number(li.quantity);
 
+      // For currency assets (type: 'rupees'), book_value must be null
+      // For non-currency assets (mf, etf, shares, other), use provided book_value or default to quantity
+      let bookValue: number | null;
+      if (asset.type === 'rupees') {
+        bookValue = null;
+      } else {
+        bookValue = li.book_value ?? quantity;
+      }
+
       resolvedLineItems.push({
         account_id: account.id,
         asset_id: asset.id,
@@ -265,7 +282,7 @@ ${input}`;
         asset_name: asset.name,
         asset_type: asset.type,
         quantity: quantity,
-        book_value: li.book_value ?? quantity,
+        book_value: bookValue,
         description: li.description || null,
       });
     }
