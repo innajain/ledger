@@ -207,7 +207,13 @@ ${assets.map(a => `- ${a.name} (${a.type})`).join('\n')}
     // This goes into the User message so it doesn't break the System prompt cache prefix.
     const dynamicUserPrompt = `
 CURRENT TIMESTAMP: ${currentTime}
-INSTRUCTION: Use the timestamp above for the "date" field, if no other datetime is specified in the input.
+
+CRITICAL INSTRUCTIONS:
+1. PARSE TIME FROM USER INPUT: If the user mentions any time (e.g., "at 10:32 a.m.", "3:45 pm", "morning 9am"), extract and use that specific time.
+2. PARSE DATE FROM USER INPUT: If the user mentions any date (e.g., "yesterday", "last Monday", "on 15th"), calculate and use that specific date.
+3. DEFAULT FALLBACK: Only use the CURRENT TIMESTAMP above if the user does NOT mention any time or date information in their input.
+4. COMBINE CAREFULLY: If user mentions time but not date, use today's date with their specified time. If they mention date but not time, use their date with current time.
+
 Book Value Rule: For non-rupee assets, if book_value is not specified, assume book_value = quantity.
 
 USER INPUT:
