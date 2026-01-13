@@ -1,7 +1,7 @@
 // components/ViewPageComponents.tsx
 import { asset_type } from '@/generated/prisma/enums';
 import Link from 'next/link';
-import { currency_fmt } from '../_utils/currency formatter';
+import { currency_fmt } from '../_utils/currency_formatter';
 
 // View Page Header
 interface ViewPageHeaderProps {

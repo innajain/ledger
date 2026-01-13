@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { asset_type } from '@/generated/prisma/enums';
-import { currency_fmt } from '../_utils/currency formatter';
+import { currency_fmt } from '../_utils/currency_formatter';
 
 export type HoldingItem = {
   id: string;

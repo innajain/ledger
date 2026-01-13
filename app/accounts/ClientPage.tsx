@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import type { Prisma } from '@/generated/prisma/client';
-import { currency_fmt } from '../_utils/currency formatter';
+import { currency_fmt } from '../_utils/currency_formatter';
 import { HierarchyTree } from '../_components/HeirarchyTree';
 import { PageHeader } from '../_components/PageHeader';
 import { TotalCard } from '../_components/TotalCard';

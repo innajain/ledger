@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { currency_fmt } from '../_utils/currency formatter';
+import { currency_fmt } from '../_utils/currency_formatter';
 import { PageHeader } from '../_components/PageHeader';
 import { EmptyState } from '../_components/EmptyState';
 

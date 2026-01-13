@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents';
 import { asset_type } from '@/generated/prisma/enums';
-import { currency_fmt } from '@/app/_utils/currency formatter';
+import { currency_fmt } from '@/app/_utils/currency_formatter';
 
 type BreakdownItem = {
   account_id: string;
