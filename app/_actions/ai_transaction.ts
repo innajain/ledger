@@ -131,7 +131,7 @@ async function getRecentTransactions(userId: string, limit: number = 10) {
 }
 
 // --- MAIN FUNCTION ---
-export async function parse_transaction_with_ai(input: string) {
+export async function parse_transaction_with_ai(input: string, clientTimestamp?: string) {
   const user = await get_current_user();
   if (!user) throw new Error('unauthorized');
 
@@ -144,8 +144,8 @@ export async function parse_transaction_with_ai(input: string) {
 
     const { accounts, assets } = entities;
 
-    // 2. Pre-calculate Date
-    const currentISTTime = formatInTimeZone(new Date(), 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
+    // 2. Use client timestamp if provided, otherwise fall back to server time in IST
+    const currentTime = clientTimestamp || formatInTimeZone(new Date(), 'Asia/Kolkata', "yyyy-MM-dd'T'HH:mm:ssXXX");
 
     // 3. Build Prompt Segments for Caching
 
@@ -206,7 +206,7 @@ ${assets.map(a => `- ${a.name} (${a.type})`).join('\n')}
     // SEGMENT C: DYNAMIC (Never Cached)
     // This goes into the User message so it doesn't break the System prompt cache prefix.
     const dynamicUserPrompt = `
-CURRENT TIMESTAMP: ${currentISTTime}
+CURRENT TIMESTAMP: ${currentTime}
 INSTRUCTION: Use the timestamp above for the "date" field, if no other datetime is specified in the input.
 Book Value Rule: For non-rupee assets, if book_value is not specified, assume book_value = quantity.
 
