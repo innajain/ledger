@@ -265,6 +265,15 @@ ${input}`;
 
       const quantity = Number(li.quantity);
 
+      // For currency assets (rupees/Money), book_value must be null
+      // For non-currency assets, use provided book_value or default to quantity
+      let bookValue: number | null;
+      if (asset.type === 'rupees') {
+        bookValue = null;
+      } else {
+        bookValue = li.book_value ?? quantity;
+      }
+
       resolvedLineItems.push({
         account_id: account.id,
         asset_id: asset.id,
@@ -273,7 +282,7 @@ ${input}`;
         asset_name: asset.name,
         asset_type: asset.type,
         quantity: quantity,
-        book_value: li.book_value ?? quantity,
+        book_value: bookValue,
         description: li.description || null,
       });
     }
