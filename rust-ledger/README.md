@@ -15,6 +15,7 @@ This project has been migrated from TypeScript/Next.js to Rust for:
 - **Memory Safety**: Guaranteed memory safety without garbage collection
 - **Reliability**: Strong type system catches errors at compile time
 - **Concurrency**: Fearless concurrency with async/await
+- **Single Binary**: Entire application compiles to one ~7MB executable
 
 ## ✨ Features
 
@@ -61,7 +62,7 @@ This project has been migrated from TypeScript/Next.js to Rust for:
 - **[PostgreSQL](https://www.postgresql.org/)** - Primary database
 
 ### Frontend
-- **Vanilla JavaScript** - Simple, fast, and no build step required
+- **JavaScript SPA** - Simple, fast single-page application
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework (via CDN)
 - **Server Actions Pattern** - Next.js-like abstraction for seamless backend calls
 
@@ -76,7 +77,6 @@ This project has been migrated from TypeScript/Next.js to Rust for:
 Before you begin, ensure you have the following installed:
 - **Rust** 1.75 or higher (with Cargo)
 - **PostgreSQL** 14.x or higher
-- **Redis** (optional, for caching)
 
 ## 🚀 Getting Started
 
@@ -258,6 +258,15 @@ serverActions.prices.getForAsset(id)
 - **Type-like Safety** - Named functions prevent typos in URLs
 - **Centralized Configuration** - All API routes defined in one place
 - **Next.js Familiarity** - Similar pattern to Next.js Server Actions
+
+## 🚀 Future: Leptos Migration
+
+For a **true Next.js-like experience** with Rust, consider migrating the frontend to [Leptos](https://leptos.dev/). Leptos provides:
+
+- **Server Functions** - Call Rust backend code directly from Rust frontend
+- **Reactive UI** - Fine-grained reactivity with signals
+- **SSR + Hydration** - Server-side rendering with client-side hydration
+- **Type Safety** - Full Rust type checking across the entire stack
 
 ## 🔒 Security Features
 

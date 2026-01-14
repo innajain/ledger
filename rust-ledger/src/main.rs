@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Start the server
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    tracing::info!("Starting server at http://{}", addr);
+    tracing::info!("🦀 Ledger server starting at http://{}", addr);
     
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
@@ -103,3 +103,4 @@ fn build_router(state: api::AppState) -> Router {
         .layer(CookieManagerLayer::new())
         .with_state(state)
 }
+

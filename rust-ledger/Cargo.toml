@@ -1,8 +1,8 @@
 [package]
 name = "ledger"
 version = "0.1.0"
-edition = "2024"
-description = "Personal Finance Management System - Rust implementation"
+edition = "2021"
+description = "Personal Finance Management System - Full-stack Rust with Leptos"
 authors = ["Shreyansh Jain"]
 license = "MIT"
 
@@ -45,6 +45,10 @@ cuid2 = "0.1"
 # Cookie handling
 tower-cookies = "0.11"
 cookie = "0.18"
+
+# Template rendering
+askama = "0.13"
+askama_axum = "0.4"
 
 [profile.release]
 opt-level = 3
