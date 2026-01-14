@@ -72,22 +72,22 @@ pub async fn get_nav(code: &str) -> Result<Option<PriceData>> {
         };
         // Parse date in DD-MM-YYYY format
         let parts: Vec<&str> = nav_data.date.split('-').collect();
-        if parts.len() == 3 {
-            let date = chrono::NaiveDate::from_ymd_opt(
-                parts[2].parse().unwrap_or(2024),
-                parts[1].parse().unwrap_or(1),
-                parts[0].parse().unwrap_or(1),
-            );
-            if let Some(d) = date {
-                return Ok(Some(PriceData {
-                    price,
-                    date: d.and_hms_opt(0, 0, 0).unwrap().and_utc(),
-                }));
+        let date = if parts.len() == 3 {
+            match (parts[0].parse::<u32>(), parts[1].parse::<u32>(), parts[2].parse::<i32>()) {
+                (Ok(day), Ok(month), Ok(year)) => {
+                    chrono::NaiveDate::from_ymd_opt(year, month, day)
+                        .and_then(|d| d.and_hms_opt(0, 0, 0))
+                        .map(|d| d.and_utc())
+                }
+                _ => None,
             }
-        }
+        } else {
+            None
+        };
+        
         return Ok(Some(PriceData {
             price,
-            date: Utc::now(),
+            date: date.unwrap_or_else(Utc::now),
         }));
     }
     

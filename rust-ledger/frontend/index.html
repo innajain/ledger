@@ -538,10 +538,16 @@
             let allocationCards = '';
             let totalValue = 0;
             
+            // First pass: calculate total value
             if (result.success && result.data) {
                 for (const alloc of result.data) {
                     totalValue += parseFloat(alloc.total);
-                    const percentage = totalValue > 0 ? (parseFloat(alloc.total) / totalValue * 100).toFixed(1) : 0;
+                }
+                
+                // Second pass: build cards with correct percentages
+                for (const alloc of result.data) {
+                    const allocValue = parseFloat(alloc.total);
+                    const percentage = totalValue > 0 ? (allocValue / totalValue * 100).toFixed(1) : 0;
                     allocationCards += `
                         <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
                             <div class="flex items-center justify-between mb-4">
