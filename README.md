@@ -1,6 +1,25 @@
 # 📒 Ledger - Personal Finance Management System
 
-A modern, full-stack personal finance management application built with Next.js, designed to help you track accounts, assets, transactions, and allocations with precision and ease.
+A modern, full-stack personal finance management application designed to help you track accounts, assets, transactions, and allocations with precision and ease.
+
+## 🦀 Rust Migration
+
+**This project has been migrated to Rust!** The new Rust implementation is located in the `rust-ledger/` directory.
+
+See [rust-ledger/README.md](./rust-ledger/README.md) for the Rust version documentation.
+
+### Quick Start (Rust Version)
+
+```bash
+cd rust-ledger
+cargo run
+```
+
+---
+
+## Legacy TypeScript/Next.js Version
+
+The original TypeScript/Next.js implementation remains in the root directory for reference.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.0.7-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)

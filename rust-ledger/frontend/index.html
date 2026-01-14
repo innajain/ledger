@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledger - Personal Finance Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155',
+                            600: '#475569',
+                            500: '#64748b',
+                            400: '#94a3b8',
+                            300: '#cbd5e1',
+                            200: '#e2e8f0',
+                            100: '#f1f5f9',
+                            50: '#f8fafc',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+    <!-- App Container -->
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Navigation -->
+        <nav class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-8">
+                        <a href="/" class="text-xl font-bold gradient-bg bg-clip-text text-transparent">
+                            📒 Ledger
+                        </a>
+                        <div class="hidden md:flex items-center gap-6" id="nav-links">
+                            <!-- Nav links will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-700 transition-colors">
+                            🌙
+                        </button>
+                        <div id="user-menu" class="relative">
+                            <!-- User menu will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div id="content" class="animate-fade-in">
+                <!-- Content will be loaded dynamically -->
+                <div class="text-center py-12">
+                    <div class="inline-block p-4 rounded-full bg-slate-800 mb-4">
+                        <svg class="w-12 h-12 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                    <p class="text-slate-400">Loading...</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-slate-800 border-t border-slate-700 mt-auto">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <p class="text-center text-sm text-slate-400">
+                    Made with <span class="text-red-500">♥</span> by 
+                    <a href="https://github.com/innajain" target="_blank" rel="noopener noreferrer" class="text-slate-300 hover:underline">
+                        Shreyansh Jain
+                    </a>
+                    • Built with <span class="text-orange-500">Rust</span> 🦀
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript Application -->
+    <script>
+        // API base URL
+        const API_BASE = '/api';
+
+        // State
+        let currentUser = null;
+        let currentPage = 'home';
+
+        // API helpers
+        async function api(endpoint, options = {}) {
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers,
+                },
+                credentials: 'include',
+                ...options,
+            });
+            return response.json();
+        }
+
+        // Check authentication
+        async function checkAuth() {
+            try {
+                const result = await api('/auth/me');
+                if (result.success) {
+                    currentUser = result.data;
+                    renderNavigation();
+                    loadPage(window.location.hash.slice(1) || 'home');
+                } else {
+                    currentUser = null;
+                    renderNavigation();
+                    loadPage('login');
+                }
+            } catch (e) {
+                currentUser = null;
+                renderNavigation();
+                loadPage('login');
+            }
+        }
+
+        // Render navigation
+        function renderNavigation() {
+            const navLinks = document.getElementById('nav-links');
+            const userMenu = document.getElementById('user-menu');
+
+            if (currentUser) {
+                navLinks.innerHTML = `
+                    <a href="#home" class="text-slate-300 hover:text-white transition-colors">Home</a>
+                    <a href="#accounts" class="text-slate-300 hover:text-white transition-colors">Accounts</a>
+                    <a href="#assets" class="text-slate-300 hover:text-white transition-colors">Assets</a>
+                    <a href="#transactions" class="text-slate-300 hover:text-white transition-colors">Transactions</a>
+                    <a href="#allocations" class="text-slate-300 hover:text-white transition-colors">Allocations</a>
+                `;
+                userMenu.innerHTML = `
+                    <button class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors">
+                        <span>👤</span>
+                        <span>${currentUser.username}</span>
+                    </button>
+                `;
+            } else {
+                navLinks.innerHTML = '';
+                userMenu.innerHTML = `
+                    <a href="#login" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-colors">
+                        Login
+                    </a>
+                `;
+            }
+        }
+
+        // Load page content
+        async function loadPage(page) {
+            currentPage = page;
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="text-center py-12"><p class="text-slate-400">Loading...</p></div>';
+
+            try {
+                switch (page) {
+                    case 'home':
+                        await renderHomePage(content);
+                        break;
+                    case 'login':
+                        await renderLoginPage(content);
+                        break;
+                    case 'accounts':
+                        await renderAccountsPage(content);
+                        break;
+                    case 'assets':
+                        await renderAssetsPage(content);
+                        break;
+                    case 'transactions':
+                        await renderTransactionsPage(content);
+                        break;
+                    case 'allocations':
+                        await renderAllocationsPage(content);
+                        break;
+                    default:
+                        content.innerHTML = '<div class="text-center py-12"><h1 class="text-2xl text-slate-300">Page not found</h1></div>';
+                }
+            } catch (e) {
+                content.innerHTML = `<div class="text-center py-12 text-red-400">Error loading page: ${e.message}</div>`;
+            }
+        }
+
+        // Render Home Page
+        async function renderHomePage(container) {
+            if (!currentUser) {
+                window.location.hash = 'login';
+                return;
+            }
+
+            const allocations = await api('/allocations');
+            
+            let allocationCards = '';
+            let totalValue = 0;
+            
+            if (allocations.success && allocations.data) {
+                for (const alloc of allocations.data) {
+                    totalValue += parseFloat(alloc.total);
+                    allocationCards += `
+                        <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 hover:border-indigo-500 transition-colors">
+                            <h3 class="text-lg font-semibold text-slate-200">${alloc.name}</h3>
+                            <p class="text-2xl font-bold text-indigo-400 mt-2">₹${formatNumber(alloc.total)}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            container.innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="text-center mb-8">
+                        <h1 class="text-3xl font-bold text-slate-100 mb-2">Welcome, ${currentUser.username}!</h1>
+                        <p class="text-slate-400">Your personal finance dashboard</p>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 mb-8 text-center">
+                        <p class="text-lg text-indigo-100 mb-2">Total Portfolio Value</p>
+                        <p class="text-5xl font-bold text-white">₹${formatNumber(totalValue)}</p>
+                    </div>
+
+                    <h2 class="text-xl font-semibold text-slate-200 mb-4">Allocations</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${allocationCards || '<p class="text-slate-400 col-span-full text-center py-8">No allocations yet. Create some accounts to get started!</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Login Page
+        async function renderLoginPage(container) {
+            container.innerHTML = `
+                <div class="max-w-md mx-auto animate-fade-in">
+                    <div class="bg-slate-800 rounded-2xl p-8 border border-slate-700">
+                        <h1 class="text-2xl font-bold text-center mb-6">Welcome to Ledger</h1>
+                        
+                        <form id="login-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
+                                <input type="text" name="username" required
+                                    class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-100 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">Password</label>
+                                <input type="password" name="password" required
+                                    class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-100 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div id="login-error" class="text-red-400 text-sm hidden"></div>
+                            <button type="submit"
+                                class="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors">
+                                Login
+                            </button>
+                        </form>
+                        
+                        <div class="mt-4 text-center">
+                            <p class="text-slate-400 text-sm">Don't have an account?</p>
+                            <button id="show-signup" class="text-indigo-400 hover:text-indigo-300 text-sm">
+                                Sign up
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const result = await api('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: formData.get('username'),
+                        password: formData.get('password'),
+                    }),
+                });
+
+                if (result.success) {
+                    currentUser = result.user;
+                    renderNavigation();
+                    window.location.hash = 'home';
+                } else {
+                    const error = document.getElementById('login-error');
+                    error.textContent = result.message;
+                    error.classList.remove('hidden');
+                }
+            });
+
+            document.getElementById('show-signup').addEventListener('click', () => {
+                renderSignupForm(container);
+            });
+        }
+
+        // Render Signup Form
+        function renderSignupForm(container) {
+            container.innerHTML = `
+                <div class="max-w-md mx-auto animate-fade-in">
+                    <div class="bg-slate-800 rounded-2xl p-8 border border-slate-700">
+                        <h1 class="text-2xl font-bold text-center mb-6">Create Account</h1>
+                        
+                        <form id="signup-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">Username</label>
+                                <input type="text" name="username" required
+                                    class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-100 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-1">Password</label>
+                                <input type="password" name="password" required
+                                    class="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-100 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div id="signup-error" class="text-red-400 text-sm hidden"></div>
+                            <button type="submit"
+                                class="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors">
+                                Sign Up
+                            </button>
+                        </form>
+                        
+                        <div class="mt-4 text-center">
+                            <button id="show-login" class="text-indigo-400 hover:text-indigo-300 text-sm">
+                                Back to login
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('signup-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const result = await api('/auth/signup', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: formData.get('username'),
+                        password: formData.get('password'),
+                    }),
+                });
+
+                if (result.success) {
+                    currentUser = result.user;
+                    renderNavigation();
+                    window.location.hash = 'home';
+                } else {
+                    const error = document.getElementById('signup-error');
+                    error.textContent = result.message;
+                    error.classList.remove('hidden');
+                }
+            });
+
+            document.getElementById('show-login').addEventListener('click', () => {
+                renderLoginPage(container);
+            });
+        }
+
+        // Render Accounts Page
+        async function renderAccountsPage(container) {
+            const result = await api('/accounts');
+            
+            let accountRows = '';
+            if (result.success && result.data) {
+                for (const account of result.data) {
+                    accountRows += `
+                        <tr class="border-b border-slate-700 hover:bg-slate-700/50">
+                            <td class="px-4 py-3 text-slate-200">${account.name}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded-full text-xs ${getAccountTypeClass(account.account_type)}">
+                                    ${account.account_type}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-slate-400">${account.parent_id || '-'}</td>
+                            <td class="px-4 py-3">
+                                <button class="text-red-400 hover:text-red-300" onclick="deleteAccount('${account.id}')">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+
+            container.innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="flex items-center justify-between mb-6">
+                        <h1 class="text-2xl font-bold text-slate-100">Accounts</h1>
+                        <button onclick="showCreateAccountModal()" 
+                            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+                            + New Account
+                        </button>
+                    </div>
+                    
+                    <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                        <table class="w-full">
+                            <thead class="bg-slate-700/50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Name</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Type</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Parent</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${accountRows || '<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">No accounts yet</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Assets Page
+        async function renderAssetsPage(container) {
+            const result = await api('/assets');
+            
+            let assetRows = '';
+            if (result.success && result.data) {
+                for (const asset of result.data) {
+                    assetRows += `
+                        <tr class="border-b border-slate-700 hover:bg-slate-700/50">
+                            <td class="px-4 py-3 text-slate-200">${asset.name}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded-full text-xs ${getAssetTypeClass(asset.asset_type)}">
+                                    ${asset.asset_type}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-slate-400">${asset.ticker || '-'}</td>
+                            <td class="px-4 py-3">
+                                <button class="text-red-400 hover:text-red-300" onclick="deleteAsset('${asset.id}')">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+
+            container.innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="flex items-center justify-between mb-6">
+                        <h1 class="text-2xl font-bold text-slate-100">Assets</h1>
+                        <button onclick="showCreateAssetModal()" 
+                            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+                            + New Asset
+                        </button>
+                    </div>
+                    
+                    <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                        <table class="w-full">
+                            <thead class="bg-slate-700/50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Name</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Type</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Ticker</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${assetRows || '<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">No assets yet</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Transactions Page
+        async function renderTransactionsPage(container) {
+            const result = await api('/transactions');
+            
+            let transactionRows = '';
+            if (result.success && result.data) {
+                for (const tx of result.data) {
+                    const date = new Date(tx.datetime).toLocaleDateString();
+                    transactionRows += `
+                        <tr class="border-b border-slate-700 hover:bg-slate-700/50">
+                            <td class="px-4 py-3 text-slate-400">${date}</td>
+                            <td class="px-4 py-3 text-slate-200">${tx.description || '-'}</td>
+                            <td class="px-4 py-3">
+                                <a href="#transaction/${tx.id}" class="text-indigo-400 hover:text-indigo-300">View</a>
+                                <button class="text-red-400 hover:text-red-300 ml-4" onclick="deleteTransaction('${tx.id}')">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+
+            container.innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="flex items-center justify-between mb-6">
+                        <h1 class="text-2xl font-bold text-slate-100">Transactions</h1>
+                        <button onclick="showCreateTransactionModal()" 
+                            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+                            + New Transaction
+                        </button>
+                    </div>
+                    
+                    <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                        <table class="w-full">
+                            <thead class="bg-slate-700/50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Date</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Description</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-slate-300">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${transactionRows || '<tr><td colspan="3" class="px-4 py-8 text-center text-slate-400">No transactions yet</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Allocations Page
+        async function renderAllocationsPage(container) {
+            const result = await api('/allocations');
+            
+            let allocationCards = '';
+            let totalValue = 0;
+            
+            if (result.success && result.data) {
+                for (const alloc of result.data) {
+                    totalValue += parseFloat(alloc.total);
+                    const percentage = totalValue > 0 ? (parseFloat(alloc.total) / totalValue * 100).toFixed(1) : 0;
+                    allocationCards += `
+                        <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-slate-200">${alloc.name}</h3>
+                                <span class="text-sm text-slate-400">${percentage}%</span>
+                            </div>
+                            <p class="text-3xl font-bold text-indigo-400">₹${formatNumber(alloc.total)}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            container.innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="flex items-center justify-between mb-6">
+                        <h1 class="text-2xl font-bold text-slate-100">Portfolio Allocations</h1>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 mb-8 text-center">
+                        <p class="text-lg text-indigo-100 mb-2">Total Value</p>
+                        <p class="text-5xl font-bold text-white">₹${formatNumber(totalValue)}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${allocationCards || '<p class="text-slate-400 col-span-full text-center py-8">No allocations yet</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Helper functions
+        function formatNumber(num) {
+            return new Intl.NumberFormat('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }).format(num);
+        }
+
+        function getAccountTypeClass(type) {
+            switch (type) {
+                case 'real': return 'bg-green-500/20 text-green-400';
+                case 'nominal': return 'bg-blue-500/20 text-blue-400';
+                case 'allocation': return 'bg-purple-500/20 text-purple-400';
+                default: return 'bg-slate-500/20 text-slate-400';
+            }
+        }
+
+        function getAssetTypeClass(type) {
+            switch (type) {
+                case 'rupees': return 'bg-yellow-500/20 text-yellow-400';
+                case 'mf': return 'bg-green-500/20 text-green-400';
+                case 'etf': return 'bg-blue-500/20 text-blue-400';
+                case 'shares': return 'bg-purple-500/20 text-purple-400';
+                default: return 'bg-slate-500/20 text-slate-400';
+            }
+        }
+
+        // Delete functions
+        async function deleteAccount(id) {
+            if (confirm('Are you sure you want to delete this account?')) {
+                await api(`/accounts/${id}`, { method: 'DELETE' });
+                loadPage('accounts');
+            }
+        }
+
+        async function deleteAsset(id) {
+            if (confirm('Are you sure you want to delete this asset?')) {
+                await api(`/assets/${id}`, { method: 'DELETE' });
+                loadPage('assets');
+            }
+        }
+
+        async function deleteTransaction(id) {
+            if (confirm('Are you sure you want to delete this transaction?')) {
+                await api(`/transactions/${id}`, { method: 'DELETE' });
+                loadPage('transactions');
+            }
+        }
+
+        // Modal placeholders (would be fully implemented in production)
+        function showCreateAccountModal() {
+            alert('Create Account modal - Coming soon!');
+        }
+
+        function showCreateAssetModal() {
+            alert('Create Asset modal - Coming soon!');
+        }
+
+        function showCreateTransactionModal() {
+            alert('Create Transaction modal - Coming soon!');
+        }
+
+        // Theme toggle
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+        });
+
+        // Hash change listener
+        window.addEventListener('hashchange', () => {
+            const page = window.location.hash.slice(1) || 'home';
+            if (currentUser || page === 'login') {
+                loadPage(page);
+            }
+        });
+
+        // Initialize
+        checkAuth();
+    </script>
+</body>
+</html>

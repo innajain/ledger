@@ -43,3 +43,7 @@ next-env.d.ts
 
 /generated/prisma
 seed.ts
+
+# Rust
+/rust-ledger/target/
+Cargo.lock
