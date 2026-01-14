@@ -63,6 +63,7 @@ This project has been migrated from TypeScript/Next.js to Rust for:
 ### Frontend
 - **Vanilla JavaScript** - Simple, fast, and no build step required
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework (via CDN)
+- **Server Actions Pattern** - Next.js-like abstraction for seamless backend calls
 
 ### Additional Libraries
 - **[jsonwebtoken](https://docs.rs/jsonwebtoken)** - JWT token handling
@@ -197,6 +198,66 @@ rust-ledger/
 ### Other
 - `GET /api/allocations` - Get portfolio allocations
 - `GET /api/prices/asset/:id` - Get current price for asset
+
+## 🎯 Server Actions (Next.js-like Pattern)
+
+The frontend uses a **Server Actions** pattern similar to Next.js, where HTTP calls are abstracted away. Instead of making raw fetch requests, you call functions that look like direct backend calls:
+
+```javascript
+// ❌ Old way - explicit HTTP calls
+const result = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+});
+
+// ✅ New way - Server Actions (looks like a function call!)
+const result = await serverActions.auth.login({ username, password });
+```
+
+### Available Server Actions
+
+```javascript
+// Authentication
+serverActions.auth.login({ username, password })
+serverActions.auth.signup({ username, password })
+serverActions.auth.logout()
+serverActions.auth.getCurrentUser()
+serverActions.auth.changePassword({ current_password, new_password })
+serverActions.auth.changeUsername({ new_username, password })
+
+// Accounts
+serverActions.accounts.list()
+serverActions.accounts.get(id)
+serverActions.accounts.create({ name, account_type, parent_id })
+serverActions.accounts.update(id, { name, account_type, parent_id })
+serverActions.accounts.delete(id)
+
+// Assets
+serverActions.assets.list()
+serverActions.assets.get(id)
+serverActions.assets.create({ name, asset_type, ticker, parent_id })
+serverActions.assets.update(id, { name, asset_type, ticker, parent_id })
+serverActions.assets.delete(id)
+
+// Transactions
+serverActions.transactions.list()
+serverActions.transactions.get(id)
+serverActions.transactions.create({ datetime, description, line_items })
+serverActions.transactions.update(id, { datetime, description, line_items })
+serverActions.transactions.delete(id)
+
+// Allocations & Prices
+serverActions.allocations.list()
+serverActions.prices.getForAsset(id)
+```
+
+### Benefits
+
+- **Cleaner Code** - No boilerplate for HTTP requests
+- **Type-like Safety** - Named functions prevent typos in URLs
+- **Centralized Configuration** - All API routes defined in one place
+- **Next.js Familiarity** - Similar pattern to Next.js Server Actions
 
 ## 🔒 Security Features
 

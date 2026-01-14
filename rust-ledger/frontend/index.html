@@ -100,30 +100,114 @@
 
     <!-- JavaScript Application -->
     <script>
-        // API base URL
-        const API_BASE = '/api';
+        // ============================================================
+        // Server Actions - Next.js-like API abstraction
+        // ============================================================
+        // These functions provide a seamless way to call server-side
+        // functionality without dealing with HTTP requests directly.
+        // Usage: const result = await serverActions.auth.login({ username, password });
+        // ============================================================
+        
+        const serverActions = (() => {
+            // Internal fetch wrapper - hidden from consumers
+            const _call = async (action, data = null) => {
+                const [module, method] = action.split('.');
+                const routes = {
+                    'auth.login': { path: '/auth/login', method: 'POST' },
+                    'auth.signup': { path: '/auth/signup', method: 'POST' },
+                    'auth.logout': { path: '/auth/logout', method: 'POST' },
+                    'auth.me': { path: '/auth/me', method: 'GET' },
+                    'auth.changePassword': { path: '/auth/password', method: 'PUT' },
+                    'auth.changeUsername': { path: '/auth/username', method: 'PUT' },
+                    'accounts.list': { path: '/accounts', method: 'GET' },
+                    'accounts.get': { path: (d) => `/accounts/${d.id}`, method: 'GET' },
+                    'accounts.create': { path: '/accounts', method: 'POST' },
+                    'accounts.update': { path: (d) => `/accounts/${d.id}`, method: 'PUT' },
+                    'accounts.delete': { path: (d) => `/accounts/${d.id}`, method: 'DELETE' },
+                    'assets.list': { path: '/assets', method: 'GET' },
+                    'assets.get': { path: (d) => `/assets/${d.id}`, method: 'GET' },
+                    'assets.create': { path: '/assets', method: 'POST' },
+                    'assets.update': { path: (d) => `/assets/${d.id}`, method: 'PUT' },
+                    'assets.delete': { path: (d) => `/assets/${d.id}`, method: 'DELETE' },
+                    'transactions.list': { path: '/transactions', method: 'GET' },
+                    'transactions.get': { path: (d) => `/transactions/${d.id}`, method: 'GET' },
+                    'transactions.create': { path: '/transactions', method: 'POST' },
+                    'transactions.update': { path: (d) => `/transactions/${d.id}`, method: 'PUT' },
+                    'transactions.delete': { path: (d) => `/transactions/${d.id}`, method: 'DELETE' },
+                    'allocations.list': { path: '/allocations', method: 'GET' },
+                    'prices.getForAsset': { path: (d) => `/prices/asset/${d.id}`, method: 'GET' },
+                };
+                
+                const route = routes[action];
+                if (!route) throw new Error(`Unknown server action: ${action}`);
+                
+                const path = typeof route.path === 'function' ? route.path(data) : route.path;
+                const options = {
+                    method: route.method,
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                };
+                
+                if (data && route.method !== 'GET') {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(`/api${path}`, options);
+                return response.json();
+            };
+
+            // Public API - these look like direct function calls
+            return {
+                auth: {
+                    login: (credentials) => _call('auth.login', credentials),
+                    signup: (credentials) => _call('auth.signup', credentials),
+                    logout: () => _call('auth.logout'),
+                    getCurrentUser: () => _call('auth.me'),
+                    changePassword: (data) => _call('auth.changePassword', data),
+                    changeUsername: (data) => _call('auth.changeUsername', data),
+                },
+                accounts: {
+                    list: () => _call('accounts.list'),
+                    get: (id) => _call('accounts.get', { id }),
+                    create: (data) => _call('accounts.create', data),
+                    update: (id, data) => _call('accounts.update', { id, ...data }),
+                    delete: (id) => _call('accounts.delete', { id }),
+                },
+                assets: {
+                    list: () => _call('assets.list'),
+                    get: (id) => _call('assets.get', { id }),
+                    create: (data) => _call('assets.create', data),
+                    update: (id, data) => _call('assets.update', { id, ...data }),
+                    delete: (id) => _call('assets.delete', { id }),
+                },
+                transactions: {
+                    list: () => _call('transactions.list'),
+                    get: (id) => _call('transactions.get', { id }),
+                    create: (data) => _call('transactions.create', data),
+                    update: (id, data) => _call('transactions.update', { id, ...data }),
+                    delete: (id) => _call('transactions.delete', { id }),
+                },
+                allocations: {
+                    list: () => _call('allocations.list'),
+                },
+                prices: {
+                    getForAsset: (id) => _call('prices.getForAsset', { id }),
+                },
+            };
+        })();
+
+        // ============================================================
+        // Application State
+        // ============================================================
 
         // State
         let currentUser = null;
         let currentPage = 'home';
 
-        // API helpers
-        async function api(endpoint, options = {}) {
-            const response = await fetch(`${API_BASE}${endpoint}`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options.headers,
-                },
-                credentials: 'include',
-                ...options,
-            });
-            return response.json();
-        }
-
-        // Check authentication
+        // Check authentication using server action
         async function checkAuth() {
             try {
-                const result = await api('/auth/me');
+                const result = await serverActions.auth.getCurrentUser();
                 if (result.success) {
                     currentUser = result.data;
                     renderNavigation();
@@ -210,7 +294,8 @@
                 return;
             }
 
-            const allocations = await api('/allocations');
+            // Use server action instead of raw API call
+            const allocations = await serverActions.allocations.list();
             
             let allocationCards = '';
             let totalValue = 0;
@@ -285,12 +370,10 @@
             document.getElementById('login-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
-                const result = await api('/auth/login', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        username: formData.get('username'),
-                        password: formData.get('password'),
-                    }),
+                // Use server action - looks like a direct function call
+                const result = await serverActions.auth.login({
+                    username: formData.get('username'),
+                    password: formData.get('password'),
                 });
 
                 if (result.success) {
@@ -346,12 +429,10 @@
             document.getElementById('signup-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
-                const result = await api('/auth/signup', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        username: formData.get('username'),
-                        password: formData.get('password'),
-                    }),
+                // Use server action - looks like a direct function call
+                const result = await serverActions.auth.signup({
+                    username: formData.get('username'),
+                    password: formData.get('password'),
                 });
 
                 if (result.success) {
@@ -372,7 +453,8 @@
 
         // Render Accounts Page
         async function renderAccountsPage(container) {
-            const result = await api('/accounts');
+            // Use server action instead of raw API call
+            const result = await serverActions.accounts.list();
             
             let accountRows = '';
             if (result.success && result.data) {
@@ -427,7 +509,8 @@
 
         // Render Assets Page
         async function renderAssetsPage(container) {
-            const result = await api('/assets');
+            // Use server action instead of raw API call
+            const result = await serverActions.assets.list();
             
             let assetRows = '';
             if (result.success && result.data) {
@@ -482,7 +565,8 @@
 
         // Render Transactions Page
         async function renderTransactionsPage(container) {
-            const result = await api('/transactions');
+            // Use server action instead of raw API call
+            const result = await serverActions.transactions.list();
             
             let transactionRows = '';
             if (result.success && result.data) {
@@ -533,7 +617,8 @@
 
         // Render Allocations Page
         async function renderAllocationsPage(container) {
-            const result = await api('/allocations');
+            // Use server action instead of raw API call
+            const result = await serverActions.allocations.list();
             
             let allocationCards = '';
             let totalValue = 0;
@@ -605,24 +690,24 @@
             }
         }
 
-        // Delete functions
+        // Delete functions - using server actions
         async function deleteAccount(id) {
             if (confirm('Are you sure you want to delete this account?')) {
-                await api(`/accounts/${id}`, { method: 'DELETE' });
+                await serverActions.accounts.delete(id);
                 loadPage('accounts');
             }
         }
 
         async function deleteAsset(id) {
             if (confirm('Are you sure you want to delete this asset?')) {
-                await api(`/assets/${id}`, { method: 'DELETE' });
+                await serverActions.assets.delete(id);
                 loadPage('assets');
             }
         }
 
         async function deleteTransaction(id) {
             if (confirm('Are you sure you want to delete this transaction?')) {
-                await api(`/transactions/${id}`, { method: 'DELETE' });
+                await serverActions.transactions.delete(id);
                 loadPage('transactions');
             }
         }
