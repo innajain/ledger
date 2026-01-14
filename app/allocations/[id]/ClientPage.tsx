@@ -31,7 +31,6 @@ const allocationDetailConfig = {
   backLink: '/allocations',
   backText: 'Back to Allocations',
   entityName: 'Allocation',
-  lineItemsTitle: 'Holdings',
 };
 
 export default function ClientPage({
