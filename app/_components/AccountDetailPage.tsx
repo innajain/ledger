@@ -41,7 +41,6 @@ type AccountDetailConfig = {
   backText: string;
   entityName: string; // "Account", "Allocation"
   holdingsTitle?: string;
-  lineItemsTitle?: string;
 };
 
 type AccountDetailPageProps = {
@@ -89,7 +88,7 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
       {/* Line items section */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{config.lineItemsTitle || 'Transaction Line Items'}</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Line Items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {account.line_items.length} item{account.line_items.length !== 1 ? 's' : ''}
           </p>
