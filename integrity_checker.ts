@@ -1,7 +1,7 @@
 import { prisma } from './lib/prisma';
 import { get_price_for_asset, get_latest_etf_or_shares_price, get_nav } from './app/_utils/price_fetcher';
 import { asset_type, Prisma } from '@/generated/prisma/client';
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from 'node:url';
 
 type Issue = { kind: 'error' | 'warning'; message: string };
 
