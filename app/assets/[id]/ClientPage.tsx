@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents';
 import { asset_type } from '@/generated/prisma/enums';
-import { currency_fmt } from '@/app/_utils/currency_formatter';
+import { currency_fmt, precise_currency_fmt } from '@/app/_utils/currency_formatter';
 
 type BreakdownItem = {
   account_id: string;
@@ -57,7 +57,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
           { label: 'Ticker', value: asset.ticker ?? '—' },
           { label: 'Parent Asset', value: asset.parent ? asset.parent.name : '—' },
           ...((asset.type === asset_type.mf || asset.type === asset_type.etf || asset.type === asset_type.shares) && asset.price !== null
-            ? [{ label: 'Current Price', value: currency_fmt.format(asset.price) }]
+            ? [{ label: 'Current Price', value: precise_currency_fmt.format(asset.price) }]
             : []),
         ]}
       />
