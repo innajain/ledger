@@ -108,8 +108,9 @@ export default async function Page({ params }: Props) {
 
   // Sort line items by datetime (line item datetime or transaction datetime), new to old
   lineItemsWithValues.sort((a, b) => (b._sortDate?.getTime() ?? 0) - (a._sortDate?.getTime() ?? 0));
-  // Remove the temporary sort field
-  lineItemsWithValues.forEach(item => delete item._sortDate);
+  // Remove the temporary sort field via destructuring
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const sortedLineItems = lineItemsWithValues.map(({ _sortDate, ...rest }) => rest);
 
   const breakdown: {
     asset_id: string;
@@ -145,7 +146,7 @@ export default async function Page({ params }: Props) {
     type: allocation.type,
     parent: allocation.parent ? { id: allocation.parent.id, name: allocation.parent.name } : null,
     total: acc_total.toNumber(),
-    line_items: lineItemsWithValues,
+    line_items: sortedLineItems,
     breakdown,
   };
 
