@@ -45,7 +45,7 @@ export default async function Page({ params }: Props) {
     transaction_date: string;
     transaction_description: string | null;
     line_item_description: string | null;
-    _sortDate?: Date;
+    _sortDate: Date;
   }[] = [];
 
   const real_line_items = account.line_items;
@@ -108,7 +108,7 @@ export default async function Page({ params }: Props) {
   }
 
   // Sort line items by datetime (line item datetime or transaction datetime), new to old
-  lineItemsWithValues.sort((a, b) => (b._sortDate?.getTime() ?? 0) - (a._sortDate?.getTime() ?? 0));
+  lineItemsWithValues.sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime());
   // Remove the temporary sort field via destructuring
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const sortedLineItems = lineItemsWithValues.map(({ _sortDate, ...rest }) => rest);

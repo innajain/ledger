@@ -116,7 +116,7 @@ export default async function Page({ params }: Props) {
         _sortDate: li.datetime ?? li.transaction.datetime,
       };
     })
-    .sort((a, b) => (b._sortDate?.getTime() ?? 0) - (a._sortDate?.getTime() ?? 0))
+    .sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime())
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .map(({ _sortDate, ...rest }) => rest);
 
