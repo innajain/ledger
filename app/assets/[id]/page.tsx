@@ -89,31 +89,35 @@ export default async function Page({ params }: Props) {
   }
 
   // prepare per-line items for client (keep transaction-level detail)
-  const line_items = real_line_items.map(li => {
-    let current_value = new Prisma.Decimal(0);
-    if (asset.type === asset_type.rupees) {
-      current_value = li.quantity;
-    } else if (priceDecimal) {
-      current_value = priceDecimal.mul(li.quantity);
-    } else {
-      // fallback to book value, which itself should be treated as qty when null
-      current_value = li.book_value ?? li.quantity;
-    }
+  const line_items = real_line_items
+    .map(li => {
+      let current_value = new Prisma.Decimal(0);
+      if (asset.type === asset_type.rupees) {
+        current_value = li.quantity;
+      } else if (priceDecimal) {
+        current_value = priceDecimal.mul(li.quantity);
+      } else {
+        // fallback to book value, which itself should be treated as qty when null
+        current_value = li.book_value ?? li.quantity;
+      }
 
-    return {
-      id: li.id,
-      account_id: li.account.id,
-      account_name: li.account.name,
-      quantity: li.quantity.toNumber(),
-      // fallback to quantity when book_value is null
-      book_value: li.book_value ? li.book_value.toNumber() : li.quantity.toNumber(),
-      current_value: current_value.toNumber(),
-      transaction_id: li.transaction.id,
-      transaction_date:  li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
-      transaction_description: li.transaction.description,
-      line_item_description: li.description,
-    };
-  });
+      return {
+        id: li.id,
+        account_id: li.account.id,
+        account_name: li.account.name,
+        quantity: li.quantity.toNumber(),
+        // fallback to quantity when book_value is null
+        book_value: li.book_value ? li.book_value.toNumber() : li.quantity.toNumber(),
+        current_value: current_value.toNumber(),
+        transaction_id: li.transaction.id,
+        transaction_date:  li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
+        transaction_description: li.transaction.description,
+        line_item_description: li.description,
+        _sortDate: li.datetime ?? li.transaction.datetime,
+      };
+    })
+    .sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime())
+    .map(({ _sortDate, ...rest }) => rest);
 
   const assetForClient = {
     id: asset.id,

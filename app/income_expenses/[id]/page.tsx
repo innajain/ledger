@@ -20,7 +20,7 @@ export default async function Page({ params }: Props) {
 
   const account = await prisma.account.findUnique({
     where: { id, user_id: user.id },
-    include: { line_items: { include: { asset: true, transaction: true }, orderBy: { transaction: { datetime: 'desc' } } }, parent: true },
+    include: { line_items: { include: { asset: true, transaction: true } }, parent: true },
   });
 
   if (!account || account.type !== 'nominal') {
@@ -45,6 +45,7 @@ export default async function Page({ params }: Props) {
     transaction_date: string;
     transaction_description: string | null;
     line_item_description: string | null;
+    _sortDate?: Date;
   }[] = [];
 
   const real_line_items = account.line_items;
@@ -102,8 +103,14 @@ export default async function Page({ params }: Props) {
       transaction_date:  li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
       transaction_description: li.transaction.description,
       line_item_description: li.description,
+      _sortDate: li.datetime ?? li.transaction.datetime,
     });
   }
+
+  // Sort line items by datetime (line item datetime or transaction datetime), new to old
+  lineItemsWithValues.sort((a, b) => (b._sortDate?.getTime() ?? 0) - (a._sortDate?.getTime() ?? 0));
+  // Remove the temporary sort field
+  lineItemsWithValues.forEach(item => delete item._sortDate);
 
   const breakdown: {
     asset_id: string;
