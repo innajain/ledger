@@ -1,20 +1,20 @@
-import { prisma } from '@/lib/prisma';
-import { get_current_user } from '@/app/_actions/auth';
-import ClientPage from './ClientPage';
-import { update_transaction } from '@/app/_actions/transactions_update';
+import { prisma } from '@/lib/prisma'
+import { get_current_user } from '@/app/_actions/auth'
+import ClientPage from './ClientPage'
+import { update_transaction } from '@/app/_actions/transactions_update'
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ id: string }> }
 
 export default async function Page({ params }: Props) {
-  const id = (await params).id;
-  const user = await get_current_user();
-  if (!user) return <div>Please log in.</div>;
+  const id = (await params).id
+  const user = await get_current_user()
+  if (!user) return <div>Please log in.</div>
 
   const tx = await prisma.transaction.findUnique({
     where: { id, user_id: user.id },
     include: { line_items: { include: { asset: true, account: true } } },
-  });
-  if (!tx) return <div>Transaction not found.</div>;
+  })
+  if (!tx) return <div>Transaction not found.</div>
 
   // For now reuse the ClientPage to show transaction and provide an Edit entry point.
   const txForClient = {
@@ -31,16 +31,15 @@ export default async function Page({ params }: Props) {
       asset_name: li.asset.name,
       description: li.description ?? null,
       datetime: li.datetime,
-      quantity: Number(li.quantity.toString()),
-      book_value: li.book_value ? Number(li.book_value.toString()) : null,
-      current_value: li.book_value ? Number(li.book_value.toString()) : 0,
+      quantity: li.quantity === null ? null : li.quantity.toNumber(),
+      book_value: li.book_value === null ? null : li.book_value.toNumber(),
     })),
-  };
-  const accounts = await prisma.account.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } });
-  const assets = await prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } });
+  }
+  const accounts = await prisma.account.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } })
+  const assets = await prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } })
 
-  const accountsForClient = accounts.map(a => ({ id: a.id, name: a.name, type: a.type }));
-  const assetsForClient = assets.map(a => ({ id: a.id, name: a.name, type: a.type }));
+  const accountsForClient = accounts.map(a => ({ id: a.id, name: a.name, type: a.type }))
+  const assetsForClient = assets.map(a => ({ id: a.id, name: a.name, type: a.type }))
 
-  return <ClientPage transaction={txForClient} accounts={accountsForClient} assets={assetsForClient} updateTransaction={update_transaction} />;
+  return <ClientPage transaction={txForClient} accounts={accountsForClient} assets={assetsForClient} updateTransaction={update_transaction} />
 }

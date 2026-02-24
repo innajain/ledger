@@ -1,25 +1,24 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { asset_type } from '@/generated/prisma/enums';
-import { CreateLineItemInput } from '@/app/_actions/transactions';
-import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems';
-import { ErrorAlert } from '@/app/_components/AccountFormComponents';
+import React, { useState } from 'react'
+import Link from 'next/link'
+import { asset_type } from '@/generated/prisma/enums'
+import { CreateLineItemInput } from '@/app/_actions/transactions'
+import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
+import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 
 type LineItem = {
-  id: string;
-  account_id: string;
-  account_name: string;
-  account_type: string;
-  asset_id: string;
-  asset_name: string;
-  quantity: number;
-  book_value: number | null;
-  current_value: number;
-  description?: string | null;
-  datetime?: Date | null;
-};
+  id: string
+  account_id: string
+  account_name: string
+  account_type: string
+  asset_id: string
+  asset_name: string
+  quantity: number | null
+  book_value: number | null
+  description?: string | null
+  datetime?: Date | null
+}
 
 export default function ClientPage({
   transaction,
@@ -28,68 +27,76 @@ export default function ClientPage({
   updateTransaction,
 }: {
   transaction: {
-    id: string;
-    date: Date;
-    description: string | null;
-    total: number;
-    line_items: LineItem[];
-  };
-  accounts: { id: string; name: string; type: string }[];
-  assets: { id: string; name: string; type: asset_type }[];
-  updateTransaction: (id: string, line_items: CreateLineItemInput[], datetime?: Date, description?: string | null) => Promise<{ success: boolean; message: string }>;
+    id: string
+    date: Date
+    description: string | null
+    total: number
+    line_items: LineItem[]
+  }
+  accounts: { id: string; name: string; type: string }[]
+  assets: { id: string; name: string; type: asset_type }[]
+  updateTransaction: (
+    id: string,
+    line_items: CreateLineItemInput[],
+    datetime?: Date,
+    description?: string | null,
+  ) => Promise<{ success: boolean; message: string }>
 }) {
   function toLocalDateTimeInputValue(d: Date | string) {
-    const dt = typeof d === 'string' ? new Date(d) : d;
-    if (!dt || isNaN(dt.getTime())) return '';
-    const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, '0');
-    const dd = String(dt.getDate()).padStart(2, '0');
-    const hh = String(dt.getHours()).padStart(2, '0');
-    const min = String(dt.getMinutes()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+    const dt = typeof d === 'string' ? new Date(d) : d
+    if (!dt || isNaN(dt.getTime())) return ''
+    const yyyy = dt.getFullYear()
+    const mm = String(dt.getMonth() + 1).padStart(2, '0')
+    const dd = String(dt.getDate()).padStart(2, '0')
+    const hh = String(dt.getHours()).padStart(2, '0')
+    const min = String(dt.getMinutes()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`
   }
 
-  const [date, setDate] = useState(() => toLocalDateTimeInputValue(transaction.date));
-  const [description, setDescription] = useState(transaction.description ?? '');
+  const [date, setDate] = useState(() => toLocalDateTimeInputValue(transaction.date))
+  const [description, setDescription] = useState(transaction.description ?? '')
   const [items, setItems] = useState<LineItemData[]>(
-    transaction.line_items.map((li) => ({
+    transaction.line_items.map(li => ({
       account_id: li.account_id,
       asset_id: li.asset_id,
-      quantity: String(li.quantity ?? 0),
+      quantity: li.quantity === null ? '' : String(li.quantity),
       book_value: li.book_value == null ? '' : String(li.book_value),
       description: li.description ?? '',
       datetime: li.datetime ? toLocalDateTimeInputValue(li.datetime) : '',
-    }))
-  );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    })),
+  )
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function addItemForType(typeKey: string) {
-    const defaultAcc = accounts.find(a => a.type === typeKey) ?? accounts[0];
-    setItems(prev => [{ account_id: defaultAcc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' }, ...prev]);
+    const defaultAcc = accounts.find(a => a.type === typeKey) ?? accounts[0]
+    setItems(prev => [
+      { account_id: defaultAcc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' },
+      ...prev,
+    ])
   }
 
   function removeItem(i: number) {
-    setItems(prev => prev.filter((_, idx) => idx !== i));
+    setItems(prev => prev.filter((_, idx) => idx !== i))
   }
 
   function updateItem(idx: number, field: keyof LineItemData, value: string) {
     setItems(prev => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], [field]: value };
+      const copy = [...prev]
+      copy[idx] = { ...copy[idx], [field]: value }
       // Clear book_value when switching to rupees asset
       if (field === 'asset_id') {
-        const sel = assets.find(a => a.id === value);
-        if (sel?.type === asset_type.rupees) copy[idx].book_value = '';
+        const sel = assets.find(a => a.id === value)
+        if (sel?.type === asset_type.rupees) copy[idx].book_value = ''
       }
-      return copy;
-    });
+      return copy
+    })
   }
 
   async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
+    e.preventDefault()
+    setError(null)
+    setBusy(true)
     try {
       const line_items = items.map(it => ({
         account_id: it.account_id,
@@ -98,45 +105,45 @@ export default function ClientPage({
         book_value: it.book_value === '' ? null : Number(it.book_value),
         description: it.description === '' ? null : it.description,
         datetime: it.datetime === '' ? null : new Date(it.datetime),
-      }));
-      const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null);
+      }))
+      const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null)
       if (result.success) {
-        window.location.href = `/transactions/${transaction.id}`;
+        window.location.href = `/transactions/${transaction.id}`
       } else {
-        setError(result.message);
+        setError(result.message)
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
   }
 
   // Nicely formatted preview of the entered date
   const formattedDate = (() => {
     try {
-      const d = new Date(date);
-      if (isNaN(d.getTime())) return null;
+      const d = new Date(date)
+      if (isNaN(d.getTime())) return null
 
-      const day = d.getDate();
+      const day = d.getDate()
       const ordinal = (n: number) => {
-        const j = n % 10;
-        const k = n % 100;
-        if (k >= 11 && k <= 13) return n + 'th';
-        if (j === 1) return n + 'st';
-        if (j === 2) return n + 'nd';
-        if (j === 3) return n + 'rd';
-        return n + 'th';
-      };
+        const j = n % 10
+        const k = n % 100
+        if (k >= 11 && k <= 13) return n + 'th'
+        if (j === 1) return n + 'st'
+        if (j === 2) return n + 'nd'
+        if (j === 3) return n + 'rd'
+        return n + 'th'
+      }
 
-      const month = d.toLocaleString('en-US', { month: 'long' });
-      const year = d.getFullYear();
-      const time = d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-      return `${ordinal(day)} ${month} ${year}, ${time}`;
+      const month = d.toLocaleString('en-US', { month: 'long' })
+      const year = d.getFullYear()
+      const time = d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      return `${ordinal(day)} ${month} ${year}, ${time}`
     } catch {
-      return null;
+      return null
     }
-  })();
+  })()
 
   return (
     <div className="space-y-6">
@@ -216,5 +223,5 @@ export default function ClientPage({
         </div>
       </form>
     </div>
-  );
+  )
 }

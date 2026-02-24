@@ -12,7 +12,6 @@ type Props = {
   accounts: (Prisma.accountGetPayload<{ include: { parent: true } }> & {
     line_items: (Omit<Prisma.line_itemGetPayload<{ include: { asset: true } }>, 'quantity' | 'book_value'> & {
       quantity: number;
-      book_value: number | null;
     })[];
   })[];
   totals: Record<string, number>;
