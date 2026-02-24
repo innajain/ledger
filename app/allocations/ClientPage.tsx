@@ -1,28 +1,27 @@
-'use client';
+'use client'
 
-import type { Prisma } from '@/generated/prisma/client';
-import { useState } from 'react';
-import { HierarchyTree } from '../_components/HeirarchyTree';
-import { PageHeader } from '../_components/PageHeader';
-import { TotalCard } from '../_components/TotalCard';
-import { EmptyState } from '../_components/EmptyState';
-import { currency_fmt } from '../_utils/currency_formatter';
+import type { Prisma } from '@/generated/prisma/client'
+import { useState } from 'react'
+import { HierarchyTree } from '../_components/HeirarchyTree'
+import { PageHeader } from '../_components/PageHeader'
+import { TotalCard } from '../_components/TotalCard'
+import { EmptyState } from '../_components/EmptyState'
+import { currency_fmt } from '../_utils/currency_formatter'
 
 type Props = {
   allocations: (Prisma.accountGetPayload<{ include: { parent: true } }> & {
     line_items: (Omit<Prisma.line_itemGetPayload<{ include: { asset: true } }>, 'quantity' | 'book_value'> & {
-      quantity: number;
-      book_value: number | null;
-    })[];
-  })[];
-  totals: Record<string, number>;
-  assetQuantities: Record<string, Record<string, number>>;
-  grand_total: number;
-};
+      quantity: number
+    })[]
+  })[]
+  totals: Record<string, number>
+  assetQuantities: Record<string, Record<string, number>>
+  grand_total: number
+}
 
 export default function ClientPage({ allocations, totals, assetQuantities, grand_total }: Props) {
-  const [expandAll, setExpandAll] = useState(false);
-  const [reorderEnabled, setReorderEnabled] = useState(false);
+  const [expandAll, setExpandAll] = useState(false)
+  const [reorderEnabled, setReorderEnabled] = useState(false)
   return (
     <div className="space-y-6">
       <PageHeader
@@ -64,14 +63,12 @@ export default function ClientPage({ allocations, totals, assetQuantities, grand
             storageKey="allocations"
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
-            renderExtraInfo={(item) => {
-              const assetQtys = assetQuantities[item.id] || {};
-              const negativeAssets = [...new Set(
-                item.line_items
-                  .filter(li => assetQtys[li.asset.id] !== undefined && assetQtys[li.asset.id] < 0)
-                  .map(li => li.asset.name)
-              )];
-              if (negativeAssets.length === 0) return null;
+            renderExtraInfo={item => {
+              const assetQtys = assetQuantities[item.id] || {}
+              const negativeAssets = [
+                ...new Set(item.line_items.filter(li => assetQtys[li.asset.id] !== undefined && assetQtys[li.asset.id] < 0).map(li => li.asset.name)),
+              ]
+              if (negativeAssets.length === 0) return null
               return (
                 <div className="flex flex-wrap gap-2">
                   {negativeAssets.map((assetName, idx) => (
@@ -83,7 +80,7 @@ export default function ClientPage({ allocations, totals, assetQuantities, grand
                     </span>
                   ))}
                 </div>
-              );
+              )
             }}
           />
         </div>
@@ -102,5 +99,5 @@ export default function ClientPage({ allocations, totals, assetQuantities, grand
         />
       )}
     </div>
-  );
+  )
 }

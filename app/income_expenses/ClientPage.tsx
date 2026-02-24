@@ -1,27 +1,26 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import type { Prisma } from '@/generated/prisma/client';
-import { currency_fmt } from '../_utils/currency_formatter';
-import { HierarchyTree } from '../_components/HeirarchyTree';
-import { PageHeader } from '../_components/PageHeader';
-import { TotalCard } from '../_components/TotalCard';
-import { EmptyState } from '../_components/EmptyState';
+import React, { useState } from 'react'
+import type { Prisma } from '@/generated/prisma/client'
+import { currency_fmt } from '../_utils/currency_formatter'
+import { HierarchyTree } from '../_components/HeirarchyTree'
+import { PageHeader } from '../_components/PageHeader'
+import { TotalCard } from '../_components/TotalCard'
+import { EmptyState } from '../_components/EmptyState'
 
 type Props = {
   accounts: (Prisma.accountGetPayload<{ include: { parent: true } }> & {
     line_items: (Omit<Prisma.line_itemGetPayload<{ include: { asset: true } }>, 'quantity' | 'book_value'> & {
-      quantity: number;
-      book_value: number | null;
-    })[];
-  })[];
-  totals: Record<string, number>;
-  grand_total: number;
-};
+      quantity: number
+    })[]
+  })[]
+  totals: Record<string, number>
+  grand_total: number
+}
 
 export default function ClientPage({ accounts, totals, grand_total }: Props) {
-  const [expandAll, setExpandAll] = useState(false);
-  const [reorderEnabled, setReorderEnabled] = useState(false);
+  const [expandAll, setExpandAll] = useState(false)
+  const [reorderEnabled, setReorderEnabled] = useState(false)
   return (
     <div className="space-y-6">
       <PageHeader
@@ -66,7 +65,16 @@ export default function ClientPage({ accounts, totals, grand_total }: Props) {
         </div>
       ) : (
         <EmptyState
-          icon={<svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>}
+          icon={
+            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+              />
+            </svg>
+          }
           title="No nominal accounts yet"
           description="Create income and expense accounts to track your P&L"
           actionUrl="/income_expenses/create"
@@ -74,5 +82,5 @@ export default function ClientPage({ accounts, totals, grand_total }: Props) {
         />
       )}
     </div>
-  );
+  )
 }

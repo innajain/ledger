@@ -1,39 +1,39 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { currency_fmt } from './_utils/currency_formatter';
+import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { currency_fmt } from './_utils/currency_formatter'
 
 const WELCOME_MESSAGES = [
   'Welcome back! Ready to crush your financial goals? 💪',
   'Hello there! Your money is looking good today! 😎',
-  'Welcome to Ledger! Let\'s make those numbers dance! 💃',
+  "Welcome to Ledger! Let's make those numbers dance! 💃",
   'Hey! Time to check in on your financial journey! 🚀',
   'Welcome back, money maestro! 🎯',
-];
+]
 
 export default function ClientPage({
   allocations = [],
   flushRedis,
   logOut,
 }: {
-  allocations?: { id: string; name: string; total: number }[];
-  flushRedis?: () => Promise<{ ok: boolean }>;
-  logOut?: () => Promise<void>;
+  allocations?: { id: string; name: string; total: number }[]
+  flushRedis?: () => Promise<{ ok: boolean }>
+  logOut?: () => Promise<void>
 }) {
-  const [busy, setBusy] = useState(false);
-  const [busyLogout, setBusyLogout] = useState(false);
-  const [welcomeMessage, setWelcomeMessage] = useState('Welcome to Ledger');
+  const [busy, setBusy] = useState(false)
+  const [busyLogout, setBusyLogout] = useState(false)
+  const [welcomeMessage, setWelcomeMessage] = useState('Welcome to Ledger')
 
   useEffect(() => {
     // Pick a random welcome message
-    const randomMessage = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)];
-    setWelcomeMessage(randomMessage);
-  }, []);
+    const randomMessage = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)]
+    setWelcomeMessage(randomMessage)
+  }, [])
 
   // pick commonly named allocations if present
-  const invest = allocations.find(a => /invest/i.test(a.name));
-  const savings = allocations.find(a => /saving/i.test(a.name));
+  const invest = allocations.find(a => /invest/i.test(a.name))
+  const savings = allocations.find(a => /saving/i.test(a.name))
 
   return (
     <div className="space-y-8">
@@ -46,7 +46,7 @@ export default function ClientPage({
       {/* Key Allocations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Investment Allocation Card */}
-        <div className="stagger-item bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800 p-6 transition-all hover-lift">
+        <div className="stagger-item bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800 p-6 transition-all hover-lift">
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center transition-transform hover:scale-110">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,7 +56,10 @@ export default function ClientPage({
           </div>
           <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Investment Allocation</h3>
           {invest ? (
-            <Link href={`/allocations/${invest.id}`} className="text-3xl font-bold text-blue-900 dark:text-blue-100 hover:text-blue-700 dark:hover:text-blue-200 transition-colors">
+            <Link
+              href={`/allocations/${invest.id}`}
+              className="text-3xl font-bold text-blue-900 dark:text-blue-100 hover:text-blue-700 dark:hover:text-blue-200 transition-colors"
+            >
               {currency_fmt.format(invest.total)}
             </Link>
           ) : (
@@ -66,7 +69,7 @@ export default function ClientPage({
         </div>
 
         {/* Savings Allocation Card */}
-        <div className="stagger-item bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-xl shadow-sm border border-green-200 dark:border-green-800 p-6 transition-all hover-lift">
+        <div className="stagger-item bg-linear-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-xl shadow-sm border border-green-200 dark:border-green-800 p-6 transition-all hover-lift">
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-green-600 dark:bg-green-500 rounded-lg flex items-center justify-center transition-transform hover:scale-110">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +84,10 @@ export default function ClientPage({
           </div>
           <h3 className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">Savings Allocation</h3>
           {savings ? (
-            <Link href={`/allocations/${savings.id}`} className="text-3xl font-bold text-green-900 dark:text-green-100 hover:text-green-700 dark:hover:text-green-200 transition-colors">
+            <Link
+              href={`/allocations/${savings.id}`}
+              className="text-3xl font-bold text-green-900 dark:text-green-100 hover:text-green-700 dark:hover:text-green-200 transition-colors"
+            >
               {currency_fmt.format(savings.total)}
             </Link>
           ) : (
@@ -167,16 +173,16 @@ export default function ClientPage({
         <div className="flex flex-wrap gap-3">
           <button
             onClick={async () => {
-              if (!flushRedis) return alert('Flush not available');
-              if (!confirm('Flush Redis cache? This clears all cached prices.')) return;
-              setBusy(true);
+              if (!flushRedis) return alert('Flush not available')
+              if (!confirm('Flush Redis cache? This clears all cached prices.')) return
+              setBusy(true)
               try {
-                const res = await flushRedis();
-                alert(res?.ok ? 'Redis flushed' : 'Flush returned: ' + JSON.stringify(res));
+                const res = await flushRedis()
+                alert(res?.ok ? 'Redis flushed' : 'Flush returned: ' + JSON.stringify(res))
               } catch (err: unknown) {
-                alert('Flush failed: ' + (err instanceof Error ? err.message : String(err)));
+                alert('Flush failed: ' + (err instanceof Error ? err.message : String(err)))
               } finally {
-                setBusy(false);
+                setBusy(false)
               }
             }}
             disabled={busy}
@@ -187,16 +193,16 @@ export default function ClientPage({
 
           <button
             onClick={async () => {
-              if (!logOut) return alert('Logout not available');
-              if (!confirm('Log out?')) return;
-              setBusyLogout(true);
+              if (!logOut) return alert('Logout not available')
+              if (!confirm('Log out?')) return
+              setBusyLogout(true)
               try {
-                await logOut();
-                window.location.reload();
+                await logOut()
+                window.location.reload()
               } catch (err: unknown) {
-                alert('Logout failed: ' + (err instanceof Error ? err.message : String(err)));
+                alert('Logout failed: ' + (err instanceof Error ? err.message : String(err)))
               } finally {
-                setBusyLogout(false);
+                setBusyLogout(false)
               }
             }}
             disabled={busyLogout}
@@ -214,5 +220,5 @@ export default function ClientPage({
         </div>
       </div>
     </div>
-  );
+  )
 }

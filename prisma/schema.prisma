@@ -86,12 +86,12 @@ model line_item {
   asset_id String
   asset    asset  @relation(fields: [asset_id], references: [id])
 
+  quantity   Decimal? @db.Decimal(14, 4)
+  book_value Decimal? @db.Decimal(14, 4)
+
   @@index([transaction_id])
   @@index([account_id])
   @@index([asset_id])
-
-  quantity   Decimal  @db.Decimal(14, 4)
-  book_value Decimal? @db.Decimal(14, 4)
 }
 
 enum account_type {

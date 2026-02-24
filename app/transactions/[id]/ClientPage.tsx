@@ -1,67 +1,67 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import { useState } from 'react';
-import { currency_fmt } from '@/app/_utils/currency_formatter';
-import { asset_type } from '@/generated/prisma/enums';
+import Link from 'next/link'
+import { useState } from 'react'
+import { currency_fmt } from '@/app/_utils/currency_formatter'
+import { asset_type } from '@/generated/prisma/enums'
 
 export default function ClientPage({
   transaction,
   deleteTransaction,
 }: {
   transaction: {
-    id: string;
-    date: string;
-    description: string | null;
-    total: number;
+    id: string
+    date: string
+    description: string | null
+    total: number
     line_items: {
-      id: string;
-      account_id: string;
-      account_name: string;
-      account_type: string;
-      asset_id: string;
-      asset_name: string;
-      asset_type: asset_type;
-      quantity: number;
-      book_value: number | null;
-      current_value: number;
-      description: string | null;
-      datetime: Date | null;
-    }[];
-  };
-  deleteTransaction?: (id: string) => Promise<void>;
+      id: string
+      account_id: string
+      account_name: string
+      account_type: string
+      asset_id: string
+      asset_name: string
+      asset_type: asset_type
+      quantity: number | null
+      book_value: number | null
+      current_value: number
+      description: string | null
+      datetime: Date | null
+    }[]
+  }
+  deleteTransaction?: (id: string) => Promise<void>
 }) {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
     if (!deleteTransaction) {
-      setError('Delete operation is not available');
-      return;
+      setError('Delete operation is not available')
+      return
     }
-    if (!confirm('Delete this transaction? This action cannot be undone.')) return;
-    setIsDeleting(true);
-    setError(null);
+    if (!confirm('Delete this transaction? This action cannot be undone.')) return
+    setIsDeleting(true)
+    setError(null)
     try {
-      await deleteTransaction(transaction.id);
-      window.location.href = '/transactions';
+      await deleteTransaction(transaction.id)
+      window.location.href = '/transactions'
     } catch (err: unknown) {
-      setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)));
-      setIsDeleting(false);
+      setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
+      setIsDeleting(false)
     }
-  };
+  }
 
   // Group line items by account type
   const groups: Record<string, typeof transaction.line_items> = {
     real: [],
     allocation: [],
     nominal: [],
-  };
+  }
 
   for (const li of transaction.line_items) {
-    const t = li.account_type ?? 'real';
-    if (!groups[t]) groups[t] = [];
-    groups[t].push(li);
+    const t = li.account_type ?? 'real'
+    if (!groups[t]) groups[t] = []
+    groups[t].push(li)
   }
 
   const accountTypeConfig = {
@@ -103,7 +103,7 @@ export default function ClientPage({
       ),
       color: 'purple',
     },
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -188,7 +188,7 @@ export default function ClientPage({
       {/* Error Display */}
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-          <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="flex-1">
@@ -211,15 +211,15 @@ export default function ClientPage({
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line Items</h2>
 
         {(['real', 'allocation', 'nominal'] as const).map(typeKey => {
-          const items = groups[typeKey] || [];
-          if (!items || items.length === 0) return null;
+          const items = groups[typeKey] || []
+          if (!items || items.length === 0) return null
 
-          const config = accountTypeConfig[typeKey];
+          const config = accountTypeConfig[typeKey]
           const colorClasses = {
             green: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
             orange: 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100',
             purple: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-100',
-          };
+          }
 
           return (
             <div
@@ -255,7 +255,7 @@ export default function ClientPage({
 
                         <div className="text-sm text-slate-600 dark:text-slate-400">
                           {li.asset_type === asset_type.rupees ? (
-                            <span className="font-medium">{currency_fmt.format(li.quantity)}</span>
+                            <span className="font-medium">{li.quantity === null ? '—' : currency_fmt.format(li.quantity)}</span>
                           ) : (
                             <div className="flex items-center gap-4">
                               <span>{li.quantity} units</span>
@@ -283,9 +283,9 @@ export default function ClientPage({
                 ))}
               </ul>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
+  )
 }

@@ -1,16 +1,16 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { currency_fmt } from '../_utils/currency_formatter';
-import { PageHeader } from '../_components/PageHeader';
-import { EmptyState } from '../_components/EmptyState';
+import React, { useState } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { currency_fmt } from '../_utils/currency_formatter'
+import { PageHeader } from '../_components/PageHeader'
+import { EmptyState } from '../_components/EmptyState'
 
-type Transaction = { id: string; date: Date; description: string | null; total_book: number };
+type Transaction = { id: string; date: Date; description: string | null; total_book: number }
 
-type Account = { id: string; name: string };
-type Asset = { id: string; name: string };
+type Account = { id: string; name: string }
+type Asset = { id: string; name: string }
 
 export default function ClientPage({
   transactions,
@@ -21,70 +21,76 @@ export default function ClientPage({
   accounts,
   assets,
 }: {
-  transactions: Transaction[];
-  totalCount: number;
-  currentPage: number;
-  pageSize: number;
-  searchParams: Record<string, string | undefined>;
-  accounts: Account[];
-  assets: Asset[];
+  transactions: Transaction[]
+  totalCount: number
+  currentPage: number
+  pageSize: number
+  searchParams: Record<string, string | undefined>
+  accounts: Account[]
+  assets: Asset[]
 }) {
-  const router = useRouter();
-  const params = useSearchParams();
-  const [showFilters, setShowFilters] = useState(false);
-  const [searchInput, setSearchInput] = useState(searchParams.search || '');
-  const [dateFrom, setDateFrom] = useState(searchParams.dateFrom || '');
-  const [dateTo, setDateTo] = useState(searchParams.dateTo || '');
-  const [minAmount, setMinAmount] = useState(searchParams.minAmount || '');
-  const [maxAmount, setMaxAmount] = useState(searchParams.maxAmount || '');
-  const [accountId, setAccountId] = useState(searchParams.accountId || '');
-  const [assetId, setAssetId] = useState(searchParams.assetId || '');
-  const [selectedPageSize] = useState(pageSize);
+  const router = useRouter()
+  const params = useSearchParams()
+  const [showFilters, setShowFilters] = useState(false)
+  const [searchInput, setSearchInput] = useState(searchParams.search || '')
+  const [dateFrom, setDateFrom] = useState(searchParams.dateFrom || '')
+  const [dateTo, setDateTo] = useState(searchParams.dateTo || '')
+  const [minAmount, setMinAmount] = useState(searchParams.minAmount || '')
+  const [maxAmount, setMaxAmount] = useState(searchParams.maxAmount || '')
+  const [accountId, setAccountId] = useState(searchParams.accountId || '')
+  const [assetId, setAssetId] = useState(searchParams.assetId || '')
+  const [selectedPageSize] = useState(pageSize)
 
-  const totalPages = Math.ceil(totalCount / pageSize);
-  const isShowingAll = searchParams.pageSize === 'all';
+  const totalPages = Math.ceil(totalCount / pageSize)
+  const isShowingAll = searchParams.pageSize === 'all'
 
   const changePageSize = (newSize: string) => {
-    const query = new URLSearchParams(params.toString());
-    query.set('pageSize', newSize);
-    query.delete('page'); // Reset to page 1 when changing page size
-    router.push(`/transactions?${query.toString()}`);
-  };
+    const query = new URLSearchParams(params.toString())
+    query.set('pageSize', newSize)
+    query.delete('page') // Reset to page 1 when changing page size
+    router.push(`/transactions?${query.toString()}`)
+  }
 
   const applyFilters = () => {
-    const query = new URLSearchParams();
-    if (searchInput) query.set('search', searchInput);
-    if (dateFrom) query.set('dateFrom', dateFrom);
-    if (dateTo) query.set('dateTo', dateTo);
-    if (minAmount) query.set('minAmount', minAmount);
-    if (maxAmount) query.set('maxAmount', maxAmount);
-    if (accountId) query.set('accountId', accountId);
-    if (assetId) query.set('assetId', assetId);
-    router.push(`/transactions?${query.toString()}`);
-  };
+    const query = new URLSearchParams()
+    if (searchInput) query.set('search', searchInput)
+    if (dateFrom) query.set('dateFrom', dateFrom)
+    if (dateTo) query.set('dateTo', dateTo)
+    if (minAmount) query.set('minAmount', minAmount)
+    if (maxAmount) query.set('maxAmount', maxAmount)
+    if (accountId) query.set('accountId', accountId)
+    if (assetId) query.set('assetId', assetId)
+    router.push(`/transactions?${query.toString()}`)
+  }
 
   const clearFilters = () => {
-    setSearchInput('');
-    setDateFrom('');
-    setDateTo('');
-    setMinAmount('');
-    setMaxAmount('');
-    setAccountId('');
-    setAssetId('');
-    router.push('/transactions');
-  };
+    setSearchInput('')
+    setDateFrom('')
+    setDateTo('')
+    setMinAmount('')
+    setMaxAmount('')
+    setAccountId('')
+    setAssetId('')
+    router.push('/transactions')
+  }
 
   const goToPage = (page: number) => {
-    const query = new URLSearchParams(params.toString());
-    query.set('page', page.toString());
-    router.push(`/transactions?${query.toString()}`);
-  };
+    const query = new URLSearchParams(params.toString())
+    query.set('page', page.toString())
+    router.push(`/transactions?${query.toString()}`)
+  }
 
-  const hasFilters = searchParams.dateFrom || searchParams.dateTo || searchParams.minAmount || searchParams.maxAmount || searchParams.accountId || searchParams.assetId;
+  const hasFilters =
+    searchParams.dateFrom || searchParams.dateTo || searchParams.minAmount || searchParams.maxAmount || searchParams.accountId || searchParams.assetId
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Transactions" description="View and manage all your transactions" createUrl="/transactions/create" createLabel="+ New Transaction" />
+      <PageHeader
+        title="Transactions"
+        description="View and manage all your transactions"
+        createUrl="/transactions/create"
+        createLabel="+ New Transaction"
+      />
 
       {/* Search and Filter Section */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 transition-colors">
@@ -194,7 +200,10 @@ export default function ClientPage({
               >
                 Clear All
               </button>
-              <button onClick={applyFilters} className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all ripple hover-lift">
+              <button
+                onClick={applyFilters}
+                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all ripple hover-lift"
+              >
                 Apply Filters
               </button>
             </div>
@@ -213,7 +222,7 @@ export default function ClientPage({
                     <label className="text-sm text-slate-600 dark:text-slate-400">Show:</label>
                     <select
                       value={isShowingAll ? 'all' : selectedPageSize}
-                      onChange={(e) => changePageSize(e.target.value)}
+                      onChange={e => changePageSize(e.target.value)}
                       className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="10">10</option>
@@ -224,19 +233,25 @@ export default function ClientPage({
                     </select>
                   </div>
                   <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {isShowingAll ? `All ${totalCount}` : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
+                    {isShowingAll
+                      ? `All ${totalCount}`
+                      : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
                   </span>
                 </div>
               </div>
             </div>
             <ul className="divide-y divide-slate-200 dark:divide-slate-700">
               {transactions.map((tx, index) => (
-                <li key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all stagger-item" style={{animationDelay: `${index * 0.03}s`}}>
+                <li
+                  key={tx.id}
+                  className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all stagger-item"
+                  style={{ animationDelay: `${index * 0.03}s` }}
+                >
                   <Link href={`/transactions/${tx.id}`} className="block px-6 py-4 group">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3">
-                          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <div className="shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                             <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path
                                 strokeLinecap="round"
@@ -247,7 +262,9 @@ export default function ClientPage({
                             </svg>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{tx.description || 'No description'}</p>
+                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                              {tx.description || 'No description'}
+                            </p>
                             <p className="text-sm text-slate-500 dark:text-slate-400">
                               {tx.date.toLocaleDateString('en-US', {
                                 year: 'numeric',
@@ -260,10 +277,14 @@ export default function ClientPage({
                           </div>
                         </div>
                       </div>
-                      <div className="ml-4 flex-shrink-0">
+                      <div className="ml-4 shrink-0">
                         <span
                           className={`text-lg font-semibold transition-transform group-hover:scale-110 inline-block ${
-                            tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : tx.total_book < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+                            tx.total_book > 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : tx.total_book < 0
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-gray-500 dark:text-gray-400'
                           }`}
                         >
                           {currency_fmt.format(tx.total_book)}
@@ -289,21 +310,21 @@ export default function ClientPage({
               </button>
               <div className="flex items-center gap-1 sm:gap-2">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
+                  let pageNum
                   if (totalPages <= 5) {
-                    pageNum = i + 1;
+                    pageNum = i + 1
                   } else if (currentPage <= 3) {
-                    pageNum = i + 1;
+                    pageNum = i + 1
                   } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
+                    pageNum = totalPages - 4 + i
                   } else {
-                    pageNum = currentPage - 2 + i;
+                    pageNum = currentPage - 2 + i
                   }
                   return (
                     <button
                       key={pageNum}
                       onClick={() => goToPage(pageNum)}
-                      className={`px-2.5 sm:px-3 py-1.5 sm:py-1 text-sm font-medium rounded-lg transition-colors min-w-[36px] ${
+                      className={`px-2.5 sm:px-3 py-1.5 sm:py-1 text-sm font-medium rounded-lg transition-colors min-w-9 ${
                         currentPage === pageNum
                           ? 'bg-blue-600 dark:bg-blue-500 text-white'
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -311,7 +332,7 @@ export default function ClientPage({
                     >
                       {pageNum}
                     </button>
-                  );
+                  )
                 })}
               </div>
               <button
@@ -343,5 +364,5 @@ export default function ClientPage({
         />
       )}
     </div>
-  );
+  )
 }

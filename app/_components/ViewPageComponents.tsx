@@ -1,22 +1,25 @@
 // components/ViewPageComponents.tsx
-import { asset_type } from '@/generated/prisma/enums';
-import Link from 'next/link';
-import { currency_fmt } from '../_utils/currency_formatter';
+import { asset_type } from '@/generated/prisma/enums'
+import Link from 'next/link'
+import { currency_fmt } from '../_utils/currency_formatter'
 
 // View Page Header
 interface ViewPageHeaderProps {
-  backLink: string;
-  backText: string;
-  title: string;
-  description: string;
-  editLink: string;
-  editText: string;
+  backLink: string
+  backText: string
+  title: string
+  description: string
+  editLink: string
+  editText: string
 }
 
 export function ViewPageHeader({ backLink, backText, title, description, editLink, editText }: ViewPageHeaderProps) {
   return (
     <div>
-      <Link href={backLink} className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4">
+      <Link
+        href={backLink}
+        className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
+      >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
@@ -44,18 +47,18 @@ export function ViewPageHeader({ backLink, backText, title, description, editLin
         </Link>
       </div>
     </div>
-  );
+  )
 }
 
 // Info Card
 interface InfoField {
-  label: string;
-  value: string | React.ReactNode;
+  label: string
+  value: string | React.ReactNode
 }
 
 interface InfoCardProps {
-  title: string;
-  fields: InfoField[];
+  title: string
+  fields: InfoField[]
 }
 
 export function InfoCard({ title, fields }: InfoCardProps) {
@@ -71,13 +74,13 @@ export function InfoCard({ title, fields }: InfoCardProps) {
         ))}
       </div>
     </div>
-  );
+  )
 }
 
 // Holdings Card Header
 interface HoldingsHeaderProps {
-  title?: string;
-  count: number;
+  title?: string
+  count: number
 }
 
 export function HoldingsHeader({ title = 'Holdings', count }: HoldingsHeaderProps) {
@@ -88,13 +91,13 @@ export function HoldingsHeader({ title = 'Holdings', count }: HoldingsHeaderProp
         {count} line item{count !== 1 ? 's' : ''}
       </p>
     </div>
-  );
+  )
 }
 
 // Empty State
 interface EmptyStateProps {
-  message?: string;
-  subMessage?: string;
+  message?: string
+  subMessage?: string
 }
 
 export function EmptyState({
@@ -114,21 +117,21 @@ export function EmptyState({
       <p className="text-slate-600 font-medium">{message}</p>
       <p className="text-sm text-slate-500 mt-1">{subMessage}</p>
     </div>
-  );
+  )
 }
 
 // Line Item Row
 interface LineItemRowProps {
-  assetName: string;
-  assetLink?: string;
-  quantity: number;
-  bookValue?: number | null;
-  currentValue: number;
-  transactionId: string;
-  transactionDate: string;
-  transactionDescription?: string | null;
-  lineItemDescription?: string | null;
-  assetType: asset_type;
+  assetName: string
+  assetLink?: string
+  quantity: number
+  bookValue?: number | null
+  currentValue: number
+  transactionId: string
+  transactionDate: string
+  transactionDescription?: string | null
+  lineItemDescription?: string | null
+  assetType: asset_type
 }
 
 export function LineItemRow({
@@ -148,7 +151,10 @@ export function LineItemRow({
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           {assetLink ? (
-            <Link href={assetLink} className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            <Link
+              href={assetLink}
+              className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
               {assetName}
             </Link>
           ) : (
@@ -166,7 +172,8 @@ export function LineItemRow({
             ) : (
               <>
                 <div className="text-slate-600 dark:text-slate-400">
-                  <span className="text-slate-500 dark:text-slate-400">Quantity:</span> <span className="font-medium text-slate-900 dark:text-slate-100">{quantity} units</span>
+                  <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{quantity} units</span>
                 </div>
                 <div className="text-slate-600 dark:text-slate-400">
                   <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
@@ -202,13 +209,15 @@ export function LineItemRow({
           </div>
         </div>
 
-        <div className="text-right flex-shrink-0">
-          <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{currency_fmt.format((bookValue !== null && bookValue !== undefined) ? bookValue : quantity)}</div>
+        <div className="text-right shrink-0">
+          <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            {currency_fmt.format(bookValue !== null && bookValue !== undefined ? bookValue : quantity)}
+          </div>
           <Link href={`/transactions/${transactionId}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1 inline-block">
             View Transaction →
           </Link>
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -3,7 +3,7 @@ services:
     image: postgres:17
     container_name: local-postgres
     ports:
-      - "5432:5432"
+      - '5432:5432'
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: appdb
@@ -15,10 +15,21 @@ services:
     image: redis:7.4
     container_name: local-redis
     ports:
-      - "6379:6379"
+      - '6379:6379'
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+
+  sync-db:
+    image: postgres:17
+    environment:
+      - SRC_URL=${NEON_URL}
+      - DEST_URL=postgresql://postgres@postgres:5432/appdb
+    entrypoint: >
+      sh -c "pg_dump $$SRC_URL --format=custom --no-owner --no-privileges | 
+             pg_restore -d $$DEST_URL --clean --if-exists --no-owner --no-privileges"
+    depends_on:
+      - postgres
 
 volumes:
   postgres_data:

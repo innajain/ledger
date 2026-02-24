@@ -1,38 +1,37 @@
-'use client';
+'use client'
 
-import { Prisma } from '@/generated/prisma/client';
-import { useState } from 'react';
-import { HierarchyTree } from '../_components/HeirarchyTree';
-import { PageHeader } from '../_components/PageHeader';
-import { TotalCard } from '../_components/TotalCard';
-import { EmptyState } from '../_components/EmptyState';
-import { currency_fmt } from '../_utils/currency_formatter';
+import { Prisma } from '@/generated/prisma/client'
+import { useState } from 'react'
+import { HierarchyTree } from '../_components/HeirarchyTree'
+import { PageHeader } from '../_components/PageHeader'
+import { TotalCard } from '../_components/TotalCard'
+import { EmptyState } from '../_components/EmptyState'
+import { currency_fmt } from '../_utils/currency_formatter'
 
 // Lightweight shapes for client component
 type LineItemNumbered = {
-  id: string;
-  transaction_id: string;
-  account_id: string;
-  asset_id: string;
-  quantity: number;
-  book_value: number | null;
-  asset: { id: string; name: string };
-};
+  id: string
+  transaction_id: string
+  account_id: string
+  asset_id: string
+  quantity: number
+  asset: { id: string; name: string }
+}
 
 type AssetNumbered = Prisma.assetGetPayload<{ include: { parent: true } }> & {
-  line_items: LineItemNumbered[];
-};
+  line_items: LineItemNumbered[]
+}
 
 type Props = {
-  assets: AssetNumbered[];
-  totals: Record<string, number>;
-  grand_total: number;
-};
+  assets: AssetNumbered[]
+  totals: Record<string, number>
+  grand_total: number
+}
 
 export default function ClientPage({ assets, totals, grand_total }: Props) {
-  const [expandAll, setExpandAll] = useState(false);
-  const [reorderEnabled, setReorderEnabled] = useState(false);
-  const qtyFmt = (n: number) => n.toFixed(2);
+  const [expandAll, setExpandAll] = useState(false)
+  const [reorderEnabled, setReorderEnabled] = useState(false)
+  const qtyFmt = (n: number) => n.toFixed(2)
 
   return (
     <div className="space-y-6">
@@ -75,9 +74,9 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
             renderExtraInfo={asset => {
-              if (asset.type === 'rupees') return null;
-              const qty = asset.line_items.reduce((s, li) => s + (li.quantity ?? 0), 0);
-              return <span className="text-sm text-slate-600">{qtyFmt(qty)} units</span>;
+              if (asset.type === 'rupees') return null
+              const qty = asset.line_items.reduce((s, li) => s + (li.quantity ?? 0), 0)
+              return <span className="text-sm text-slate-600">{qtyFmt(qty)} units</span>
             }}
           />
         </div>
@@ -100,5 +99,5 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
         />
       )}
     </div>
-  );
+  )
 }
