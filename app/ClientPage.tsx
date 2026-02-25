@@ -3,37 +3,45 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { currency_fmt } from './_utils/currency_formatter'
+import { flush_redis } from './_actions/flush'
+import { log_out } from './_actions/auth'
+import { validate_all_txns } from './_actions/validate_all_txns'
 
 const WELCOME_MESSAGES = [
-  'Welcome back! Ready to crush your financial goals? 💪',
-  'Hello there! Your money is looking good today! 😎',
-  "Welcome to Ledger! Let's make those numbers dance! 💃",
-  'Hey! Time to check in on your financial journey! 🚀',
-  'Welcome back, money maestro! 🎯',
+  "Welcome back! Your wallet misses you (but your bank doesn't). 🦘",
+  "Hello! Today's forecast: 100% chance of spreadsheets. 📊",
+  "Welcome to Ledger! Let's make your money do the cha-cha. 💃",
+  'Hey! Time to check your finances (and maybe cry a little). 😅',
+  "Welcome back, money magician! Abracadabra, where'd it go? 🪄",
+  'Ready to conquer your budget? The numbers await! 🏆',
+  'Ledger loaded. Time to track those coins! 🪙',
+  "Your financial sidekick is here. Let's get started! 🦸‍♂️",
+  'Welcome! May your balances always be positive. ➕',
+  "Money talks. Ledger listens. Let's see what it says! 🗣️",
+  'Back again? Your assets are happy to see you! 😃',
+  "Let's make cents of your finances together. 🧩",
+  "Welcome! Today's goal: less spending, more saving. 💰",
+  "Ledger says: You're richer than you think! 🤑",
+  'Time to check your treasure chest. 🏴‍☠️',
 ]
 
 export default function ClientPage({
-  allocations = [],
-  flushRedis,
-  logOut,
+  invest,
+  savings,
 }: {
-  allocations?: { id: string; name: string; total: number }[]
-  flushRedis?: () => Promise<{ ok: boolean }>
-  logOut?: () => Promise<void>
+  invest: { id: string; name: string; total: number } | null
+  savings: { id: string; name: string; total: number } | null
 }) {
   const [busy, setBusy] = useState(false)
   const [busyLogout, setBusyLogout] = useState(false)
-  const [welcomeMessage, setWelcomeMessage] = useState('Welcome to Ledger')
+  const [validating, setValidating] = useState(false)
+  const [welcomeMessage, setWelcomeMessage] = useState(WELCOME_MESSAGES[0])
 
   useEffect(() => {
     // Pick a random welcome message
     const randomMessage = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)]
     setWelcomeMessage(randomMessage)
   }, [])
-
-  // pick commonly named allocations if present
-  const invest = allocations.find(a => /invest/i.test(a.name))
-  const savings = allocations.find(a => /saving/i.test(a.name))
 
   return (
     <div className="space-y-8">
@@ -173,11 +181,10 @@ export default function ClientPage({
         <div className="flex flex-wrap gap-3">
           <button
             onClick={async () => {
-              if (!flushRedis) return alert('Flush not available')
               if (!confirm('Flush Redis cache? This clears all cached prices.')) return
               setBusy(true)
               try {
-                const res = await flushRedis()
+                const res = await flush_redis()
                 alert(res?.ok ? 'Redis flushed' : 'Flush returned: ' + JSON.stringify(res))
               } catch (err: unknown) {
                 alert('Flush failed: ' + (err instanceof Error ? err.message : String(err)))
@@ -193,11 +200,35 @@ export default function ClientPage({
 
           <button
             onClick={async () => {
-              if (!logOut) return alert('Logout not available')
+              if (!confirm('Validate all transactions? This will check every txn.')) return
+              setValidating(true)
+              try {
+                const res = await validate_all_txns()
+                if (!res || res.length === 0) {
+                  alert('All transactions are valid')
+                } else {
+                  const details = res.map((r: any) => `id: ${r.id} — ${r.message}`).join('\n')
+                  alert(`Invalid transactions found (${res.length}):\n\n${details}`)
+                  console.error(`Invalid transactions found (${res.length}):\n\n${details}`)
+                }
+              } catch (err: unknown) {
+                alert('Validation failed: ' + (err instanceof Error ? err.message : String(err)))
+              } finally {
+                setValidating(false)
+              }
+            }}
+            disabled={validating}
+            className="px-4 py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-yellow-200 dark:border-yellow-800 ripple hover-lift"
+          >
+            {validating ? 'Validating...' : 'Validate Transactions'}
+          </button>
+
+          <button
+            onClick={async () => {
               if (!confirm('Log out?')) return
               setBusyLogout(true)
               try {
-                await logOut()
+                await log_out()
                 window.location.reload()
               } catch (err: unknown) {
                 alert('Logout failed: ' + (err instanceof Error ? err.message : String(err)))

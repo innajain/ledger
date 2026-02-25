@@ -1,21 +1,21 @@
-'use client';
+'use client'
 
-import React from 'react';
-import { asset_type } from '@/generated/prisma/enums';
+import React from 'react'
+import { asset_type } from '@/generated/prisma/enums'
 
 export type LineItemData = {
-  account_id: string;
-  asset_id: string;
-  quantity: string;
-  book_value: string;
-  description: string;
-  datetime: string;
-};
+  account_id: string
+  asset_id: string
+  quantity: string | null
+  book_value: string | null
+  description: string
+  datetime: string
+}
 
-type Account = { id: string; name: string; type: string };
-type Asset = { id: string; name: string; type: asset_type };
+type Account = { id: string; name: string; type: string }
+type Asset = { id: string; name: string; type: asset_type }
 
-type ItemGroup = { item: LineItemData; idx: number };
+type ItemGroup = { item: LineItemData; idx: number }
 
 const accountTypeConfig = {
   real: {
@@ -30,39 +30,32 @@ const accountTypeConfig = {
     title: 'Nominal Accounts',
     color: 'purple',
   },
-};
+}
 
 const colorClasses = {
   green: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
   orange: 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100',
   purple: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-100',
-};
+}
 
 type TransactionLineItemsProps = {
-  items: LineItemData[];
-  accounts: Account[];
-  assets: Asset[];
-  onAddItem: (typeKey: string) => void;
-  onRemoveItem: (idx: number) => void;
-  onUpdateItem: (idx: number, field: keyof LineItemData, value: string) => void;
-};
+  items: LineItemData[]
+  accounts: Account[]
+  assets: Asset[]
+  onAddItem: (typeKey: string) => void
+  onRemoveItem: (idx: number) => void
+  onUpdateItem: (idx: number, field: keyof LineItemData, value: string | null) => void
+}
 
-export function TransactionLineItems({
-  items,
-  accounts,
-  assets,
-  onAddItem,
-  onRemoveItem,
-  onUpdateItem,
-}: TransactionLineItemsProps) {
+export function TransactionLineItems({ items, accounts, assets, onAddItem, onRemoveItem, onUpdateItem }: TransactionLineItemsProps) {
   // Group items by account type
-  const groups: Record<string, ItemGroup[]> = { real: [], allocation: [], nominal: [] };
+  const groups: Record<string, ItemGroup[]> = { real: [], allocation: [], nominal: [] }
   for (let idx = 0; idx < items.length; idx++) {
-    const it = items[idx];
-    const acc = accounts.find(a => a.id === it.account_id);
-    const t = acc?.type ?? 'real';
-    groups[t] = groups[t] || [];
-    groups[t].push({ item: it, idx });
+    const it = items[idx]
+    const acc = accounts.find(a => a.id === it.account_id)
+    const t = acc?.type ?? 'real'
+    groups[t] = groups[t] || []
+    groups[t].push({ item: it, idx })
   }
 
   return (
@@ -72,11 +65,14 @@ export function TransactionLineItems({
       </div>
 
       {(['real', 'allocation', 'nominal'] as const).map(typeKey => {
-        const list = groups[typeKey] || [];
-        const config = accountTypeConfig[typeKey];
+        const list = groups[typeKey] || []
+        const config = accountTypeConfig[typeKey]
 
         return (
-          <div key={typeKey} className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
+          <div
+            key={typeKey}
+            className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors"
+          >
             <div className={`px-6 py-3 border-b ${colorClasses[config.color as keyof typeof colorClasses]}`}>
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">{config.title}</h3>
@@ -98,7 +94,7 @@ export function TransactionLineItems({
               )}
               {list.length > 0 &&
                 list.map(({ item: it, idx }) => {
-                  const asset = assets.find(a => a.id === it.asset_id);
+                  const asset = assets.find(a => a.id === it.asset_id)
                   return (
                     <LineItemCard
                       key={idx}
@@ -111,26 +107,26 @@ export function TransactionLineItems({
                       onUpdateItem={onUpdateItem}
                       onRemoveItem={onRemoveItem}
                     />
-                  );
+                  )
                 })}
             </div>
           </div>
-        );
+        )
       })}
     </div>
-  );
+  )
 }
 
 type LineItemCardProps = {
-  item: LineItemData;
-  idx: number;
-  typeKey: string;
-  accounts: Account[];
-  assets: Asset[];
-  asset: Asset | undefined;
-  onUpdateItem: (idx: number, field: keyof LineItemData, value: string) => void;
-  onRemoveItem: (idx: number) => void;
-};
+  item: LineItemData
+  idx: number
+  typeKey: string
+  accounts: Account[]
+  assets: Asset[]
+  asset: Asset | undefined
+  onUpdateItem: (idx: number, field: keyof LineItemData, value: string | null) => void
+  onRemoveItem: (idx: number) => void
+}
 
 function LineItemCard({ item, idx, typeKey, accounts, assets, asset, onUpdateItem, onRemoveItem }: LineItemCardProps) {
   return (
@@ -173,8 +169,8 @@ function LineItemCard({ item, idx, typeKey, accounts, assets, asset, onUpdateIte
           <input
             type="number"
             step="any"
-            value={item.quantity}
-            onChange={e => onUpdateItem(idx, 'quantity', e.target.value)}
+            value={item.quantity ?? ''}
+            onChange={e => onUpdateItem(idx, 'quantity', e.target.value === '' ? null : e.target.value)}
             className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
           />
         </div>
@@ -186,8 +182,8 @@ function LineItemCard({ item, idx, typeKey, accounts, assets, asset, onUpdateIte
               type="number"
               step="any"
               placeholder="Book value"
-              value={item.book_value}
-              onChange={e => onUpdateItem(idx, 'book_value', e.target.value)}
+              value={item.book_value ?? ''}
+              onChange={e => onUpdateItem(idx, 'book_value', e.target.value === '' ? null : e.target.value)}
               className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
             />
           </div>
@@ -232,5 +228,5 @@ function LineItemCard({ item, idx, typeKey, accounts, assets, asset, onUpdateIte
         </button>
       </div>
     </div>
-  );
+  )
 }

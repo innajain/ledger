@@ -1,109 +1,141 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { asset_type } from '@/generated/prisma/enums';
-import { create_transaction } from '@/app/_actions/transactions';
-import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems';
-import { ErrorAlert } from '@/app/_components/AccountFormComponents';
+import React, { useState } from 'react'
+import Link from 'next/link'
+import { asset_type } from '@/generated/prisma/enums'
+import { create_transaction } from '@/app/_actions/transactions'
+import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
+import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 
 export default function ClientPage({
   accounts,
   assets,
 }: {
-  accounts: { id: string; name: string; type: string }[];
-  assets: { id: string; name: string; type: asset_type }[];
+  accounts: { id: string; name: string; type: string }[]
+  assets: { id: string; name: string; type: asset_type }[]
 }) {
   function toLocalDateTimeInputValue(d: Date | string) {
-    const dt = typeof d === 'string' ? new Date(d) : d;
-    if (!dt || isNaN(dt.getTime())) return '';
-    const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, '0');
-    const dd = String(dt.getDate()).padStart(2, '0');
-    const hh = String(dt.getHours()).padStart(2, '0');
-    const min = String(dt.getMinutes()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+    const dt = typeof d === 'string' ? new Date(d) : d
+    if (!dt || isNaN(dt.getTime())) return ''
+    const yyyy = dt.getFullYear()
+    const mm = String(dt.getMonth() + 1).padStart(2, '0')
+    const dd = String(dt.getDate()).padStart(2, '0')
+    const hh = String(dt.getHours()).padStart(2, '0')
+    const min = String(dt.getMinutes()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`
   }
 
-  const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()));
-  const [description, setDescription] = useState('');
+  const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()))
+  const [description, setDescription] = useState('')
+  // Preferred defaults (use if present)
+  const defaultReal = accounts.find(a => a.name === 'Google Pay' && a.type === 'real') ?? accounts.find(a => a.type === 'real') ?? accounts[0]
+  const defaultAllocation =
+    accounts.find(a => a.name === 'Discretionary Expenses' && a.type === 'allocation') ?? accounts.find(a => a.type === 'allocation') ?? accounts[0]
+  const defaultNominal = accounts.find(a => a.name === 'Expenses' && a.type === 'nominal') ?? accounts.find(a => a.type === 'nominal') ?? accounts[0]
+  const defaultAsset = assets.find(a => a.name === 'Money') ?? assets[0]
+
   const [items, setItems] = useState<LineItemData[]>([
-    { account_id: accounts[0]?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' },
-  ]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    { account_id: defaultReal?.id ?? '', asset_id: defaultAsset?.id ?? '', quantity: null, book_value: null, description: '', datetime: '' },
+    { account_id: defaultNominal?.id ?? '', asset_id: defaultAsset?.id ?? '', quantity: null, book_value: null, description: '', datetime: '' },
+    { account_id: defaultAllocation?.id ?? '', asset_id: defaultAsset?.id ?? '', quantity: null, book_value: null, description: '', datetime: '' },
+  ])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Nicely formatted preview of the entered date
   const formattedDate = (() => {
     try {
-      const d = new Date(date);
-      if (isNaN(d.getTime())) return null;
+      const d = new Date(date)
+      if (isNaN(d.getTime())) return null
 
-      const day = d.getDate();
+      const day = d.getDate()
       const ordinal = (n: number) => {
-        const j = n % 10;
-        const k = n % 100;
-        if (k >= 11 && k <= 13) return n + 'th';
-        if (j === 1) return n + 'st';
-        if (j === 2) return n + 'nd';
-        if (j === 3) return n + 'rd';
-        return n + 'th';
-      };
+        const j = n % 10
+        const k = n % 100
+        if (k >= 11 && k <= 13) return n + 'th'
+        if (j === 1) return n + 'st'
+        if (j === 2) return n + 'nd'
+        if (j === 3) return n + 'rd'
+        return n + 'th'
+      }
 
-      const month = d.toLocaleString('en-US', { month: 'long' });
-      const year = d.getFullYear();
-      const time = d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-      return `${ordinal(day)} ${month} ${year}, ${time}`;
+      const month = d.toLocaleString('en-US', { month: 'long' })
+      const year = d.getFullYear()
+      const time = d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      return `${ordinal(day)} ${month} ${year}, ${time}`
     } catch {
-      return null;
+      return null
     }
-  })();
+  })()
 
   function addItemForType(typeKey: string) {
-    const defaultAcc = accounts.find(a => a.type === typeKey) ?? accounts[0];
-    setItems(prev => [{ account_id: defaultAcc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' }, ...prev]);
+    let preferred: { id: string; name?: string; type?: string } | undefined
+    if (typeKey === 'real') preferred = accounts.find(a => a.name === 'Google Pay' && a.type === 'real')
+    if (typeKey === 'allocation') preferred = accounts.find(a => a.name === 'Discretionary Expenses' && a.type === 'allocation')
+    if (typeKey === 'nominal') preferred = accounts.find(a => a.name === 'Expenses' && a.type === 'nominal')
+    const defaultAcc = preferred ?? accounts.find(a => a.type === typeKey) ?? accounts[0]
+    setItems(prev => [
+      {
+        account_id: defaultAcc?.id ?? '',
+        asset_id: defaultAsset?.id ?? assets[0]?.id ?? '',
+        quantity: null,
+        book_value: null,
+        description: '',
+        datetime: '',
+      },
+      ...prev,
+    ])
   }
 
   function removeItem(i: number) {
-    setItems(prev => prev.filter((_, idx) => idx !== i));
+    setItems(prev => prev.filter((_, idx) => idx !== i))
   }
 
-  function updateItem(idx: number, field: keyof LineItemData, value: string) {
+  function updateItem(idx: number, field: keyof LineItemData, value: string | null) {
     setItems(prev => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], [field]: value };
+      const copy = [...prev]
+      // Allow `quantity` and `book_value` to be null; coerce other nulls to empty string
+      const v: string = field === 'quantity' || field === 'book_value' ? (value === null ? '' : value) : (value ?? '')
+      copy[idx] = { ...copy[idx], [field]: v }
       // Clear book_value when switching to rupees asset
       if (field === 'asset_id') {
-        const sel = assets.find(a => a.id === value);
-        if (sel?.type === asset_type.rupees) copy[idx].book_value = '';
+        const sel = assets.find(a => a.id === v)
+        if (sel?.type === asset_type.rupees) copy[idx].book_value = null
       }
-      return copy;
-    });
+      // Preserve null for quantity/book_value when requested
+      if (field === 'quantity' && value === null) {
+        ;(copy[idx] as LineItemData).quantity = null
+      }
+      if (field === 'book_value' && value === null) {
+        ;(copy[idx] as LineItemData).book_value = null
+      }
+      return copy
+    })
   }
 
   async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
+    e.preventDefault()
+    setError(null)
+    setBusy(true)
     try {
       const line_items = items.map(it => ({
         account_id: it.account_id,
         asset_id: it.asset_id,
-        quantity: Number(it.quantity),
-        book_value: it.book_value === '' ? null : Number(it.book_value),
+        quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
+        book_value: it.book_value === null || it.book_value === '' ? null : Number(it.book_value),
         description: it.description === '' ? null : it.description,
         datetime: it.datetime === '' ? null : new Date(it.datetime),
-      }));
-      const result = await create_transaction(new Date(date), line_items, description || null);
+      }))
+      const result = await create_transaction(new Date(date), line_items, description || null)
       if (result.success) {
-        window.location.href = '/transactions';
+        window.location.href = '/transactions'
       } else {
-        setError(result.message);
+        setError(result.message)
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
   }
 
@@ -111,7 +143,10 @@ export default function ClientPage({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <Link href="/transactions" className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4">
+        <Link
+          href="/transactions"
+          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
+        >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -166,7 +201,10 @@ export default function ClientPage({
 
         {/* Submit Button */}
         <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
-          <Link href="/transactions" className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium">
+          <Link
+            href="/transactions"
+            className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
+          >
             Cancel
           </Link>
           <button
@@ -179,5 +217,5 @@ export default function ClientPage({
         </div>
       </form>
     </div>
-  );
+  )
 }

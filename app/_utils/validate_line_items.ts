@@ -1,67 +1,75 @@
-import { account, asset, asset_type, Prisma } from '@/generated/prisma/client'
-import { CreateLineItemInput } from '../_actions/transactions'
+import { asset_type, Prisma } from '@/generated/prisma/client'
 
 // validates only qty and book value
-export function validate_line_items(line_items: CreateLineItemInput[], accounts: account[], assets: asset[]) {
-  // Build maps for account types
-  const account_by_id = new Map(accounts.map(a => [a.id, a]))
-  const asset_by_id = new Map(assets.map(a => [a.id, a]))
-
-  // for allocation and nominal accounts, quantity must be null for exactly one line item per asset, similarly for book_value for non-rupees assets. and for rupees assets, book_value must be null
-  // group line items by asset and account type, and check the above conditions
-  const line_items_by_asset_and_acc_type = new Map<
+export function validate_line_items(
+  line_items: Prisma.transactionGetPayload<{
+    include: { line_items: { select: { account: true; asset: true; quantity: true; book_value: true } } }
+  }>['line_items'],
+) {
+  const assetwise_groups = new Map<
     string,
     {
-      real: CreateLineItemInput[]
-      allocation: CreateLineItemInput[]
-      nominal: CreateLineItemInput[]
+      real: typeof line_items
+      allocation: typeof line_items
+      nominal: typeof line_items
+      asset_type: asset_type
+      name: string
     }
   >()
-  line_items.forEach(li => {
-    const acc_type = account_by_id.get(li.account_id)!.type
-    if (!line_items_by_asset_and_acc_type.has(li.asset_id)) {
-      line_items_by_asset_and_acc_type.set(li.asset_id, { real: [], allocation: [], nominal: [] })
-    }
-    line_items_by_asset_and_acc_type.get(li.asset_id)![acc_type].push(li)
-  })
 
-  for (const [asset_id, group] of line_items_by_asset_and_acc_type.entries()) {
-    const asset = asset_by_id.get(asset_id)!
+  for (const li of line_items) {
+    const asset_id = li.asset.id
+    if (!assetwise_groups.has(asset_id)) {
+      assetwise_groups.set(asset_id, { real: [], allocation: [], nominal: [], asset_type: li.asset.type, name: li.asset.name })
+    }
+    const group = assetwise_groups.get(asset_id)!
+    group[li.account.type].push(li)
+  }
 
-    const real_qty_null_count = group.real.filter(li => li.quantity == null).length
-    if (real_qty_null_count !== 0) {
-      throw new Error(`Quantity must be specified for all line items in real accounts for asset "${asset.name}"`)
-    }
-    const alloc_qty_null_count = group.allocation.filter(li => li.quantity == null).length
-    if (group.allocation.length > 0 && alloc_qty_null_count !== 1) {
-      throw new Error(`Exactly one line item in allocation accounts must have null quantity for asset "${asset.name}"`)
-    }
-    const nominal_qty_null_count = group.nominal.filter(li => li.quantity == null).length
-    if (group.nominal.length > 0 && nominal_qty_null_count !== 1) {
-      throw new Error(`Exactly one line item in nominal accounts must have null quantity for asset "${asset.name}"`)
-    }
+  for (const [asset_id, group] of assetwise_groups.entries()) {
+    if (group.real.some(li => li.quantity === null))
+      return { is_valid: false, message: `A real account line item for asset ${group.name} has null quantity.` }
+    if (group.allocation.length > 0 && group.allocation.filter(li => li.quantity === null).length !== 1)
+      return { is_valid: false, message: `There should be exactly one line item with null quantity in allocation accounts for asset ${group.name}` }
+    if (group.nominal.length > 0 && group.nominal.filter(li => li.quantity === null).length !== 1)
+      return { is_valid: false, message: `There should be exactly one line item with null quantity in nominal accounts for asset ${group.name}` }
 
-    if (asset.type === asset_type.rupees) {
-      ;[...group.real, ...group.allocation, ...group.nominal].forEach(li => {
-        if (li.book_value != null) {
-          throw new Error(`Book value must not be specified for currency asset "${asset.name}" (quantity is the value)`)
-        }
-      })
+    if (group.asset_type === asset_type.rupees) {
+      if ([...group.real, ...group.allocation, ...group.nominal].some(li => li.book_value != null))
+        return { is_valid: false, message: `Line items for rupees asset should not have book value` }
     } else {
-      const real_book_value_null_count = group.real.filter(li => li.book_value == null).length
-      if (real_book_value_null_count !== 0) {
-        throw new Error(`Book value must be specified for all line items in real accounts for non-currency asset "${asset.name}"`)
-      }
-      const alloc_book_value_null_count = group.allocation.filter(li => li.book_value == null).length
-      if (group.allocation.length > 0 && alloc_book_value_null_count !== 1) {
-        throw new Error(`Exactly one line item in allocation accounts must have null book value for non-currency asset "${asset.name}"`)
-      }
-      const nominal_book_value_null_count = group.nominal.filter(li => li.book_value == null).length
-      if (group.nominal.length > 0 && nominal_book_value_null_count !== 1) {
-        throw new Error(`Exactly one line item in nominal accounts must have null book value for non-currency asset "${asset.name}"`)
+      if (group.real.some(li => li.book_value == null))
+        return { is_valid: false, message: `A real account line item for non-rupees asset ${group.name} has null book value.` }
+      if (group.allocation.length > 0 && group.allocation.filter(li => li.book_value === null).length !== 1)
+        return {
+          is_valid: false,
+          message: `There should be exactly one line item with null book value in allocation accounts for non-rupees asset ${group.name}`,
+        }
+      if (group.nominal.length > 0 && group.nominal.filter(li => li.book_value === null).length !== 1)
+        return {
+          is_valid: false,
+          message: `There should be exactly one line item with null book value in nominal accounts for non-rupees asset ${group.name}`,
+        }
+    }
+
+    if (group.allocation.length === 0 || group.nominal.length === 0) {
+      const real_qty_sum = group.real.reduce((acc, li) => acc.add(li.quantity!), new Prisma.Decimal(0))
+      if (!real_qty_sum.equals(0))
+        return {
+          is_valid: false,
+          message: `The sum of quantities in real accounts for asset ${group.name} should be zero when there are either no allocation or no nominal line items`,
+        }
+      if (group.asset_type !== asset_type.rupees) {
+        const real_book_value_sum = group.real.reduce((acc, li) => acc.add(li.book_value ?? 0), new Prisma.Decimal(0))
+        if (!real_book_value_sum.equals(0))
+          return {
+            is_valid: false,
+            message: `The sum of book values in real accounts for asset ${group.name} should be zero when there are either no allocation or no nominal line items`,
+          }
       }
     }
   }
+  return { is_valid: true, message: 'All line items are valid' }
 }
 
 export function convert_to_normal_line_items(
@@ -110,16 +118,18 @@ export function convert_to_normal_line_items(
     const nominal_qty_sum = group.nominal.reduce((sum, li) => sum.add(li.quantity ?? 0), new Prisma.Decimal(0))
     const allocation_remaining_qty = total.quantity.sub(allocation_qty_sum)
     if (group.allocation.filter(li => li.quantity == null).length !== 1) {
+      const assetName = (group.real[0] || group.allocation[0] || group.nominal[0]).asset.name
       throw new Error(
-        `${group.allocation[0].transaction_id} Internal error: there should be exactly one line item with null quantity in allocation accounts for asset id ${asset_id} but found ${group.allocation.filter(li => li.quantity == null).length}`,
+        `${group.allocation[0].transaction_id} Internal error: there should be exactly one line item with null quantity in allocation accounts for asset ${assetName} but found ${group.allocation.filter(li => li.quantity == null).length}`,
       )
     }
     group.allocation.find(li => li.quantity == null)!.quantity = allocation_remaining_qty
 
     const nominal_remaining_qty = total.quantity.sub(nominal_qty_sum)
     if (group.nominal.filter(li => li.quantity == null).length !== 1) {
+      const assetName = (group.real[0] || group.allocation[0] || group.nominal[0]).asset.name
       throw new Error(
-        `Internal error: there should be exactly one line item with null quantity in nominal accounts for asset id ${asset_id} but found ${group.nominal.filter(li => li.quantity == null).length}`,
+        `Internal error: there should be exactly one line item with null quantity in nominal accounts for asset ${assetName} but found ${group.nominal.filter(li => li.quantity == null).length}`,
       )
     }
     group.nominal.find(li => li.quantity == null)!.quantity = nominal_remaining_qty
@@ -129,16 +139,18 @@ export function convert_to_normal_line_items(
 
       const allocation_remaining_book_value = total.book_value!.sub(allocation_book_value_sum)
       if (group.allocation.filter(li => li.book_value == null).length !== 1) {
+        const assetName = (group.real[0] || group.allocation[0] || group.nominal[0]).asset.name
         throw new Error(
-          `Internal error: there should be exactly one line item with null book value in allocation accounts for asset id ${asset_id} but found ${group.allocation.filter(li => li.book_value == null).length}`,
+          `Internal error: there should be exactly one line item with null book value in allocation accounts for asset ${assetName} but found ${group.allocation.filter(li => li.book_value == null).length}`,
         )
       }
       group.allocation.find(li => li.book_value == null)!.book_value = allocation_remaining_book_value
 
       const nominal_remaining_book_value = total.book_value!.sub(nominal_book_value_sum)
       if (group.nominal.filter(li => li.book_value == null).length !== 1) {
+        const assetName = (group.real[0] || group.allocation[0] || group.nominal[0]).asset.name
         throw new Error(
-          `Internal error: there should be exactly one line item with null book value in nominal accounts for asset id ${asset_id} but found ${group.nominal.filter(li => li.book_value == null).length}`,
+          `Internal error: there should be exactly one line item with null book value in nominal accounts for asset ${assetName} but found ${group.nominal.filter(li => li.book_value == null).length}`,
         )
       }
       group.nominal.find(li => li.book_value == null)!.book_value = nominal_remaining_book_value

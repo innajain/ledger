@@ -2,76 +2,46 @@ import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_price_for_asset } from '@/app/_utils/price_fetcher'
-import { asset_type, Prisma } from '@/generated/prisma/client'
-import { flush_redis } from '@/app/_actions/flush'
-import { log_out } from '@/app/_actions/auth'
-import { convert_to_normal_line_items, get_line_item_qty } from './_utils/validate_line_items'
+import { Prisma } from '@/generated/prisma/client'
+import { get_or_compute_balances } from './_actions/compute_balances'
 
 export default async function Home() {
   const user = await get_current_user()
   if (!user) {
-    return <ClientPage allocations={[]} />
+    return <ClientPage invest={null} savings={null} />
   }
 
   const allocations = await prisma.account.findMany({
     where: { user_id: user.id, type: 'allocation' },
-    include: { line_items: { include: { asset: true, account: true, transaction: { include: { line_items: { include: { account: true } } } } } } },
   })
 
-  // Collect unique assets that need price fetching
-  const uniqueAssets = new Map<string, { type: asset_type; ticker: string | null }>()
-  for (const acc of allocations) {
-    for (const li of acc.line_items) {
-      const asset = li.asset
-      if (asset.ticker && (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares')) {
-        const key = `${asset.type}:${asset.ticker}`
-        if (!uniqueAssets.has(key)) {
-          uniqueAssets.set(key, { type: asset.type, ticker: asset.ticker })
-        }
-      }
-    }
-  }
+  const invest = allocations.find(a => /invest/i.test(a.name))
+  const savings = allocations.find(a => /saving/i.test(a.name))
 
-  // Fetch all prices in parallel
-  const pricePromises = Array.from(uniqueAssets.entries()).map(async ([key, { type, ticker }]) => {
-    const price = await get_price_for_asset(type, ticker)
-    return { key, price }
-  })
+  const assets = await prisma.asset.findMany({ where: { user_id: user.id } })
+  const assetMap = new Map(assets.map(a => [a.id, a]))
 
-  const priceResults = await Promise.all(pricePromises)
-  const priceCache = new Map<string, { price: number; date: Date }>()
-  for (const { key, price } of priceResults) {
-    if (price) priceCache.set(key, price)
-  }
+  const balances = await get_or_compute_balances()
 
-  const allocationsForClient: { id: string; name: string; total: number }[] = []
+  const [invest_with_value, savings_with_value] = await Promise.all(
+    [invest, savings].map(async acc => {
+      if (!acc) return null
+      const asset_qty_map = balances.get(acc.id) ?? new Map<string, { qty: number; book_value: number }>()
 
-  for (const acc of allocations) {
-    let acc_total = new Prisma.Decimal(0)
-    for (const li of acc.line_items) {
-      const qty = get_line_item_qty(li)
-      const asset = li.asset
-      let current_value = new Prisma.Decimal(0)
-
-      if (asset.type === asset_type.rupees) {
-        current_value = qty!
-      } else if (asset.ticker && (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares')) {
-        const key = `${asset.type}:${asset.ticker}`
-        const priceData = priceCache.get(key)
-        if (priceData) {
-          current_value = new Prisma.Decimal(priceData.price).mul(qty!)
+      let total_value = new Prisma.Decimal(0)
+      for (const [asset_id, { qty, book_value }] of asset_qty_map.entries()) {
+        const asset = assetMap.get(asset_id)!
+        const price_data = await get_price_for_asset(asset.type, asset.ticker)
+        if (price_data) {
+          total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
         } else {
-          current_value = li.book_value!
+          total_value = total_value.add(book_value)
         }
-      } else {
-        current_value = li.book_value!
       }
 
-      acc_total = acc_total.add(current_value)
-    }
+      return { id: acc.id, name: acc.name, total: total_value.toNumber() }
+    }),
+  )
 
-    allocationsForClient.push({ id: acc.id, name: acc.name, total: acc_total.toNumber() })
-  }
-
-  return <ClientPage allocations={allocationsForClient} flushRedis={flush_redis} logOut={log_out} />
+  return <ClientPage invest={invest_with_value} savings={savings_with_value} />
 }

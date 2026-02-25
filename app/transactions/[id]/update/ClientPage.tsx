@@ -59,8 +59,8 @@ export default function ClientPage({
     transaction.line_items.map(li => ({
       account_id: li.account_id,
       asset_id: li.asset_id,
-      quantity: li.quantity === null ? '' : String(li.quantity),
-      book_value: li.book_value == null ? '' : String(li.book_value),
+      quantity: li.quantity === null ? null : String(li.quantity),
+      book_value: li.book_value == null ? null : String(li.book_value),
       description: li.description ?? '',
       datetime: li.datetime ? toLocalDateTimeInputValue(li.datetime) : '',
     })),
@@ -69,9 +69,14 @@ export default function ClientPage({
   const [error, setError] = useState<string | null>(null)
 
   function addItemForType(typeKey: string) {
-    const defaultAcc = accounts.find(a => a.type === typeKey) ?? accounts[0]
+    let preferred: { id: string; name?: string; type?: string } | undefined
+    if (typeKey === 'real') preferred = accounts.find(a => a.name === 'Google Pay' && a.type === 'real')
+    if (typeKey === 'allocation') preferred = accounts.find(a => a.name === 'Discretionary Expenses' && a.type === 'allocation')
+    if (typeKey === 'nominal') preferred = accounts.find(a => a.name === 'Expenses' && a.type === 'nominal')
+    const defaultAcc = preferred ?? accounts.find(a => a.type === typeKey) ?? accounts[0]
+    const defaultAsset = assets.find(a => a.name === 'Money') ?? assets[0]
     setItems(prev => [
-      { account_id: defaultAcc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: '0', book_value: '', description: '', datetime: '' },
+      { account_id: defaultAcc?.id ?? '', asset_id: defaultAsset?.id ?? '', quantity: null, book_value: null, description: '', datetime: '' },
       ...prev,
     ])
   }
@@ -80,14 +85,21 @@ export default function ClientPage({
     setItems(prev => prev.filter((_, idx) => idx !== i))
   }
 
-  function updateItem(idx: number, field: keyof LineItemData, value: string) {
+  function updateItem(idx: number, field: keyof LineItemData, value: string | null) {
     setItems(prev => {
       const copy = [...prev]
-      copy[idx] = { ...copy[idx], [field]: value }
+      const v: string = field === 'quantity' || field === 'book_value' ? (value === null ? '' : value) : (value ?? '')
+      copy[idx] = { ...copy[idx], [field]: v }
       // Clear book_value when switching to rupees asset
       if (field === 'asset_id') {
-        const sel = assets.find(a => a.id === value)
-        if (sel?.type === asset_type.rupees) copy[idx].book_value = ''
+        const sel = assets.find(a => a.id === v)
+        if (sel?.type === asset_type.rupees) copy[idx].book_value = null
+      }
+      if (field === 'quantity' && value === null) {
+        ;(copy[idx] as LineItemData).quantity = null
+      }
+      if (field === 'book_value' && value === null) {
+        ;(copy[idx] as LineItemData).book_value = null
       }
       return copy
     })
@@ -101,8 +113,8 @@ export default function ClientPage({
       const line_items = items.map(it => ({
         account_id: it.account_id,
         asset_id: it.asset_id,
-        quantity: Number(it.quantity),
-        book_value: it.book_value === '' ? null : Number(it.book_value),
+        quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
+        book_value: it.book_value === null || it.book_value === '' ? null : Number(it.book_value),
         description: it.description === '' ? null : it.description,
         datetime: it.datetime === '' ? null : new Date(it.datetime),
       }))

@@ -41,7 +41,16 @@ export async function create_transaction(
       const assets = await prisma.asset.findMany({ where: { id: { in: asset_ids }, user_id: user.id } })
       if (assets.length !== asset_ids.length) throw new Error('One or more assets not found or do not belong to your user')
 
-      validate_line_items(line_items, accounts, assets)
+      const { is_valid, message } = validate_line_items(
+        line_items.map(li => ({
+          quantity: li.quantity === null || li.quantity === undefined ? null : new Prisma.Decimal(li.quantity),
+          book_value: li.book_value === null || li.book_value === undefined ? null : new Prisma.Decimal(li.book_value),
+          asset: assets.find(a => a.id === li.asset_id)!,
+          account: accounts.find(a => a.id === li.account_id)!,
+        })),
+      )
+
+      if (!is_valid) throw new Error(message)
 
       // All checks passed — create the transaction with nested line_items
       await prisma.transaction.create({
