@@ -144,6 +144,5 @@ export default async function Page({ params }: Props) {
     breakdown,
     line_items,
   }
-
   return <ClientPage asset={assetForClient} />
 }

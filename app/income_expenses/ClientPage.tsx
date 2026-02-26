@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import type { Prisma } from '@/generated/prisma/client'
 import { currency_fmt } from '../_utils/currency_formatter'
 import { HierarchyTree } from '../_components/HeirarchyTree'
@@ -9,12 +9,8 @@ import { TotalCard } from '../_components/TotalCard'
 import { EmptyState } from '../_components/EmptyState'
 
 type Props = {
-  accounts: (Prisma.accountGetPayload<{ include: { parent: true } }> & {
-    line_items: (Omit<Prisma.line_itemGetPayload<{ include: { asset: true } }>, 'quantity' | 'book_value'> & {
-      quantity: number
-    })[]
-  })[]
-  totals: Record<string, number>
+  accounts: Prisma.accountGetPayload<{ include: { parent: true } }>[]
+  totals: Map<string, number>
   grand_total: number
 }
 
@@ -55,7 +51,6 @@ export default function ClientPage({ accounts, totals, grand_total }: Props) {
           <HierarchyTree
             items={accounts}
             totals={totals}
-            formatCurrency={amount => currency_fmt.format(amount)}
             expandAll={expandAll}
             storageKey="income_expenses"
             reorderEnabled={reorderEnabled}

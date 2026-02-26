@@ -9,13 +9,9 @@ import { EmptyState } from '../_components/EmptyState'
 import { currency_fmt } from '../_utils/currency_formatter'
 
 type Props = {
-  allocations: (Prisma.accountGetPayload<{ include: { parent: true } }> & {
-    line_items: (Omit<Prisma.line_itemGetPayload<{ include: { asset: true } }>, 'quantity' | 'book_value'> & {
-      quantity: number
-    })[]
-  })[]
-  totals: Record<string, number>
-  assetQuantities: Record<string, Record<string, number>>
+  allocations: Prisma.accountGetPayload<{ include: { parent: true } }>[]
+  totals: Map<string, number>
+  assetQuantities: Map<string, Map<string, number>>
   grand_total: number
 }
 
@@ -57,16 +53,19 @@ export default function ClientPage({ allocations, totals, assetQuantities, grand
           <HierarchyTree
             items={allocations}
             totals={totals}
-            formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/allocations/${id}`}
             expandAll={expandAll}
             storageKey="allocations"
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
             renderExtraInfo={item => {
-              const assetQtys = assetQuantities[item.id] || {}
+              const assetQtys = assetQuantities.get(item.id) || new Map<string, number>()
               const negativeAssets = [
-                ...new Set(item.line_items.filter(li => assetQtys[li.asset.id] !== undefined && assetQtys[li.asset.id] < 0).map(li => li.asset.name)),
+                ...new Set(
+                  Array.from(assetQtys.entries())
+                    .filter(([_, qty]) => qty < 0)
+                    .map(([assetId, _]) => assetId),
+                ),
               ]
               if (negativeAssets.length === 0) return null
               return (

@@ -1,27 +1,23 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import type { Prisma } from '@/generated/prisma/client';
-import { currency_fmt } from '../_utils/currency_formatter';
-import { HierarchyTree } from '../_components/HeirarchyTree';
-import { PageHeader } from '../_components/PageHeader';
-import { TotalCard } from '../_components/TotalCard';
-import { EmptyState } from '../_components/EmptyState';
+import { useState } from 'react'
+import type { Prisma } from '@/generated/prisma/client'
+import { currency_fmt } from '../_utils/currency_formatter'
+import { HierarchyTree } from '../_components/HeirarchyTree'
+import { PageHeader } from '../_components/PageHeader'
+import { TotalCard } from '../_components/TotalCard'
+import { EmptyState } from '../_components/EmptyState'
 
 type Props = {
-  accounts: (Prisma.accountGetPayload<{ include: { parent: true } }> & {
-    line_items: (Omit<Prisma.line_itemGetPayload<{ include: { asset: true } }>, 'quantity' | 'book_value'> & {
-      quantity: number;
-    })[];
-  })[];
-  totals: Record<string, number>;
-  assetQuantities: Record<string, Record<string, number>>;
-  grand_total: number;
-};
+  accounts: Prisma.accountGetPayload<{ include: { parent: true } }>[]
+  totals: Map<string, number>
+  accountAssetQuantities: Map<string, Map<string, number>>
+  grand_total: number
+}
 
-export default function ClientPage({ accounts, totals, assetQuantities, grand_total }: Props) {
-  const [expandAll, setExpandAll] = useState(false);
-  const [reorderEnabled, setReorderEnabled] = useState(false);
+export default function ClientPage({ accounts, totals, accountAssetQuantities: assetQuantities, grand_total }: Props) {
+  const [expandAll, setExpandAll] = useState(false)
+  const [reorderEnabled, setReorderEnabled] = useState(false)
   return (
     <div className="space-y-6">
       <PageHeader
@@ -61,20 +57,21 @@ export default function ClientPage({ accounts, totals, assetQuantities, grand_to
           <HierarchyTree
             items={accounts}
             totals={totals}
-            formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/accounts/${id}`}
             expandAll={expandAll}
             storageKey="accounts"
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
-            renderExtraInfo={(item) => {
-              const assetQtys = assetQuantities[item.id] || {};
-              const negativeAssets = [...new Set(
-                item.line_items
-                  .filter(li => assetQtys[li.asset.id] !== undefined && assetQtys[li.asset.id] < 0)
-                  .map(li => li.asset.name)
-              )];
-              if (negativeAssets.length === 0) return null;
+            renderExtraInfo={item => {
+              const assetQtys = assetQuantities.get(item.id) || new Map<string, number>()
+              const negativeAssets = [
+                ...new Set(
+                  Array.from(assetQtys.entries())
+                    .filter(([_, qty]) => qty < 0)
+                    .map(([assetId, _]) => assetId),
+                ),
+              ]
+              if (negativeAssets.length === 0) return null
               return (
                 <div className="flex flex-wrap gap-2">
                   {negativeAssets.map((assetName, idx) => (
@@ -86,7 +83,7 @@ export default function ClientPage({ accounts, totals, assetQuantities, grand_to
                     </span>
                   ))}
                 </div>
-              );
+              )
             }}
           />
         </div>
@@ -109,5 +106,5 @@ export default function ClientPage({ accounts, totals, assetQuantities, grand_to
         />
       )}
     </div>
-  );
+  )
 }

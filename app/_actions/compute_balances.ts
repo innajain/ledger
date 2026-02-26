@@ -41,12 +41,14 @@ export async function get_or_compute_balances(invalidate_cache = false) {
         assetMap.set(asset_id, { qty: existing.qty.add(qty), book_value: existing.book_value.add(book_value) })
       }
 
-      if (!balances.has(asset_id)) balances.set(asset_id, new Map())
-      const accMap = balances.get(asset_id)!
-      if (!accMap.has(acc_id)) accMap.set(acc_id, { qty, book_value })
-      else {
-        const existing_acc = accMap.get(acc_id)!
-        accMap.set(acc_id, { qty: existing_acc.qty.add(qty), book_value: existing_acc.book_value.add(book_value) })
+      if (li.account.type === 'real') {
+        if (!balances.has(asset_id)) balances.set(asset_id, new Map())
+        const accMap = balances.get(asset_id)!
+        if (!accMap.has(acc_id)) accMap.set(acc_id, { qty, book_value })
+        else {
+          const existing_acc = accMap.get(acc_id)!
+          accMap.set(acc_id, { qty: existing_acc.qty.add(qty), book_value: existing_acc.book_value.add(book_value) })
+        }
       }
     }
   }

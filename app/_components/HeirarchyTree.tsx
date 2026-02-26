@@ -11,6 +11,7 @@ import {
   hasAnyCustomOrder,
   type HierarchicalOrder,
 } from '../_utils/orderStorage'
+import { currency_fmt } from '../_utils/currency_formatter'
 
 type BaseItem = {
   id: string
@@ -25,8 +26,7 @@ type Node<T extends BaseItem> = {
 
 type HierarchyTreeProps<T extends BaseItem> = {
   items: T[]
-  totals: Record<string, number>
-  formatCurrency: (amount: number) => string
+  totals: Map<string, number>
   getItemUrl: (id: string) => string
   renderExtraInfo?: (item: T, node: Node<T>) => React.ReactNode
   expandAll?: boolean
@@ -44,7 +44,6 @@ function getInitialCustomOrder(storageKey: string | undefined): HierarchicalOrde
 export function HierarchyTree<T extends BaseItem>({
   items,
   totals,
-  formatCurrency,
   getItemUrl,
   renderExtraInfo,
   expandAll,
@@ -220,7 +219,7 @@ export function HierarchyTree<T extends BaseItem>({
   }, [items, customOrder])
 
   function aggregateCurr(n: Node<T>): number {
-    const own = totals[n.item.id] || 0
+    const own = totals.get(n.item.id) || 0
     return n.children.reduce((sum, c) => sum + aggregateCurr(c), own)
   }
 
@@ -230,7 +229,7 @@ export function HierarchyTree<T extends BaseItem>({
     const isDragging = draggedId === item.id
     const isDragOver = dragOverId === item.id
 
-    const ownCurr = totals[item.id] || 0
+    const ownCurr = totals.get(item.id) || 0
     const displayCurr = aggregateCurr(node)
 
     // Allow drag at any level when reorder is enabled
@@ -297,7 +296,7 @@ export function HierarchyTree<T extends BaseItem>({
               {renderExtraInfo && node.children.length === 0 && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
             </div>
             <div className="shrink-0 text-right">
-              <span className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100">{formatCurrency(displayCurr)}</span>
+              <span className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100">{currency_fmt.format(displayCurr)}</span>
             </div>
           </div>
         </div>
@@ -315,7 +314,7 @@ export function HierarchyTree<T extends BaseItem>({
                     {renderExtraInfo && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
                   </div>
                   <div className="shrink-0 text-right">
-                    <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">{formatCurrency(ownCurr)}</span>
+                    <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">{currency_fmt.format(ownCurr)}</span>
                   </div>
                 </div>
               </div>

@@ -2,9 +2,10 @@ import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_price_for_asset } from '@/app/_utils/price_fetcher'
-import { asset_type, Prisma } from '@/generated/prisma/client'
+import { account_type, asset_type, Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { get_line_item_qty } from '../_utils/validate_line_items'
+import { get_or_compute_balances } from '../_actions/compute_balances'
 
 // Route segment config for performance
 export const dynamic = 'force-dynamic'
@@ -26,89 +27,43 @@ export default async function Page() {
     )
   }
 
-  // fetch assets with their line_items
-  const assets = await prisma.asset.findMany({
-    where: { user_id: user.id },
-    include: {
-      line_items: { include: { asset: true, account: true, transaction: { include: { line_items: { include: { account: true } } } } } },
-      parent: true,
-    },
-  })
+  const [assets, balances] = await Promise.all([
+    prisma.asset.findMany({ where: { user_id: user.id }, include: { parent: true } }),
+    get_or_compute_balances(),
+  ])
 
-  // Collect unique assets that need price fetching
-  const uniqueAssets = new Map<string, { type: asset_type; ticker: string | null }>()
-  for (const asset of assets) {
-    if (asset.ticker && (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares')) {
-      const key = `${asset.type}:${asset.ticker}`
-      if (!uniqueAssets.has(key)) {
-        uniqueAssets.set(key, { type: asset.type, ticker: asset.ticker })
-      }
-    }
-  }
+  const currValuesByAsset: Map<string, number> = new Map()
 
-  // Fetch all prices in parallel
-  const pricePromises = Array.from(uniqueAssets.entries()).map(async ([key, { type, ticker }]) => {
-    const price = await get_price_for_asset(type, ticker)
-    return { key, price }
-  })
+  await Promise.all(
+    assets.map(async ass => {
+      const price_data = await get_price_for_asset(ass.type, ass.ticker)
+      const acc_qty_map = balances.get(ass.id) ?? new Map<string, { qty: number; book_value: number }>()
 
-  const priceResults = await Promise.all(pricePromises)
-  const priceCache = new Map<string, { price: number; date: Date }>()
-  for (const { key, price } of priceResults) {
-    if (price) priceCache.set(key, price)
-  }
-
-  const totalsByAsset: Record<string, number> = {}
-  let grand_total = new Prisma.Decimal(0)
-
-  for (const asset of assets) {
-    let asset_total = new Prisma.Decimal(0)
-    const real_line_items = asset.line_items.filter(li => li.account.type === 'real')
-
-    // Get price once per asset
-    let assetPrice: { price: number; date: Date } | null = null
-    if (asset.ticker && (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares')) {
-      const key = `${asset.type}:${asset.ticker}`
-      assetPrice = priceCache.get(key) || null
-    }
-
-    // Sum across all line items for this asset
-    for (const li of real_line_items) {
-      const qty = get_line_item_qty(li)
-      let current_value: Prisma.Decimal
-
-      if (asset.type === asset_type.rupees) {
-        current_value = qty
-      } else if (assetPrice) {
-        current_value = new Prisma.Decimal(assetPrice.price).mul(qty)
-      } else {
-        // Fallback to book_value
-        current_value = li.book_value!
+      let total_value = new Prisma.Decimal(0)
+      for (const [acc_id, { qty, book_value }] of acc_qty_map.entries()) {
+        if (price_data) {
+          total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
+        } else {
+          total_value = total_value.add(book_value)
+        }
       }
 
-      asset_total = asset_total.add(current_value)
-    }
+      currValuesByAsset.set(ass.id, total_value.toNumber())
+    }),
+  )
 
-    totalsByAsset[asset.id] = asset_total.toNumber()
-    grand_total = grand_total.add(asset_total)
-  }
+  const assetAccountQuantities: Map<string, Map<string, number>> = new Map()
+  balances.forEach((acc_qty_map, asset_id) => {
+    const accQuantities: Map<string, number> = new Map()
+    acc_qty_map.forEach(({ qty }, acc_id) => {
+      accQuantities.set(acc_id, qty)
+    })
+    assetAccountQuantities.set(asset_id, accQuantities)
+  })
+
+  const grand_total = Array.from(currValuesByAsset.values()).reduce((sum, val) => sum.add(val), new Prisma.Decimal(0))
 
   return (
-    <ClientPage
-      assets={assets.map(x => ({
-        ...x,
-        line_items: x.line_items.map(li => ({
-          id: li.id,
-          asset_id: li.asset_id,
-          asset: li.asset,
-          transaction_id: li.transaction_id,
-          account_id: li.account_id,
-          quantity: get_line_item_qty(li).toNumber(),
-          book_value: undefined,
-        })),
-      }))}
-      totals={totalsByAsset}
-      grand_total={grand_total.toNumber()}
-    />
+    <ClientPage assets={assets} assetAccountQuantities={assetAccountQuantities} totals={currValuesByAsset} grand_total={grand_total.toNumber()} />
   )
 }

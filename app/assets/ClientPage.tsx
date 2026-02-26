@@ -1,6 +1,6 @@
 'use client'
 
-import { Prisma } from '@/generated/prisma/client'
+import type { Prisma } from '@/generated/prisma/client'
 import { useState } from 'react'
 import { HierarchyTree } from '../_components/HeirarchyTree'
 import { PageHeader } from '../_components/PageHeader'
@@ -8,30 +8,16 @@ import { TotalCard } from '../_components/TotalCard'
 import { EmptyState } from '../_components/EmptyState'
 import { currency_fmt } from '../_utils/currency_formatter'
 
-// Lightweight shapes for client component
-type LineItemNumbered = {
-  id: string
-  transaction_id: string
-  account_id: string
-  asset_id: string
-  quantity: number
-  asset: { id: string; name: string }
-}
-
-type AssetNumbered = Prisma.assetGetPayload<{ include: { parent: true } }> & {
-  line_items: LineItemNumbered[]
-}
-
 type Props = {
-  assets: AssetNumbered[]
-  totals: Record<string, number>
+  assets: Prisma.assetGetPayload<{ include: { parent: true } }>[]
+  totals: Map<string, number>
+  assetAccountQuantities: Map<string, Map<string, number>>
   grand_total: number
 }
 
-export default function ClientPage({ assets, totals, grand_total }: Props) {
+export default function ClientPage({ assets, totals, assetAccountQuantities, grand_total }: Props) {
   const [expandAll, setExpandAll] = useState(false)
   const [reorderEnabled, setReorderEnabled] = useState(false)
-  const qtyFmt = (n: number) => n.toFixed(2)
 
   return (
     <div className="space-y-6">
@@ -67,7 +53,6 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
           <HierarchyTree
             items={assets}
             totals={totals}
-            formatCurrency={amount => currency_fmt.format(amount)}
             getItemUrl={id => `/assets/${id}`}
             expandAll={expandAll}
             storageKey="assets"
@@ -75,8 +60,9 @@ export default function ClientPage({ assets, totals, grand_total }: Props) {
             onReorderToggle={setReorderEnabled}
             renderExtraInfo={asset => {
               if (asset.type === 'rupees') return null
-              const qty = asset.line_items.reduce((s, li) => s + (li.quantity ?? 0), 0)
-              return <span className="text-sm text-slate-600">{qtyFmt(qty)} units</span>
+              const accQty = assetAccountQuantities.get(asset.id) ?? new Map<string, number>()
+              const qty = accQty.values().reduce((sum, q) => sum + q, 0)
+              return <span className="text-sm text-slate-600">{qty} units</span>
             }}
           />
         </div>
