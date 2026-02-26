@@ -5,6 +5,7 @@ import { get_current_user } from '@/app/_actions/auth'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import { CreateLineItemInput } from './transactions'
 import { validate_line_items } from '../_utils/validate_line_items'
+import { get_or_compute_balances } from './compute_balances'
 
 export async function update_transaction(
   id: string,
@@ -70,6 +71,8 @@ export async function update_transaction(
         },
       })
     })
+
+    get_or_compute_balances(true)
 
     return {
       success: true,

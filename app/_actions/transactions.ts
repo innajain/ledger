@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { Prisma } from '@/generated/prisma/client'
 import { validate_line_items } from '../_utils/validate_line_items'
+import { get_or_compute_balances } from './compute_balances'
 
 export type CreateLineItemInput = {
   account_id: string
@@ -72,6 +73,7 @@ export async function create_transaction(
       })
     })
 
+    get_or_compute_balances(true)
     return {
       success: true,
       message: 'Transaction created successfully',

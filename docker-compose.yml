@@ -12,7 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   redis:
-    image: redis:7.4
+    image: redis:8.2.5-bookworm
     container_name: local-redis
     ports:
       - '6379:6379'
