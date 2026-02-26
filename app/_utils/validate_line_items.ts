@@ -187,14 +187,14 @@ export function get_line_item_book_value(
   }>,
 ) {
   if (li.book_value != null) return li.book_value
+  if (li.asset.type === asset_type.rupees) return get_line_item_qty(li)
   const total_book_value = li.transaction.line_items
     .filter(t_li => t_li.account.type === 'real' && t_li.asset_id === li.asset_id)
     .reduce((sum, t_li) => sum.add(t_li.book_value ?? t_li.quantity!), new Prisma.Decimal(0))
 
-  const this_asset_type = li.asset.type
   const sum_book_value = li.transaction.line_items
     .filter(t_li => t_li.account.type === li.account.type && t_li.asset_id === li.asset_id)
-    .reduce((sum, t_li) => sum.add(this_asset_type === asset_type.rupees ? get_line_item_qty(t_li) : (t_li.book_value ?? 0)), new Prisma.Decimal(0))
+    .reduce((sum, t_li) => sum.add(t_li.book_value ?? 0), new Prisma.Decimal(0))
 
   return total_book_value.sub(sum_book_value)
 }

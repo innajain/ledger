@@ -106,15 +106,16 @@ export default async function Page({ params }: Props) {
         type: asset.type,
       }
     }
+    const book_value = get_line_item_book_value(li)
     map[asset.id].total_qty = map[asset.id].total_qty.add(qty)
-    map[asset.id].total_book = map[asset.id].total_book.add(get_line_item_book_value(li))
+    map[asset.id].total_book = map[asset.id].total_book.add(book_value)
 
     lineItemsWithValues.push({
       id: li.id,
       asset_id: asset.id,
       asset_name: asset.name,
       quantity: qty.toNumber(),
-      book_value: get_line_item_book_value(li).toNumber(),
+      book_value: book_value.toNumber(),
       current_value: current_value.toNumber(),
       transaction_id: li.transaction.id,
       transaction_date: li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
