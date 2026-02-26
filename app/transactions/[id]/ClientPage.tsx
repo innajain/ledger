@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 import { asset_type } from '@/generated/prisma/enums'
+import { delete_transaction } from '@/app/_actions/transactions'
 
 export default function ClientPage({
   transaction,
-  deleteTransaction,
 }: {
   transaction: {
     id: string
@@ -24,26 +24,20 @@ export default function ClientPage({
       asset_type: asset_type
       quantity: number | null
       book_value: number | null
-      current_value: number
       description: string | null
       datetime: Date | null
     }[]
   }
-  deleteTransaction?: (id: string) => Promise<void>
 }) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
-    if (!deleteTransaction) {
-      setError('Delete operation is not available')
-      return
-    }
     if (!confirm('Delete this transaction? This action cannot be undone.')) return
     setIsDeleting(true)
     setError(null)
     try {
-      await deleteTransaction(transaction.id)
+      await delete_transaction(transaction.id)
       window.location.href = '/transactions'
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
