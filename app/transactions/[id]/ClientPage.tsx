@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
-import { asset_type } from '@/generated/prisma/enums'
+import { account_type, asset_type } from '@/generated/prisma/enums'
 import { delete_transaction } from '@/app/_actions/transactions'
 
 export default function ClientPage({
@@ -233,7 +233,13 @@ export default function ClientPage({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <Link
-                            href={`/accounts/${li.account_id}`}
+                            href={
+                              li.account_type === account_type.real
+                                ? `/accounts/${li.account_id}`
+                                : li.account_type === account_type.allocation
+                                  ? `/allocations/${li.account_id}`
+                                  : `/income_expenses/${li.account_id}`
+                            }
                             className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >
                             {li.account_name}
