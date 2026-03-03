@@ -25,18 +25,6 @@ export default function ClientPage({ accounts, totals, grand_total }: Props) {
         createUrl="/income_expenses/create"
         createLabel="+ New Nominal Account"
       />
-
-      <TotalCard
-        title="Total Nominal Accounts Value"
-        total={currency_fmt.format(grand_total)}
-        colorScheme="blue"
-        icon={
-          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l2-2 4 4M7 10l5-5 5 5" />
-          </svg>
-        }
-      />
-
       {accounts.length > 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">

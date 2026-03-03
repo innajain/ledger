@@ -28,9 +28,11 @@ const WELCOME_MESSAGES = [
 export default function ClientPage({
   invest,
   savings,
+  networth,
 }: {
   invest: { id: string; name: string; total: number } | null
   savings: { id: string; name: string; total: number } | null
+  networth: number | null
 }) {
   const [busy, setBusy] = useState(false)
   const [busyLogout, setBusyLogout] = useState(false)
@@ -50,6 +52,26 @@ export default function ClientPage({
         <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">{welcomeMessage}</h1>
         <p className="text-slate-600 dark:text-slate-400">Your financial overview and quick actions</p>
       </div>
+
+      {/* Net Worth */}
+      {networth !== null && (
+        <div className="animate-slide-in-up stagger-item bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex items-center justify-between transition-all hover-lift">
+          <div>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total Net Worth</p>
+            <p className="text-4xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(networth)}</p>
+          </div>
+          <div className="w-14 h-14 bg-slate-700 dark:bg-slate-600 rounded-xl flex items-center justify-center">
+            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+        </div>
+      )}
 
       {/* Key Allocations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

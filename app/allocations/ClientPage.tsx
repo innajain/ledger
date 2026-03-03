@@ -26,19 +26,6 @@ export default function ClientPage({ allocations, totals, assetQuantities, grand
         createUrl="/allocations/create"
         createLabel="+ New Allocation"
       />
-
-      <TotalCard
-        title="Total Allocations Value"
-        total={currency_fmt.format(grand_total)}
-        colorScheme="orange"
-        icon={
-          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-          </svg>
-        }
-      />
-
       {allocations.length > 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">

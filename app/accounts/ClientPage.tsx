@@ -26,23 +26,6 @@ export default function ClientPage({ accounts, totals, accountAssetQuantities: a
         createUrl="/accounts/create"
         createLabel="+ New Account"
       />
-
-      <TotalCard
-        title="Total Accounts Value"
-        total={currency_fmt.format(grand_total)}
-        colorScheme="green"
-        icon={
-          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-            />
-          </svg>
-        }
-      />
-
       {accounts.length > 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">
