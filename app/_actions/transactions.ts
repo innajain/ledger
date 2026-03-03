@@ -19,7 +19,7 @@ export async function create_transaction(
   datetime: Date,
   line_items: CreateLineItemInput[],
   description?: string | null | undefined,
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; id?: string }> {
   try {
     if (line_items.length === 0) throw new Error('At least one line item is required')
     if (description) description = description.trim()
@@ -32,7 +32,7 @@ export async function create_transaction(
     const user = await get_current_user()
     if (!user) throw new Error('You must be logged in to create transactions')
 
-    await prisma.$transaction(async prisma => {
+    const { id } = await prisma.$transaction(async prisma => {
       const account_ids = Array.from(new Set(line_items.map(li => li.account_id)))
       const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
 
@@ -54,7 +54,7 @@ export async function create_transaction(
       if (!is_valid) throw new Error(message)
 
       // All checks passed — create the transaction with nested line_items
-      await prisma.transaction.create({
+      return await prisma.transaction.create({
         data: {
           datetime,
           description,
@@ -77,6 +77,7 @@ export async function create_transaction(
     return {
       success: true,
       message: 'Transaction created successfully',
+      id,
     }
   } catch (error) {
     console.error('Error creating transaction:', error)

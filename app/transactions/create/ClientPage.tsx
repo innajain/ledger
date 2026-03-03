@@ -128,7 +128,7 @@ export default function ClientPage({
       }))
       const result = await create_transaction(new Date(date), line_items, description || null)
       if (result.success) {
-        window.location.href = '/transactions'
+        window.location.href = `/transactions/${result.id}`
       } else {
         setError(result.message)
       }
