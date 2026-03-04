@@ -2,9 +2,9 @@
 
 A sophisticated personal finance management application built with Next.js, implementing a unique **Triple-Entry Bookkeeping** system that enforces mathematical invariants to guarantee data integrity across every transaction.
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.0.7-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-7.0.1-2D3748?style=flat&logo=prisma)](https://www.prisma.io/)
+[![Prisma](https://img.shields.io/badge/Prisma-7.4.1-2D3748?style=flat&logo=prisma)](https://www.prisma.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-316192?style=flat&logo=postgresql)](https://www.postgresql.org/)
 
 ---
@@ -27,36 +27,39 @@ This triple-entry approach answers three questions simultaneously:
 
 ---
 
-## 🔒 Transaction Invariants (The Constraints)
+## 🔒 Transaction Invariants & Storage Model
 
-Every transaction in this system must satisfy two fundamental invariants that are **enforced at the database level**:
+### The Null-Remainder Storage Model
 
-### Invariant 1: Per-Asset Quantity Balance
+Line items are stored in a **compressed format**: instead of repeating the same value across all three account types, the system stores only the Real entries (which determine totals) plus any explicit splits on the Allocation/Nominal side. The balancing entry in each group is stored as `null` and **computed at read time** by `normalize_txn`.
 
-For **each asset** in a transaction:
+**Rules enforced on every save:**
+
+| Side | `quantity` rule | `book_value` rule (non-rupees only) |
+| ---- | --------------- | ----------------------------------- |
+| **Real** | Must always be provided (never `null`) | Must always be provided |
+| **Allocation** | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null` |
+| **Nominal** | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null` |
+| **No Allocation _or_ No Nominal** | Real quantities must sum to **zero** | Real book values must sum to **zero** |
+
+At read time, `normalize_txn` fills every `null` with:
 
 ```
-∑ quantity(Real Accounts) = ∑ quantity(Allocation Accounts) = ∑ quantity(Nominal Accounts)
+null_qty = ∑ qty(Real) − ∑ non-null qty(same account type)
 ```
 
-If you spend 500 rupees from Google Pay, you must also record -500 in a nominal account (e.g., Expenses) AND -500 in an allocation account (e.g., Office Food).
-
-### Invariant 2: Total Value Balance
-
-Across all line items in a transaction:
+This means the classic invariant is always satisfied after normalization:
 
 ```
-∑ value(Real) = ∑ value(Allocation) = ∑ value(Nominal)
+∑ quantity(Real) = ∑ quantity(Allocation) = ∑ quantity(Nominal)
 ```
-
-Where `value = book_value ?? quantity` (book_value defaults to quantity if not specified).
 
 ### Book Value Rules
 
-| Asset Type                                | `book_value` Requirement                                   |
-| ----------------------------------------- | ---------------------------------------------------------- |
-| **Currency (Rupees)**                     | Must be `null` — quantity IS the value                     |
-| **Non-currency (MF, ETF, Shares, Other)** | Must be provided — tracks cost basis separately from units |
+| Asset Type | `book_value` in Real items | `book_value` in Allocation/Nominal |
+| ---------- | ------------------------- | ---------------------------------- |
+| **Rupees** | Must be `null` (quantity IS the value) | Must be `null` |
+| **Non-rupees (MF, ETF, Shares, Other)** | Must be provided — tracks cost basis | Exactly one `null` per group (auto-derived) |
 
 This separation allows tracking of cost basis vs market value for investment assets.
 
@@ -66,38 +69,42 @@ This separation allows tracking of cost basis vs market value for investment ass
 
 ### Example 1: Simple Expense (₹35 for lunch)
 
+The allocation and nominal entries each have **one** `null` quantity — the system derives it as `∑ Real qty − 0 = −35`.
+
 ```json
 {
   "description": "Lunch at office cafeteria",
   "line_items": [
-    { "account": "Google Pay", "type": "real", "asset": "Money", "quantity": -35 },
-    { "account": "Expenses", "type": "nominal", "asset": "Money", "quantity": -35 },
-    { "account": "Office Food", "type": "allocation", "asset": "Money", "quantity": -35 }
+    { "account": "Google Pay",  "type": "real",       "asset": "Money", "quantity": -35 },
+    { "account": "Expenses",    "type": "nominal",    "asset": "Money", "quantity": null },
+    { "account": "Office Food", "type": "allocation", "asset": "Money", "quantity": null }
   ]
 }
 ```
 
-**Invariant Check:** Real (-35) = Allocation (-35) = Nominal (-35) ✅
+**After normalization:** Real (−35) = Allocation (−35) = Nominal (−35) ✅
 
 ### Example 2: Buying Mutual Fund Units (₹10,000)
+
+The `null` entries in Allocation and Nominal are each auto-derived from the Real totals.
 
 ```json
 {
   "description": "SIP in Axis Bluechip Fund",
   "line_items": [
-    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -10000 },
-    { "account": "Investments", "type": "nominal", "asset": "Money", "quantity": -10000 },
-    { "account": "Equity MF", "type": "allocation", "asset": "Money", "quantity": -10000 },
-    { "account": "Demat", "type": "real", "asset": "Axis Bluechip", "quantity": 50.25, "book_value": 10000 },
-    { "account": "Investments", "type": "nominal", "asset": "Axis Bluechip", "quantity": 50.25, "book_value": 10000 },
-    { "account": "Equity MF", "type": "allocation", "asset": "Axis Bluechip", "quantity": 50.25, "book_value": 10000 }
+    { "account": "Bank HDFC",    "type": "real",       "asset": "Money",        "quantity": -10000 },
+    { "account": "Investments",  "type": "nominal",    "asset": "Money",        "quantity": null },
+    { "account": "Equity MF",    "type": "allocation", "asset": "Money",        "quantity": null },
+    { "account": "Demat",        "type": "real",       "asset": "Axis Bluechip", "quantity": 50.25, "book_value": 10000 },
+    { "account": "Investments",  "type": "nominal",    "asset": "Axis Bluechip", "quantity": null,  "book_value": null },
+    { "account": "Equity MF",    "type": "allocation", "asset": "Axis Bluechip", "quantity": null,  "book_value": null }
   ]
 }
 ```
 
-**Invariant Check for "Money":** -10000 = -10000 = -10000 ✅
-**Invariant Check for "Axis Bluechip":** 50.25 = 50.25 = 50.25 ✅
-**Value Balance:** (-10000 + 10000) = (-10000 + 10000) = (-10000 + 10000) = 0 ✅
+**After normalization — Money:** Real (−10000) = Allocation (−10000) = Nominal (−10000) ✅
+**After normalization — Axis Bluechip qty:** 50.25 = 50.25 = 50.25 ✅
+**After normalization — Axis Bluechip book value:** 10000 = 10000 = 10000 ✅
 
 ### Example 3: Transfer Between Real Accounts
 
@@ -105,13 +112,13 @@ This separation allows tracking of cost basis vs market value for investment ass
 {
   "description": "Transfer from bank to wallet",
   "line_items": [
-    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -5000 },
+    { "account": "Bank HDFC",   "type": "real", "asset": "Money", "quantity": -5000 },
     { "account": "Cash Wallet", "type": "real", "asset": "Money", "quantity": +5000 }
   ]
 }
 ```
 
-**Note:** Transfers only involve Real accounts — no Nominal/Allocation entries needed since totals within Real already balance to zero.
+**Note:** When there are no Allocation or Nominal entries the Real quantities must sum to **zero** — the transfer's ±5000 cancel out, satisfying the constraint.
 
 ---
 
@@ -136,23 +143,11 @@ This separation allows tracking of cost basis vs market value for investment ass
 - **Automatic Price Fetching** — Real-time NAV and stock prices with 2-day Redis caching
 - **Cost Basis Tracking** — Separate quantity (units) from book_value (cost)
 
-### 🤖 AI-Powered Transaction Creation
-
-- **Natural Language Input** — "Spent ₹500 on groceries from Google Pay"
-- **Pattern Learning** — Learns from your last 10 transactions (cached for 48 hours)
-- **Multi-Provider Support** — Groq (llama-3.3-70b) or OpenAI (gpt-4o)
-- **Context Caching** — User accounts/assets cached for 48 hours to reduce token usage
-- **Token Usage Transparency** — See exactly how many tokens each request consumes
-- **IST Timezone Aware** — Parses relative dates ("yesterday", "last Monday") correctly for Indian timezone
-
 ### 🛡️ Data Integrity Tools
 
-- **Integrity Checker** — Validates all invariants across the entire database:
-  - No cycles in account/asset hierarchies
-  - All tickers are valid and fetchable
-  - Book value rules are respected
-  - All transactions satisfy both invariants
-- **Atomic Transactions** — All validation happens within database transactions
+- **Integrity Checker** — `validate_all_txns` server action checks every stored transaction against all invariants; results are surfaced directly in the dashboard
+- **Balance Cache** — `get_or_compute_balances` aggregates all account/asset balances via `normalize_txn` and caches results in Redis; automatically invalidated on every write
+- **Atomic Transactions** — All validation happens within Prisma database transactions
 
 ### 📊 Portfolio Visualization
 
@@ -170,7 +165,7 @@ This separation allows tracking of cost basis vs market value for investment ass
 
 - **Dark Mode** — System-aware theme switching
 - **Responsive Design** — Mobile-first approach
-- **React 19 + Next.js 16** — Latest React features with App Router
+- **React 19 + Next.js 16.1** — Latest React features with App Router
 
 ---
 
@@ -178,13 +173,12 @@ This separation allows tracking of cost basis vs market value for investment ass
 
 | Layer           | Technology                         |
 | --------------- | ---------------------------------- |
-| **Framework**   | Next.js 16 (App Router)            |
+| **Framework**   | Next.js 16.1 (App Router)          |
 | **Language**    | TypeScript 5                       |
 | **UI**          | React 19, Tailwind CSS 4           |
-| **ORM**         | Prisma 7                           |
+| **ORM**         | Prisma 7.4                         |
 | **Database**    | PostgreSQL (Neon Serverless)       |
 | **Cache**       | Redis (ioredis)                    |
-| **AI**          | OpenAI SDK (Groq/OpenAI providers) |
 | **Market Data** | Yahoo Finance, AMFI India          |
 | **Auth**        | JWT + bcrypt                       |
 
@@ -220,22 +214,11 @@ Create a `.env` file in the root directory with the following variables:
 # Database
 DATABASE_URL="postgresql://user:password@localhost:5432/ledger"
 
-# Redis (optional)
+# Redis (optional, for balance caching)
 REDIS_URL="redis://localhost:6379"
 
 # Authentication
 JWT_SECRET="your-secure-jwt-secret-key"
-
-# AI Model Configuration
-# Choose AI provider: 'groq' (default) or 'openai'
-AI_MODEL_PROVIDER="groq"
-
-# API Keys (configure based on your chosen provider)
-# For Groq (uses llama-3.3-70b-versatile)
-GROQ_API_KEY="your-groq-api-key"
-
-# For OpenAI (uses gpt-4o)
-OPENAI_API_KEY="your-openai-api-key"
 
 # Node Environment
 NODE_ENV="development"
@@ -268,15 +251,19 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the a
 ledger/
 ├── app/
 │   ├── _actions/            # Server Actions (transaction logic, invariant enforcement)
-│   │   ├── transactions.ts      # Core transaction creation with dual invariants
-│   │   ├── transactions_update.ts # Transaction updates (same invariants)
-│   │   ├── ai_transaction.ts    # AI-powered natural language parsing
-│   │   ├── resources.ts         # Account/Asset CRUD with hierarchy
-│   │   └── auth.ts              # JWT authentication
+│   │   ├── transactions.ts        # Core transaction creation with invariant validation
+│   │   ├── transactions_update.ts # Transaction updates (same validation)
+│   │   ├── validate_all_txns.ts   # Bulk invariant validation across all transactions
+│   │   ├── compute_balances.ts    # Balance aggregation via normalize_txn + Redis cache
+│   │   ├── flush.ts               # Redis cache flush
+│   │   ├── resources.ts           # Account/Asset CRUD with hierarchy
+│   │   └── auth.ts                # JWT authentication
 │   ├── _components/         # Reusable React components
 │   ├── _utils/              # Utilities (price fetching, date handling)
+│   │   ├── normalize_txn.ts       # Fills null quantities/book values at read time
+│   │   ├── validate_line_items.ts # Invariant checks + line item helpers
+│   │   └── price_fetcher.ts       # Yahoo Finance / AMFI price fetching
 │   ├── accounts/            # Account management
-│   ├── ai-transaction/      # Natural language transaction UI
 │   ├── allocations/         # Portfolio allocation views
 │   ├── assets/              # Asset management
 │   ├── income_expenses/     # Income/Expense tracking
@@ -284,7 +271,6 @@ ledger/
 │   └── settings/            # User settings
 ├── prisma/
 │   └── schema.prisma        # Database schema with enums
-├── integrity_checker.ts     # Full-database integrity validation
 ├── lib/
 │   ├── prisma.ts            # Prisma client singleton
 │   └── redis.ts             # Redis client singleton
@@ -344,23 +330,23 @@ pnpm lint             # Run ESLint
 pnpm analyze          # Analyze bundle size
 
 # Database
-pnpm prisma generate  # Generate Prisma Client
+pnpm prisma generate    # Generate Prisma Client
 pnpm prisma migrate dev # Run migrations
-pnpm prisma studio    # Open Prisma Studio
-
-# Integrity Check
-pnpm tsx integrity_checker.ts  # Validate all database invariants
+pnpm prisma studio      # Open Prisma Studio
 ```
 
 ## 📊 Database Schema
 
 ```prisma
 model line_item {
-  quantity   Decimal  @db.Decimal(14, 4)   // Units owned
-  book_value Decimal? @db.Decimal(14, 4)   // Cost basis (null for currency)
+  quantity   Decimal? @db.Decimal(14, 4)   // Units; null in Allocation/Nominal means auto-derived
+  book_value Decimal? @db.Decimal(14, 4)   // Cost basis; null for Rupees or auto-derived entries
 
-  account    account  // Links to Real, Nominal, or Allocation account
-  asset      asset    // Links to Rupees, MF, ETF, Shares, or Other
+  description String?   // Optional per-line-item override
+  datetime    DateTime? // Optional per-line-item datetime override
+
+  account     account     // Links to Real, Nominal, or Allocation account
+  asset       asset       // Links to Rupees, MF, ETF, Shares, or Other
   transaction transaction
 }
 
@@ -370,66 +356,24 @@ enum asset_type { rupees, mf, etf, shares, other }
 
 **Key Features:**
 
+- `quantity` and `book_value` are nullable — the null-remainder pattern stores only Real entries plus any explicit splits; `normalize_txn` derives the rest at read time
 - Decimal(14,4) precision for financial accuracy
 - Hierarchical accounts/assets with cycle detection
 - Cascade deletion for referential integrity
-- Optimized indexes on user_id, datetime, and foreign keys
+- Optimized indexes on `user_id`, `datetime`, and foreign keys
 
 ---
 
 ## 🔍 Integrity Checker
 
-Run comprehensive validation across your entire database:
-
-```bash
-pnpm tsx integrity_checker.ts
-```
+The `validate_all_txns` server action loads every transaction from the database, runs it through `validate_line_items`, and returns a list of any transactions that violate the invariants. It is accessible as a button on the main dashboard.
 
 **Checks performed:**
 
-1. ✅ No cycles in account hierarchy
-2. ✅ No cycles in asset hierarchy
-3. ✅ All tickers are valid and fetchable
-4. ✅ Book value rules are respected (null for rupees, required for others)
-5. ✅ No empty descriptions
-6. ✅ All transactions satisfy both invariants
-
----
-
-## 🤖 AI Transaction Flow
-
-```
-User Input: "Spent ₹120 on auto yesterday at 3pm from paytm"
-                    │
-                    ▼
-        ┌─────────────────────┐
-        │   Context Loading   │ ← Cached accounts/assets (48hr TTL)
-        │   + Recent Patterns │ ← Last 10 transactions cached
-        └─────────────────────┘
-                    │
-                    ▼
-        ┌─────────────────────┐
-        │   LLM Processing    │ ← Groq or OpenAI
-        │   (JSON Response)   │
-        └─────────────────────┘
-                    │
-                    ▼
-        ┌─────────────────────┐
-        │   Fuzzy Matching    │ ← Account/Asset name resolution
-        │   + Validation      │
-        └─────────────────────┘
-                    │
-                    ▼
-        ┌─────────────────────┐
-        │   User Confirmation │ ← Review before commit
-        └─────────────────────┘
-                    │
-                    ▼
-        ┌─────────────────────┐
-        │   Invariant Check   │ ← Both constraints verified
-        │   + DB Commit       │
-        └─────────────────────┘
-```
+1. ✅ Real account line items never have `null` quantity
+2. ✅ Allocation/Nominal groups each have exactly one `null` quantity placeholder
+3. ✅ Book value rules are respected per asset type
+4. ✅ Real-only transactions (transfers) have quantities summing to zero
 
 ---
 
