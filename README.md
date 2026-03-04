@@ -35,12 +35,12 @@ Line items are stored in a **compressed format**: instead of repeating the same 
 
 **Rules enforced on every save:**
 
-| Side | `quantity` rule | `book_value` rule (non-rupees only) |
-| ---- | --------------- | ----------------------------------- |
-| **Real** | Must always be provided (never `null`) | Must always be provided |
-| **Allocation** | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null` |
-| **Nominal** | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null` |
-| **No Allocation _or_ No Nominal** | Real quantities must sum to **zero** | Real book values must sum to **zero** |
+| Side                              | `quantity` rule                                                 | `book_value` rule (non-rupees only)   |
+| --------------------------------- | --------------------------------------------------------------- | ------------------------------------- |
+| **Real**                          | Must always be provided (never `null`)                          | Must always be provided               |
+| **Allocation**                    | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`        |
+| **Nominal**                       | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`        |
+| **No Allocation _or_ No Nominal** | Real quantities must sum to **zero**                            | Real book values must sum to **zero** |
 
 At read time, `normalize_txn` fills every `null` with:
 
@@ -56,10 +56,10 @@ This means the classic invariant is always satisfied after normalization:
 
 ### Book Value Rules
 
-| Asset Type | `book_value` in Real items | `book_value` in Allocation/Nominal |
-| ---------- | ------------------------- | ---------------------------------- |
-| **Rupees** | Must be `null` (quantity IS the value) | Must be `null` |
-| **Non-rupees (MF, ETF, Shares, Other)** | Must be provided — tracks cost basis | Exactly one `null` per group (auto-derived) |
+| Asset Type                              | `book_value` in Real items             | `book_value` in Allocation/Nominal          |
+| --------------------------------------- | -------------------------------------- | ------------------------------------------- |
+| **Rupees**                              | Must be `null` (quantity IS the value) | Must be `null`                              |
+| **Non-rupees (MF, ETF, Shares, Other)** | Must be provided — tracks cost basis   | Exactly one `null` per group (auto-derived) |
 
 This separation allows tracking of cost basis vs market value for investment assets.
 
@@ -75,8 +75,8 @@ The allocation and nominal entries each have **one** `null` quantity — the sys
 {
   "description": "Lunch at office cafeteria",
   "line_items": [
-    { "account": "Google Pay",  "type": "real",       "asset": "Money", "quantity": -35 },
-    { "account": "Expenses",    "type": "nominal",    "asset": "Money", "quantity": null },
+    { "account": "Google Pay", "type": "real", "asset": "Money", "quantity": -35 },
+    { "account": "Expenses", "type": "nominal", "asset": "Money", "quantity": null },
     { "account": "Office Food", "type": "allocation", "asset": "Money", "quantity": null }
   ]
 }
@@ -92,12 +92,12 @@ The `null` entries in Allocation and Nominal are each auto-derived from the Real
 {
   "description": "SIP in Axis Bluechip Fund",
   "line_items": [
-    { "account": "Bank HDFC",    "type": "real",       "asset": "Money",        "quantity": -10000 },
-    { "account": "Investments",  "type": "nominal",    "asset": "Money",        "quantity": null },
-    { "account": "Equity MF",    "type": "allocation", "asset": "Money",        "quantity": null },
-    { "account": "Demat",        "type": "real",       "asset": "Axis Bluechip", "quantity": 50.25, "book_value": 10000 },
-    { "account": "Investments",  "type": "nominal",    "asset": "Axis Bluechip", "quantity": null,  "book_value": null },
-    { "account": "Equity MF",    "type": "allocation", "asset": "Axis Bluechip", "quantity": null,  "book_value": null }
+    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -10000 },
+    { "account": "Investments", "type": "nominal", "asset": "Money", "quantity": null },
+    { "account": "Equity MF", "type": "allocation", "asset": "Money", "quantity": null },
+    { "account": "Demat", "type": "real", "asset": "Axis Bluechip", "quantity": 50.25, "book_value": 10000 },
+    { "account": "Investments", "type": "nominal", "asset": "Axis Bluechip", "quantity": null, "book_value": null },
+    { "account": "Equity MF", "type": "allocation", "asset": "Axis Bluechip", "quantity": null, "book_value": null }
   ]
 }
 ```
@@ -112,7 +112,7 @@ The `null` entries in Allocation and Nominal are each auto-derived from the Real
 {
   "description": "Transfer from bank to wallet",
   "line_items": [
-    { "account": "Bank HDFC",   "type": "real", "asset": "Money", "quantity": -5000 },
+    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -5000 },
     { "account": "Cash Wallet", "type": "real", "asset": "Money", "quantity": +5000 }
   ]
 }
@@ -171,16 +171,16 @@ The `null` entries in Allocation and Nominal are each auto-derived from the Real
 
 ## 🛠️ Technology Stack
 
-| Layer           | Technology                         |
-| --------------- | ---------------------------------- |
-| **Framework**   | Next.js 16.1 (App Router)          |
-| **Language**    | TypeScript 5                       |
-| **UI**          | React 19, Tailwind CSS 4           |
-| **ORM**         | Prisma 7.4                         |
-| **Database**    | PostgreSQL (Neon Serverless)       |
-| **Cache**       | Redis (ioredis)                    |
-| **Market Data** | Yahoo Finance, AMFI India          |
-| **Auth**        | JWT + bcrypt                       |
+| Layer           | Technology                   |
+| --------------- | ---------------------------- |
+| **Framework**   | Next.js 16.1 (App Router)    |
+| **Language**    | TypeScript 5                 |
+| **UI**          | React 19, Tailwind CSS 4     |
+| **ORM**         | Prisma 7.4                   |
+| **Database**    | PostgreSQL (Neon Serverless) |
+| **Cache**       | Redis (ioredis)              |
+| **Market Data** | Yahoo Finance, AMFI India    |
+| **Auth**        | JWT + bcrypt                 |
 
 ---
 
