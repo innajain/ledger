@@ -72,7 +72,7 @@ export async function update_transaction(
       })
     })
 
-    get_or_compute_balances(true)
+    await get_or_compute_balances(true)
 
     return {
       success: true,

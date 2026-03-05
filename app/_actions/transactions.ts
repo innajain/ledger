@@ -73,7 +73,7 @@ export async function create_transaction(
       })
     })
 
-    get_or_compute_balances(true)
+    await get_or_compute_balances(true)
     return {
       success: true,
       message: 'Transaction created successfully',
