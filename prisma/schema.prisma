@@ -19,10 +19,11 @@ model user {
 }
 
 model account {
-  id      String       @id @default(cuid())
-  user_id String
-  name    String
-  type    account_type
+  id        String       @id @default(cuid())
+  user_id   String
+  name      String
+  type      account_type
+  is_active Boolean      @default(true)
 
   // --- Hierarchy Implementation ---
   parent_id String?

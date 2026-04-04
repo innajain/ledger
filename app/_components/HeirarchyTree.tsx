@@ -17,6 +17,7 @@ type BaseItem = {
   id: string
   name: string
   parent_id: string | null
+  is_active: boolean
 }
 
 type Node<T extends BaseItem> = {
@@ -223,7 +224,7 @@ export function HierarchyTree<T extends BaseItem>({
     return n.children.reduce((sum, c) => sum + aggregateCurr(c), own)
   }
 
-  function renderNode(node: Node<T>, depth: number = 0): React.ReactElement {
+  function renderNode(node: Node<T>, depth: number = 0): React.ReactElement | null {
     const item = node.item
     const isExpanded = !!expanded[item.id]
     const isDragging = draggedId === item.id
@@ -242,6 +243,20 @@ export function HierarchyTree<T extends BaseItem>({
     const dragOverClasses = isDragOver ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-800' : ''
     const cursorClasses = canDrag ? 'cursor-grab active:cursor-grabbing' : ''
 
+    if (!item.is_active) {
+      console.log(item.id)
+      if (displayCurr !== 0) {
+        return (
+          <li key={item.id} className="mb-2">
+            <div className={`${baseClasses} ${depthClasses} opacity-50`}>
+              <span className="text-sm italic text-slate-600 dark:text-slate-400">{item.name} (inactive)</span>
+              <span className="ml-auto font-semibold text-sm text-slate-900 dark:text-slate-100">{currency_fmt.format(displayCurr)}</span>
+            </div>
+          </li>
+        )
+      }
+      return null
+    }
     return (
       <li key={item.id} className="mb-2">
         <div
