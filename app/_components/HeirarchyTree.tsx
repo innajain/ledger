@@ -248,7 +248,6 @@ export function HierarchyTree<T extends BaseItem>({
     const cursorClasses = canDrag ? 'cursor-grab active:cursor-grabbing' : ''
 
     if (!item.is_active) {
-      console.log(item.id)
       if (displayCurr !== 0) {
         return (
           <li key={item.id} className="mb-2">
