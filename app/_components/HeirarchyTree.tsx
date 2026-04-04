@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import {
   getStoredOrder,
@@ -36,12 +36,6 @@ type HierarchyTreeProps<T extends BaseItem> = {
   onReorderToggle?: (enabled: boolean) => void
 }
 
-// Helper to get initial custom order from localStorage
-function getInitialCustomOrder(storageKey: string | undefined): HierarchicalOrder {
-  if (typeof window === 'undefined' || !storageKey) return {}
-  return getStoredOrder(storageKey)
-}
-
 export function HierarchyTree<T extends BaseItem>({
   items,
   totals,
@@ -56,7 +50,17 @@ export function HierarchyTree<T extends BaseItem>({
   const [manualExpanded, setManualExpanded] = useState<Record<string, boolean>>({})
 
   // Custom order stored in localStorage - maps parent_id to ordered child IDs
-  const [customOrder, setCustomOrder] = useState<HierarchicalOrder>(() => getInitialCustomOrder(storageKey))
+  // Load it after mount so the first client render matches the server render.
+  const [customOrder, setCustomOrder] = useState<HierarchicalOrder>({})
+
+  useEffect(() => {
+    if (!storageKey) {
+      setCustomOrder({})
+      return
+    }
+
+    setCustomOrder(getStoredOrder(storageKey))
+  }, [storageKey])
 
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [draggedParentId, setDraggedParentId] = useState<string | null>(null)
