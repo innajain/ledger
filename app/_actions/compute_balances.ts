@@ -53,8 +53,9 @@ export async function get_or_compute_balances(invalidate_cache = false) {
     }
   }
 
-  redis.set(
+  redis.setex(
     'balances',
+    5 * 24 * 60 * 60, // Expire in 5 days
     JSON.stringify(
       Array.from(balances.entries()).map(([k, v]) => [
         k,
