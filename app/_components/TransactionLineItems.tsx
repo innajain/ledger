@@ -49,7 +49,11 @@ type TransactionLineItemsProps = {
 
 export function TransactionLineItems({ items, accounts, assets, onAddItem, onRemoveItem, onUpdateItem }: TransactionLineItemsProps) {
   // Group items by account type
-  const groups: Record<string, ItemGroup[]> = { real: [], allocation: [], nominal: [] }
+  const groups: Record<string, ItemGroup[]> = {
+    real: [],
+    allocation: [],
+    nominal: [],
+  }
   for (let idx = 0; idx < items.length; idx++) {
     const it = items[idx]
     const acc = accounts.find(a => a.id === it.account_id)

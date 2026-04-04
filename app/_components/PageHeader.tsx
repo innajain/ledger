@@ -1,11 +1,11 @@
-import Link from 'next/link';
+import Link from 'next/link'
 
 type PageHeaderProps = {
-  title: string;
-  description: string;
-  createUrl: string;
-  createLabel: string;
-};
+  title: string
+  description: string
+  createUrl: string
+  createLabel: string
+}
 
 export function PageHeader({ title, description, createUrl, createLabel }: PageHeaderProps) {
   return (
@@ -21,5 +21,5 @@ export function PageHeader({ title, description, createUrl, createLabel }: PageH
         {createLabel}
       </Link>
     </div>
-  );
+  )
 }

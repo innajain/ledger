@@ -76,7 +76,14 @@ export default function ClientPage({
     const defaultAcc = preferred ?? accounts.find(a => a.type === typeKey) ?? accounts[0]
     const defaultAsset = assets.find(a => a.name === 'Money') ?? assets[0]
     setItems(prev => [
-      { account_id: defaultAcc?.id ?? '', asset_id: defaultAsset?.id ?? '', quantity: null, book_value: null, description: '', datetime: '' },
+      {
+        account_id: defaultAcc?.id ?? '',
+        asset_id: defaultAsset?.id ?? '',
+        quantity: null,
+        book_value: null,
+        description: '',
+        datetime: '',
+      },
       ...prev,
     ])
   }
@@ -150,7 +157,11 @@ export default function ClientPage({
 
       const month = d.toLocaleString('en-US', { month: 'long' })
       const year = d.getFullYear()
-      const time = d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      const time = d.toLocaleString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
       return `${ordinal(day)} ${month} ${year}, ${time}`
     } catch {
       return null

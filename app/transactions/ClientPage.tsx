@@ -7,7 +7,12 @@ import { currency_fmt } from '../_utils/currency_formatter'
 import { PageHeader } from '../_components/PageHeader'
 import { EmptyState } from '../_components/EmptyState'
 
-type Transaction = { id: string; date: Date; description: string | null; total_book: number }
+type Transaction = {
+  id: string
+  date: Date
+  description: string | null
+  total_book: number
+}
 
 type Account = { id: string; name: string }
 type Asset = { id: string; name: string }

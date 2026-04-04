@@ -1,26 +1,26 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import { asset_type } from '@/generated/prisma/enums';
-import { currency_fmt } from '../_utils/currency_formatter';
+import Link from 'next/link'
+import { asset_type } from '@/generated/prisma/enums'
+import { currency_fmt } from '../_utils/currency_formatter'
 
 export type HoldingItem = {
-  id: string;
-  name: string;
-  link: string;
-  asset_type?: asset_type;
-  quantity: number;
-  book_value: number | null;
-  current_value: number;
-};
+  id: string
+  name: string
+  link: string
+  asset_type?: asset_type
+  quantity: number
+  book_value: number | null
+  current_value: number
+}
 
 type HoldingsGridProps = {
-  title: string;
-  items: HoldingItem[];
-  emptyMessage?: string;
-  emptySubMessage?: string;
-  linkLabel?: string;
-};
+  title: string
+  items: HoldingItem[]
+  emptyMessage?: string
+  emptySubMessage?: string
+  linkLabel?: string
+}
 
 export function HoldingsGrid({
   title,
@@ -55,10 +55,16 @@ export function HoldingsGrid({
         <div className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
             {items.map((item, i) => (
-              <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm transition-colors">
+              <div
+                key={i}
+                className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm transition-colors"
+              >
                 <div className="flex flex-col h-full justify-between">
                   <div>
-                    <Link href={item.link} className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                    <Link
+                      href={item.link}
+                      className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
                       {item.name}
                     </Link>
 
@@ -76,7 +82,9 @@ export function HoldingsGrid({
                           </div>
                           <div>
                             <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
-                            <span className="font-medium text-slate-900 dark:text-slate-100">{item.book_value === null ? '—' : currency_fmt.format(item.book_value)}</span>
+                            <span className="font-medium text-slate-900 dark:text-slate-100">
+                              {item.book_value === null ? '—' : currency_fmt.format(item.book_value)}
+                            </span>
                           </div>
                           <div>
                             <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
@@ -88,7 +96,10 @@ export function HoldingsGrid({
                   </div>
 
                   <div className="mt-4 text-right">
-                    <Link href={item.link} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+                    <Link
+                      href={item.link}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                    >
                       {linkLabel}
                     </Link>
                   </div>
@@ -99,5 +110,5 @@ export function HoldingsGrid({
         </div>
       )}
     </div>
-  );
+  )
 }

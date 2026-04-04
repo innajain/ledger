@@ -36,10 +36,14 @@ export async function create_transaction(
       const account_ids = Array.from(new Set(line_items.map(li => li.account_id)))
       const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
 
-      const accounts = await prisma.account.findMany({ where: { id: { in: account_ids }, user_id: user.id } })
+      const accounts = await prisma.account.findMany({
+        where: { id: { in: account_ids }, user_id: user.id },
+      })
       if (accounts.length !== account_ids.length) throw new Error('One or more accounts not found or do not belong to your user')
 
-      const assets = await prisma.asset.findMany({ where: { id: { in: asset_ids }, user_id: user.id } })
+      const assets = await prisma.asset.findMany({
+        where: { id: { in: asset_ids }, user_id: user.id },
+      })
       if (assets.length !== asset_ids.length) throw new Error('One or more assets not found or do not belong to your user')
 
       const { is_valid, message } = validate_line_items(

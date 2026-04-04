@@ -3,7 +3,16 @@ import { asset_type, Prisma } from '@/generated/prisma/client'
 // validates only qty and book value
 export function validate_line_items(
   line_items: Prisma.transactionGetPayload<{
-    include: { line_items: { select: { account: true; asset: true; quantity: true; book_value: true } } }
+    include: {
+      line_items: {
+        select: {
+          account: true
+          asset: true
+          quantity: true
+          book_value: true
+        }
+      }
+    }
   }>['line_items'],
 ) {
   const assetwise_groups = new Map<
@@ -20,7 +29,13 @@ export function validate_line_items(
   for (const li of line_items) {
     const asset_id = li.asset.id
     if (!assetwise_groups.has(asset_id)) {
-      assetwise_groups.set(asset_id, { real: [], allocation: [], nominal: [], asset_type: li.asset.type, name: li.asset.name })
+      assetwise_groups.set(asset_id, {
+        real: [],
+        allocation: [],
+        nominal: [],
+        asset_type: li.asset.type,
+        name: li.asset.name,
+      })
     }
     const group = assetwise_groups.get(asset_id)!
     group[li.account.type].push(li)
@@ -28,18 +43,33 @@ export function validate_line_items(
 
   for (const [asset_id, group] of assetwise_groups.entries()) {
     if (group.real.some(li => li.quantity === null))
-      return { is_valid: false, message: `A real account line item for asset ${group.name} has null quantity.` }
+      return {
+        is_valid: false,
+        message: `A real account line item for asset ${group.name} has null quantity.`,
+      }
     if (group.allocation.length > 0 && group.allocation.filter(li => li.quantity === null).length !== 1)
-      return { is_valid: false, message: `There should be exactly one line item with null quantity in allocation accounts for asset ${group.name}` }
+      return {
+        is_valid: false,
+        message: `There should be exactly one line item with null quantity in allocation accounts for asset ${group.name}`,
+      }
     if (group.nominal.length > 0 && group.nominal.filter(li => li.quantity === null).length !== 1)
-      return { is_valid: false, message: `There should be exactly one line item with null quantity in nominal accounts for asset ${group.name}` }
+      return {
+        is_valid: false,
+        message: `There should be exactly one line item with null quantity in nominal accounts for asset ${group.name}`,
+      }
 
     if (group.asset_type === asset_type.rupees) {
       if ([...group.real, ...group.allocation, ...group.nominal].some(li => li.book_value != null))
-        return { is_valid: false, message: `Line items for rupees asset should not have book value` }
+        return {
+          is_valid: false,
+          message: `Line items for rupees asset should not have book value`,
+        }
     } else {
       if (group.real.some(li => li.book_value == null))
-        return { is_valid: false, message: `A real account line item for non-rupees asset ${group.name} has null book value.` }
+        return {
+          is_valid: false,
+          message: `A real account line item for non-rupees asset ${group.name} has null book value.`,
+        }
       if (group.allocation.length > 0 && group.allocation.filter(li => li.book_value === null).length !== 1)
         return {
           is_valid: false,
@@ -80,16 +110,26 @@ export function convert_to_normal_line_items(
   const assetwise_acc_typewise_line_items = new Map<
     string,
     {
-      real: Prisma.line_itemGetPayload<{ include: { account: true; asset: true } }>[]
-      allocation: Prisma.line_itemGetPayload<{ include: { account: true; asset: true } }>[]
-      nominal: Prisma.line_itemGetPayload<{ include: { account: true; asset: true } }>[]
+      real: Prisma.line_itemGetPayload<{
+        include: { account: true; asset: true }
+      }>[]
+      allocation: Prisma.line_itemGetPayload<{
+        include: { account: true; asset: true }
+      }>[]
+      nominal: Prisma.line_itemGetPayload<{
+        include: { account: true; asset: true }
+      }>[]
     }
   >()
 
   line_items.forEach(li => {
     const acc_type = li.account.type
     if (!assetwise_acc_typewise_line_items.has(li.asset.id)) {
-      assetwise_acc_typewise_line_items.set(li.asset.id, { real: [], allocation: [], nominal: [] })
+      assetwise_acc_typewise_line_items.set(li.asset.id, {
+        real: [],
+        allocation: [],
+        nominal: [],
+      })
     }
     assetwise_acc_typewise_line_items.get(li.asset.id)![acc_type].push(li)
   })
@@ -108,7 +148,10 @@ export function convert_to_normal_line_items(
     const total_book_value =
       this_asset_type === asset_type.rupees ? null : group.real.reduce((sum, li) => sum.add(li.book_value!), new Prisma.Decimal(0))
 
-    assetwise_total_qty_and_book_value.set(asset_id, { quantity: total_qty, book_value: total_book_value })
+    assetwise_total_qty_and_book_value.set(asset_id, {
+      quantity: total_qty,
+      book_value: total_book_value,
+    })
   })
 
   assetwise_acc_typewise_line_items.forEach((group, asset_id) => {
@@ -160,7 +203,11 @@ export function convert_to_normal_line_items(
 
 export function get_line_item_qty(
   li: Prisma.line_itemGetPayload<{
-    include: { account: true; asset: true; transaction: { include: { line_items: { include: { account: true } } } } }
+    include: {
+      account: true
+      asset: true
+      transaction: { include: { line_items: { include: { account: true } } } }
+    }
   }>,
 ) {
   if (li.quantity != null) return li.quantity
@@ -181,7 +228,17 @@ export function get_line_item_book_value(
       account: true
       asset: true
       transaction: {
-        include: { line_items: { include: { account: true; asset: true; transaction: { include: { line_items: { include: { account: true } } } } } } }
+        include: {
+          line_items: {
+            include: {
+              account: true
+              asset: true
+              transaction: {
+                include: { line_items: { include: { account: true } } }
+              }
+            }
+          }
+        }
       }
     }
   }>,

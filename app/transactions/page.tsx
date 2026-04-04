@@ -46,8 +46,14 @@ export default async function Page({
 
   // Fetch accounts and assets for filter dropdowns
   const [accounts, assets] = await Promise.all([
-    prisma.account.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } }),
-    prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } }),
+    prisma.account.findMany({
+      where: { user_id: user.id },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.asset.findMany({
+      where: { user_id: user.id },
+      orderBy: { name: 'asc' },
+    }),
   ])
 
   // Build where clause
@@ -55,8 +61,22 @@ export default async function Page({
     user_id: user.id,
     ...(search && {
       OR: [
-        { description: { contains: search, mode: 'insensitive' as Prisma.QueryMode } },
-        { line_items: { some: { description: { contains: search, mode: 'insensitive' as Prisma.QueryMode } } } },
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive' as Prisma.QueryMode,
+          },
+        },
+        {
+          line_items: {
+            some: {
+              description: {
+                contains: search,
+                mode: 'insensitive' as Prisma.QueryMode,
+              },
+            },
+          },
+        },
       ],
     }),
     ...(dateFrom && { datetime: { gte: dateFrom } }),

@@ -1,9 +1,9 @@
 type ListSkeletonProps = {
-  itemCount?: number;
-  headerWidth?: string;
-  buttonWidth?: string;
-  variant?: 'hierarchy' | 'list' | 'grid';
-};
+  itemCount?: number
+  headerWidth?: string
+  buttonWidth?: string
+  variant?: 'hierarchy' | 'list' | 'grid'
+}
 
 export function ListSkeleton({
   itemCount = 5,
@@ -50,5 +50,5 @@ export function ListSkeleton({
         </div>
       )}
     </div>
-  );
+  )
 }

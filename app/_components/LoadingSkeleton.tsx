@@ -7,7 +7,7 @@ export function LoadingSkeleton({ type = 'card' }: { type?: 'card' | 'list' | 't
         <div className="skeleton h-4 w-5/6 rounded"></div>
         <div className="skeleton h-10 w-1/3 rounded"></div>
       </div>
-    );
+    )
   }
 
   if (type === 'list') {
@@ -23,7 +23,7 @@ export function LoadingSkeleton({ type = 'card' }: { type?: 'card' | 'list' | 't
           </div>
         ))}
       </div>
-    );
+    )
   }
 
   if (type === 'table') {
@@ -43,8 +43,8 @@ export function LoadingSkeleton({ type = 'card' }: { type?: 'card' | 'list' | 't
           ))}
         </div>
       </div>
-    );
+    )
   }
 
-  return null;
+  return null
 }

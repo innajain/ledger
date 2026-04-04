@@ -1,23 +1,23 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import Navbar from './_components/Navbar';
-import { get_current_user } from './_actions/auth';
-import { ThemeProvider } from './_components/ThemeProvider';
-import { ToastProvider } from './_components/Toast';
-import { BackToTop } from './_components/BackToTop';
-import { KeyboardShortcuts } from './_components/KeyboardShortcuts';
-import './globals.css';
-import Link from 'next/link';
+import type { Metadata } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
+import Navbar from './_components/Navbar'
+import { get_current_user } from './_actions/auth'
+import { ThemeProvider } from './_components/ThemeProvider'
+import { ToastProvider } from './_components/Toast'
+import { BackToTop } from './_components/BackToTop'
+import { KeyboardShortcuts } from './_components/KeyboardShortcuts'
+import './globals.css'
+import Link from 'next/link'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
-});
+})
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
-});
+})
 
 export const metadata: Metadata = {
   title: {
@@ -40,21 +40,21 @@ export const metadata: Metadata = {
     index: false, // Set to true when ready for production
     follow: false,
   },
-};
+}
 
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-};
+}
 
 export default async function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
-  const user = await get_current_user();
+  const user = await get_current_user()
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-900 transition-colors`}>
@@ -73,7 +73,12 @@ export default async function RootLayout({
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
                     <p className="text-center sm:text-left text-sm text-slate-500 dark:text-slate-400">
                       Made with <span className="text-red-500">♥</span> by
-                      <Link href="https://github.com/innajain" target="_blank" rel="noopener noreferrer" className="text-slate-700 dark:text-slate-300 hover:underline mx-1">
+                      <Link
+                        href="https://github.com/innajain"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-slate-700 dark:text-slate-300 hover:underline mx-1"
+                      >
                         Shreyansh Jain
                       </Link>
                     </p>
@@ -87,5 +92,5 @@ export default async function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

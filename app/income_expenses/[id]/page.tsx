@@ -28,7 +28,15 @@ export default async function Page({ params }: Props) {
           account: true,
           transaction: {
             include: {
-              line_items: { include: { account: true, asset: true, transaction: { include: { line_items: { include: { account: true } } } } } },
+              line_items: {
+                include: {
+                  account: true,
+                  asset: true,
+                  transaction: {
+                    include: { line_items: { include: { account: true } } },
+                  },
+                },
+              },
             },
           },
         },
@@ -64,8 +72,16 @@ export default async function Page({ params }: Props) {
 
   const real_line_items = account.line_items
   const priceCache: Record<string, Prisma.Decimal | null> = {}
-  const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
-    {}
+  const map: Record<
+    string,
+    {
+      asset_id: string
+      asset_name: string
+      total_qty: Prisma.Decimal
+      total_book: Prisma.Decimal
+      asset_type: asset_type
+    }
+  > = {}
 
   for (const li of real_line_items) {
     const qty = get_line_item_qty(li)

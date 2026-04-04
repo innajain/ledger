@@ -1,29 +1,29 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { create_asset } from '@/app/_actions/resources';
-import type { asset_type, Prisma } from '@/generated/prisma/client';
-import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents';
+import { useState } from 'react'
+import { create_asset } from '@/app/_actions/resources'
+import type { asset_type, Prisma } from '@/generated/prisma/client'
+import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents'
 
 export default function ClientPage({ parents }: { parents: Prisma.assetGetPayload<Record<string, never>>[] }) {
-  const [name, setName] = useState('');
-  const [type, setType] = useState<asset_type>('other');
-  const [ticker, setTicker] = useState('');
-  const [parentId, setParentId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState('')
+  const [type, setType] = useState<asset_type>('other')
+  const [ticker, setTicker] = useState('')
+  const [parentId, setParentId] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function onCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
+    e.preventDefault()
+    setError(null)
+    setBusy(true)
     try {
-      await create_asset(name, type, ticker || undefined, parentId);
-      window.location.href = '/assets';
+      await create_asset(name, type, ticker || undefined, parentId)
+      window.location.href = '/assets'
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
   }
 
@@ -53,5 +53,5 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
         <FormActions cancelLink="/assets" submitText={busy ? 'Creating...' : 'Create Asset'} busy={busy} />
       </form>
     </div>
-  );
+  )
 }

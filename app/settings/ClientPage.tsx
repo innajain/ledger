@@ -47,7 +47,10 @@ export default function ClientPage({ user }: Props) {
 
     setPasswordLoading(true)
     try {
-      await change_password({ current_password: currentPassword, new_password: newPassword })
+      await change_password({
+        current_password: currentPassword,
+        new_password: newPassword,
+      })
       setPasswordSuccess('Password changed successfully!')
       setCurrentPassword('')
       setNewPassword('')
@@ -77,7 +80,10 @@ export default function ClientPage({ user }: Props) {
 
     setUsernameLoading(true)
     try {
-      await change_username({ new_username: newUsername, password: usernamePassword })
+      await change_username({
+        new_username: newUsername,
+        password: usernamePassword,
+      })
       setUsernameSuccess('Username changed successfully! Redirecting...')
       setTimeout(() => {
         window.location.reload()

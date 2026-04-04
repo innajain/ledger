@@ -1,12 +1,12 @@
-import Link from 'next/link';
+import Link from 'next/link'
 
 type EmptyStateProps = {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  actionUrl: string;
-  actionLabel: string;
-};
+  icon: React.ReactNode
+  title: string
+  description: string
+  actionUrl: string
+  actionLabel: string
+}
 
 export function EmptyState({ icon, title, description, actionUrl, actionLabel }: EmptyStateProps) {
   return (
@@ -23,5 +23,5 @@ export function EmptyState({ icon, title, description, actionUrl, actionLabel }:
         {actionLabel}
       </Link>
     </div>
-  );
+  )
 }

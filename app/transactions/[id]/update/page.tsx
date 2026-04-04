@@ -35,11 +35,25 @@ export default async function Page({ params }: Props) {
       book_value: li.book_value === null ? null : li.book_value.toNumber(),
     })),
   }
-  const accounts = await prisma.account.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } })
-  const assets = await prisma.asset.findMany({ where: { user_id: user.id }, orderBy: { name: 'asc' } })
+  const accounts = await prisma.account.findMany({
+    where: { user_id: user.id },
+    orderBy: { name: 'asc' },
+  })
+  const assets = await prisma.asset.findMany({
+    where: { user_id: user.id },
+    orderBy: { name: 'asc' },
+  })
 
-  const accountsForClient = accounts.map(a => ({ id: a.id, name: a.name, type: a.type }))
-  const assetsForClient = assets.map(a => ({ id: a.id, name: a.name, type: a.type }))
+  const accountsForClient = accounts.map(a => ({
+    id: a.id,
+    name: a.name,
+    type: a.type,
+  }))
+  const assetsForClient = assets.map(a => ({
+    id: a.id,
+    name: a.name,
+    type: a.type,
+  }))
 
   return <ClientPage transaction={txForClient} accounts={accountsForClient} assets={assetsForClient} updateTransaction={update_transaction} />
 }

@@ -1,19 +1,22 @@
 // components/AccountFormComponents.tsx
-import Link from 'next/link';
-import type { account_type, Prisma } from '@/generated/prisma/client';
+import Link from 'next/link'
+import type { account_type, Prisma } from '@/generated/prisma/client'
 
 // Page Header with Back Navigation
 interface PageHeaderProps {
-  backLink: string;
-  backText: string;
-  title: string;
-  description: string;
+  backLink: string
+  backText: string
+  title: string
+  description: string
 }
 
 export function PageHeader({ backLink, backText, title, description }: PageHeaderProps) {
   return (
     <div>
-      <Link href={backLink} className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4">
+      <Link
+        href={backLink}
+        className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
+      >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
@@ -22,13 +25,13 @@ export function PageHeader({ backLink, backText, title, description }: PageHeade
       <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
       <p className="text-slate-600 dark:text-slate-400 mt-1">{description}</p>
     </div>
-  );
+  )
 }
 
 // Form Card Wrapper
 interface FormCardProps {
-  title: string;
-  children: React.ReactNode;
+  title: string
+  children: React.ReactNode
 }
 
 export function FormCard({ title, children }: FormCardProps) {
@@ -37,16 +40,16 @@ export function FormCard({ title, children }: FormCardProps) {
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">{title}</h2>
       <div className="space-y-4">{children}</div>
     </div>
-  );
+  )
 }
 
 // Text Input Field
 interface TextInputProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  required?: boolean;
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  required?: boolean
 }
 
 export function TextInput({ label, value, onChange, placeholder, required }: TextInputProps) {
@@ -62,21 +65,21 @@ export function TextInput({ label, value, onChange, placeholder, required }: Tex
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       />
     </div>
-  );
+  )
 }
 
 // Account Type Select
 interface AccountTypeSelectProps {
-  label: string;
-  value: account_type;
-  onChange: (value: account_type) => void;
-  disabled?: boolean;
-  restrictedTo?: account_type[];
+  label: string
+  value: account_type
+  onChange: (value: account_type) => void
+  disabled?: boolean
+  restrictedTo?: account_type[]
 }
 
 export function AccountTypeSelect({ label, value, onChange, disabled, restrictedTo }: AccountTypeSelectProps) {
-  const allowedTypes = restrictedTo || ['real', 'allocation', 'nominal'];
-  
+  const allowedTypes = restrictedTo || ['real', 'allocation', 'nominal']
+
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
@@ -91,21 +94,21 @@ export function AccountTypeSelect({ label, value, onChange, disabled, restricted
         {allowedTypes.includes('nominal') && <option value="nominal">Nominal</option>}
       </select>
     </div>
-  );
+  )
 }
 
 // Parent Account Select
 interface ParentSelectProps {
-  label: string;
-  value: string | null;
-  onChange: (value: string | null) => void;
-  parents: Prisma.accountGetPayload<Record<string, never>>[];
-  excludeId?: string;
-  helpText?: string;
+  label: string
+  value: string | null
+  onChange: (value: string | null) => void
+  parents: Prisma.accountGetPayload<Record<string, never>>[]
+  excludeId?: string
+  helpText?: string
 }
 
 export function ParentSelect({ label, value, onChange, parents, excludeId, helpText }: ParentSelectProps) {
-  const filteredParents = excludeId ? parents.filter(p => p.id !== excludeId) : parents;
+  const filteredParents = excludeId ? parents.filter(p => p.id !== excludeId) : parents
 
   return (
     <div>
@@ -124,14 +127,14 @@ export function ParentSelect({ label, value, onChange, parents, excludeId, helpT
       </select>
       {helpText && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{helpText}</p>}
     </div>
-  );
+  )
 }
 
 // Asset Type Select
 interface AssetTypeSelectProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
+  label: string
+  value: string
+  onChange: (value: string) => void
 }
 
 export function AssetTypeSelect({ label, value, onChange }: AssetTypeSelectProps) {
@@ -150,21 +153,21 @@ export function AssetTypeSelect({ label, value, onChange }: AssetTypeSelectProps
         <option value="other">Other</option>
       </select>
     </div>
-  );
+  )
 }
 
 // Parent Asset Select
 interface ParentAssetSelectProps {
-  label: string;
-  value: string | null;
-  onChange: (value: string | null) => void;
-  parents: Array<{ id: string; name: string }>;
-  excludeId?: string;
-  helpText?: string;
+  label: string
+  value: string | null
+  onChange: (value: string | null) => void
+  parents: Array<{ id: string; name: string }>
+  excludeId?: string
+  helpText?: string
 }
 
 export function ParentAssetSelect({ label, value, onChange, parents, excludeId, helpText }: ParentAssetSelectProps) {
-  const filteredParents = excludeId ? parents.filter(p => p.id !== excludeId) : parents;
+  const filteredParents = excludeId ? parents.filter(p => p.id !== excludeId) : parents
 
   return (
     <div>
@@ -183,17 +186,17 @@ export function ParentAssetSelect({ label, value, onChange, parents, excludeId, 
       </select>
       {helpText && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{helpText}</p>}
     </div>
-  );
+  )
 }
 
 // Error Alert Component
 interface ErrorAlertProps {
-  message: string | null;
-  onDismiss?: () => void;
+  message: string | null
+  onDismiss?: () => void
 }
 
 export function ErrorAlert({ message, onDismiss }: ErrorAlertProps) {
-  if (!message) return null;
+  if (!message) return null
 
   return (
     <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
@@ -215,16 +218,16 @@ export function ErrorAlert({ message, onDismiss }: ErrorAlertProps) {
         </button>
       )}
     </div>
-  );
+  )
 }
 
 // Form Action Buttons
 interface FormActionsProps {
-  cancelLink: string;
-  submitText: string;
-  busy: boolean;
-  onDelete?: () => void;
-  deleteText?: string;
+  cancelLink: string
+  submitText: string
+  busy: boolean
+  onDelete?: () => void
+  deleteText?: string
 }
 
 export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText }: FormActionsProps) {
@@ -243,7 +246,10 @@ export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText
 
       {/* Submit/Cancel Buttons - Right Side */}
       <div className={`flex gap-3 ${onDelete ? 'ml-auto' : 'ml-0 w-full justify-end'}`}>
-        <Link href={cancelLink} className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium">
+        <Link
+          href={cancelLink}
+          className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
+        >
           Cancel
         </Link>
         <button
@@ -255,5 +261,5 @@ export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText
         </button>
       </div>
     </div>
-  );
+  )
 }

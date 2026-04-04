@@ -1,70 +1,70 @@
-'use client';
-import React, { useState } from 'react';
-import Image from 'next/image';
-import type { user } from '@/generated/prisma/client';
-import { log_in, sign_up, log_out } from '@/app/_actions/auth';
-import { useRouter } from 'next/navigation';
-import { Confetti } from '@/app/_components/Confetti';
+'use client'
+import React, { useState } from 'react'
+import Image from 'next/image'
+import type { user } from '@/generated/prisma/client'
+import { log_in, sign_up, log_out } from '@/app/_actions/auth'
+import { useRouter } from 'next/navigation'
+import { Confetti } from '@/app/_components/Confetti'
 
-type Props = { user: user | null };
+type Props = { user: user | null }
 
 export default function ClientPage({ user }: Props) {
-  const router = useRouter();
-  const [isSignup, setIsSignup] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [showConfetti, setShowConfetti] = useState(false);
+  const router = useRouter()
+  const [isSignup, setIsSignup] = useState(false)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [showConfetti, setShowConfetti] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    setLoading(true);
+    e.preventDefault()
+    setError(null)
+    setSuccess(null)
+    setLoading(true)
     try {
-      await log_in({ username, password });
-      setSuccess('Login successful! Redirecting...');
-      setShowConfetti(true);
-      setTimeout(() => router.push('/'), 500);
+      await log_in({ username, password })
+      setSuccess('Login successful! Redirecting...')
+      setShowConfetti(true)
+      setTimeout(() => router.push('/'), 500)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   async function handleSignup(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    setLoading(true);
+    e.preventDefault()
+    setError(null)
+    setSuccess(null)
+    setLoading(true)
     try {
-      await sign_up({ username, password });
-      setSuccess('Account created! Redirecting...');
-      setShowConfetti(true);
-      setTimeout(() => router.push('/'), 500);
+      await sign_up({ username, password })
+      setSuccess('Account created! Redirecting...')
+      setShowConfetti(true)
+      setTimeout(() => router.push('/'), 500)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   async function handleLogout() {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
     try {
-      await log_out();
-      setSuccess('Logged out successfully');
-      setTimeout(() => window.location.reload(), 500);
+      await log_out()
+      setSuccess('Logged out successfully')
+      setTimeout(() => window.location.reload(), 500)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -113,7 +113,7 @@ export default function ClientPage({ user }: Props) {
           )}
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -127,9 +127,7 @@ export default function ClientPage({ user }: Props) {
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
             {isSignup ? 'Create Account' : 'Welcome To Ledger'}
           </h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            {isSignup ? 'Sign up to start managing your ledger' : 'Sign in to your account'}
-          </p>
+          <p className="text-slate-600 dark:text-slate-400">{isSignup ? 'Sign up to start managing your ledger' : 'Sign in to your account'}</p>
         </div>
 
         {/* Form Card */}
@@ -175,26 +173,37 @@ export default function ClientPage({ user }: Props) {
                 >
                   {showPassword ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                      />
                     </svg>
                   ) : (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
                     </svg>
                   )}
                 </button>
               </div>
-              {isSignup && (
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  Choose a password you&apos;ll remember
-                </p>
-              )}
+              {isSignup && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Choose a password you&apos;ll remember</p>}
             </div>
 
             {error && (
               <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3 animate-shake">
-                <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5 animate-wobble" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5 animate-wobble"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
@@ -203,7 +212,12 @@ export default function ClientPage({ user }: Props) {
 
             {success && (
               <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3 animate-bounce-in">
-                <svg className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5 animate-heart-beat" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5 animate-heart-beat"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm text-green-700 dark:text-green-400">{success}</p>
@@ -219,7 +233,11 @@ export default function ClientPage({ user }: Props) {
                 <>
                   <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                   <span>{isSignup ? 'Creating account...' : 'Signing in...'}</span>
                 </>
@@ -232,9 +250,9 @@ export default function ClientPage({ user }: Props) {
           <div className="mt-6 text-center">
             <button
               onClick={() => {
-                setIsSignup(!isSignup);
-                setError(null);
-                setSuccess(null);
+                setIsSignup(!isSignup)
+                setError(null)
+                setSuccess(null)
               }}
               className="text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             >
@@ -252,13 +270,13 @@ export default function ClientPage({ user }: Props) {
         </div>
 
         {/* Footer */}
-        <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400 animate-fade-in" style={{animationDelay: '0.3s'}}>
+        <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400 animate-fade-in" style={{ animationDelay: '0.3s' }}>
           Your personal ledger for managing finances
         </p>
       </div>
-      
+
       {/* Celebration Confetti */}
       <Confetti active={showConfetti} />
     </div>
-  );
+  )
 }

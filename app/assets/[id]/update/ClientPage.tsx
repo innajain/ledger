@@ -1,52 +1,52 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { update_asset } from '@/app/_actions/resources';
-import type { Prisma, asset_type } from '@/generated/prisma/client';
-import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents';
+import { useState } from 'react'
+import { update_asset } from '@/app/_actions/resources'
+import type { Prisma, asset_type } from '@/generated/prisma/client'
+import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents'
 
 export default function ClientPage({
   asset,
   parents,
   deleteAsset,
 }: {
-  asset: Prisma.assetGetPayload<Record<string, never>>;
-  parents: Prisma.assetGetPayload<Record<string, never>>[];
-  deleteAsset?: (id: string) => Promise<void>;
+  asset: Prisma.assetGetPayload<Record<string, never>>
+  parents: Prisma.assetGetPayload<Record<string, never>>[]
+  deleteAsset?: (id: string) => Promise<void>
 }) {
-  const [name, setName] = useState(asset.name);
-  const [type, setType] = useState<asset_type>(asset.type);
-  const [ticker, setTicker] = useState(asset.ticker ?? '');
-  const [parentId, setParentId] = useState<string | null>(asset.parent_id ?? null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState(asset.name)
+  const [type, setType] = useState<asset_type>(asset.type)
+  const [ticker, setTicker] = useState(asset.ticker ?? '')
+  const [parentId, setParentId] = useState<string | null>(asset.parent_id ?? null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function onUpdate(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
+    e.preventDefault()
+    setError(null)
+    setBusy(true)
     try {
-      await update_asset(asset.id, name, type, ticker || undefined, parentId);
-      window.location.href = '/assets';
+      await update_asset(asset.id, name, type, ticker || undefined, parentId)
+      window.location.href = '/assets'
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
   }
 
   async function onDelete() {
     if (!deleteAsset) {
-      setError('Delete operation is not available');
-      return;
+      setError('Delete operation is not available')
+      return
     }
-    if (!confirm('Delete this asset? This action cannot be undone.')) return;
-    setError(null);
+    if (!confirm('Delete this asset? This action cannot be undone.')) return
+    setError(null)
     try {
-      await deleteAsset(asset.id);
-      window.location.href = '/assets';
+      await deleteAsset(asset.id)
+      window.location.href = '/assets'
     } catch (err: unknown) {
-      setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)));
+      setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
     }
   }
 
@@ -83,5 +83,5 @@ export default function ClientPage({
         />
       </form>
     </div>
-  );
+  )
 }

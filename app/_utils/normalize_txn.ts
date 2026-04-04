@@ -1,7 +1,11 @@
 import { Prisma } from '@/generated/prisma/client'
 import { asset_type } from '@/generated/prisma/enums'
 
-export function normalize_txn(txn: Prisma.transactionGetPayload<{ include: { line_items: { include: { account: true; asset: true } } } }>) {
+export function normalize_txn(
+  txn: Prisma.transactionGetPayload<{
+    include: { line_items: { include: { account: true; asset: true } } }
+  }>,
+) {
   const assetwise_groups = new Map<
     string,
     {
@@ -15,7 +19,12 @@ export function normalize_txn(txn: Prisma.transactionGetPayload<{ include: { lin
   for (const li of txn.line_items) {
     const asset_id = li.asset_id
     if (!assetwise_groups.has(asset_id)) {
-      assetwise_groups.set(asset_id, { real: [], allocation: [], nominal: [], asset_type: li.asset.type })
+      assetwise_groups.set(asset_id, {
+        real: [],
+        allocation: [],
+        nominal: [],
+        asset_type: li.asset.type,
+      })
     }
     const group = assetwise_groups.get(asset_id)!
     group[li.account.type].push(li)

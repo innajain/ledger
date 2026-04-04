@@ -1,49 +1,49 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 
 interface Trail {
-  id: number;
-  x: number;
-  y: number;
+  id: number
+  x: number
+  y: number
 }
 
 export function CursorTrail({ enabled = false }: { enabled?: boolean }) {
-  const [trail, setTrail] = useState<Trail[]>([]);
-  const [nextId, setNextId] = useState(0);
+  const [trail, setTrail] = useState<Trail[]>([])
+  const [nextId, setNextId] = useState(0)
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) return
 
     const handleMouseMove = (e: MouseEvent) => {
       const newTrail: Trail = {
         id: nextId,
         x: e.clientX,
         y: e.clientY,
-      };
+      }
 
-      setTrail(prev => [...prev.slice(-20), newTrail]);
-      setNextId(prev => prev + 1);
-    };
+      setTrail(prev => [...prev.slice(-20), newTrail])
+      setNextId(prev => prev + 1)
+    }
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove)
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-    };
-  }, [enabled, nextId]);
+      window.removeEventListener('mousemove', handleMouseMove)
+    }
+  }, [enabled, nextId])
 
   useEffect(() => {
     if (trail.length > 0) {
       const timer = setTimeout(() => {
-        setTrail(prev => prev.slice(1));
-      }, 100);
+        setTrail(prev => prev.slice(1))
+      }, 100)
 
-      return () => clearTimeout(timer);
+      return () => clearTimeout(timer)
     }
-  }, [trail]);
+  }, [trail])
 
-  if (!enabled) return null;
+  if (!enabled) return null
 
   return (
     <div className="fixed inset-0 pointer-events-none z-50" aria-hidden="true">
@@ -60,5 +60,5 @@ export function CursorTrail({ enabled = false }: { enabled?: boolean }) {
         />
       ))}
     </div>
-  );
+  )
 }

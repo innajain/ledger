@@ -1,42 +1,42 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents';
-import { asset_type } from '@/generated/prisma/enums';
-import { currency_fmt, precise_currency_fmt } from '@/app/_utils/currency_formatter';
+import Link from 'next/link'
+import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents'
+import { asset_type } from '@/generated/prisma/enums'
+import { currency_fmt, precise_currency_fmt } from '@/app/_utils/currency_formatter'
 
 type BreakdownItem = {
-  account_id: string;
-  account_name: string;
-  quantity: number;
-  book_value: number | null;
-  current_value: number;
-};
+  account_id: string
+  account_name: string
+  quantity: number
+  book_value: number | null
+  current_value: number
+}
 
 type LineItem = {
-  id: string;
-  account_id: string;
-  account_name: string;
-  quantity: number;
-  book_value: number | null;
-  current_value: number;
-  transaction_id: string;
-  transaction_date: string;
-  transaction_description: string | null;
-  line_item_description: string | null;
-};
+  id: string
+  account_id: string
+  account_name: string
+  quantity: number
+  book_value: number | null
+  current_value: number
+  transaction_id: string
+  transaction_date: string
+  transaction_description: string | null
+  line_item_description: string | null
+}
 
 type AssetForClient = {
-  id: string;
-  name: string;
-  type: string;
-  ticker: string | null;
-  parent: { id: string; name: string } | null;
-  total: number;
-  price: number | null;
-  breakdown: BreakdownItem[];
-  line_items?: LineItem[];
-};
+  id: string
+  name: string
+  type: string
+  ticker: string | null
+  parent: { id: string; name: string } | null
+  total: number
+  price: number | null
+  breakdown: BreakdownItem[]
+  line_items?: LineItem[]
+}
 
 export default function ClientPage({ asset }: { asset: AssetForClient }) {
   return (
@@ -53,11 +53,22 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
       <InfoCard
         title="Asset Information"
         fields={[
-          { label: 'Asset Type', value: <span className="capitalize">{asset.type}</span> },
+          {
+            label: 'Asset Type',
+            value: <span className="capitalize">{asset.type}</span>,
+          },
           { label: 'Ticker', value: asset.ticker ?? '—' },
-          { label: 'Parent Asset', value: asset.parent ? asset.parent.name : '—' },
+          {
+            label: 'Parent Asset',
+            value: asset.parent ? asset.parent.name : '—',
+          },
           ...((asset.type === asset_type.mf || asset.type === asset_type.etf || asset.type === asset_type.shares) && asset.price !== null
-            ? [{ label: 'Current Price', value: precise_currency_fmt.format(asset.price) }]
+            ? [
+                {
+                  label: 'Current Price',
+                  value: precise_currency_fmt.format(asset.price),
+                },
+              ]
             : []),
         ]}
       />
@@ -152,7 +163,8 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Line Items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {(asset.line_items ?? []).length} item{(asset.line_items ?? []).length !== 1 ? 's' : ''}
+            {(asset.line_items ?? []).length} item
+            {(asset.line_items ?? []).length !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -161,7 +173,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
         ) : (
           <div className="divide-y divide-slate-200">
             <div className="max-h-96 overflow-y-auto">
-              {(asset.line_items ?? []).map((li) => (
+              {(asset.line_items ?? []).map(li => (
                 <div key={li.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -215,7 +227,9 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{currency_fmt.format((li.book_value !== null) ? li.book_value : li.quantity)}</div>
+                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                        {currency_fmt.format(li.book_value !== null ? li.book_value : li.quantity)}
+                      </div>
                       <Link
                         href={`/transactions/${li.transaction_id}`}
                         className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 inline-block"
@@ -231,5 +245,5 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
         )}
       </div>
     </div>
-  );
+  )
 }

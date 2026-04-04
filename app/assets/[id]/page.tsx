@@ -28,7 +28,15 @@ export default async function Page({ params }: Props) {
           asset: true,
           transaction: {
             include: {
-              line_items: { include: { account: true, asset: true, transaction: { include: { line_items: { include: { account: true } } } } } },
+              line_items: {
+                include: {
+                  account: true,
+                  asset: true,
+                  transaction: {
+                    include: { line_items: { include: { account: true } } },
+                  },
+                },
+              },
             },
           },
         },
@@ -63,13 +71,26 @@ export default async function Page({ params }: Props) {
   const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
 
   // aggregate per-account
-  const map: Record<string, { account_id: string; account_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
+  const map: Record<
+    string,
+    {
+      account_id: string
+      account_name: string
+      total_qty: Prisma.Decimal
+      total_book: Prisma.Decimal
+    }
+  > = {}
   for (const li of real_line_items) {
     const qty = get_line_item_qty(li)
     const book = get_line_item_book_value(li)
     const aid = li.account.id
     if (!map[aid]) {
-      map[aid] = { account_id: aid, account_name: li.account.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0) }
+      map[aid] = {
+        account_id: aid,
+        account_name: li.account.name,
+        total_qty: new Prisma.Decimal(0),
+        total_book: new Prisma.Decimal(0),
+      }
     }
     map[aid].total_qty = map[aid].total_qty.add(qty)
     map[aid].total_book = map[aid].total_book.add(book)
