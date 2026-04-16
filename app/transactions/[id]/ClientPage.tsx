@@ -267,7 +267,7 @@ export default function ClientPage({
 
                         {li.description && <p className="text-sm italic text-slate-500 dark:text-slate-400 mt-2">{li.description}</p>}
                         {li.datetime && (
-                          <p className="text-xs text-slate-400 mt-1">
+                          <p className="text-xs text-slate-400 mt-1" suppressHydrationWarning>
                             {new Date(li.datetime).toLocaleString('en-US', {
                               month: 'short',
                               day: 'numeric',

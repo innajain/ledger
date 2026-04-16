@@ -188,8 +188,16 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                         <Link
                           href={`/transactions/${li.transaction_id}`}
                           className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+                          suppressHydrationWarning
                         >
-                          {new Date(li.transaction_date).toLocaleString()}
+                          {new Date(li.transaction_date).toLocaleString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                          })}
                         </Link>
                       </div>
 
@@ -226,7 +234,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                       </div>
                     </div>
 
-                    <div className="text-right flex-shrink-0">
+                    <div className="text-right shrink-0">
                       <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                         {currency_fmt.format(li.book_value !== null ? li.book_value : li.quantity)}
                       </div>

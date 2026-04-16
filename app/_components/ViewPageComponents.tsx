@@ -193,7 +193,8 @@ export function LineItemRow({
           <div className="mt-2 space-y-1">
             <Link
               href={`/transactions/${transactionId}`}
-              className="text-xs text-slate-500 hover:text-blue-600 transition-colors inline-flex items-center gap-1"
+              className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors inline-flex items-center gap-1"
+              suppressHydrationWarning
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -203,7 +204,14 @@ export function LineItemRow({
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                 />
               </svg>
-              {new Date(transactionDate).toLocaleString()}
+              {new Date(transactionDate).toLocaleString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })}
             </Link>
             {transactionDescription && <p className="text-xs text-slate-500 italic">Transaction: {transactionDescription}</p>}
           </div>
