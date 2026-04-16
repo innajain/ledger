@@ -14,8 +14,8 @@ const PUBLIC_PATHS = ['/login', '/favicon.ico', '/robots.txt', '/sitemap.xml']
 
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true
-  // allow public assets under /public or next internals
-  if (pathname.startsWith('/_next/') || pathname.startsWith('/public/')) return true
+  // allow public assets under /public, next internals, or cron jobs
+  if (pathname.startsWith('/_next/') || pathname.startsWith('/public/') || pathname.startsWith('/api/cron/')) return true
   return false
 }
 
