@@ -37,7 +37,7 @@ export function TotalCard({ title, total, colorScheme, icon }: TotalCardProps) {
 
   return (
     <div
-      className={`bg-gradient-to-br ${colors.bg} rounded-xl shadow-sm border ${colors.border} p-4 sm:p-6 transition-all hover-lift animate-scale-in`}
+      className={`bg-linear-to-br ${colors.bg} rounded-xl shadow-sm border ${colors.border} p-4 sm:p-6 transition-all hover-lift animate-scale-in`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -45,7 +45,7 @@ export function TotalCard({ title, total, colorScheme, icon }: TotalCardProps) {
           <p className={`text-2xl sm:text-3xl lg:text-4xl font-bold ${colors.text} truncate`}>{total}</p>
         </div>
         <div
-          className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 ${colors.iconBg} rounded-lg flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110`}
+          className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 ${colors.iconBg} rounded-lg flex items-center justify-center shrink-0 transition-transform hover:scale-110`}
         >
           {icon}
         </div>

@@ -1,6 +1,7 @@
 import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
+import { get_transaction_templates } from '@/app/_actions/templates'
 
 export default async function Page() {
   const user = await get_current_user()

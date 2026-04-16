@@ -5,6 +5,8 @@ import { Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { get_line_item_qty } from '../_utils/validate_line_items'
 
+import { get_transaction_templates } from '@/app/_actions/templates'
+
 export const metadata: Metadata = {
   title: 'Transactions',
   description: 'View and manage all your financial transactions',
@@ -45,7 +47,7 @@ export default async function Page({
   const assetId = params.assetId || undefined
 
   // Fetch accounts and assets for filter dropdowns
-  const [accounts, assets] = await Promise.all([
+  const [accounts, assets, templates] = await Promise.all([
     prisma.account.findMany({
       where: { user_id: user.id },
       orderBy: { name: 'asc' },
@@ -54,7 +56,23 @@ export default async function Page({
       where: { user_id: user.id },
       orderBy: { name: 'asc' },
     }),
+    get_transaction_templates(),
   ])
+
+  const templatesForClient = templates.map(t => ({
+    id: t.id,
+    description: t.description,
+    line_items: t.line_items.map(li => ({
+      id: li.id,
+      account_id: li.account_id,
+      asset_id: li.asset_id,
+      description: li.description,
+      quantity: li.quantity ? Number(li.quantity) : null,
+      book_value: li.book_value ? Number(li.book_value) : null,
+      account: li.account,
+      asset: li.asset,
+    })),
+  }))
 
   // Build where clause
   const where: Prisma.transactionWhereInput = {
@@ -131,6 +149,7 @@ export default async function Page({
       searchParams={params}
       accounts={accounts}
       assets={assets}
+      templates={templatesForClient}
     />
   )
 }

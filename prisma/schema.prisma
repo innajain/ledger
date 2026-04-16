@@ -13,9 +13,10 @@ model user {
   username      String @unique
   password_hash String
 
-  accounts     account[]
-  assets       asset[]
-  transactions transaction[]
+  accounts              account[]
+  assets                asset[]
+  transactions          transaction[]
+  transaction_templates transaction_template[]
 }
 
 model account {
@@ -31,8 +32,9 @@ model account {
   children  account[] @relation("AccountHierarchy")
   // --------------------------------
 
-  user       user        @relation(fields: [user_id], references: [id])
-  line_items line_item[]
+  user           user                 @relation(fields: [user_id], references: [id])
+  line_items     line_item[]
+  template_items line_item_template[]
 
   @@unique([name, user_id])
   @@index([user_id, type])
@@ -53,12 +55,46 @@ model asset {
   children  asset[] @relation("AssetHierarchy")
   // --------------------------------
 
-  user       user        @relation(fields: [user_id], references: [id])
-  line_items line_item[]
+  user           user                 @relation(fields: [user_id], references: [id])
+  line_items     line_item[]
+  template_items line_item_template[]
 
   @@unique([name, user_id])
   @@index([user_id])
   @@index([parent_id])
+}
+
+model transaction_template {
+  id      String @id @default(cuid())
+  user_id String
+
+  description String?
+
+  user       user                 @relation(fields: [user_id], references: [id])
+  line_items line_item_template[]
+
+  @@index([user_id])
+}
+
+model line_item_template {
+  id          String  @id @default(cuid())
+  description String?
+
+  transaction_template_id String
+  transaction_template    transaction_template @relation(fields: [transaction_template_id], references: [id], onDelete: Cascade)
+
+  account_id String
+  account    account @relation(fields: [account_id], references: [id])
+
+  asset_id String
+  asset    asset  @relation(fields: [asset_id], references: [id])
+
+  quantity   Decimal? @db.Decimal(14, 4)
+  book_value Decimal? @db.Decimal(14, 4)
+
+  @@index([transaction_template_id])
+  @@index([account_id])
+  @@index([asset_id])
 }
 
 model transaction {

@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { currency_fmt } from '../_utils/currency_formatter'
 import { PageHeader } from '../_components/PageHeader'
 import { EmptyState } from '../_components/EmptyState'
+import { delete_transaction_template } from '../_actions/templates'
 
 type Transaction = {
   id: string
@@ -25,6 +26,7 @@ export default function ClientPage({
   searchParams,
   accounts,
   assets,
+  templates = [],
 }: {
   transactions: Transaction[]
   totalCount: number
@@ -33,6 +35,7 @@ export default function ClientPage({
   searchParams: Record<string, string | undefined>
   accounts: Account[]
   assets: Asset[]
+  templates?: any[]
 }) {
   const router = useRouter()
   const params = useSearchParams()
@@ -45,6 +48,13 @@ export default function ClientPage({
   const [accountId, setAccountId] = useState(searchParams.accountId || '')
   const [assetId, setAssetId] = useState(searchParams.assetId || '')
   const [selectedPageSize] = useState(pageSize)
+  const [deletingTemplate, setDeletingTemplate] = useState<{id: string, x: number, y: number} | null>(null)
+
+  useEffect(() => {
+    const handleGlobalClick = () => setDeletingTemplate(null)
+    document.addEventListener('click', handleGlobalClick)
+    return () => document.removeEventListener('click', handleGlobalClick)
+  }, [])
 
   const totalPages = Math.ceil(totalCount / pageSize)
   const isShowingAll = searchParams.pageSize === 'all'
@@ -96,6 +106,61 @@ export default function ClientPage({
         createUrl="/transactions/create"
         createLabel="+ New Transaction"
       />
+
+      {templates && templates.length > 0 && (
+        <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {templates.map((t: any) => (
+            <div
+              key={t.id}
+                className="flex items-center shrink-0 py-1.5 px-3 border border-slate-200 dark:border-slate-600 rounded-full bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group cursor-pointer relative"
+                onClick={(e) => {
+                  if (deletingTemplate?.id === t.id) {
+                    e.stopPropagation()
+                    setDeletingTemplate(null)
+                    return
+                  }
+                  try {
+                    sessionStorage.setItem('ledger_quick_template', JSON.stringify(t))
+                  } catch (e) {}
+                  router.push(`/transactions/create?templateId=${t.id}`)
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setDeletingTemplate({ id: t.id, x: e.clientX, y: e.clientY })
+                }}
+              >
+                <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate max-w-37.5 sm:max-w-62.5">
+                  {t.description || 'Unnamed Template'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+      {deletingTemplate && (
+        <div 
+          className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-36 animate-in fade-in zoom-in duration-150"
+          style={{ top: deletingTemplate.y, left: deletingTemplate.x }}
+        >
+          <button
+            onClick={async (e) => {
+              e.stopPropagation()
+              const id = deletingTemplate.id
+              setDeletingTemplate(null)
+              if (confirm('Delete this template?')) {
+                await delete_transaction_template(id)
+              }
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete
+          </button>
+        </div>
+      )}
 
       {/* Search and Filter Section */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 transition-colors">

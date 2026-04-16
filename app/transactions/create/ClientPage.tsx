@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { asset_type } from '@/generated/prisma/enums'
 import { create_transaction } from '@/app/_actions/transactions'
+import { create_transaction_template } from '@/app/_actions/templates'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 
@@ -62,7 +63,31 @@ export default function ClientPage({
   ])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [templateError, setTemplateError] = useState<string | null>(null)
 
+  useEffect(() => {
+    const rawTemplate = sessionStorage.getItem('ledger_quick_template')
+    if (rawTemplate) {
+      try {
+        const parsed = JSON.parse(rawTemplate)
+        if (parsed.description) setDescription(parsed.description)
+        if (parsed.line_items) {
+          setItems(
+            parsed.line_items.map((li: any) => ({
+              account_id: li.account_id,
+              asset_id: li.asset_id,
+              quantity: li.quantity ?? null,
+              book_value: li.book_value ?? null,
+              description: li.description || '',
+              datetime: '',
+            })),
+          )
+        }
+      } catch (e) {}
+      sessionStorage.removeItem('ledger_quick_template')
+    }
+  }, [])
   // Nicely formatted preview of the entered date
   const formattedDate = (() => {
     try {
@@ -136,6 +161,30 @@ export default function ClientPage({
       }
       return copy
     })
+  }
+
+  async function handleSaveTemplate() {
+    setTemplateError(null)
+    setSavingTemplate(true)
+    try {
+      const line_items = items.map(it => ({
+        account_id: it.account_id,
+        asset_id: it.asset_id,
+        quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
+        book_value: it.book_value === null || it.book_value === '' ? null : Number(it.book_value),
+        description: it.description === '' ? null : it.description,
+      }))
+      const result: any = await create_transaction_template(line_items as any, description || null)
+      if (!result.success) {
+        setTemplateError(result.message)
+      } else {
+        alert('Template saved!')
+      }
+    } catch (err: any) {
+      setTemplateError(err.message || String(err))
+    } finally {
+      setSavingTemplate(false)
+    }
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -223,22 +272,34 @@ export default function ClientPage({
 
         {/* Error Display */}
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
+        {templateError && <ErrorAlert message={templateError} onDismiss={() => setTemplateError(null)} />}
 
         {/* Submit Button */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
-          <Link
-            href="/transactions"
-            className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
-          >
-            Cancel
-          </Link>
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-slate-200">
           <button
-            type="submit"
-            disabled={busy}
-            className="px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            type="button"
+            onClick={handleSaveTemplate}
+            disabled={savingTemplate}
+            className="w-full sm:w-auto px-6 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium border border-emerald-200 dark:border-emerald-800"
           >
-            {busy ? 'Creating...' : 'Create Transaction'}
+            {savingTemplate ? 'Saving...' : 'Save as Quick Template'}
           </button>
+
+          <div className="flex w-full sm:w-auto justify-end gap-3 pt-4 sm:pt-0 border-t sm:border-0 border-slate-200">
+            <Link
+              href="/transactions"
+              className="flex-1 sm:flex-none text-center px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex-1 sm:flex-none px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            >
+              {busy ? 'Creating...' : 'Create Transaction'}
+            </button>
+          </div>
         </div>
       </form>
     </div>
