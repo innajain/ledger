@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { asset_type } from '@/generated/prisma/enums'
 import { create_transaction } from '@/app/_actions/transactions'
-import { create_transaction_template } from '@/app/_actions/templates'
+import { create_transaction_template, update_transaction_template } from '@/app/_actions/templates'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 
@@ -65,12 +65,14 @@ export default function ClientPage({
   const [error, setError] = useState<string | null>(null)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateError, setTemplateError] = useState<string | null>(null)
+  const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null)
 
   useEffect(() => {
     const rawTemplate = sessionStorage.getItem('ledger_quick_template')
     if (rawTemplate) {
       try {
         const parsed = JSON.parse(rawTemplate)
+        if (parsed.id) setLoadedTemplateId(parsed.id)
         if (parsed.description) setDescription(parsed.description)
         if (parsed.line_items) {
           setItems(
@@ -161,6 +163,31 @@ export default function ClientPage({
       }
       return copy
     })
+  }
+
+  async function handleUpdateTemplate() {
+    if (!loadedTemplateId) return
+    setTemplateError(null)
+    setSavingTemplate(true)
+    try {
+      const line_items = items.map(it => ({
+        account_id: it.account_id,
+        asset_id: it.asset_id,
+        quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
+        book_value: it.book_value === null || it.book_value === '' ? null : Number(it.book_value),
+        description: it.description === '' ? null : it.description,
+      }))
+      const result: any = await update_transaction_template(loadedTemplateId, line_items as any, description || null)
+      if (!result.success) {
+        setTemplateError(result.message)
+      } else {
+        alert('Template updated!')
+      }
+    } catch (err: any) {
+      setTemplateError(err.message || String(err))
+    } finally {
+      setSavingTemplate(false)
+    }
   }
 
   async function handleSaveTemplate() {
@@ -276,14 +303,26 @@ export default function ClientPage({
 
         {/* Submit Button */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-slate-200">
-          <button
-            type="button"
-            onClick={handleSaveTemplate}
-            disabled={savingTemplate}
-            className="w-full sm:w-auto px-6 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium border border-emerald-200 dark:border-emerald-800"
-          >
-            {savingTemplate ? 'Saving...' : 'Save as Quick Template'}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {loadedTemplateId && (
+              <button
+                type="button"
+                onClick={handleUpdateTemplate}
+                disabled={savingTemplate}
+                className="w-full sm:w-auto px-6 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
+              >
+                {savingTemplate ? 'Updating...' : 'Update Quick Template'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSaveTemplate}
+              disabled={savingTemplate}
+              className="w-full sm:w-auto px-6 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium border border-emerald-200 dark:border-emerald-800"
+            >
+              {savingTemplate ? 'Saving...' : 'Save as New Template'}
+            </button>
+          </div>
 
           <div className="flex w-full sm:w-auto justify-end gap-3 pt-4 sm:pt-0 border-t sm:border-0 border-slate-200">
             <Link

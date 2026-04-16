@@ -64,6 +64,53 @@ export async function get_transaction_templates() {
   })
 }
 
+export async function update_transaction_template(
+  id: string,
+  line_items: CreateLineItemInput[],
+  description?: string | null | undefined,
+): Promise<{ success: boolean; message: string; template: any }> {
+  try {
+    const user = await get_current_user()
+    if (!user) throw new Error('Not authenticated')
+    const user_id = user.id
+    if (line_items.length === 0) throw new Error('At least one line item is required')
+
+    if (description) description = description.trim()
+    if (description === '') description = null
+
+    // First check if it belongs to user
+    const existing = await prisma.transaction_template.findUnique({
+      where: { id, user_id },
+    })
+    if (!existing) throw new Error('Template not found or unauthorized')
+
+    const template = await prisma.transaction_template.update({
+      where: { id },
+      data: {
+        description,
+        line_items: {
+          deleteMany: {}, // Cascade deletes existing items
+          create: line_items.map(li => ({
+            account_id: li.account_id,
+            asset_id: li.asset_id,
+            quantity: li.quantity,
+            book_value: li.book_value,
+            description: li.description || null,
+          })),
+        },
+      },
+      include: { line_items: true },
+    })
+
+    revalidatePath('/transactions')
+    revalidatePath('/transactions/create')
+
+    return { success: true, message: 'Template updated', template }
+  } catch (err: any) {
+    return { success: false, message: err.message, template: null }
+  }
+}
+
 export async function delete_transaction_template(id: string) {
   try {
     const user = await get_current_user()
