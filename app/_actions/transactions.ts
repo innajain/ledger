@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
+import { z } from 'zod'
 import { Prisma } from '@/generated/prisma/client'
 import { validate_line_items } from '../_utils/validate_line_items'
 import { get_or_compute_balances } from './compute_balances'
@@ -15,19 +16,30 @@ export type CreateLineItemInput = {
   datetime?: Date | null | undefined
 }
 
+const createTransactionSchema = z.object({
+  line_items: z.array(z.object({
+    account_id: z.string(),
+    asset_id: z.string(),
+    quantity: z.number().optional(),
+    book_value: z.number().nullish(),
+    description: z.string().trim().transform(val => val === '' ? null : val).nullish(),
+    datetime: z.date().nullish()
+  })).min(1, 'At least one line item is required'),
+  description: z.string().trim().transform(val => val === '' ? null : val).nullish()
+})
+
 export async function create_transaction(
   datetime: Date,
   line_items: CreateLineItemInput[],
   description?: string | null | undefined,
 ): Promise<{ success: boolean; message: string; id?: string }> {
   try {
-    if (line_items.length === 0) throw new Error('At least one line item is required')
-    if (description) description = description.trim()
-    if (description === '') description = null
-    line_items.forEach(li => {
-      if (li.description) li.description = li.description.trim()
-      if (li.description === '') li.description = null
-    })
+    const parsed = createTransactionSchema.safeParse({ line_items, description })
+    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    
+    // safeParse can't cleanly overwrite the function arguments with identical types nicely when nullish is involved so we take what we need
+    line_items = parsed.data.line_items as CreateLineItemInput[]
+    description = parsed.data.description as string | null | undefined
 
     const user = await get_current_user()
     if (!user) throw new Error('You must be logged in to create transactions')
@@ -92,9 +104,15 @@ export async function create_transaction(
   }
 }
 
+const deleteTransactionSchema = z.object({
+  id: z.string().min(1, 'id is required'),
+})
+
 export async function delete_transaction(id: string): Promise<{ success: boolean; message: string }> {
   try {
-    if (id.length === 0) throw new Error('id is required')
+    const parsed = deleteTransactionSchema.safeParse({ id })
+    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    id = parsed.data.id
 
     const user = await get_current_user()
     if (!user) throw new Error('unauthorized')

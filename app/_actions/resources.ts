@@ -1,14 +1,20 @@
 'use server'
 
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import type { account_type, asset_type } from '@/generated/prisma/client'
 import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher'
 
+const createAccountSchema = z.object({
+  name: z.string().trim().min(1, 'name cannot be empty string'),
+})
+
 export async function create_account(name: string, type: account_type, parent_id?: string | null): Promise<{ success: boolean; message: string }> {
   try {
-    name = name.trim()
-    if (name.length === 0) throw new Error('name cannot be empty string')
+    const parsed = createAccountSchema.safeParse({ name })
+    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    name = parsed.data.name
 
     const user = await get_current_user()
     if (!user) throw new Error('unauthorized')
@@ -22,6 +28,11 @@ export async function create_account(name: string, type: account_type, parent_id
   }
 }
 
+const updateAccountSchema = z.object({
+  id: z.string().min(1, 'id is required'),
+  name: z.string().trim().min(1, 'name cannot be empty string').optional(),
+})
+
 export async function update_account(
   id: string,
   name?: string | undefined,
@@ -29,9 +40,10 @@ export async function update_account(
   parent_id?: string | null | undefined,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    if (id.length === 0) throw new Error('id is required')
-    name = name?.trim()
-    if (name !== undefined && name.length === 0) throw new Error('name cannot be empty string')
+    const parsed = updateAccountSchema.safeParse({ id, name })
+    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    id = parsed.data.id
+    name = parsed.data.name
 
     const user = await get_current_user()
     if (!user) throw new Error('unauthorized')
@@ -75,8 +87,16 @@ export async function update_account(
   }
 }
 
+const deleteAccountSchema = z.object({
+  id: z.string().min(1, 'id is required'),
+})
+
 export async function delete_account(id: string): Promise<{ success: boolean; message: string }> {
   try {
+    const parsed = deleteAccountSchema.safeParse({ id })
+    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    id = parsed.data.id
+
     const user = await get_current_user()
     if (!user) throw new Error('unauthorized')
 
@@ -88,6 +108,11 @@ export async function delete_account(id: string): Promise<{ success: boolean; me
 }
 
 // Assets
+const createAssetSchema = z.object({
+  name: z.string().trim().min(1, 'name cannot be empty string'),
+  ticker: z.string().trim().min(1, 'ticker cannot be empty string').nullish(),
+})
+
 export async function create_asset(
   name: string,
   type: asset_type,
@@ -95,7 +120,10 @@ export async function create_asset(
   parent_id?: string | null | undefined,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    if (name.length === 0) throw new Error('name cannot be empty string')
+    const parsed = createAssetSchema.safeParse({ name, ticker })
+    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    name = parsed.data.name
+    ticker = parsed.data.ticker
 
     if (type === 'etf' || type === 'mf' || type === 'shares') {
       if (!ticker || ticker.length === 0) throw new Error('ticker is required for asset type ' + type)
@@ -120,6 +148,12 @@ export async function create_asset(
   }
 }
 
+const updateAssetSchema = z.object({
+  id: z.string().min(1, 'id is required'),
+  name: z.string().trim().min(1, 'name cannot be empty string').optional(),
+  ticker: z.string().trim().min(1, 'ticker cannot be empty string').nullish(),
+})
+
 export async function update_asset(
   id: string,
   name?: string | undefined,
@@ -128,9 +162,11 @@ export async function update_asset(
   parent_id?: string | null | undefined,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    if (id.length === 0) throw new Error('id is required')
-    if (name !== undefined && name.length === 0) throw new Error('name cannot be empty string')
-    if (ticker !== undefined && ticker !== null && ticker.length === 0) throw new Error('ticker cannot be empty string')
+    const parsed = updateAssetSchema.safeParse({ id, name, ticker })
+    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    id = parsed.data.id
+    name = parsed.data.name
+    ticker = parsed.data.ticker
 
     const user = await get_current_user()
     if (!user) throw new Error('unauthorized')
@@ -184,9 +220,15 @@ export async function update_asset(
   }
 }
 
+const deleteAssetSchema = z.object({
+  id: z.string().min(1, 'id is required'),
+})
+
 export async function delete_asset(id: string): Promise<{ success: boolean; message: string }> {
   try {
-    if (id.length === 0) throw new Error('id is required')
+    const parsed = deleteAssetSchema.safeParse({ id })
+    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    id = parsed.data.id
 
     const user = await get_current_user()
     if (!user) throw new Error('unauthorized')
