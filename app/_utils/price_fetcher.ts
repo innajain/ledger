@@ -52,40 +52,17 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
   const cacheKey = `price:nav:${code}`
 
   try {
-    // Check Redis cache
+    // Check Redis cache (populated by a daily cron job)
     const cached = await redis.get(cacheKey)
     if (cached) {
       const data = JSON.parse(cached) as NAVData
       return { ...data, date: new Date(data.date) }
     }
 
-    // Fetch from AMFI
-    const url = 'https://www.amfiindia.com/spages/NAVAll.txt'
-    const response = await axios.get(url)
-    const data = response.data as string
-
-    const lines = data.split('\n')
-    for (const line of lines) {
-      if (line.includes(code)) {
-        const parts = line.split(';')
-        const schemeCode = parts[0]
-        const schemeName = parts[3]
-        const nav = new Prisma.Decimal(parseFloat(parts[4]) || parts[4]).toNumber()
-        const dateStr = parts[5]?.trim() // format: 25-Jun-2025
-        const localDate = parse(dateStr, 'dd-MMM-yyyy', new Date())
-        // Convert to UTC treating the parsed date as IST
-        const istDate = fromZonedTime(localDate, 'Asia/Kolkata')
-        const navData = { schemeCode, schemeName, nav, date: istDate }
-
-        // Cache in Redis with 2-day TTL
-        await redis.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(navData))
-
-        return navData
-      }
-    }
+    console.warn(`Cache miss for NAV code: ${code}. The daily cron sync might be delayed or the code is invalid.`)
     return null
   } catch (error) {
-    console.error(`Failed to fetch NAV for CODE ${code}:`, error)
+    console.error(`Failed to fetch NAV for CODE ${code} from cache:`, error)
     return null
   }
 }
