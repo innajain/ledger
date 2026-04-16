@@ -40,15 +40,17 @@ export async function update_account(id: string, name?: string | undefined, type
     })
     if (!p) throw new Error('invalid parent account')
 
+    const all_accounts = await prisma.account.findMany({
+      where: { user_id: user.id },
+      select: { id: true, parent_id: true },
+    })
+    const parentMap = new Map(all_accounts.map(a => [a.id, a.parent_id]))
+
     // prevent cycles: walk up the parent chain
     let curr_parent_id: string | null = p.parent_id
     while (curr_parent_id) {
       if (curr_parent_id === id) throw new Error('invalid parent: would create cycle')
-      const next: { id: string; parent_id: string | null } | null = await prisma.account.findUnique({
-        where: { id: curr_parent_id, user_id: user.id },
-        select: { id: true, parent_id: true },
-      })
-      curr_parent_id = next?.parent_id ?? null
+      curr_parent_id = parentMap.get(curr_parent_id) ?? null
     }
   }
 
@@ -116,14 +118,16 @@ export async function update_asset(
     })
     if (!p) throw new Error('invalid parent asset')
 
+    const all_assets = await prisma.asset.findMany({
+      where: { user_id: user.id },
+      select: { id: true, parent_id: true },
+    })
+    const parentMap = new Map(all_assets.map(a => [a.id, a.parent_id]))
+
     let curr_parent_id: string | null = p.parent_id
     while (curr_parent_id) {
       if (curr_parent_id === id) throw new Error('invalid parent: would create cycle')
-      const next: { id: string; parent_id: string | null } | null = await prisma.asset.findUnique({
-        where: { id: curr_parent_id, user_id: user.id },
-        select: { id: true, parent_id: true },
-      })
-      curr_parent_id = next?.parent_id ?? null
+      curr_parent_id = parentMap.get(curr_parent_id) ?? null
     }
   }
 
