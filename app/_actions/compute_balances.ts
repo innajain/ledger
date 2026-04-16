@@ -13,13 +13,20 @@ export async function get_or_compute_balances(invalidate_cache = false) {
 
   if (!invalidate_cache && (await redis.exists(cache_key))) {
     const cached = (await redis.get(cache_key))!
-    const balances = new Map<string, Map<string, { qty: number; book_value: number }>>(
-      JSON.parse(cached).map(([k, v]: [string, [string, { qty: number; book_value: number }][]]) => [
+    const parsed = JSON.parse(cached)
+    const accountsToAssets = new Map<string, Map<string, { qty: number; book_value: number }>>(
+      parsed.accountsToAssets.map(([k, v]: [string, [string, { qty: number; book_value: number }][]]) => [
         k,
         new Map(v.map(([k2, v2]) => [k2, { qty: v2.qty, book_value: v2.book_value }])),
       ]),
     )
-    return balances
+    const assetsToAccounts = new Map<string, Map<string, { qty: number; book_value: number }>>(
+      parsed.assetsToAccounts.map(([k, v]: [string, [string, { qty: number; book_value: number }][]]) => [
+        k,
+        new Map(v.map(([k2, v2]) => [k2, { qty: v2.qty, book_value: v2.book_value }])),
+      ]),
+    )
+    return { accountsToAssets, assetsToAccounts }
   }
 
   const transactions = await prisma.transaction.findMany({
@@ -29,8 +36,9 @@ export async function get_or_compute_balances(invalidate_cache = false) {
   for (const tx of transactions) {
     normalize_txn(tx)
   }
-  //   account, asset, qty and asset, account, qty
-  const balances = new Map<string, Map<string, { qty: Prisma.Decimal; book_value: Prisma.Decimal }>>()
+
+  const accountsToAssets = new Map<string, Map<string, { qty: Prisma.Decimal; book_value: Prisma.Decimal }>>()
+  const assetsToAccounts = new Map<string, Map<string, { qty: Prisma.Decimal; book_value: Prisma.Decimal }>>()
 
   for (const tx of transactions) {
     for (const li of tx.line_items) {
@@ -39,8 +47,8 @@ export async function get_or_compute_balances(invalidate_cache = false) {
       const qty = li.quantity!
       const book_value = li.book_value!
 
-      if (!balances.has(acc_id)) balances.set(acc_id, new Map())
-      const assetMap = balances.get(acc_id)!
+      if (!accountsToAssets.has(acc_id)) accountsToAssets.set(acc_id, new Map())
+      const assetMap = accountsToAssets.get(acc_id)!
       if (!assetMap.has(asset_id)) assetMap.set(asset_id, { qty, book_value })
       else {
         const existing = assetMap.get(asset_id)!
@@ -51,8 +59,8 @@ export async function get_or_compute_balances(invalidate_cache = false) {
       }
 
       if (li.account.type === 'real') {
-        if (!balances.has(asset_id)) balances.set(asset_id, new Map())
-        const accMap = balances.get(asset_id)!
+        if (!assetsToAccounts.has(asset_id)) assetsToAccounts.set(asset_id, new Map())
+        const accMap = assetsToAccounts.get(asset_id)!
         if (!accMap.has(acc_id)) accMap.set(acc_id, { qty, book_value })
         else {
           const existing_acc = accMap.get(acc_id)!
@@ -65,26 +73,34 @@ export async function get_or_compute_balances(invalidate_cache = false) {
     }
   }
 
-  redis.setex(
-    cache_key,
-    5 * 24 * 60 * 60, // Expire in 5 days
-    JSON.stringify(
-      Array.from(balances.entries()).map(([k, v]) => [
-        k,
-        Array.from(v.entries()).map(([k2, v2]) => [k2, { qty: v2.qty.toNumber(), book_value: v2.book_value.toNumber() }]),
-      ]),
-    ),
-  )
-
-  //   convert balances to Map<string, Map<string, number>> for easier consumption by client
-  const balances_for_client = new Map<string, Map<string, { qty: number; book_value: number }>>()
-  for (const [k, v] of balances.entries()) {
-    balances_for_client.set(
+  const clientAccountsToAssets = new Map<string, Map<string, { qty: number; book_value: number }>>()
+  for (const [k, v] of accountsToAssets.entries()) {
+    clientAccountsToAssets.set(
       k,
       new Map<string, { qty: number; book_value: number }>(
         Array.from(v.entries()).map(([k2, v2]) => [k2, { qty: v2.qty.toNumber(), book_value: v2.book_value.toNumber() }]),
       ),
     )
   }
-  return balances_for_client
+
+  const clientAssetsToAccounts = new Map<string, Map<string, { qty: number; book_value: number }>>()
+  for (const [k, v] of assetsToAccounts.entries()) {
+    clientAssetsToAccounts.set(
+      k,
+      new Map<string, { qty: number; book_value: number }>(
+        Array.from(v.entries()).map(([k2, v2]) => [k2, { qty: v2.qty.toNumber(), book_value: v2.book_value.toNumber() }]),
+      ),
+    )
+  }
+
+  redis.setex(
+    cache_key,
+    5 * 24 * 60 * 60, // Expire in 5 days
+    JSON.stringify({
+      accountsToAssets: Array.from(clientAccountsToAssets.entries()).map(([k, v]) => [k, Array.from(v.entries())]),
+      assetsToAccounts: Array.from(clientAssetsToAccounts.entries()).map(([k, v]) => [k, Array.from(v.entries())]),
+    }),
+  )
+
+  return { accountsToAssets: clientAccountsToAssets, assetsToAccounts: clientAssetsToAccounts }
 }

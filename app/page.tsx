@@ -47,7 +47,7 @@ export default async function Home() {
   const assets = await prisma.asset.findMany({ where: { user_id: user.id } })
   const assetMap = new Map(assets.map(a => [a.id, a]))
 
-  const balances = await get_or_compute_balances(true)
+  const { accountsToAssets: balances } = await get_or_compute_balances(true)
 
   async function compute_allocation_value(acc: (typeof allocations)[0] | undefined) {
     if (!acc) return null

@@ -1,5 +1,6 @@
 import yahooFinance from 'yahoo-finance2'
 import axios from 'axios'
+import readline from 'readline'
 import { parse } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
 import { get_indian_date_from_date_obj, get_date_obj_from_indian_date } from './date'
@@ -57,14 +58,18 @@ export async function sync_nav() {
   const isinSet = new Set(assets.map(a => a.ticker))
 
   const url = 'https://www.amfiindia.com/spages/NAVAll.txt'
-  const response = await axios.get(url)
-  const data = response.data as string
+  const response = await axios.get(url, { responseType: 'stream' })
 
-  const lines = data.split('\n')
-  const pipeline = redis.pipeline()
+  const rl = readline.createInterface({
+    input: response.data,
+    crlfDelay: Infinity,
+  })
+
+  let pipeline = redis.pipeline()
   let count = 0
+  let queuedCount = 0
 
-  for (const line of lines) {
+  for await (const line of rl) {
     const parts = line.split(';')
     if (parts.length >= 6 && parts[0] && !isNaN(Number(parts[0]))) {
       const isinGrowth = parts[1]?.trim()
@@ -84,6 +89,7 @@ export async function sync_nav() {
           // Cache in Redis with 2-day TTL
           pipeline.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(navData))
           count++
+          queuedCount++
         }
 
         if (isinReinvestment && isinReinvestment !== '-' && isinSet.has(isinReinvestment)) {
@@ -92,14 +98,25 @@ export async function sync_nav() {
           // Cache in Redis with 2-day TTL
           pipeline.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(navData))
           count++
+          queuedCount++
+        }
+
+        if (queuedCount >= 1000) {
+          await pipeline.exec()
+          pipeline = redis.pipeline()
+          queuedCount = 0
         }
       }
     }
   }
 
-  await pipeline.exec()
+  if (queuedCount > 0) {
+    await pipeline.exec()
+  }
   return count
 }
+
+let syncPromise: Promise<number> | null = null
 
 export async function get_nav({ code }: { code: string }): Promise<NAVData | null> {
   const cacheKey = `price:nav:${code}`
@@ -108,6 +125,7 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
     // Check Redis cache (populated by a daily cron job)
     const cached = await redis.get(cacheKey)
     if (cached) {
+      if (cached === 'null') return null
       const data = JSON.parse(cached) as NAVData
       return { ...data, date: new Date(data.date) }
     }
@@ -117,12 +135,20 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
     )
 
     try {
-      await sync_nav()
+      if (!syncPromise) {
+        syncPromise = sync_nav().finally(() => {
+          syncPromise = null
+        })
+      }
+      await syncPromise
 
       const cachedRetry = await redis.get(cacheKey)
-      if (cachedRetry) {
+      if (cachedRetry && cachedRetry !== 'null') {
         const data = JSON.parse(cachedRetry) as NAVData
         return { ...data, date: new Date(data.date) }
+      } else {
+        // Code is invalid or not in AMFI. Cache the miss for 1 hour to prevent spamming
+        await redis.setex(cacheKey, 60 * 60, 'null')
       }
     } catch (retryError) {
       console.error('Failed to run sync_nav manually:', retryError)

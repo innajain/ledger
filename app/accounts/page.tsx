@@ -26,7 +26,7 @@ export default async function Page() {
     )
   }
 
-  const [[accounts, assets], balances] = await Promise.all([
+  const [[accounts, assets], { accountsToAssets: balances }] = await Promise.all([
     prisma.$transaction([
       prisma.account.findMany({
         where: { user_id: user.id, type: account_type.real },
