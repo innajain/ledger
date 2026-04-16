@@ -5,6 +5,7 @@ import { validate_line_items } from '../_utils/validate_line_items'
 
 export async function validate_all_txns() {
   const transactions = await prisma.transaction.findMany({
+    where: { deleted_at: null },
     include: { line_items: { include: { account: true, asset: true } } },
   })
   const wrong_txns = []

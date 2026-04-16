@@ -23,7 +23,7 @@ export async function get_or_compute_balances(invalidate_cache = false) {
   }
 
   const transactions = await prisma.transaction.findMany({
-    where: { user_id: user.id },
+    where: { user_id: user.id, deleted_at: null },
     include: { line_items: { include: { account: true, asset: true } } },
   })
   for (const tx of transactions) {
