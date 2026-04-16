@@ -98,11 +98,10 @@ model line_item_template {
 }
 
 model transaction {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   user_id     String
   datetime    DateTime
   description String?
-  deleted_at  DateTime?
 
   user       user        @relation(fields: [user_id], references: [id])
   line_items line_item[]

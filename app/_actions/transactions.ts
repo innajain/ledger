@@ -117,10 +117,7 @@ export async function delete_transaction(id: string): Promise<{ success: boolean
     const user = await get_current_user()
     if (!user) throw new Error('unauthorized')
 
-    await prisma.transaction.update({
-      where: { id, user_id: user.id },
-      data: { deleted_at: new Date() },
-    })
+    await prisma.transaction.delete({ where: { id, user_id: user.id } })
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }
