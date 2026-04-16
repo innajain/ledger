@@ -4,10 +4,15 @@ import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { normalize_txn } from '../_utils/normalize_txn'
+import { get_current_user } from '@/app/_actions/auth'
 
 export async function get_or_compute_balances(invalidate_cache = false) {
-  if (!invalidate_cache && (await redis.exists('balances'))) {
-    const cached = (await redis.get('balances'))!
+  const user = await get_current_user()
+  if (!user) throw new Error('unauthorized')
+  const cache_key = `balances:${user.id}`
+
+  if (!invalidate_cache && (await redis.exists(cache_key))) {
+    const cached = (await redis.get(cache_key))!
     const balances = new Map<string, Map<string, { qty: number; book_value: number }>>(
       JSON.parse(cached).map(([k, v]: [string, [string, { qty: number; book_value: number }][]]) => [
         k,
@@ -18,6 +23,7 @@ export async function get_or_compute_balances(invalidate_cache = false) {
   }
 
   const transactions = await prisma.transaction.findMany({
+    where: { user_id: user.id },
     include: { line_items: { include: { account: true, asset: true } } },
   })
   for (const tx of transactions) {
@@ -60,7 +66,7 @@ export async function get_or_compute_balances(invalidate_cache = false) {
   }
 
   redis.setex(
-    'balances',
+    cache_key,
     5 * 24 * 60 * 60, // Expire in 5 days
     JSON.stringify(
       Array.from(balances.entries()).map(([k, v]) => [
