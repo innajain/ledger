@@ -18,7 +18,8 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
     setError(null)
     setBusy(true)
     try {
-      await create_asset(name, type, ticker || undefined, parentId)
+      const result = await create_asset(name, type, ticker || undefined, parentId)
+      if (!result.success) throw new Error(result.message)
       window.location.href = '/assets'
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))

@@ -92,11 +92,16 @@ export async function create_transaction(
   }
 }
 
-export async function delete_transaction(id: string): Promise<void> {
-  if (id.length === 0) throw new Error('id is required')
+export async function delete_transaction(id: string): Promise<{ success: boolean; message: string }> {
+  try {
+    if (id.length === 0) throw new Error('id is required')
 
-  const user = await get_current_user()
-  if (!user) throw new Error('unauthorized')
+    const user = await get_current_user()
+    if (!user) throw new Error('unauthorized')
 
-  await prisma.transaction.delete({ where: { id, user_id: user.id } })
+    await prisma.transaction.delete({ where: { id, user_id: user.id } })
+    return { success: true, message: '' }
+  } catch (error: any) {
+    return { success: false, message: error.message }
+  }
 }

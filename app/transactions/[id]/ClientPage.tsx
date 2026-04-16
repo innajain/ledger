@@ -37,7 +37,8 @@ export default function ClientPage({
     setIsDeleting(true)
     setError(null)
     try {
-      await delete_transaction(transaction.id)
+      const result = await delete_transaction(transaction.id)
+      if (!result.success) throw new Error(result.message)
       window.location.href = '/transactions'
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))

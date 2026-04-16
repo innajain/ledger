@@ -23,7 +23,7 @@ type UpdateAccountFormProps = {
   account: Prisma.accountGetPayload<Record<string, never>>
   parents: Prisma.accountGetPayload<Record<string, never>>[]
   config: AccountFormConfig
-  deleteAccount?: (id: string) => Promise<void>
+  deleteAccount?: (id: string) => Promise<{ success: boolean; message: string }>
 }
 
 export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
@@ -37,7 +37,8 @@ export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
     setError(null)
     setBusy(true)
     try {
-      await create_account(name, config.accountType, parentId ?? undefined)
+      const result = await create_account(name, config.accountType, parentId ?? undefined)
+      if (!result.success) throw new Error(result.message)
       window.location.href = config.basePath
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
@@ -87,7 +88,8 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
     setError(null)
     setBusy(true)
     try {
-      await update_account(account.id, name, config.accountType, parentId)
+      const result = await update_account(account.id, name, config.accountType, parentId)
+      if (!result.success) throw new Error(result.message)
       window.location.href = config.basePath
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
@@ -104,7 +106,8 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
     if (!confirm(`Delete this ${config.entityName.toLowerCase()}? This action cannot be undone.`)) return
     setError(null)
     try {
-      await deleteAccount(account.id)
+      const result = await deleteAccount(account.id)
+      if (!result.success) throw new Error(result.message)
       window.location.href = config.basePath
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))

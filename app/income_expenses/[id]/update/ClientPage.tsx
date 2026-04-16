@@ -19,7 +19,7 @@ export default function ClientPage({
 }: {
   account: Prisma.accountGetPayload<Record<string, never>>
   parents: Prisma.accountGetPayload<Record<string, never>>[]
-  deleteAccount?: (id: string) => Promise<void>
+  deleteAccount?: (id: string) => Promise<{ success: boolean; message: string }>
 }) {
   return <UpdateAccountForm account={account} parents={parents} config={nominalConfig} deleteAccount={deleteAccount} />
 }

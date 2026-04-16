@@ -12,7 +12,7 @@ export default function ClientPage({
 }: {
   asset: Prisma.assetGetPayload<Record<string, never>>
   parents: Prisma.assetGetPayload<Record<string, never>>[]
-  deleteAsset?: (id: string) => Promise<void>
+  deleteAsset?: (id: string) => Promise<{ success: boolean; message: string }>
 }) {
   const [name, setName] = useState(asset.name)
   const [type, setType] = useState<asset_type>(asset.type)
@@ -26,7 +26,8 @@ export default function ClientPage({
     setError(null)
     setBusy(true)
     try {
-      await update_asset(asset.id, name, type, ticker || undefined, parentId)
+      const result = await update_asset(asset.id, name, type, ticker || undefined, parentId)
+      if (!result.success) throw new Error(result.message)
       window.location.href = '/assets'
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
@@ -43,7 +44,8 @@ export default function ClientPage({
     if (!confirm('Delete this asset? This action cannot be undone.')) return
     setError(null)
     try {
-      await deleteAsset(asset.id)
+      const result = await deleteAsset(asset.id)
+      if (!result.success) throw new Error(result.message)
       window.location.href = '/assets'
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
