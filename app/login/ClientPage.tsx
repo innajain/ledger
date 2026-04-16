@@ -25,7 +25,8 @@ export default function ClientPage({ user }: Props) {
     setSuccess(null)
     setLoading(true)
     try {
-      await log_in({ username, password })
+      const result = await log_in({ username, password })
+      if (!result.success) throw new Error(result.message)
       setSuccess('Login successful! Redirecting...')
       setShowConfetti(true)
       setTimeout(() => router.push('/'), 500)
@@ -42,7 +43,8 @@ export default function ClientPage({ user }: Props) {
     setSuccess(null)
     setLoading(true)
     try {
-      await sign_up({ username, password })
+      const result = await sign_up({ username, password })
+      if (!result.success) throw new Error(result.message)
       setSuccess('Account created! Redirecting...')
       setShowConfetti(true)
       setTimeout(() => router.push('/'), 500)
@@ -58,7 +60,8 @@ export default function ClientPage({ user }: Props) {
     setError(null)
     setSuccess(null)
     try {
-      await log_out()
+      const result = await log_out()
+      if (!result.success) throw new Error(result.message)
       setSuccess('Logged out successfully')
       setTimeout(() => window.location.reload(), 500)
     } catch (err: unknown) {
