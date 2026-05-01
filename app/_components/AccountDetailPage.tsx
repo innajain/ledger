@@ -25,6 +25,7 @@ export type AccountData = {
   type: string
   parent: { id: string; name: string } | null
   total: number
+  xirr?: number | null
   breakdown: {
     asset_id: string
     asset_name: string
@@ -85,6 +86,26 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
             label: 'Total Value',
             value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.total)}</p>,
           },
+          ...(account.xirr !== undefined && account.xirr !== null
+            ? [
+                {
+                  label: 'XIRR',
+                  value: (
+                    <span
+                      className={
+                        account.xirr > 0
+                          ? 'text-green-600 dark:text-green-400 font-semibold'
+                          : account.xirr < 0
+                            ? 'text-red-600 dark:text-red-400 font-semibold'
+                            : 'text-slate-500 dark:text-slate-400 font-semibold'
+                      }
+                    >
+                      {(account.xirr * 100).toFixed(2)}%
+                    </span>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
 

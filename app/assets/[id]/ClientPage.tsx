@@ -78,7 +78,11 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                   value: (
                     <span
                       className={
-                        asset.xirr >= 0 ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-red-600 dark:text-red-400 font-semibold'
+                        asset.xirr > 0
+                          ? 'text-green-600 dark:text-green-400 font-semibold'
+                          : asset.xirr < 0
+                            ? 'text-red-600 dark:text-red-400 font-semibold'
+                            : 'text-slate-500 dark:text-slate-400 font-semibold'
                       }
                     >
                       {(asset.xirr * 100).toFixed(2)}%

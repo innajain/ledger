@@ -4,6 +4,7 @@ import { get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
 import { get_line_item_book_value, get_line_item_qty } from '@/app/_utils/validate_line_items'
+import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -75,6 +76,8 @@ export default async function Page({ params }: Props) {
   // fetch price per asset when needed; we'll cache by asset id
   const priceCache: Record<string, Prisma.Decimal | null> = {}
 
+  const cashflows: { amount: number; when: Date }[] = []
+
   const map: Record<
     string,
     {
@@ -127,6 +130,11 @@ export default async function Page({ params }: Props) {
     map[asset.id].total_qty = map[asset.id].total_qty.add(qty)
     map[asset.id].total_book = map[asset.id].total_book.add(book_value)
 
+    cashflows.push({
+      amount: -book_value.toNumber(),
+      when: li.datetime ?? li.transaction.datetime,
+    })
+
     lineItemsWithValues.push({
       id: li.id,
       asset_id: asset.id,
@@ -178,15 +186,24 @@ export default async function Page({ params }: Props) {
     })
   }
 
+  let xirr_value: number | null = null
+  if (cashflows.length > 0) {
+    if (!acc_total.equals(0)) {
+      cashflows.push({ amount: acc_total.toNumber(), when: new Date() })
+    }
+    xirr_value = calculate_xirr(cashflows)
+  }
+
   const accountForClient = {
     id: account.id,
     name: account.name,
     type: account.type,
     parent: account.parent ? { id: account.parent.id, name: account.parent.name } : null,
     total: acc_total.toNumber(),
+    xirr: xirr_value,
     breakdown,
     line_items: sortedLineItems,
   }
-
+  console.log(xirr_value)
   return <ClientPage account={accountForClient} />
 }
