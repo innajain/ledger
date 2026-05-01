@@ -4,6 +4,7 @@ import { get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
 import { get_line_item_book_value, get_line_item_qty } from '@/app/_utils/validate_line_items'
+import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -154,6 +155,26 @@ export default async function Page({ params }: Props) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .map(({ _sortDate, ...rest }) => rest)
 
+  let xirr_value: number | null = null
+  if (asset.type !== asset_type.rupees && real_line_items.length > 0) {
+    const cashflows = real_line_items.map(li => {
+      const bv = get_line_item_book_value(li)
+      return {
+        amount: -bv.toNumber(),
+        when: li.datetime ?? li.transaction.datetime,
+      }
+    })
+
+    if (!asset_total.equals(0)) {
+      cashflows.push({
+        amount: asset_total.toNumber(),
+        when: new Date(),
+      })
+    }
+    console.log('Cashflows for XIRR calculation:', cashflows)
+    xirr_value = calculate_xirr(cashflows)
+  }
+
   const assetForClient = {
     id: asset.id,
     name: asset.name,
@@ -162,6 +183,7 @@ export default async function Page({ params }: Props) {
     parent: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
     total: asset_total.toNumber(),
     price: priceDecimal ? priceDecimal.toNumber() : null,
+    xirr: xirr_value,
     breakdown,
     line_items,
   }

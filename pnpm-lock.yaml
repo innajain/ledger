@@ -62,6 +62,9 @@ importers:
       react-dom:
         specifier: 19.2.4
         version: 19.2.4(react@19.2.4)
+      xirr:
+        specifier: ^1.1.0
+        version: 1.1.0
       yahoo-finance2:
         specifier: ^3.14.0
         version: 3.14.0
@@ -2078,6 +2081,9 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
+  newton-raphson-method@1.0.2:
+    resolution: {integrity: sha512-UoBJJxNVVQhviRvled1bL76IjmPls4dNLPeF661FW2eNrv/pKKfRDpOdlN+vo9XamZvj8OMt/KtjOBTFN6I0gw==}
+
   next-themes@0.4.6:
     resolution: {integrity: sha512-pZvgD5L0IEvX5/9GWyHMf3m8BKiVQwsCMHfoFosXtXBMnaS0ZnIJ9ST4b4NqLVKDEm8QBxoNNGNaBv2JNF6XNA==}
     peerDependencies:
@@ -2733,6 +2739,9 @@ packages:
   word-wrap@1.2.5:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
     engines: {node: '>=0.10.0'}
+
+  xirr@1.1.0:
+    resolution: {integrity: sha512-Ivl/gbn5rCkJqig0B+40GQyk1Rqjo0SMW7pTnplV+VG7zlXEzJ6SYdukYmjejCWFY1TGerqPbdwenR0LK5yAWw==}
 
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
@@ -4811,6 +4820,8 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
+  newton-raphson-method@1.0.2: {}
+
   next-themes@0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       react: 19.2.4
@@ -5575,6 +5586,10 @@ snapshots:
       isexe: 3.1.5
 
   word-wrap@1.2.5: {}
+
+  xirr@1.1.0:
+    dependencies:
+      newton-raphson-method: 1.0.2
 
   xtend@4.0.2: {}
 

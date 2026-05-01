@@ -34,6 +34,7 @@ type AssetForClient = {
   parent: { id: string; name: string } | null
   total: number
   price: number | null
+  xirr?: number | null
   breakdown: BreakdownItem[]
   line_items?: LineItem[]
 }
@@ -67,6 +68,22 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                 {
                   label: 'Current Price',
                   value: precise_currency_fmt.format(asset.price),
+                },
+              ]
+            : []),
+          ...(asset.xirr !== undefined && asset.xirr !== null
+            ? [
+                {
+                  label: 'XIRR',
+                  value: (
+                    <span
+                      className={
+                        asset.xirr >= 0 ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-red-600 dark:text-red-400 font-semibold'
+                      }
+                    >
+                      {(asset.xirr * 100).toFixed(2)}%
+                    </span>
+                  ),
                 },
               ]
             : []),
