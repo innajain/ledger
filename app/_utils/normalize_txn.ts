@@ -37,7 +37,7 @@ export function normalize_txn(
     for (const li of group.real) {
       if (li.quantity === null) throw new Error('Real line item with null quantity')
       total_qty = total_qty.add(li.quantity)
-      total_book_value = total_book_value.add(li.book_value ?? li.quantity) // book value can be null for rupees assets
+      total_book_value = total_book_value.add(li.book_value !== null ? li.book_value : li.quantity) // book value can be null for rupees assets
     }
 
     assetwise_total.set(asset_id, { total_qty, total_book_value })

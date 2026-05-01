@@ -17,15 +17,27 @@ export type CreateLineItemInput = {
 }
 
 const createTransactionSchema = z.object({
-  line_items: z.array(z.object({
-    account_id: z.string(),
-    asset_id: z.string(),
-    quantity: z.number().optional(),
-    book_value: z.number().nullish(),
-    description: z.string().trim().transform(val => val === '' ? null : val).nullish(),
-    datetime: z.date().nullish()
-  })).min(1, 'At least one line item is required'),
-  description: z.string().trim().transform(val => val === '' ? null : val).nullish()
+  line_items: z
+    .array(
+      z.object({
+        account_id: z.string(),
+        asset_id: z.string(),
+        quantity: z.number().optional(),
+        book_value: z.number().nullish(),
+        description: z
+          .string()
+          .trim()
+          .transform(val => (val === '' ? null : val))
+          .nullish(),
+        datetime: z.date().nullish(),
+      }),
+    )
+    .min(1, 'At least one line item is required'),
+  description: z
+    .string()
+    .trim()
+    .transform(val => (val === '' ? null : val))
+    .nullish(),
 })
 
 export async function create_transaction(
@@ -36,10 +48,10 @@ export async function create_transaction(
   try {
     const parsed = createTransactionSchema.safeParse({ line_items, description })
     if (!parsed.success) throw new Error(parsed.error.issues[0].message)
-    
+
     // safeParse can't cleanly overwrite the function arguments with identical types nicely when nullish is involved so we take what we need
-    line_items = parsed.data.line_items as CreateLineItemInput[]
-    description = parsed.data.description as string | null | undefined
+    line_items = parsed.data.line_items
+    description = parsed.data.description
 
     const user = await get_current_user()
     if (!user) throw new Error('You must be logged in to create transactions')
@@ -78,7 +90,7 @@ export async function create_transaction(
           line_items: {
             create: line_items.map(li => ({
               quantity: li.quantity === null || li.quantity === undefined ? null : new Prisma.Decimal(li.quantity),
-              book_value: li.book_value == null ? null : new Prisma.Decimal(li.book_value),
+              book_value: li.book_value === null || li.book_value === undefined ? null : new Prisma.Decimal(li.book_value),
               account_id: li.account_id,
               asset_id: li.asset_id,
               description: li.description !== undefined && li.description !== null && li.description.length === 0 ? null : li.description,
