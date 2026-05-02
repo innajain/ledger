@@ -1,6 +1,6 @@
 import yahooFinance from 'yahoo-finance2'
-import axios from 'axios'
 import readline from 'readline'
+import { Readable } from 'stream'
 import { parse } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
 import { get_indian_date_from_date_obj, get_date_obj_from_indian_date } from './date'
@@ -74,10 +74,11 @@ export async function sync_nav() {
   const isinSet = new Set(assets.map(a => a.ticker))
 
   const url = 'https://www.amfiindia.com/spages/NAVAll.txt'
-  const response = await axios.get(url, { responseType: 'stream' })
+  const response = await fetch(url)
+  if (!response.ok || !response.body) throw new Error(`AMFI NAV fetch failed: ${response.status}`)
 
   const rl = readline.createInterface({
-    input: response.data,
+    input: Readable.fromWeb(response.body as import('stream/web').ReadableStream),
     crlfDelay: Infinity,
   })
 
