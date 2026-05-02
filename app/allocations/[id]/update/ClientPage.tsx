@@ -1,16 +1,7 @@
 'use client'
 
 import type { Prisma } from '@/generated/prisma/client'
-import { UpdateAccountForm } from '@/app/_components/AccountForm'
-
-const allocationConfig = {
-  accountType: 'allocation' as const,
-  entityName: 'Allocation',
-  basePath: '/allocations',
-  backText: 'Back to Allocations',
-  parentLabel: 'Parent Allocation (Optional)',
-  parentHelpText: 'Select a parent to create a sub-allocation',
-}
+import { UpdateAccountForm, accountFormConfig } from '@/app/_components/AccountForm'
 
 export default function ClientPage({
   account,
@@ -21,5 +12,5 @@ export default function ClientPage({
   parents: Prisma.accountGetPayload<Record<string, never>>[]
   deleteAccount?: (id: string) => Promise<{ success: boolean; message: string }>
 }) {
-  return <UpdateAccountForm account={account} parents={parents} config={allocationConfig} deleteAccount={deleteAccount} />
+  return <UpdateAccountForm account={account} parents={parents} config={accountFormConfig('allocation')} deleteAccount={deleteAccount} />
 }

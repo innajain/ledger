@@ -14,6 +14,37 @@ type AccountFormConfig = {
   parentHelpText: string
 }
 
+const ACCOUNT_FORM_CONFIGS: Record<account_type, AccountFormConfig> = {
+  real: {
+    accountType: 'real',
+    entityName: 'Account',
+    basePath: '/accounts',
+    backText: 'Back to Accounts',
+    parentLabel: 'Parent Account (Optional)',
+    parentHelpText: 'Select a parent to create a sub-account',
+  },
+  allocation: {
+    accountType: 'allocation',
+    entityName: 'Allocation',
+    basePath: '/allocations',
+    backText: 'Back to Allocations',
+    parentLabel: 'Parent Allocation (Optional)',
+    parentHelpText: 'Select a parent to create a sub-allocation',
+  },
+  nominal: {
+    accountType: 'nominal',
+    entityName: 'Nominal Account',
+    basePath: '/income_expenses',
+    backText: 'Back to Nominal Accounts',
+    parentLabel: 'Parent Account (Optional)',
+    parentHelpText: 'Select a parent to create a sub-account',
+  },
+}
+
+export function accountFormConfig(type: account_type): AccountFormConfig {
+  return ACCOUNT_FORM_CONFIGS[type]
+}
+
 type CreateAccountFormProps = {
   parents: Prisma.accountGetPayload<Record<string, never>>[]
   config: AccountFormConfig

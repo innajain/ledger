@@ -1,16 +1,7 @@
 'use client'
 
 import type { Prisma } from '@/generated/prisma/client'
-import { UpdateAccountForm } from '@/app/_components/AccountForm'
-
-const nominalConfig = {
-  accountType: 'nominal' as const,
-  entityName: 'Account',
-  basePath: '/income_expenses',
-  backText: 'Back to Nominal Accounts',
-  parentLabel: 'Parent Account (Optional)',
-  parentHelpText: 'Select a parent to create a sub-account',
-}
+import { UpdateAccountForm, accountFormConfig } from '@/app/_components/AccountForm'
 
 export default function ClientPage({
   account,
@@ -21,5 +12,5 @@ export default function ClientPage({
   parents: Prisma.accountGetPayload<Record<string, never>>[]
   deleteAccount?: (id: string) => Promise<{ success: boolean; message: string }>
 }) {
-  return <UpdateAccountForm account={account} parents={parents} config={nominalConfig} deleteAccount={deleteAccount} />
+  return <UpdateAccountForm account={account} parents={parents} config={accountFormConfig('nominal')} deleteAccount={deleteAccount} />
 }
