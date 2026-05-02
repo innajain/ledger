@@ -6,6 +6,7 @@ import { CreateLineItemInput } from './transactions'
 import { validate_line_items } from '../_utils/validate_line_items'
 import { toDecimal } from '../_utils/decimal'
 import { invalidate_balances } from './compute_balances'
+import { logger } from '@/lib/logger'
 import { z } from 'zod'
 
 const updateTransactionSchema = z.object({
@@ -108,7 +109,7 @@ export async function update_transaction(
       message: 'Transaction updated successfully',
     }
   } catch (error) {
-    console.error('Error updating transaction:', error)
+    logger.error({ err: error, action: 'update_transaction' }, 'Error updating transaction')
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Failed to update transaction',

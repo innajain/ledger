@@ -1,5 +1,6 @@
 import Redis from 'ioredis'
 import { env } from './env'
+import { logger } from './logger'
 
 // Create a Redis client instance
 export const redis = new Redis(env.REDIS_URL, {
@@ -14,9 +15,9 @@ export const redis = new Redis(env.REDIS_URL, {
 })
 
 redis.on('error', err => {
-  console.error('Redis Client Error:', err)
+  logger.error({ err }, 'Redis client error')
 })
 
 redis.on('connect', () => {
-  console.log('Redis Connected')
+  logger.info('Redis connected')
 })

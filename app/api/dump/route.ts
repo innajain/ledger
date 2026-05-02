@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { neon, NeonQueryFunction } from '@neondatabase/serverless'
 import { get_current_user } from '@/app/_actions/auth'
 import { env, isDev } from '@/lib/env'
+import { logger } from '@/lib/logger'
 
 // Table query functions - each query is pre-defined to prevent SQL injection.
 // The switch statement pattern is intentional: it ensures table names are never
@@ -89,7 +90,7 @@ export async function GET() {
   } catch (err: unknown) {
     // Log error for debugging but don't expose details to client
     if (isDev()) {
-      console.error('Database dump error:', err)
+      logger.error({ err, route: '/api/dump' }, 'Database dump error')
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { validate_line_items } from '../_utils/validate_line_items'
 import { toDecimal } from '../_utils/decimal'
 import { invalidate_balances } from './compute_balances'
+import { logger } from '@/lib/logger'
 
 export type CreateLineItemInput = {
   account_id: string
@@ -108,7 +109,7 @@ export async function create_transaction(
       id,
     }
   } catch (error) {
-    console.error('Error creating transaction:', error)
+    logger.error({ err: error, action: 'create_transaction' }, 'Error creating transaction')
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Failed to create transaction',

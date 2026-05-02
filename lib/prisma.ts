@@ -2,6 +2,7 @@ import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import 'dotenv/config'
 import { env, isDev, isProd } from './env'
+import { logger } from './logger'
 
 const adapter = new PrismaPg({ connectionString: env.DATABASE_URL })
 
@@ -26,11 +27,11 @@ if (!globalForPrismaConnection.prismaConnectionLogged) {
   prisma
     .$connect()
     .then(() => {
-      console.log('Database connected')
+      logger.info('Database connected')
     })
     .catch(error => {
       globalForPrismaConnection.prismaConnectionLogged = false
-      console.error('Database connection failed', error)
+      logger.error({ err: error }, 'Database connection failed')
     })
 }
 

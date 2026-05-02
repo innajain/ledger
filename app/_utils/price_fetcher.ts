@@ -7,6 +7,7 @@ import { get_indian_date_from_date_obj, get_date_obj_from_indian_date } from './
 import { redis } from '@/lib/redis'
 import { prisma } from '@/lib/prisma'
 import { USER_TIMEZONE } from '@/lib/config'
+import { logger } from '@/lib/logger'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 
 type NAVData = {
@@ -52,7 +53,7 @@ export async function get_latest_etf_or_shares_price(symbol: string) {
 
         return { date, close: result.regularMarketPrice as number }
       } catch (err) {
-        console.error('Error fetching latest price:', err)
+        logger.error({ err, symbol }, 'Error fetching latest price')
         return null
       }
     })().finally(() => {
@@ -62,7 +63,7 @@ export async function get_latest_etf_or_shares_price(symbol: string) {
     inFlightQuotes.set(cacheKey, fetchPromise)
     return fetchPromise
   } catch (err) {
-    console.error('Error fetching latest price:', err)
+    logger.error({ err, symbol }, 'Error fetching latest price')
     return null
   }
 }
@@ -148,9 +149,7 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
       return { ...data, date: new Date(data.date) }
     }
 
-    console.warn(
-      `Cache miss for NAV code: ${code}. The daily cron sync might be delayed or the code is invalid. Attempting to run cron job manually...`,
-    )
+    logger.warn({ code }, 'Cache miss for NAV code; attempting manual sync (cron may be delayed)')
 
     try {
       if (!syncPromise) {
@@ -169,12 +168,12 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
         await redis.setex(cacheKey, 60 * 60, 'null')
       }
     } catch (retryError) {
-      console.error('Failed to run sync_nav manually:', retryError)
+      logger.error({ err: retryError, code }, 'Failed to run sync_nav manually')
     }
 
     return null
   } catch (error) {
-    console.error(`Failed to fetch NAV for CODE ${code} from cache:`, error)
+    logger.error({ err: error, code }, 'Failed to fetch NAV from cache')
     return null
   }
 }
@@ -228,7 +227,7 @@ export async function get_price_for_asset(type: asset_type, code: string | null)
       return null
     }
   } catch (error) {
-    console.error(`Error fetching price for ${type} with CODE ${code}:`, error)
+    logger.error({ err: error, type, code }, 'Error fetching price for asset')
   }
   return null
 }
