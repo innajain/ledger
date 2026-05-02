@@ -11,8 +11,8 @@ export async function get_or_compute_balances(invalidate_cache = false) {
   if (!user) throw new Error('unauthorized')
   const cache_key = `balances:${user.id}`
 
-  if (!invalidate_cache && (await redis.exists(cache_key))) {
-    const cached = (await redis.get(cache_key))!
+  const cached = invalidate_cache ? null : await redis.get(cache_key)
+  if (cached) {
     const parsed = JSON.parse(cached)
     const accountsToAssets = new Map<string, Map<string, { qty: number; book_value: number }>>(
       parsed.accountsToAssets.map(([k, v]: [string, [string, { qty: number; book_value: number }][]]) => [

@@ -1,7 +1,7 @@
 import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
-import { get_price_for_asset } from '@/app/_utils/price_fetcher'
+import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { Prisma } from '@/generated/prisma/client'
 import { get_or_compute_balances } from './_actions/compute_balances'
 
@@ -45,18 +45,19 @@ export default async function Home() {
   }
 
   const assets = await prisma.asset.findMany({ where: { user_id: user.id } })
-  const assetMap = new Map(assets.map(a => [a.id, a]))
 
-  const { accountsToAssets: balances } = await get_or_compute_balances(true)
+  const [{ accountsToAssets: balances }, priceByAsset] = await Promise.all([
+    get_or_compute_balances(true),
+    get_prices_for_assets(assets),
+  ])
 
-  async function compute_allocation_value(acc: (typeof allocations)[0] | undefined) {
+  function compute_allocation_value(acc: (typeof allocations)[0] | undefined) {
     if (!acc) return null
     const asset_qty_map = balances.get(acc.id) ?? new Map<string, { qty: number; book_value: number }>()
 
     let total_value = new Prisma.Decimal(0)
     for (const [asset_id, { qty, book_value }] of asset_qty_map.entries()) {
-      const asset = assetMap.get(asset_id)!
-      const price_data = await get_price_for_asset(asset.type, asset.ticker)
+      const price_data = priceByAsset.get(asset_id) ?? null
       if (price_data) {
         total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
       } else {
@@ -67,7 +68,7 @@ export default async function Home() {
     return { id: acc.id, name: acc.name, total: total_value }
   }
 
-  const allocation_values = await Promise.all(allocations.map(acc => compute_allocation_value(acc)))
+  const allocation_values = allocations.map(acc => compute_allocation_value(acc))
   const allocation_value_by_id = new Map(allocation_values.filter((v): v is NonNullable<typeof v> => v !== null).map(v => [v.id, v.total] as const))
 
   function compute_subtree_total(root: (typeof allocations)[0] | undefined) {

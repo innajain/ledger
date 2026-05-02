@@ -22,28 +22,44 @@ type PriceData = {
 
 const yf = new yahooFinance({ suppressNotices: ['yahooSurvey'] })
 
+// In-flight dedup: when several callers race for the same uncached symbol,
+// only one Yahoo request fires and everyone shares its result.
+const inFlightQuotes = new Map<string, Promise<{ date: Date; close: number } | null>>()
+
 export async function get_latest_etf_or_shares_price(symbol: string) {
   const cacheKey = `price:etf:${symbol}`
 
   try {
-    // Check Redis cache
     const cached = await redis.get(cacheKey)
     if (cached) {
       const data = JSON.parse(cached) as PriceData
       return { date: new Date(data.date), close: data.price }
     }
 
-    // Fetch from Yahoo Finance
-    const result = await yf.quote(symbol)
-    let date = result.regularMarketTime as Date
-    date.setHours(0, 0, 0, 0) // Normalize to start of the day
-    date = fromZonedTime(date, 'Asia/Kolkata')
-    const priceData = { price: result.regularMarketPrice!, date }
+    const existing = inFlightQuotes.get(cacheKey)
+    if (existing) return existing
 
-    // Cache in Redis with 2-day TTL
-    await redis.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(priceData))
+    const fetchPromise = (async () => {
+      try {
+        const result = await yf.quote(symbol)
+        let date = result.regularMarketTime as Date
+        date.setHours(0, 0, 0, 0) // Normalize to start of the day
+        date = fromZonedTime(date, 'Asia/Kolkata')
+        const priceData = { price: result.regularMarketPrice!, date }
 
-    return { date, close: result.regularMarketPrice as number }
+        await redis.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(priceData))
+
+        return { date, close: result.regularMarketPrice as number }
+      } catch (err) {
+        console.error('Error fetching latest price:', err)
+        return null
+      }
+    })().finally(() => {
+      inFlightQuotes.delete(cacheKey)
+    })
+
+    inFlightQuotes.set(cacheKey, fetchPromise)
+    return fetchPromise
   } catch (err) {
     console.error('Error fetching latest price:', err)
     return null
@@ -159,6 +175,32 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
     console.error(`Failed to fetch NAV for CODE ${code} from cache:`, error)
     return null
   }
+}
+
+// Dedups by (type, ticker) and fetches all unique prices in parallel.
+// Returns a Map keyed by asset.id, so callers can look up O(1) inside loops
+// without each iteration paying for a Redis round-trip.
+export async function get_prices_for_assets(
+  assets: { id: string; type: asset_type; ticker: string | null }[],
+): Promise<Map<string, { price: number; date: Date } | null>> {
+  const uniqueKeys = new Map<string, { type: asset_type; ticker: string | null }>()
+  for (const a of assets) {
+    const key = `${a.type}|${a.ticker ?? ''}`
+    if (!uniqueKeys.has(key)) uniqueKeys.set(key, { type: a.type, ticker: a.ticker })
+  }
+
+  const fetched = new Map<string, { price: number; date: Date } | null>()
+  await Promise.all(
+    Array.from(uniqueKeys.entries()).map(async ([key, { type, ticker }]) => {
+      fetched.set(key, await get_price_for_asset(type, ticker))
+    }),
+  )
+
+  const byAssetId = new Map<string, { price: number; date: Date } | null>()
+  for (const a of assets) {
+    byAssetId.set(a.id, fetched.get(`${a.type}|${a.ticker ?? ''}`) ?? null)
+  }
+  return byAssetId
 }
 
 export async function get_price_for_asset(type: asset_type, code: string | null): Promise<{ price: number; date: Date } | null> {
