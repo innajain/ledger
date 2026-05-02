@@ -1,9 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
-import { get_price_for_asset } from '@/app/_utils/price_fetcher'
+import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
-import { get_line_item_book_value, get_line_item_qty } from '@/app/_utils/validate_line_items'
+import { normalize_txn } from '@/app/_utils/normalize_txn'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -22,25 +22,7 @@ export default async function Page({ params }: Props) {
   const account = await prisma.account.findUnique({
     where: { id, user_id: user.id },
     include: {
-      line_items: {
-        include: {
-          asset: true,
-          account: true,
-          transaction: {
-            include: {
-              line_items: {
-                include: {
-                  account: true,
-                  asset: true,
-                  transaction: {
-                    include: { line_items: { include: { account: true } } },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      line_items: { include: { asset: true, transaction: true } },
       parent: true,
     },
   })
@@ -53,6 +35,18 @@ export default async function Page({ params }: Props) {
       </div>
     )
   }
+
+  const tx_ids = Array.from(new Set(account.line_items.map(li => li.transaction_id)))
+  const transactions = await prisma.transaction.findMany({
+    where: { id: { in: tx_ids } },
+    include: { line_items: { include: { account: true, asset: true } } },
+  })
+  for (const tx of transactions) normalize_txn(tx)
+  const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()
+  for (const tx of transactions) for (const li of tx.line_items) normalizedById.set(li.id, li)
+
+  const uniqueAssets = Array.from(new Map(account.line_items.map(li => [li.asset.id, li.asset])).values())
+  const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
   let acc_total = new Prisma.Decimal(0)
   const lineItemsWithValues: {
@@ -69,9 +63,6 @@ export default async function Page({ params }: Props) {
     line_item_description: string | null
     _sortDate: Date
   }[] = []
-
-  const real_line_items = account.line_items
-  const priceCache: Record<string, Prisma.Decimal | null> = {}
   const map: Record<
     string,
     {
@@ -83,29 +74,19 @@ export default async function Page({ params }: Props) {
     }
   > = {}
 
-  for (const li of real_line_items) {
-    const qty = get_line_item_qty(li)
+  for (const li of account.line_items) {
+    const n = normalizedById.get(li.id)!
+    const qty = n.quantity!
+    const book_value = n.book_value!
     const asset = li.asset
 
-    if (!(asset.id in priceCache)) {
-      try {
-        if (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares') {
-          const p = await get_price_for_asset(asset.type, asset.ticker ?? null)
-          priceCache[asset.id] = p ? new Prisma.Decimal(p.price) : null
-        } else {
-          priceCache[asset.id] = null
-        }
-      } catch {
-        priceCache[asset.id] = null
-      }
-    }
+    const priceData = priceByAsset.get(asset.id) ?? null
+    const priceDecimal = priceData ? new Prisma.Decimal(priceData.price) : null
 
-    const priceDecimal = priceCache[asset.id]
-
-    let current_value = new Prisma.Decimal(0)
+    let current_value: Prisma.Decimal
     if (asset.type === asset_type.rupees) current_value = qty
     else if (priceDecimal) current_value = priceDecimal.mul(qty)
-    else current_value = get_line_item_book_value(li)
+    else current_value = book_value
 
     acc_total = acc_total.add(current_value)
 
@@ -119,7 +100,7 @@ export default async function Page({ params }: Props) {
       }
     }
     map[asset.id].total_qty = map[asset.id].total_qty.add(qty)
-    map[asset.id].total_book = map[asset.id].total_book.add(get_line_item_book_value(li))
+    map[asset.id].total_book = map[asset.id].total_book.add(book_value)
 
     lineItemsWithValues.push({
       id: li.id,
@@ -127,7 +108,7 @@ export default async function Page({ params }: Props) {
       asset_name: asset.name,
       asset_type: asset.type,
       quantity: qty.toNumber(),
-      book_value: get_line_item_book_value(li).toNumber(),
+      book_value: book_value.toNumber(),
       current_value: current_value.toNumber(),
       transaction_id: li.transaction.id,
       transaction_date: li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
@@ -137,9 +118,7 @@ export default async function Page({ params }: Props) {
     })
   }
 
-  // Sort line items by datetime (line item datetime or transaction datetime), new to old
   lineItemsWithValues.sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime())
-  // Remove the temporary sort field via destructuring
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const sortedLineItems = lineItemsWithValues.map(({ _sortDate, ...rest }) => rest)
 
@@ -153,13 +132,12 @@ export default async function Page({ params }: Props) {
   }[] = []
   for (const k of Object.keys(map)) {
     const e = map[k]
-
-    // Skip if quantity is zero
     if (e.total_qty.equals(0)) continue
 
-    let current_value = new Prisma.Decimal(0)
+    const priceData = priceByAsset.get(e.asset_id) ?? null
+    let current_value: Prisma.Decimal
     if (e.asset_type === asset_type.rupees) current_value = e.total_qty
-    else if (priceCache[k]) current_value = priceCache[k]!.mul(e.total_qty)
+    else if (priceData) current_value = new Prisma.Decimal(priceData.price).mul(e.total_qty)
     else current_value = e.total_book
 
     breakdown.push({
