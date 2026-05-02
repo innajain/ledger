@@ -6,10 +6,20 @@ import { redis } from '@/lib/redis'
 import { normalize_txn } from '../_utils/normalize_txn'
 import { get_current_user_id } from '@/app/_actions/auth'
 
+const balance_cache_key = (user_id: string) => `balances:${user_id}`
+
+/**
+ * Drop the cached balance map for a user. Call this from any mutation that
+ * could invalidate balances — transactions, accounts, assets, line items.
+ */
+export async function invalidate_balances(user_id: string): Promise<void> {
+  await redis.del(balance_cache_key(user_id))
+}
+
 export async function get_or_compute_balances(invalidate_cache = false) {
   const user_id = await get_current_user_id()
   if (!user_id) throw new Error('unauthorized')
-  const cache_key = `balances:${user_id}`
+  const cache_key = balance_cache_key(user_id)
 
   const cached = invalidate_cache ? null : await redis.get(cache_key)
   if (cached) {

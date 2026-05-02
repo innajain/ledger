@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import type { account_type, asset_type } from '@/generated/prisma/client'
 import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher'
+import { invalidate_balances } from './compute_balances'
 
 const createAccountSchema = z.object({
   name: z.string().trim().min(1, 'name cannot be empty string'),
@@ -22,6 +23,7 @@ export async function create_account(name: string, type: account_type, parent_id
     await prisma.account.create({
       data: { name, type, user_id, parent_id },
     })
+    await invalidate_balances(user_id)
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }
@@ -81,6 +83,7 @@ export async function update_account(
       where: { id, user_id },
       data: { name, type, parent_id },
     })
+    await invalidate_balances(user_id)
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }
@@ -101,6 +104,7 @@ export async function delete_account(id: string): Promise<{ success: boolean; me
     if (!user_id) throw new Error('unauthorized')
 
     await prisma.account.delete({ where: { id, user_id } })
+    await invalidate_balances(user_id)
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }
@@ -142,6 +146,7 @@ export async function create_asset(
     await prisma.asset.create({
       data: { name, type, ticker, user_id, parent_id: parent_id },
     })
+    await invalidate_balances(user_id)
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }
@@ -214,6 +219,7 @@ export async function update_asset(
         throw new Error('ticker cannot non-null for asset type ' + type)
       }
     })
+    await invalidate_balances(user_id)
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }
@@ -234,6 +240,7 @@ export async function delete_asset(id: string): Promise<{ success: boolean; mess
     if (!user_id) throw new Error('unauthorized')
 
     await prisma.asset.delete({ where: { id, user_id } })
+    await invalidate_balances(user_id)
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }

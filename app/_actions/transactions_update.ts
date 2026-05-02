@@ -5,7 +5,7 @@ import { get_current_user_id } from '@/app/_actions/auth'
 import { CreateLineItemInput } from './transactions'
 import { validate_line_items } from '../_utils/validate_line_items'
 import { toDecimal } from '../_utils/decimal'
-import { get_or_compute_balances } from './compute_balances'
+import { invalidate_balances } from './compute_balances'
 import { z } from 'zod'
 
 const updateTransactionSchema = z.object({
@@ -101,7 +101,7 @@ export async function update_transaction(
       })
     })
 
-    await get_or_compute_balances(true)
+    await invalidate_balances(user_id)
 
     return {
       success: true,
