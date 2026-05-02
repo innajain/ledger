@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { sync_nav } from '@/app/_utils/price_fetcher'
+import { env, isProd } from '@/lib/env'
 
 export async function GET(request: Request) {
   // Validate request to ensure it's Vercel calling
   const authHeader = request.headers.get('authorization')
 
-  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    console.error(`Cron Auth Failed: authHeader=${authHeader}, EXPECTED=Bearer \${process.env.CRON_SECRET ? '***' : 'UNDEFINED'}`)
+  if (isProd() && authHeader !== `Bearer ${env.CRON_SECRET}`) {
+    console.error(`Cron Auth Failed: authHeader=${authHeader}, EXPECTED=Bearer ${env.CRON_SECRET ? '***' : 'UNDEFINED'}`)
     return new Response('Unauthorized', { status: 401 })
   }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { neon, NeonQueryFunction } from '@neondatabase/serverless'
 import { get_current_user } from '@/app/_actions/auth'
+import { env, isDev } from '@/lib/env'
 
 // Table query functions - each query is pre-defined to prevent SQL injection.
 // The switch statement pattern is intentional: it ensures table names are never
@@ -30,7 +31,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const sql = neon(process.env.DATABASE_URL!)
+    const sql = neon(env.DATABASE_URL)
 
     // Get all table names
     const tables = await sql`
@@ -87,7 +88,7 @@ export async function GET() {
     })
   } catch (err: unknown) {
     // Log error for debugging but don't expose details to client
-    if (process.env.NODE_ENV === 'development') {
+    if (isDev()) {
       console.error('Database dump error:', err)
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

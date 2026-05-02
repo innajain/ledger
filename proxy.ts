@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import jwt from 'jsonwebtoken'
+import { env } from '@/lib/env'
 
 /**
  * Proxy.ts – follow Next.js Proxy API: export `proxy(request)`.
@@ -20,10 +21,8 @@ function isPublicPath(pathname: string) {
 }
 
 function verifyTokenCached(token: string): { uid: string } | null {
-  const secret = process.env.JWT_SECRET
-  if (!secret) return null
   try {
-    const payload = jwt.verify(token, secret) as { uid: string; exp?: number }
+    const payload = jwt.verify(token, env.JWT_SECRET) as { uid: string; exp?: number }
     return { uid: payload.uid }
   } catch {
     return null

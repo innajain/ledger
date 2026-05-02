@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken'
 import { cookies } from 'next/headers'
 import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
+import { env, isProd } from '@/lib/env'
 import type { user } from '@/generated/prisma/client'
 import { z } from 'zod'
 
@@ -29,18 +30,12 @@ const ChangeUsernameSchema = z.object({
   password: z.string().min(1, 'Password is required')
 })
 
-function get_secret(): string {
-  const s = process.env.JWT_SECRET
-  if (!s) throw new Error('JWT_SECRET is not set')
-  return s
-}
-
 async function sign_token(payload: { uid: string }): Promise<string> {
-  return jwt.sign(payload, get_secret(), { expiresIn: `${JWT_EXPIRY_DAYS}d` })
+  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: `${JWT_EXPIRY_DAYS}d` })
 }
 
 function verify_token(token: string): { uid: string } {
-  return jwt.verify(token, get_secret()) as { uid: string }
+  return jwt.verify(token, env.JWT_SECRET) as { uid: string }
 }
 
 export async function sign_up(payload: z.infer<typeof AuthSchema>): Promise<ActionResponse> {
@@ -67,7 +62,7 @@ export async function sign_up(payload: z.infer<typeof AuthSchema>): Promise<Acti
       httpOnly: true,
       path: '/',
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd(),
       maxAge: JWT_EXPIRY_SECONDS,
     })
 
@@ -99,7 +94,7 @@ export async function log_in(payload: z.infer<typeof AuthSchema>): Promise<Actio
       httpOnly: true,
       path: '/',
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd(),
       maxAge: JWT_EXPIRY_SECONDS,
     })
 

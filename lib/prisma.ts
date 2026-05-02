@@ -1,8 +1,9 @@
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import 'dotenv/config'
+import { env, isDev, isProd } from './env'
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+const adapter = new PrismaPg({ connectionString: env.DATABASE_URL })
 
 // Prevent multiple instances in development
 const globalForPrisma = globalThis as unknown as {
@@ -17,7 +18,7 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    log: isDev() ? ['error', 'warn'] : ['error'],
   })
 
 if (!globalForPrismaConnection.prismaConnectionLogged) {
@@ -33,4 +34,4 @@ if (!globalForPrismaConnection.prismaConnectionLogged) {
     })
 }
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+if (!isProd()) globalForPrisma.prisma = prisma
