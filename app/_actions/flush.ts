@@ -1,8 +1,10 @@
 'use server'
 
 import { redis } from '@/lib/redis'
+import { require_admin } from './auth'
 
 export async function flush_redis() {
+  await require_admin()
   try {
     // Ensure connection (ioredis with lazyConnect will connect automatically on command)
     await redis.connect().catch(() => {})

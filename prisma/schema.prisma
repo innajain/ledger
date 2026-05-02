@@ -9,9 +9,10 @@ datasource db {
 }
 
 model user {
-  id            String @id @default(cuid())
-  username      String @unique
+  id            String  @id @default(cuid())
+  username      String  @unique
   password_hash String
+  is_admin      Boolean @default(false)
 
   accounts              account[]
   assets                asset[]

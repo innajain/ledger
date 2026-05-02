@@ -2,8 +2,10 @@
 
 import { prisma } from '@/lib/prisma'
 import { validate_line_items } from '../_utils/validate_line_items'
+import { require_admin } from './auth'
 
 export async function validate_all_txns() {
+  await require_admin()
   const transactions = await prisma.transaction.findMany({
     include: { line_items: { include: { account: true, asset: true } } },
   })

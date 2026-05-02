@@ -157,6 +157,21 @@ export const get_current_user = cache(async (): Promise<user | null> => {
   return userRec as user | null
 })
 
+/**
+ * Throw unless the current user has `is_admin = true`. Returns the user id
+ * on success so callers can use it for downstream queries.
+ */
+export async function require_admin(): Promise<string> {
+  const id = await get_current_user_id()
+  if (!id) throw new Error('unauthorized')
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: { is_admin: true },
+  })
+  if (!user?.is_admin) throw new Error('admin only')
+  return id
+}
+
 export async function change_password(payload: z.infer<typeof ChangePasswordSchema>): Promise<ActionResponse> {
   try {
     const { current_password, new_password } = ChangePasswordSchema.parse(payload)
