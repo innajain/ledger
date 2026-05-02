@@ -3,8 +3,8 @@
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { z } from 'zod'
-import { Prisma } from '@/generated/prisma/client'
 import { validate_line_items } from '../_utils/validate_line_items'
+import { toDecimal } from '../_utils/decimal'
 import { get_or_compute_balances } from './compute_balances'
 
 export type CreateLineItemInput = {
@@ -72,8 +72,8 @@ export async function create_transaction(
 
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
-          quantity: li.quantity === null || li.quantity === undefined ? null : new Prisma.Decimal(li.quantity),
-          book_value: li.book_value === null || li.book_value === undefined ? null : new Prisma.Decimal(li.book_value),
+          quantity: toDecimal(li.quantity),
+          book_value: toDecimal(li.book_value),
           asset: assets.find(a => a.id === li.asset_id)!,
           account: accounts.find(a => a.id === li.account_id)!,
         })),
@@ -89,11 +89,11 @@ export async function create_transaction(
           user_id,
           line_items: {
             create: line_items.map(li => ({
-              quantity: li.quantity === null || li.quantity === undefined ? null : new Prisma.Decimal(li.quantity),
-              book_value: li.book_value === null || li.book_value === undefined ? null : new Prisma.Decimal(li.book_value),
+              quantity: toDecimal(li.quantity),
+              book_value: toDecimal(li.book_value),
               account_id: li.account_id,
               asset_id: li.asset_id,
-              description: li.description !== undefined && li.description !== null && li.description.length === 0 ? null : li.description,
+              description: li.description,
               datetime: li.datetime,
             })),
           },

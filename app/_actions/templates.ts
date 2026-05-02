@@ -3,7 +3,17 @@
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from './auth'
 import { CreateLineItemInput } from './transactions'
+import { toDecimal } from '../_utils/decimal'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+
+const templateSchema = z.object({
+  description: z
+    .string()
+    .trim()
+    .transform(val => (val === '' ? null : val))
+    .nullish(),
+})
 
 export async function create_transaction_template(
   line_items: CreateLineItemInput[],
@@ -14,10 +24,7 @@ export async function create_transaction_template(
     if (!user_id) throw new Error('Not authenticated')
     if (line_items.length === 0) throw new Error('At least one line item is required')
 
-    if (description) description = description.trim()
-    if (description === '') description = null
-
-    // We can compute null inputs or just save them verbatim
+    description = templateSchema.parse({ description }).description
 
     const template = await prisma.transaction_template.create({
       data: {
@@ -27,8 +34,8 @@ export async function create_transaction_template(
           create: line_items.map(li => ({
             account_id: li.account_id,
             asset_id: li.asset_id,
-            quantity: li.quantity,
-            book_value: li.book_value,
+            quantity: toDecimal(li.quantity),
+            book_value: toDecimal(li.book_value),
             description: li.description || null,
           })),
         },
@@ -72,8 +79,7 @@ export async function update_transaction_template(
     if (!user_id) throw new Error('Not authenticated')
     if (line_items.length === 0) throw new Error('At least one line item is required')
 
-    if (description) description = description.trim()
-    if (description === '') description = null
+    description = templateSchema.parse({ description }).description
 
     // First check if it belongs to user
     const existing = await prisma.transaction_template.findUnique({
@@ -90,8 +96,8 @@ export async function update_transaction_template(
           create: line_items.map(li => ({
             account_id: li.account_id,
             asset_id: li.asset_id,
-            quantity: li.quantity,
-            book_value: li.book_value,
+            quantity: toDecimal(li.quantity),
+            book_value: toDecimal(li.book_value),
             description: li.description || null,
           })),
         },
