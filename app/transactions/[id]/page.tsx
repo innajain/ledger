@@ -11,13 +11,13 @@ export default async function Page({ params }: Props) {
   const user = await get_current_user()
   if (!user) return <div>Please log in.</div>
 
-  const tx = await prisma.transaction.findUnique({
+  const rawTx = await prisma.transaction.findUnique({
     where: { id, user_id: user.id },
     include: { line_items: { include: { asset: true, account: true } } },
   })
-  if (!tx) return <div>Transaction not found.</div>
+  if (!rawTx) return <div>Transaction not found.</div>
 
-  normalize_txn(tx)
+  const tx = normalize_txn(rawTx)
 
   const txForClient = {
     id: tx.id,
@@ -25,7 +25,7 @@ export default async function Page({ params }: Props) {
     description: tx.description,
     total: tx.line_items
       .filter(li => li.account.type === 'real')
-      .reduce((sum, li) => sum.add(li.book_value!), new Prisma.Decimal(0))
+      .reduce((sum, li) => sum.add(li.book_value), new Prisma.Decimal(0))
       .toNumber(),
     line_items: tx.line_items.map(li => ({
       id: li.id,
@@ -35,8 +35,8 @@ export default async function Page({ params }: Props) {
       asset_id: li.asset.id,
       asset_name: li.asset.name,
       asset_type: li.asset.type,
-      quantity: li.quantity!.toNumber(),
-      book_value: li.book_value!.toNumber(),
+      quantity: li.quantity.toNumber(),
+      book_value: li.book_value.toNumber(),
       description: li.description,
       datetime: li.datetime,
     })),

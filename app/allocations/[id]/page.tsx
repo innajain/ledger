@@ -38,11 +38,11 @@ export default async function Page({ params }: Props) {
   }
 
   const tx_ids = Array.from(new Set(allocation.line_items.map(li => li.transaction_id)))
-  const transactions = await prisma.transaction.findMany({
+  const rawTransactions = await prisma.transaction.findMany({
     where: { id: { in: tx_ids } },
     include: { line_items: { include: { account: true, asset: true } } },
   })
-  for (const tx of transactions) normalize_txn(tx)
+  const transactions = rawTransactions.map(normalize_txn)
   const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()
   for (const tx of transactions) for (const li of tx.line_items) normalizedById.set(li.id, li)
 

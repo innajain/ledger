@@ -29,13 +29,11 @@ export async function get_or_compute_balances(invalidate_cache = false) {
     return { accountsToAssets, assetsToAccounts }
   }
 
-  const transactions = await prisma.transaction.findMany({
+  const rawTransactions = await prisma.transaction.findMany({
     where: { user_id },
     include: { line_items: { include: { account: true, asset: true } } },
   })
-  for (const tx of transactions) {
-    normalize_txn(tx)
-  }
+  const transactions = rawTransactions.map(normalize_txn)
 
   const accountsToAssets = new Map<string, Map<string, { qty: Prisma.Decimal; book_value: Prisma.Decimal }>>()
   const assetsToAccounts = new Map<string, Map<string, { qty: Prisma.Decimal; book_value: Prisma.Decimal }>>()
@@ -44,8 +42,8 @@ export async function get_or_compute_balances(invalidate_cache = false) {
     for (const li of tx.line_items) {
       const acc_id = li.account_id
       const asset_id = li.asset_id
-      const qty = li.quantity!
-      const book_value = li.book_value!
+      const qty = li.quantity
+      const book_value = li.book_value
 
       if (!accountsToAssets.has(acc_id)) accountsToAssets.set(acc_id, new Map())
       const assetMap = accountsToAssets.get(acc_id)!

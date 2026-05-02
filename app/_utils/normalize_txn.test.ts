@@ -29,9 +29,7 @@ function makeTxn(
 }
 
 function n(t: ReturnType<typeof makeTxn>) {
-  // The function mutates in place; cast through unknown for the over-precise Prisma payload.
-  normalize_txn(t as unknown as Parameters<typeof normalize_txn>[0])
-  return t
+  return normalize_txn(t as unknown as Parameters<typeof normalize_txn>[0])
 }
 
 describe('normalize_txn — rupees', () => {
@@ -84,6 +82,21 @@ describe('normalize_txn — rupees', () => {
         ]),
       ),
     ).toThrow('Allocation group with no null quantity')
+  })
+})
+
+describe('normalize_txn — purity', () => {
+  it('does not mutate the input transaction', () => {
+    const input = makeTxn([
+      { account_type: 'real', asset: RUPEES, quantity: -35 },
+      { account_type: 'allocation', asset: RUPEES, quantity: null },
+      { account_type: 'nominal', asset: RUPEES, quantity: null },
+    ])
+    const allocBefore = input.line_items.find(li => li.account.type === 'allocation')!.quantity
+    normalize_txn(input as unknown as Parameters<typeof normalize_txn>[0])
+    const allocAfter = input.line_items.find(li => li.account.type === 'allocation')!.quantity
+    expect(allocBefore).toBeNull()
+    expect(allocAfter).toBeNull()
   })
 })
 

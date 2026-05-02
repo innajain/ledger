@@ -156,12 +156,12 @@ export default async function Page({
     // Fast path: SQL-side pagination, count via prisma.count
     totalCount = await prisma.transaction.count({ where })
     pageSize = wantsAll ? totalCount : requestedPageSize
-    const transactions = await prisma.transaction.findMany({
+    const rawTransactions = await prisma.transaction.findMany({
       ...baseQuery,
       skip: wantsAll ? 0 : (page - 1) * pageSize,
       take: wantsAll ? undefined : pageSize,
     })
-    for (const t of transactions) normalize_txn(t)
+    const transactions = rawTransactions.map(normalize_txn)
     txForClient = transactions.map(t => ({
       id: t.id,
       date: t.datetime,
@@ -171,8 +171,8 @@ export default async function Page({
   } else {
     // Filter path: total depends on aggregation, can't paginate at SQL level.
     // Fetch all matching, normalize, filter on amount, then slice in memory.
-    const all = await prisma.transaction.findMany(baseQuery)
-    for (const t of all) normalize_txn(t)
+    const allRaw = await prisma.transaction.findMany(baseQuery)
+    const all = allRaw.map(normalize_txn)
     const allWithTotals: TxForClient[] = all.map(t => ({
       id: t.id,
       date: t.datetime,
