@@ -3,13 +3,20 @@ import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
 import { Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
-import { get_line_item_qty } from '../_utils/validate_line_items'
+import { normalize_txn } from '../_utils/normalize_txn'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
 
 export const metadata: Metadata = {
   title: 'Transactions',
   description: 'View and manage all your financial transactions',
+}
+
+type TxForClient = {
+  id: string
+  date: Date
+  description: string | null
+  total_book: number
 }
 
 export default async function Page({
@@ -74,7 +81,6 @@ export default async function Page({
     })),
   }))
 
-  // Build where clause
   const where: Prisma.transactionWhereInput = {
     user_id: user.id,
     ...(search && {
@@ -103,46 +109,67 @@ export default async function Page({
     ...(assetId && { line_items: { some: { asset_id: assetId } } }),
   }
 
-  // Get total count first
-  const totalCount = await prisma.transaction.count({ where })
-
-  // Calculate page size (handle ALL option)
   const page = parseInt(params.page || '1')
   const pageSizeParam = params.pageSize
-  const pageSize = pageSizeParam === 'all' ? totalCount : parseInt(pageSizeParam || '20')
+  const requestedPageSize = pageSizeParam === 'all' ? Infinity : parseInt(pageSizeParam || '20')
+  const wantsAll = pageSizeParam === 'all'
 
-  // Fetch paginated transactions
-  const transactions = await prisma.transaction.findMany({
+  const baseQuery = {
     where,
     include: { line_items: { include: { asset: true, account: true } } },
-    orderBy: { datetime: 'desc' },
-    skip: pageSizeParam === 'all' ? 0 : (page - 1) * pageSize,
-    take: pageSizeParam === 'all' ? undefined : pageSize,
-  })
+    orderBy: { datetime: 'desc' as const },
+  }
 
-  const txForClient = transactions.map(t => {
-    const total = t.line_items
+  const txTotal = (t: { line_items: { account: { type: string }; book_value: Prisma.Decimal | null }[] }) =>
+    t.line_items
       .filter(li => li.account.type === 'real')
-      .reduce((s, li) => s.add(li.book_value ? li.book_value : get_line_item_qty({ ...li, transaction: t })), new Prisma.Decimal(0))
+      .reduce((s, li) => s.add(li.book_value!), new Prisma.Decimal(0))
       .toNumber()
-    return {
+
+  let totalCount: number
+  let txForClient: TxForClient[]
+  let pageSize: number
+
+  if (minAmount === undefined && maxAmount === undefined) {
+    // Fast path: SQL-side pagination, count via prisma.count
+    totalCount = await prisma.transaction.count({ where })
+    pageSize = wantsAll ? totalCount : requestedPageSize
+    const transactions = await prisma.transaction.findMany({
+      ...baseQuery,
+      skip: wantsAll ? 0 : (page - 1) * pageSize,
+      take: wantsAll ? undefined : pageSize,
+    })
+    for (const t of transactions) normalize_txn(t)
+    txForClient = transactions.map(t => ({
       id: t.id,
       date: t.datetime,
       description: t.description,
-      total_book: total,
-    }
-  })
-
-  // Filter by amount if specified (done client-side as it depends on calculation)
-  const filteredTx = txForClient.filter(tx => {
-    if (minAmount !== undefined && tx.total_book < minAmount) return false
-    if (maxAmount !== undefined && tx.total_book > maxAmount) return false
-    return true
-  })
+      total_book: txTotal(t),
+    }))
+  } else {
+    // Filter path: total depends on aggregation, can't paginate at SQL level.
+    // Fetch all matching, normalize, filter on amount, then slice in memory.
+    const all = await prisma.transaction.findMany(baseQuery)
+    for (const t of all) normalize_txn(t)
+    const allWithTotals: TxForClient[] = all.map(t => ({
+      id: t.id,
+      date: t.datetime,
+      description: t.description,
+      total_book: txTotal(t),
+    }))
+    const filtered = allWithTotals.filter(tx => {
+      if (minAmount !== undefined && tx.total_book < minAmount) return false
+      if (maxAmount !== undefined && tx.total_book > maxAmount) return false
+      return true
+    })
+    totalCount = filtered.length
+    pageSize = wantsAll ? totalCount : requestedPageSize
+    txForClient = wantsAll ? filtered : filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize)
+  }
 
   return (
     <ClientPage
-      transactions={filteredTx}
+      transactions={txForClient}
       totalCount={totalCount}
       currentPage={page}
       pageSize={pageSize}

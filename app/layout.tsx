@@ -1,13 +1,15 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import dynamic from 'next/dynamic'
 import Navbar from './_components/Navbar'
 import { get_current_user } from './_actions/auth'
 import { ThemeProvider } from './_components/ThemeProvider'
 import { ToastProvider } from './_components/Toast'
-import { BackToTop } from './_components/BackToTop'
-import { KeyboardShortcuts } from './_components/KeyboardShortcuts'
 import './globals.css'
 import Link from 'next/link'
+
+const BackToTop = dynamic(() => import('./_components/BackToTop').then(m => m.BackToTop))
+const KeyboardShortcuts = dynamic(() => import('./_components/KeyboardShortcuts').then(m => m.KeyboardShortcuts))
 
 const geistSans = Geist({
   variable: '--font-geist-sans',

@@ -11,9 +11,13 @@ export default async function Home() {
     return <ClientPage invest={null} savings={null} networth={null} />
   }
 
-  const allocations = await prisma.account.findMany({
-    where: { user_id: user.id, type: 'allocation' },
-  })
+  const [allocations, assets, { accountsToAssets: balances }] = await Promise.all([
+    prisma.account.findMany({ where: { user_id: user.id, type: 'allocation' } }),
+    prisma.asset.findMany({ where: { user_id: user.id } }),
+    get_or_compute_balances(),
+  ])
+
+  const priceByAsset = await get_prices_for_assets(assets)
 
   const invest = allocations.find(a => a.name === 'Investments')
   const savings = allocations.find(a => a.name === 'Savings')
@@ -43,13 +47,6 @@ export default async function Home() {
 
     return ids
   }
-
-  const assets = await prisma.asset.findMany({ where: { user_id: user.id } })
-
-  const [{ accountsToAssets: balances }, priceByAsset] = await Promise.all([
-    get_or_compute_balances(true),
-    get_prices_for_assets(assets),
-  ])
 
   function compute_allocation_value(acc: (typeof allocations)[0] | undefined) {
     if (!acc) return null
