@@ -4,12 +4,12 @@ import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { normalize_txn } from '../_utils/normalize_txn'
-import { get_current_user } from '@/app/_actions/auth'
+import { get_current_user_id } from '@/app/_actions/auth'
 
 export async function get_or_compute_balances(invalidate_cache = false) {
-  const user = await get_current_user()
-  if (!user) throw new Error('unauthorized')
-  const cache_key = `balances:${user.id}`
+  const user_id = await get_current_user_id()
+  if (!user_id) throw new Error('unauthorized')
+  const cache_key = `balances:${user_id}`
 
   const cached = invalidate_cache ? null : await redis.get(cache_key)
   if (cached) {
@@ -30,7 +30,7 @@ export async function get_or_compute_balances(invalidate_cache = false) {
   }
 
   const transactions = await prisma.transaction.findMany({
-    where: { user_id: user.id },
+    where: { user_id },
     include: { line_items: { include: { account: true, asset: true } } },
   })
   for (const tx of transactions) {

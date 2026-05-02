@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { get_current_user } from '@/app/_actions/auth'
+import { get_current_user_id } from '@/app/_actions/auth'
 import { z } from 'zod'
 import { Prisma } from '@/generated/prisma/client'
 import { validate_line_items } from '../_utils/validate_line_items'
@@ -53,20 +53,20 @@ export async function create_transaction(
     line_items = parsed.data.line_items
     description = parsed.data.description
 
-    const user = await get_current_user()
-    if (!user) throw new Error('You must be logged in to create transactions')
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('You must be logged in to create transactions')
 
     const { id } = await prisma.$transaction(async prisma => {
       const account_ids = Array.from(new Set(line_items.map(li => li.account_id)))
       const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
 
       const accounts = await prisma.account.findMany({
-        where: { id: { in: account_ids }, user_id: user.id },
+        where: { id: { in: account_ids }, user_id },
       })
       if (accounts.length !== account_ids.length) throw new Error('One or more accounts not found or do not belong to your user')
 
       const assets = await prisma.asset.findMany({
-        where: { id: { in: asset_ids }, user_id: user.id },
+        where: { id: { in: asset_ids }, user_id },
       })
       if (assets.length !== asset_ids.length) throw new Error('One or more assets not found or do not belong to your user')
 
@@ -86,7 +86,7 @@ export async function create_transaction(
         data: {
           datetime,
           description,
-          user_id: user.id,
+          user_id,
           line_items: {
             create: line_items.map(li => ({
               quantity: li.quantity === null || li.quantity === undefined ? null : new Prisma.Decimal(li.quantity),
@@ -126,10 +126,10 @@ export async function delete_transaction(id: string): Promise<{ success: boolean
     if (!parsed.success) throw new Error(parsed.error.issues[0].message)
     id = parsed.data.id
 
-    const user = await get_current_user()
-    if (!user) throw new Error('unauthorized')
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('unauthorized')
 
-    await prisma.transaction.delete({ where: { id, user_id: user.id } })
+    await prisma.transaction.delete({ where: { id, user_id } })
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }

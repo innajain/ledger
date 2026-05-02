@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { get_current_user } from './auth'
+import { get_current_user_id } from './auth'
 import { CreateLineItemInput } from './transactions'
 import { revalidatePath } from 'next/cache'
 
@@ -10,9 +10,8 @@ export async function create_transaction_template(
   description?: string | null | undefined,
 ): Promise<{ success: boolean; message: string; template: any }> {
   try {
-    const user = await get_current_user()
-    if (!user) throw new Error('Not authenticated')
-    const user_id = user.id
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('Not authenticated')
     if (line_items.length === 0) throw new Error('At least one line item is required')
 
     if (description) description = description.trim()
@@ -47,9 +46,8 @@ export async function create_transaction_template(
 }
 
 export async function get_transaction_templates() {
-  const user = await get_current_user()
-  if (!user) throw new Error('Not authenticated')
-  const user_id = user.id
+  const user_id = await get_current_user_id()
+  if (!user_id) throw new Error('Not authenticated')
   return prisma.transaction_template.findMany({
     where: { user_id },
     include: {
@@ -70,9 +68,8 @@ export async function update_transaction_template(
   description?: string | null | undefined,
 ): Promise<{ success: boolean; message: string; template: any }> {
   try {
-    const user = await get_current_user()
-    if (!user) throw new Error('Not authenticated')
-    const user_id = user.id
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('Not authenticated')
     if (line_items.length === 0) throw new Error('At least one line item is required')
 
     if (description) description = description.trim()
@@ -113,9 +110,8 @@ export async function update_transaction_template(
 
 export async function delete_transaction_template(id: string) {
   try {
-    const user = await get_current_user()
-    if (!user) throw new Error('Not authenticated')
-    const user_id = user.id
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('Not authenticated')
     await prisma.transaction_template.delete({
       where: { id, user_id },
     })

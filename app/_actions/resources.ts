@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { get_current_user } from '@/app/_actions/auth'
+import { get_current_user_id } from '@/app/_actions/auth'
 import type { account_type, asset_type } from '@/generated/prisma/client'
 import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher'
 
@@ -16,11 +16,11 @@ export async function create_account(name: string, type: account_type, parent_id
     if (!parsed.success) throw new Error(parsed.error.issues[0].message)
     name = parsed.data.name
 
-    const user = await get_current_user()
-    if (!user) throw new Error('unauthorized')
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('unauthorized')
 
     await prisma.account.create({
-      data: { name, type, user_id: user.id, parent_id },
+      data: { name, type, user_id, parent_id },
     })
     return { success: true, message: '' }
   } catch (error: any) {
@@ -45,11 +45,11 @@ export async function update_account(
     id = parsed.data.id
     name = parsed.data.name
 
-    const user = await get_current_user()
-    if (!user) throw new Error('unauthorized')
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('unauthorized')
 
     const existing = await prisma.account.findUnique({
-      where: { id, user_id: user.id },
+      where: { id, user_id },
     })
     if (!existing) throw new Error('account not found')
 
@@ -58,13 +58,13 @@ export async function update_account(
       if (parent_id === id) throw new Error('parent cannot be the account itself')
       // ensure parent exists and belongs to user
       const p = await prisma.account.findUnique({
-        where: { id: parent_id, user_id: user.id },
+        where: { id: parent_id, user_id },
         select: { id: true, user_id: true, parent_id: true },
       })
       if (!p) throw new Error('invalid parent account')
 
       const all_accounts = await prisma.account.findMany({
-        where: { user_id: user.id },
+        where: { user_id },
         select: { id: true, parent_id: true },
       })
       const parentMap = new Map(all_accounts.map(a => [a.id, a.parent_id]))
@@ -78,7 +78,7 @@ export async function update_account(
     }
 
     await prisma.account.update({
-      where: { id, user_id: user.id },
+      where: { id, user_id },
       data: { name, type, parent_id },
     })
     return { success: true, message: '' }
@@ -97,10 +97,10 @@ export async function delete_account(id: string): Promise<{ success: boolean; me
     if (!parsed.success) throw new Error(parsed.error.issues[0].message)
     id = parsed.data.id
 
-    const user = await get_current_user()
-    if (!user) throw new Error('unauthorized')
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('unauthorized')
 
-    await prisma.account.delete({ where: { id, user_id: user.id } })
+    await prisma.account.delete({ where: { id, user_id } })
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }
@@ -136,11 +136,11 @@ export async function create_asset(
       throw new Error('ticker cannot be non-null for asset type ' + type)
     }
 
-    const user = await get_current_user()
-    if (!user) throw new Error('unauthorized')
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('unauthorized')
 
     await prisma.asset.create({
-      data: { name, type, ticker, user_id: user.id, parent_id: parent_id },
+      data: { name, type, ticker, user_id, parent_id: parent_id },
     })
     return { success: true, message: '' }
   } catch (error: any) {
@@ -168,25 +168,25 @@ export async function update_asset(
     name = parsed.data.name
     ticker = parsed.data.ticker
 
-    const user = await get_current_user()
-    if (!user) throw new Error('unauthorized')
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('unauthorized')
 
     const existing = await prisma.asset.findUnique({
-      where: { id, user_id: user.id },
+      where: { id, user_id },
     })
     if (!existing) throw new Error('asset not found')
-    if (existing.user_id !== user.id) throw new Error('asset does not belong to current user')
+    if (existing.user_id !== user_id) throw new Error('asset does not belong to current user')
 
     if (parent_id) {
       if (parent_id === id) throw new Error('parent cannot be the asset itself')
       const p = await prisma.asset.findUnique({
-        where: { id: parent_id, user_id: user.id },
+        where: { id: parent_id, user_id },
         select: { id: true, user_id: true, parent_id: true },
       })
       if (!p) throw new Error('invalid parent asset')
 
       const all_assets = await prisma.asset.findMany({
-        where: { user_id: user.id },
+        where: { user_id },
         select: { id: true, parent_id: true },
       })
       const parentMap = new Map(all_assets.map(a => [a.id, a.parent_id]))
@@ -200,7 +200,7 @@ export async function update_asset(
 
     await prisma.$transaction(async prisma => {
       const asset = await prisma.asset.update({
-        where: { id, user_id: user.id },
+        where: { id, user_id },
         data: { name, type, ticker, parent_id },
       })
       if (type === 'etf' || type === 'mf' || type === 'shares') {
@@ -230,10 +230,10 @@ export async function delete_asset(id: string): Promise<{ success: boolean; mess
     if (!parsed.success) throw new Error(parsed.error.issues[0].message)
     id = parsed.data.id
 
-    const user = await get_current_user()
-    if (!user) throw new Error('unauthorized')
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('unauthorized')
 
-    await prisma.asset.delete({ where: { id, user_id: user.id } })
+    await prisma.asset.delete({ where: { id, user_id } })
     return { success: true, message: '' }
   } catch (error: any) {
     return { success: false, message: error.message }

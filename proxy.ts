@@ -1,49 +1,53 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import jwt from 'jsonwebtoken'
+import { jwtVerify } from 'jose'
 import { env } from '@/lib/env'
 
 /**
  * Proxy.ts – follow Next.js Proxy API: export `proxy(request)`.
- * This performs a lightweight, fast check of the JWT cookie and, when
- * present and valid, sets an `x-user-id` response header for downstream
- * server components or edge handlers to observe.
- *
- * Note: Proxy is not intended for slow DB calls; keep logic minimal.
+ * Verifies the JWT cookie and forwards the user id to downstream
+ * server components / route handlers via a request-header rewrite.
+ * Edge-compatible (jose, not jsonwebtoken).
  */
 const PUBLIC_PATHS = ['/login', '/favicon.ico', '/robots.txt', '/sitemap.xml']
 
+const secret = new TextEncoder().encode(env.JWT_SECRET)
+
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true
-  // allow public assets under /public, next internals, or cron jobs
   if (pathname.startsWith('/_next/') || pathname.startsWith('/public/') || pathname.startsWith('/api/cron/')) return true
   return false
 }
 
-function verifyTokenCached(token: string): { uid: string } | null {
+async function verifyToken(token: string): Promise<{ uid: string } | null> {
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET) as { uid: string; exp?: number }
+    const { payload } = await jwtVerify(token, secret)
+    if (typeof payload.uid !== 'string') return null
     return { uid: payload.uid }
   } catch {
     return null
   }
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = new URL(request.url).pathname
 
-  // Fast short-circuit for public pages: don't even check cookies
-  if (isPublicPath(pathname)) return NextResponse.next()
+  // Defense in depth: strip any client-supplied x-user-id before trusting it downstream.
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.delete('x-user-id')
+
+  if (isPublicPath(pathname)) {
+    return NextResponse.next({ request: { headers: requestHeaders } })
+  }
 
   const token = request.cookies.get('ledger_token')?.value
   if (!token) return NextResponse.redirect(new URL('/login', request.url))
 
-  const verified = verifyTokenCached(token)
+  const verified = await verifyToken(token)
   if (!verified) return NextResponse.redirect(new URL('/login', request.url))
 
-  const res = NextResponse.next()
-  res.headers.set('x-user-id', verified.uid)
-  return res
+  requestHeaders.set('x-user-id', verified.uid)
+  return NextResponse.next({ request: { headers: requestHeaders } })
 }
 
 export const config = {

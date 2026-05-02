@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { get_current_user } from '@/app/_actions/auth'
+import { get_current_user_id } from '@/app/_actions/auth'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import { CreateLineItemInput } from './transactions'
 import { validate_line_items } from '../_utils/validate_line_items'
@@ -23,13 +23,13 @@ export async function update_transaction(
       if (li.description === '') li.description = null
     })
 
-    const user = await get_current_user()
-    if (!user) throw new Error('You must be logged in to update transactions')
+    const user_id = await get_current_user_id()
+    if (!user_id) throw new Error('You must be logged in to update transactions')
 
     await prisma.$transaction(async prisma => {
       // ensure transaction exists and belongs to user
       const existing = await prisma.transaction.findUnique({
-        where: { id, user_id: user.id },
+        where: { id, user_id },
       })
       if (!existing) throw new Error('Transaction not found or does not belong to your user')
 
@@ -37,12 +37,12 @@ export async function update_transaction(
       const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
 
       const accounts = await prisma.account.findMany({
-        where: { id: { in: account_ids }, user_id: user.id },
+        where: { id: { in: account_ids }, user_id },
       })
       if (accounts.length !== account_ids.length) throw new Error('One or more accounts not found or do not belong to your user')
 
       const assets = await prisma.asset.findMany({
-        where: { id: { in: asset_ids }, user_id: user.id },
+        where: { id: { in: asset_ids }, user_id },
       })
       if (assets.length !== asset_ids.length) throw new Error('One or more assets not found or do not belong to your user')
 
@@ -60,7 +60,7 @@ export async function update_transaction(
       await prisma.line_item.deleteMany({ where: { transaction_id: id } })
 
       await prisma.transaction.update({
-        where: { id, user_id: user.id },
+        where: { id, user_id },
         data: {
           datetime,
           description,

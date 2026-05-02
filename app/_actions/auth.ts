@@ -1,8 +1,8 @@
 'use server'
 
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
-import { cookies } from 'next/headers'
+import { SignJWT, jwtVerify } from 'jose'
+import { cookies, headers } from 'next/headers'
 import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
 import { env, isProd } from '@/lib/env'
@@ -30,12 +30,19 @@ const ChangeUsernameSchema = z.object({
   password: z.string().min(1, 'Password is required')
 })
 
+const secret_bytes = new TextEncoder().encode(env.JWT_SECRET)
+
 async function sign_token(payload: { uid: string }): Promise<string> {
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: `${JWT_EXPIRY_DAYS}d` })
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime(`${JWT_EXPIRY_DAYS}d`)
+    .sign(secret_bytes)
 }
 
-function verify_token(token: string): { uid: string } {
-  return jwt.verify(token, env.JWT_SECRET) as { uid: string }
+async function verify_token(token: string): Promise<{ uid: string }> {
+  const { payload } = await jwtVerify(token, secret_bytes)
+  if (typeof payload.uid !== 'string') throw new Error('invalid token')
+  return { uid: payload.uid }
 }
 
 export async function sign_up(payload: z.infer<typeof AuthSchema>): Promise<ActionResponse> {
@@ -120,21 +127,34 @@ export async function log_out(): Promise<ActionResponse> {
   }
 }
 
-// Cache the current user for the duration of the request
-export const get_current_user = cache(async (): Promise<user | null> => {
-  const cookieStore = await cookies()
-  const cookie = cookieStore.get(token_name)?.value
+// Resolve the current user id without touching the DB.
+// Trusts x-user-id set by the proxy (the proxy strips any client-supplied value
+// before re-setting it from a verified JWT). Falls back to verifying the cookie
+// for paths the proxy doesn't cover.
+export const get_current_user_id = cache(async (): Promise<string | null> => {
+  const headerUid = (await headers()).get('x-user-id')
+  if (headerUid) return headerUid
+
+  const cookie = (await cookies()).get(token_name)?.value
   if (!cookie) return null
   try {
-    const payload = verify_token(cookie)
-    const userRec = await prisma.user.findUnique({
-      where: { id: payload.uid },
-      select: { id: true, username: true },
-    })
-    return userRec as user | null
+    return (await verify_token(cookie)).uid
   } catch {
     return null
   }
+})
+
+// Cache the current user (full record) for the duration of the request.
+// Use this only when callers need username/etc. — for ownership scoping,
+// prefer `get_current_user_id`.
+export const get_current_user = cache(async (): Promise<user | null> => {
+  const id = await get_current_user_id()
+  if (!id) return null
+  const userRec = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, username: true },
+  })
+  return userRec as user | null
 })
 
 export async function change_password(payload: z.infer<typeof ChangePasswordSchema>): Promise<ActionResponse> {
