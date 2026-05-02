@@ -6,6 +6,7 @@ import { fromZonedTime } from 'date-fns-tz'
 import { get_indian_date_from_date_obj, get_date_obj_from_indian_date } from './date'
 import { redis } from '@/lib/redis'
 import { prisma } from '@/lib/prisma'
+import { USER_TIMEZONE } from '@/lib/config'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 
 type NAVData = {
@@ -44,7 +45,7 @@ export async function get_latest_etf_or_shares_price(symbol: string) {
         const result = await yf.quote(symbol)
         let date = result.regularMarketTime as Date
         date.setHours(0, 0, 0, 0) // Normalize to start of the day
-        date = fromZonedTime(date, 'Asia/Kolkata')
+        date = fromZonedTime(date, USER_TIMEZONE)
         const priceData = { price: result.regularMarketPrice!, date }
 
         await redis.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(priceData))
@@ -98,7 +99,7 @@ export async function sync_nav() {
 
       if (dateStr) {
         const localDate = parse(dateStr, 'dd-MMM-yyyy', new Date())
-        const istDate = fromZonedTime(localDate, 'Asia/Kolkata')
+        const istDate = fromZonedTime(localDate, USER_TIMEZONE)
 
         if (isinGrowth && isinGrowth !== '-' && isinSet.has(isinGrowth)) {
           const navData = { isin: isinGrowth, schemeName, nav, date: istDate }

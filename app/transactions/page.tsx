@@ -5,10 +5,9 @@ import { Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { fromZonedTime } from 'date-fns-tz'
 import { normalize_txn } from '../_utils/normalize_txn'
+import { USER_TIMEZONE } from '@/lib/config'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
-
-const TZ = 'Asia/Kolkata'
 
 // Convert a YYYY-MM-DD string into a UTC Date representing midnight on that day in IST.
 // Used for date-range filter bounds: pass dateFrom directly, pass (dateTo + 1 day) for exclusive upper bound.
@@ -19,7 +18,7 @@ function istDayStart(dateStr: string, addDays = 0): Date {
   const yyyy = wall.getUTCFullYear()
   const mm = String(wall.getUTCMonth() + 1).padStart(2, '0')
   const dd = String(wall.getUTCDate()).padStart(2, '0')
-  return fromZonedTime(`${yyyy}-${mm}-${dd}T00:00:00`, TZ)
+  return fromZonedTime(`${yyyy}-${mm}-${dd}T00:00:00`, USER_TIMEZONE)
 }
 
 export const metadata: Metadata = {
