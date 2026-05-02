@@ -48,14 +48,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className="pointer-events-auto animate-slide-in-right bg-white dark:bg-slate-800 border shadow-lg rounded-lg p-4 min-w-[300px] max-w-md flex items-start gap-3"
+            className="pointer-events-auto animate-slide-in-right bg-white dark:bg-slate-800 border shadow-lg rounded-lg p-4 min-w-75 max-w-md flex items-start gap-3"
             style={{
               borderColor:
                 toast.type === 'success' ? '#10b981' : toast.type === 'error' ? '#ef4444' : toast.type === 'warning' ? '#f59e0b' : '#3b82f6',
             }}
           >
             {/* Icon */}
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               {toast.type === 'success' && (
                 <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -89,7 +89,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {/* Close button */}
             <button
               onClick={() => dismissToast(toast.id)}
-              className="flex-shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              className="shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -34,10 +34,10 @@ export function ListSkeleton({
             <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 stagger-item">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {variant === 'hierarchy' && <div className="h-6 w-6 skeleton rounded flex-shrink-0" />}
-                  <div className="h-5 w-full max-w-[12rem] sm:max-w-xs skeleton rounded" />
+                  {variant === 'hierarchy' && <div className="h-6 w-6 skeleton rounded shrink-0" />}
+                  <div className="h-5 w-full max-w-48 sm:max-w-xs skeleton rounded" />
                 </div>
-                <div className="h-6 w-20 sm:w-32 skeleton rounded flex-shrink-0" />
+                <div className="h-6 w-20 sm:w-32 skeleton rounded shrink-0" />
               </div>
               {variant === 'list' && (
                 <>

@@ -33,14 +33,14 @@ export function FunLoader({ message }: { message?: string }) {
   }, [message, getRandomMessage])
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+    <div className="flex flex-col items-center justify-center min-h-100 space-y-4">
       <div className="relative">
         {/* Outer ring */}
         <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-900 rounded-full animate-spin-slow"></div>
 
         {/* Inner spinning element */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse"></div>
+          <div className="w-8 h-8 bg-linear-to-r from-blue-500 to-purple-500 rounded-full animate-pulse"></div>
         </div>
 
         {/* Bouncing dots */}
