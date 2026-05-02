@@ -3,9 +3,24 @@ import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
 import { Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
+import { fromZonedTime } from 'date-fns-tz'
 import { normalize_txn } from '../_utils/normalize_txn'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
+
+const TZ = 'Asia/Kolkata'
+
+// Convert a YYYY-MM-DD string into a UTC Date representing midnight on that day in IST.
+// Used for date-range filter bounds: pass dateFrom directly, pass (dateTo + 1 day) for exclusive upper bound.
+function istDayStart(dateStr: string, addDays = 0): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  // Construct an IST-zoned wall-clock date, then convert to UTC.
+  const wall = new Date(Date.UTC(y, m - 1, d + addDays))
+  const yyyy = wall.getUTCFullYear()
+  const mm = String(wall.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(wall.getUTCDate()).padStart(2, '0')
+  return fromZonedTime(`${yyyy}-${mm}-${dd}T00:00:00`, TZ)
+}
 
 export const metadata: Metadata = {
   title: 'Transactions',
@@ -46,8 +61,9 @@ export default async function Page({
 
   const params = await searchParams
   const search = params.search || ''
-  const dateFrom = params.dateFrom ? new Date(params.dateFrom) : undefined
-  const dateTo = params.dateTo ? new Date(params.dateTo) : undefined
+  // dateFrom: midnight (IST) on that day. dateTo: midnight (IST) on the *next* day, used with `lt` so the picked day is included.
+  const dateFrom = params.dateFrom ? istDayStart(params.dateFrom, 0) : undefined
+  const dateTo = params.dateTo ? istDayStart(params.dateTo, 1) : undefined
   const minAmount = params.minAmount ? parseFloat(params.minAmount) : undefined
   const maxAmount = params.maxAmount ? parseFloat(params.maxAmount) : undefined
   const accountId = params.accountId || undefined
@@ -81,6 +97,10 @@ export default async function Page({
     })),
   }))
 
+  const lineItemFilters: Prisma.transactionWhereInput[] = []
+  if (accountId) lineItemFilters.push({ line_items: { some: { account_id: accountId } } })
+  if (assetId) lineItemFilters.push({ line_items: { some: { asset_id: assetId } } })
+
   const where: Prisma.transactionWhereInput = {
     user_id: user.id,
     ...(search && {
@@ -103,10 +123,13 @@ export default async function Page({
         },
       ],
     }),
-    ...(dateFrom && { datetime: { gte: dateFrom } }),
-    ...(dateTo && { datetime: { lte: dateTo } }),
-    ...(accountId && { line_items: { some: { account_id: accountId } } }),
-    ...(assetId && { line_items: { some: { asset_id: assetId } } }),
+    ...((dateFrom || dateTo) && {
+      datetime: {
+        ...(dateFrom && { gte: dateFrom }),
+        ...(dateTo && { lt: dateTo }),
+      },
+    }),
+    ...(lineItemFilters.length > 0 && { AND: lineItemFilters }),
   }
 
   const page = parseInt(params.page || '1')

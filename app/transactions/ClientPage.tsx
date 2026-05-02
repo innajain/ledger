@@ -75,6 +75,7 @@ export default function ClientPage({
     if (maxAmount) query.set('maxAmount', maxAmount)
     if (accountId) query.set('accountId', accountId)
     if (assetId) query.set('assetId', assetId)
+    setShowFilters(false)
     router.push(`/transactions?${query.toString()}`)
   }
 
@@ -86,7 +87,15 @@ export default function ClientPage({
     setMaxAmount('')
     setAccountId('')
     setAssetId('')
+    setShowFilters(false)
     router.push('/transactions')
+  }
+
+  const removeFilter = (key: string) => {
+    const query = new URLSearchParams(params.toString())
+    query.delete(key)
+    query.delete('page')
+    router.push(`/transactions?${query.toString()}`)
   }
 
   const goToPage = (page: number) => {
@@ -95,8 +104,31 @@ export default function ClientPage({
     router.push(`/transactions?${query.toString()}`)
   }
 
-  const hasFilters =
-    searchParams.dateFrom || searchParams.dateTo || searchParams.minAmount || searchParams.maxAmount || searchParams.accountId || searchParams.assetId
+  const hasFilters = !!(
+    searchParams.search ||
+    searchParams.dateFrom ||
+    searchParams.dateTo ||
+    searchParams.minAmount ||
+    searchParams.maxAmount ||
+    searchParams.accountId ||
+    searchParams.assetId
+  )
+
+  const formatChipDate = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number)
+    return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+  const accountName = (id: string) => accounts.find(a => a.id === id)?.name ?? id
+  const assetName = (id: string) => assets.find(a => a.id === id)?.name ?? id
+
+  const activeChips: { key: string; label: string }[] = []
+  if (searchParams.search) activeChips.push({ key: 'search', label: `Search: "${searchParams.search}"` })
+  if (searchParams.dateFrom) activeChips.push({ key: 'dateFrom', label: `From: ${formatChipDate(searchParams.dateFrom)}` })
+  if (searchParams.dateTo) activeChips.push({ key: 'dateTo', label: `To: ${formatChipDate(searchParams.dateTo)}` })
+  if (searchParams.minAmount) activeChips.push({ key: 'minAmount', label: `Min: ${currency_fmt.format(parseFloat(searchParams.minAmount))}` })
+  if (searchParams.maxAmount) activeChips.push({ key: 'maxAmount', label: `Max: ${currency_fmt.format(parseFloat(searchParams.maxAmount))}` })
+  if (searchParams.accountId) activeChips.push({ key: 'accountId', label: `Account: ${accountName(searchParams.accountId)}` })
+  if (searchParams.assetId) activeChips.push({ key: 'assetId', label: `Asset: ${assetName(searchParams.assetId)}` })
 
   return (
     <div className="space-y-6">
@@ -199,6 +231,7 @@ export default function ClientPage({
                 type="date"
                 value={dateFrom}
                 onChange={e => setDateFrom(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && applyFilters()}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
               />
             </div>
@@ -208,6 +241,7 @@ export default function ClientPage({
                 type="date"
                 value={dateTo}
                 onChange={e => setDateTo(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && applyFilters()}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
               />
             </div>
@@ -218,6 +252,7 @@ export default function ClientPage({
                 step="0.01"
                 value={minAmount}
                 onChange={e => setMinAmount(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && applyFilters()}
                 placeholder="0.00"
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
               />
@@ -229,6 +264,7 @@ export default function ClientPage({
                 step="0.01"
                 value={maxAmount}
                 onChange={e => setMaxAmount(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && applyFilters()}
                 placeholder="0.00"
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
               />
@@ -280,6 +316,28 @@ export default function ClientPage({
           </div>
         )}
       </div>
+
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {activeChips.map(chip => (
+            <button
+              key={chip.key}
+              onClick={() => removeFilter(chip.key)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-sm text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+              title="Remove filter"
+            >
+              <span>{chip.label}</span>
+              <span aria-hidden className="text-blue-500 dark:text-blue-400">✕</span>
+            </button>
+          ))}
+          <button
+            onClick={clearFilters}
+            className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 ml-1"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       {transactions.length > 0 ? (
         <>
