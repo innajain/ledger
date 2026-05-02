@@ -5,24 +5,39 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
+const NAV_ITEMS: { href: string; label: string }[] = [
+  { href: '/', label: 'Home' },
+  { href: '/assets', label: 'Assets' },
+  { href: '/accounts', label: 'Accounts' },
+  { href: '/allocations', label: 'Allocations' },
+  { href: '/income_expenses', label: 'Income / Expenses' },
+  { href: '/transactions', label: 'Transactions' },
+  { href: '/settings', label: 'Settings' },
+]
+
+const navLinkClasses = (active: boolean, block = false) =>
+  `${block ? 'block ' : ''}px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+    active
+      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
+  }`
+
+function NavLink({ href, label, active, block = false, onClick }: { href: string; label: string; active: boolean; block?: boolean; onClick?: () => void }) {
+  return (
+    <Link href={href} className={navLinkClasses(active, block)} onClick={onClick}>
+      {label}
+    </Link>
+  )
+}
+
 export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen)
-  }
+  const toggleMenu = () => setIsMenuOpen(o => !o)
+  const closeMenu = () => setIsMenuOpen(false)
 
-  const closeMenu = () => {
-    setIsMenuOpen(false)
-  }
-
-  const isActive = (path: string) => {
-    if (path === '/') {
-      return pathname === '/'
-    }
-    return pathname.startsWith(path)
-  }
+  const isActive = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 
   return (
     <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50 shadow-sm transition-all backdrop-blur-sm">
@@ -43,90 +58,11 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
           {/* Desktop Navigation Links */}
           {isLoggedIn && (
             <ul className="hidden lg:flex gap-2 list-none p-0 m-0 flex-1 justify-center">
-              <li>
-                <Link
-                  href="/"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/assets"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/assets')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Assets
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/accounts"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/accounts')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Accounts
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/allocations"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/allocations')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Allocations
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/income_expenses"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/income_expenses')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Income / Expenses
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/transactions"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/transactions')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Transactions
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/settings"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/settings')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Settings
-                </Link>
-              </li>
+              {NAV_ITEMS.map(item => (
+                <li key={item.href}>
+                  <NavLink href={item.href} label={item.label} active={isActive(item.href)} />
+                </li>
+              ))}
             </ul>
           )}
 
@@ -157,98 +93,11 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
         {isLoggedIn && isMenuOpen && (
           <div className="lg:hidden pb-4 animate-slide-in-up">
             <ul className="flex flex-col gap-1 list-none p-0 m-0">
-              <li>
-                <Link
-                  href="/"
-                  className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                  onClick={closeMenu}
-                >
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/assets"
-                  className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/assets')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                  onClick={closeMenu}
-                >
-                  Assets
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/accounts"
-                  className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/accounts')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                  onClick={closeMenu}
-                >
-                  Accounts
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/allocations"
-                  className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/allocations')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                  onClick={closeMenu}
-                >
-                  Allocations
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/income_expenses"
-                  className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/income_expenses')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                  onClick={closeMenu}
-                >
-                  Income / Expenses
-                </Link>
-              </li>
-
-              <li>
-                <Link
-                  href="/transactions"
-                  className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/transactions')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                  onClick={closeMenu}
-                >
-                  Transactions
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/settings"
-                  className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/settings')
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                  onClick={closeMenu}
-                >
-                  Settings
-                </Link>
-              </li>
+              {NAV_ITEMS.map(item => (
+                <li key={item.href}>
+                  <NavLink href={item.href} label={item.label} active={isActive(item.href)} block onClick={closeMenu} />
+                </li>
+              ))}
             </ul>
           </div>
         )}
