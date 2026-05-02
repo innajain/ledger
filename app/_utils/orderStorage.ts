@@ -4,9 +4,12 @@
  */
 
 const STORAGE_PREFIX = 'ledger_order_'
+const CURRENT_VERSION = 2
 
 // Type for hierarchical order storage: maps parent_id (or 'root' for root items) to ordered child IDs
 export type HierarchicalOrder = Record<string, string[]>
+
+type StoredEnvelope = { version: number; data: HierarchicalOrder }
 
 /**
  * Get the stored hierarchical order for a given key
@@ -16,18 +19,30 @@ export function getStoredOrder(key: string): HierarchicalOrder {
   if (typeof window === 'undefined') return {}
   try {
     const stored = localStorage.getItem(STORAGE_PREFIX + key)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      // Handle legacy format (array) by converting to new format
-      if (Array.isArray(parsed)) {
-        return { root: parsed }
-      }
-      return parsed
+    if (!stored) return {}
+    const parsed = JSON.parse(stored)
+    // v2: { version, data }
+    if (parsed && typeof parsed === 'object' && 'version' in parsed && 'data' in parsed) {
+      return migrate(parsed as { version: number; data: unknown })
+    }
+    // v1 legacy: { [parentId]: string[] }
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as HierarchicalOrder
+    }
+    // v0 legacy: string[] (root only)
+    if (Array.isArray(parsed)) {
+      return { root: parsed }
     }
   } catch (e) {
     console.error('Failed to load stored order:', e)
   }
   return {}
+}
+
+function migrate({ version, data }: { version: number; data: unknown }): HierarchicalOrder {
+  if (version === CURRENT_VERSION) return data as HierarchicalOrder
+  // Future migrations dispatch here.
+  return (data as HierarchicalOrder) ?? {}
 }
 
 /**
@@ -36,7 +51,8 @@ export function getStoredOrder(key: string): HierarchicalOrder {
 export function saveOrder(key: string, order: HierarchicalOrder): void {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(order))
+    const envelope: StoredEnvelope = { version: CURRENT_VERSION, data: order }
+    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(envelope))
   } catch (e) {
     console.error('Failed to save order:', e)
   }
