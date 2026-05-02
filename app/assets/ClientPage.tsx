@@ -2,7 +2,7 @@
 
 import type { Prisma } from '@/generated/prisma/client'
 import { useState } from 'react'
-import { HierarchyTree } from '../_components/HeirarchyTree'
+import { HierarchyTree } from '../_components/HierarchyTree'
 import { PageHeader } from '../_components/PageHeader'
 import { TotalCard } from '../_components/TotalCard'
 import { EmptyState } from '../_components/EmptyState'
