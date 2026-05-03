@@ -2,6 +2,7 @@
 
 import { ViewPageHeader, InfoCard, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents'
 import { HoldingsGrid, HoldingItem } from '@/app/_components/HoldingsGrid'
+import { Card } from '@/app/_components/Card'
 import { asset_type } from '@/generated/prisma/enums'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 
@@ -112,7 +113,7 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
       <HoldingsGrid title={config.holdingsTitle || 'Holdings (aggregated by asset)'} items={holdingsItems} linkLabel="View Asset →" />
 
       {/* Line items section */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
+      <Card>
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Line Items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -142,7 +143,7 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

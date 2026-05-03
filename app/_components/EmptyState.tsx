@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Card } from './Card'
 
 type EmptyStateProps = {
   icon: React.ReactNode
@@ -10,7 +11,7 @@ type EmptyStateProps = {
 
 export function EmptyState({ icon, title, description, actionUrl, actionLabel }: EmptyStateProps) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center transition-all animate-bounce-in">
+    <Card className="p-12 text-center animate-bounce-in">
       <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4 transition-transform hover:scale-110 hover-wiggle animate-float">
         {icon}
       </div>
@@ -22,6 +23,6 @@ export function EmptyState({ icon, title, description, actionUrl, actionLabel }:
       >
         {actionLabel}
       </Link>
-    </div>
+    </Card>
   )
 }

@@ -1,6 +1,7 @@
 // components/AccountFormComponents.tsx
 import Link from 'next/link'
 import type { account_type, Prisma } from '@/generated/prisma/client'
+import { Card } from './Card'
 
 // Page Header with Back Navigation
 interface PageHeaderProps {
@@ -36,10 +37,10 @@ interface FormCardProps {
 
 export function FormCard({ title, children }: FormCardProps) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+    <Card className="p-6">
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">{title}</h2>
       <div className="space-y-4">{children}</div>
-    </div>
+    </Card>
   )
 }
 

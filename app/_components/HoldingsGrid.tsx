@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { asset_type } from '@/generated/prisma/enums'
 import { currency_fmt } from '../_utils/currency_formatter'
+import { Card } from './Card'
 
 export type HoldingItem = {
   id: string
@@ -30,7 +31,7 @@ export function HoldingsGrid({
   linkLabel = 'View Details →',
 }: HoldingsGridProps) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
+    <Card>
       <div className="p-6 border-b border-slate-200 dark:border-slate-700">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -109,6 +110,6 @@ export function HoldingsGrid({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   )
 }
