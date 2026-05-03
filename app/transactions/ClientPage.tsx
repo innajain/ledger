@@ -51,6 +51,26 @@ export default function ClientPage({
   const [selectedPageSize] = useState(pageSize)
   const [deletingTemplate, setDeletingTemplate] = useState<{id: string, x: number, y: number} | null>(null)
 
+  // Resync form drafts from URL on every URL change (e.g. browser back/forward,
+  // chip removal). Without this, the inputs would silently show stale values.
+  useEffect(() => {
+    setSearchInput(searchParams.search || '')
+    setDateFrom(searchParams.dateFrom || '')
+    setDateTo(searchParams.dateTo || '')
+    setMinAmount(searchParams.minAmount || '')
+    setMaxAmount(searchParams.maxAmount || '')
+    setAccountId(searchParams.accountId || '')
+    setAssetId(searchParams.assetId || '')
+  }, [
+    searchParams.search,
+    searchParams.dateFrom,
+    searchParams.dateTo,
+    searchParams.minAmount,
+    searchParams.maxAmount,
+    searchParams.accountId,
+    searchParams.assetId,
+  ])
+
   useEffect(() => {
     const handleGlobalClick = () => setDeletingTemplate(null)
     document.addEventListener('click', handleGlobalClick)
