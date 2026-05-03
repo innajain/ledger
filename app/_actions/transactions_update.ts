@@ -8,6 +8,7 @@ import { toDecimal } from '../_utils/decimal'
 import { invalidate_balances } from './compute_balances'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
+import { ActionResult, ok, err, fromError } from './_result'
 
 const updateTransactionSchema = z.object({
   id: z.string().min(1, 'Transaction ID is required'),
@@ -39,16 +40,16 @@ export async function update_transaction(
   line_items: CreateLineItemInput[],
   datetime?: Date | undefined,
   description?: string | null | undefined,
-): Promise<{ success: boolean; message: string }> {
+): Promise<ActionResult> {
   try {
     const parsed = updateTransactionSchema.safeParse({ id, line_items, description })
-    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
     line_items = parsed.data.line_items
     description = parsed.data.description
 
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('You must be logged in to update transactions')
+    if (!user_id) return err('UNAUTHORIZED', 'You must be logged in to update transactions')
 
     await prisma.$transaction(async prisma => {
       // ensure transaction exists and belongs to user
@@ -103,16 +104,9 @@ export async function update_transaction(
     })
 
     await invalidate_balances(user_id)
-
-    return {
-      success: true,
-      message: 'Transaction updated successfully',
-    }
+    return ok(undefined, 'Transaction updated successfully')
   } catch (error) {
     logger.error({ err: error, action: 'update_transaction' }, 'Error updating transaction')
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to update transaction',
-    }
+    return fromError(error)
   }
 }

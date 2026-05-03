@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { asset_type } from '@/generated/prisma/enums'
 import { CreateLineItemInput } from '@/app/_actions/transactions'
+import { ActionResult } from '@/app/_actions/_result'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 
@@ -40,7 +41,7 @@ export default function ClientPage({
     line_items: CreateLineItemInput[],
     datetime?: Date,
     description?: string | null,
-  ) => Promise<{ success: boolean; message: string }>
+  ) => Promise<ActionResult>
 }) {
   function toLocalDateTimeInputValue(d: Date | string) {
     const dt = typeof d === 'string' ? new Date(d) : d

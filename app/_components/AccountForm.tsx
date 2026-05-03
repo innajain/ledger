@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { create_account, update_account } from '@/app/_actions/resources'
 import type { Prisma, account_type } from '@/generated/prisma/client'
+import type { ActionResult } from '@/app/_actions/_result'
 import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents'
 
 type AccountFormConfig = {
@@ -54,7 +55,7 @@ type UpdateAccountFormProps = {
   account: Prisma.accountGetPayload<Record<string, never>>
   parents: Prisma.accountGetPayload<Record<string, never>>[]
   config: AccountFormConfig
-  deleteAccount?: (id: string) => Promise<{ success: boolean; message: string }>
+  deleteAccount?: (id: string) => Promise<ActionResult>
 }
 
 export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {

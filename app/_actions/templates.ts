@@ -6,6 +6,10 @@ import { CreateLineItemInput } from './transactions'
 import { toDecimal } from '../_utils/decimal'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { ActionResult, ok, err, fromError } from './_result'
+
+type TemplatePayload = Awaited<ReturnType<typeof prisma.transaction_template.create>>
+type TemplateWithLineItems = TemplatePayload & { line_items: unknown[] }
 
 const templateSchema = z.object({
   description: z
@@ -18,11 +22,11 @@ const templateSchema = z.object({
 export async function create_transaction_template(
   line_items: CreateLineItemInput[],
   description?: string | null | undefined,
-): Promise<{ success: boolean; message: string; template: any }> {
+): Promise<ActionResult<TemplateWithLineItems>> {
   try {
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('Not authenticated')
-    if (line_items.length === 0) throw new Error('At least one line item is required')
+    if (!user_id) return err('UNAUTHORIZED', 'Not authenticated')
+    if (line_items.length === 0) return err('VALIDATION', 'At least one line item is required')
 
     description = templateSchema.parse({ description }).description
 
@@ -46,9 +50,9 @@ export async function create_transaction_template(
     revalidatePath('/transactions')
     revalidatePath('/transactions/create')
 
-    return { success: true, message: 'Template created', template }
-  } catch (err: any) {
-    return { success: false, message: err.message, template: null }
+    return ok(template as TemplateWithLineItems, 'Template created')
+  } catch (error) {
+    return fromError(error)
   }
 }
 
@@ -73,11 +77,11 @@ export async function update_transaction_template(
   id: string,
   line_items: CreateLineItemInput[],
   description?: string | null | undefined,
-): Promise<{ success: boolean; message: string; template: any }> {
+): Promise<ActionResult<TemplateWithLineItems>> {
   try {
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('Not authenticated')
-    if (line_items.length === 0) throw new Error('At least one line item is required')
+    if (!user_id) return err('UNAUTHORIZED', 'Not authenticated')
+    if (line_items.length === 0) return err('VALIDATION', 'At least one line item is required')
 
     description = templateSchema.parse({ description }).description
 
@@ -85,7 +89,7 @@ export async function update_transaction_template(
     const existing = await prisma.transaction_template.findUnique({
       where: { id, user_id },
     })
-    if (!existing) throw new Error('Template not found or unauthorized')
+    if (!existing) return err('NOT_FOUND', 'Template not found or unauthorized')
 
     const template = await prisma.transaction_template.update({
       where: { id },
@@ -108,23 +112,23 @@ export async function update_transaction_template(
     revalidatePath('/transactions')
     revalidatePath('/transactions/create')
 
-    return { success: true, message: 'Template updated', template }
-  } catch (err: any) {
-    return { success: false, message: err.message, template: null }
+    return ok(template as TemplateWithLineItems, 'Template updated')
+  } catch (error) {
+    return fromError(error)
   }
 }
 
-export async function delete_transaction_template(id: string) {
+export async function delete_transaction_template(id: string): Promise<ActionResult> {
   try {
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('Not authenticated')
+    if (!user_id) return err('UNAUTHORIZED', 'Not authenticated')
     await prisma.transaction_template.delete({
       where: { id, user_id },
     })
     revalidatePath('/transactions')
     revalidatePath('/transactions/create')
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, message: err.message }
+    return ok()
+  } catch (error) {
+    return fromError(error)
   }
 }

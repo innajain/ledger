@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { update_asset } from '@/app/_actions/resources'
 import type { Prisma, asset_type } from '@/generated/prisma/client'
+import type { ActionResult } from '@/app/_actions/_result'
 import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents'
 
 export default function ClientPage({
@@ -12,7 +13,7 @@ export default function ClientPage({
 }: {
   asset: Prisma.assetGetPayload<Record<string, never>>
   parents: Prisma.assetGetPayload<Record<string, never>>[]
-  deleteAsset?: (id: string) => Promise<{ success: boolean; message: string }>
+  deleteAsset?: (id: string) => Promise<ActionResult>
 }) {
   const [name, setName] = useState(asset.name)
   const [type, setType] = useState<asset_type>(asset.type)

@@ -7,6 +7,7 @@ import { validate_line_items } from '../_utils/validate_line_items'
 import { toDecimal } from '../_utils/decimal'
 import { invalidate_balances } from './compute_balances'
 import { logger } from '@/lib/logger'
+import { ActionResult, ok, err, fromError } from './_result'
 
 export type CreateLineItemInput = {
   account_id: string
@@ -45,17 +46,17 @@ export async function create_transaction(
   datetime: Date,
   line_items: CreateLineItemInput[],
   description?: string | null | undefined,
-): Promise<{ success: boolean; message: string; id?: string }> {
+): Promise<ActionResult<{ id: string }>> {
   try {
     const parsed = createTransactionSchema.safeParse({ line_items, description })
-    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
 
     // safeParse can't cleanly overwrite the function arguments with identical types nicely when nullish is involved so we take what we need
     line_items = parsed.data.line_items
     description = parsed.data.description
 
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('You must be logged in to create transactions')
+    if (!user_id) return err('UNAUTHORIZED', 'You must be logged in to create transactions')
 
     const { id } = await prisma.$transaction(async prisma => {
       const account_ids = Array.from(new Set(line_items.map(li => li.account_id)))
@@ -103,17 +104,10 @@ export async function create_transaction(
     })
 
     await invalidate_balances(user_id)
-    return {
-      success: true,
-      message: 'Transaction created successfully',
-      id,
-    }
+    return ok({ id }, 'Transaction created successfully')
   } catch (error) {
     logger.error({ err: error, action: 'create_transaction' }, 'Error creating transaction')
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to create transaction',
-    }
+    return fromError(error)
   }
 }
 
@@ -121,19 +115,19 @@ const deleteTransactionSchema = z.object({
   id: z.string().min(1, 'id is required'),
 })
 
-export async function delete_transaction(id: string): Promise<{ success: boolean; message: string }> {
+export async function delete_transaction(id: string): Promise<ActionResult> {
   try {
     const parsed = deleteTransactionSchema.safeParse({ id })
-    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
 
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('unauthorized')
+    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
     await prisma.transaction.delete({ where: { id, user_id } })
     await invalidate_balances(user_id)
-    return { success: true, message: '' }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+    return ok()
+  } catch (error) {
+    return fromError(error)
   }
 }

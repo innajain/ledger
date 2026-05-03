@@ -6,27 +6,28 @@ import { get_current_user_id } from '@/app/_actions/auth'
 import type { account_type, asset_type } from '@/generated/prisma/client'
 import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher'
 import { invalidate_balances } from './compute_balances'
+import { ActionResult, ok, err, fromError } from './_result'
 
 const createAccountSchema = z.object({
   name: z.string().trim().min(1, 'name cannot be empty string'),
 })
 
-export async function create_account(name: string, type: account_type, parent_id?: string | null): Promise<{ success: boolean; message: string }> {
+export async function create_account(name: string, type: account_type, parent_id?: string | null): Promise<ActionResult> {
   try {
     const parsed = createAccountSchema.safeParse({ name })
-    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     name = parsed.data.name
 
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('unauthorized')
+    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
     await prisma.account.create({
       data: { name, type, user_id, parent_id },
     })
     await invalidate_balances(user_id)
-    return { success: true, message: '' }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+    return ok()
+  } catch (error) {
+    return fromError(error)
   }
 }
 
@@ -40,15 +41,15 @@ export async function update_account(
   name?: string | undefined,
   type?: account_type | undefined,
   parent_id?: string | null | undefined,
-): Promise<{ success: boolean; message: string }> {
+): Promise<ActionResult> {
   try {
     const parsed = updateAccountSchema.safeParse({ id, name })
-    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
     name = parsed.data.name
 
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('unauthorized')
+    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
     const existing = await prisma.account.findUnique({
       where: { id, user_id },
@@ -84,9 +85,9 @@ export async function update_account(
       data: { name, type, parent_id },
     })
     await invalidate_balances(user_id)
-    return { success: true, message: '' }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+    return ok()
+  } catch (error) {
+    return fromError(error)
   }
 }
 
@@ -94,20 +95,20 @@ const deleteAccountSchema = z.object({
   id: z.string().min(1, 'id is required'),
 })
 
-export async function delete_account(id: string): Promise<{ success: boolean; message: string }> {
+export async function delete_account(id: string): Promise<ActionResult> {
   try {
     const parsed = deleteAccountSchema.safeParse({ id })
-    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
 
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('unauthorized')
+    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
     await prisma.account.delete({ where: { id, user_id } })
     await invalidate_balances(user_id)
-    return { success: true, message: '' }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+    return ok()
+  } catch (error) {
+    return fromError(error)
   }
 }
 
@@ -122,10 +123,10 @@ export async function create_asset(
   type: asset_type,
   ticker?: string | null | undefined,
   parent_id?: string | null | undefined,
-): Promise<{ success: boolean; message: string }> {
+): Promise<ActionResult> {
   try {
     const parsed = createAssetSchema.safeParse({ name, ticker })
-    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     name = parsed.data.name
     ticker = parsed.data.ticker
 
@@ -141,15 +142,15 @@ export async function create_asset(
     }
 
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('unauthorized')
+    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
     await prisma.asset.create({
       data: { name, type, ticker, user_id, parent_id: parent_id },
     })
     await invalidate_balances(user_id)
-    return { success: true, message: '' }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+    return ok()
+  } catch (error) {
+    return fromError(error)
   }
 }
 
@@ -165,16 +166,16 @@ export async function update_asset(
   type?: asset_type | undefined,
   ticker?: string | null | undefined,
   parent_id?: string | null | undefined,
-): Promise<{ success: boolean; message: string }> {
+): Promise<ActionResult> {
   try {
     const parsed = updateAssetSchema.safeParse({ id, name, ticker })
-    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
     name = parsed.data.name
     ticker = parsed.data.ticker
 
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('unauthorized')
+    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
     const existing = await prisma.asset.findUnique({
       where: { id, user_id },
@@ -220,9 +221,9 @@ export async function update_asset(
       }
     })
     await invalidate_balances(user_id)
-    return { success: true, message: '' }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+    return ok()
+  } catch (error) {
+    return fromError(error)
   }
 }
 
@@ -230,19 +231,19 @@ const deleteAssetSchema = z.object({
   id: z.string().min(1, 'id is required'),
 })
 
-export async function delete_asset(id: string): Promise<{ success: boolean; message: string }> {
+export async function delete_asset(id: string): Promise<ActionResult> {
   try {
     const parsed = deleteAssetSchema.safeParse({ id })
-    if (!parsed.success) throw new Error(parsed.error.issues[0].message)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
 
     const user_id = await get_current_user_id()
-    if (!user_id) throw new Error('unauthorized')
+    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
     await prisma.asset.delete({ where: { id, user_id } })
     await invalidate_balances(user_id)
-    return { success: true, message: '' }
-  } catch (error: any) {
-    return { success: false, message: error.message }
+    return ok()
+  } catch (error) {
+    return fromError(error)
   }
 }
