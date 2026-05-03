@@ -27,10 +27,12 @@ const WELCOME_MESSAGES = [
 
 export default function ClientPage({
   invest,
+  investXirr,
   savings,
   networth,
 }: {
   invest: { id: string; name: string; total: number } | null
+  investXirr?: number | null
   savings: { id: string; name: string; total: number } | null
   networth: number | null
 }) {
@@ -83,6 +85,22 @@ export default function ClientPage({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
+            {investXirr !== null && investXirr !== undefined && (
+              <div className="flex flex-col items-end">
+                <span className="text-xs text-blue-700 dark:text-blue-300 uppercase tracking-wide font-medium">XIRR</span>
+                <span
+                  className={`text-lg font-bold ${
+                    investXirr > 0
+                      ? 'text-green-700 dark:text-green-400'
+                      : investXirr < 0
+                        ? 'text-red-700 dark:text-red-400'
+                        : 'text-blue-900 dark:text-blue-100'
+                  }`}
+                >
+                  {(investXirr * 100).toFixed(2)}%
+                </span>
+              </div>
+            )}
           </div>
           <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Investment Allocation</h3>
           {invest ? (
