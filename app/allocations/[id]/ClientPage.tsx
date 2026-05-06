@@ -23,6 +23,7 @@ type AllocationForClient = {
   type: string
   parent: { id: string; name: string } | null
   total: number
+  book_value_total: number
   xirr: number | null
   breakdown: {
     asset_id: string

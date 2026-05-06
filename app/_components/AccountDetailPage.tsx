@@ -26,6 +26,7 @@ export type AccountData = {
   type: string
   parent: { id: string; name: string } | null
   total: number
+  book_value_total?: number | null
   xirr?: number | null
   breakdown: {
     asset_id: string
@@ -87,6 +88,14 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
             label: 'Total Value',
             value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.total)}</p>,
           },
+          ...(account.book_value_total !== undefined && account.book_value_total !== null
+            ? [
+                {
+                  label: 'Total Book Value',
+                  value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.book_value_total)}</p>,
+                },
+              ]
+            : []),
           ...(account.xirr !== undefined && account.xirr !== null
             ? [
                 {

@@ -181,10 +181,6 @@ export function LineItemRow({
                     {bookValue === null || bookValue === undefined ? '—' : currency_fmt.format(bookValue)}
                   </span>
                 </div>
-                <div className="text-slate-600 dark:text-slate-400">
-                  <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(currentValue)}</span>
-                </div>
               </>
             )}
           </div>

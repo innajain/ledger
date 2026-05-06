@@ -33,6 +33,7 @@ type AssetForClient = {
   ticker: string | null
   parent: { id: string; name: string } | null
   total: number
+  book_value_total: number | null
   price: number | null
   xirr?: number | null
   breakdown: BreakdownItem[]
@@ -95,9 +96,17 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
       />
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-        <div className="mb-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">Total Across Real Accounts</p>
-          <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.total)}</p>
+        <div className={`grid grid-cols-1 ${asset.book_value_total !== null ? 'sm:grid-cols-2' : ''} gap-4`}>
+          <div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Total Across Real Accounts</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.total)}</p>
+          </div>
+          {asset.book_value_total !== null && (
+            <div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Total Book Value</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.book_value_total)}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -245,10 +254,6 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                               <span className="font-medium text-slate-900 dark:text-slate-100">
                                 {li.book_value === null ? '—' : currency_fmt.format(li.book_value)}
                               </span>
-                            </div>
-                            <div className="text-slate-600 dark:text-slate-400">
-                              <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
-                              <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(li.current_value)}</span>
                             </div>
                           </>
                         )}

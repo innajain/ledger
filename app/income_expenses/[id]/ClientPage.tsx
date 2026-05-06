@@ -23,6 +23,7 @@ type AccountForClient = {
   type: string
   parent: { id: string; name: string } | null
   total: number
+  book_value_total: number
   breakdown: {
     asset_id: string
     asset_name: string

@@ -50,6 +50,7 @@ export default async function Page({ params }: Props) {
   const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
   let acc_total = new Prisma.Decimal(0)
+  let book_total = new Prisma.Decimal(0)
   const lineItemsWithValues: {
     id: string
     asset_id: string
@@ -91,6 +92,7 @@ export default async function Page({ params }: Props) {
     else current_value = book_value
 
     acc_total = acc_total.add(current_value)
+    book_total = book_total.add(book_value)
 
     if (!map[asset.id]) {
       map[asset.id] = {
@@ -172,6 +174,7 @@ export default async function Page({ params }: Props) {
     type: account.type,
     parent: account.parent ? { id: account.parent.id, name: account.parent.name } : null,
     total: acc_total.toNumber(),
+    book_value_total: book_total.toNumber(),
     xirr: xirr_value,
     breakdown,
     line_items: sortedLineItems,

@@ -48,6 +48,7 @@ export default async function Page({ params }: Props) {
 
   // compute total across real accounts and aggregate holdings by account
   let asset_total = new Prisma.Decimal(0)
+  let book_total = new Prisma.Decimal(0)
   const breakdown: {
     account_id: string
     account_name: string
@@ -104,6 +105,7 @@ export default async function Page({ params }: Props) {
     if (current_value.equals(0)) continue
 
     asset_total = asset_total.add(current_value)
+    book_total = book_total.add(entry.total_book)
 
     breakdown.push({
       account_id: entry.account_id,
@@ -170,6 +172,7 @@ export default async function Page({ params }: Props) {
     ticker: asset.ticker,
     parent: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
     total: asset_total.toNumber(),
+    book_value_total: asset.type === asset_type.rupees ? null : book_total.toNumber(),
     price: priceDecimal ? priceDecimal.toNumber() : null,
     xirr: xirr_value,
     breakdown,
