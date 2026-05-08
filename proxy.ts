@@ -29,6 +29,18 @@ async function verifyToken(token: string): Promise<{ uid: string } | null> {
   }
 }
 
+function applyBfcacheFriendlyHeaders(response: NextResponse, request: NextRequest) {
+  // Mobile browsers (esp. iOS Safari) refuse bfcache for responses with `no-store`.
+  // Next.js emits `no-store` for `force-dynamic` pages, which causes the tab to fully
+  // reload when the user returns from another app. For HTML document navigations we
+  // override Cache-Control to keep the page uncached over the network but eligible
+  // for bfcache.
+  if (request.headers.get('sec-fetch-dest') === 'document') {
+    response.headers.set('Cache-Control', 'private, max-age=0, must-revalidate')
+  }
+  return response
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = new URL(request.url).pathname
 
@@ -37,7 +49,7 @@ export async function proxy(request: NextRequest) {
   requestHeaders.delete('x-user-id')
 
   if (isPublicPath(pathname)) {
-    return NextResponse.next({ request: { headers: requestHeaders } })
+    return applyBfcacheFriendlyHeaders(NextResponse.next({ request: { headers: requestHeaders } }), request)
   }
 
   const token = request.cookies.get('ledger_token')?.value
@@ -47,7 +59,7 @@ export async function proxy(request: NextRequest) {
   if (!verified) return NextResponse.redirect(new URL('/login', request.url))
 
   requestHeaders.set('x-user-id', verified.uid)
-  return NextResponse.next({ request: { headers: requestHeaders } })
+  return applyBfcacheFriendlyHeaders(NextResponse.next({ request: { headers: requestHeaders } }), request)
 }
 
 export const config = {
