@@ -60,10 +60,10 @@ export default function ClientPage({
         <div className="animate-slide-in-up stagger-item bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex items-center justify-between transition-all hover-lift">
           <div>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total Net Worth</p>
-            <p className="text-4xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(networth)}</p>
+            <p className="text-2xl sm:text-4xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(networth)}</p>
           </div>
-          <div className="w-14 h-14 bg-slate-700 dark:bg-slate-600 rounded-xl flex items-center justify-center">
-            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="shrink-0 w-10 h-10 sm:w-14 sm:h-14 bg-slate-700 dark:bg-slate-600 rounded-xl flex items-center justify-center">
+            <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -233,7 +233,7 @@ export default function ClientPage({
               }
             }}
             disabled={busy}
-            className="px-4 py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-orange-200 dark:border-orange-800 ripple hover-lift"
+            className="px-4 py-2 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded-lg hover:bg-violet-200 dark:hover:bg-violet-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-violet-200 dark:border-violet-800 ripple hover-lift"
           >
             {busy ? 'Flushing...' : 'Flush Redis Cache'}
           </button>
@@ -258,7 +258,7 @@ export default function ClientPage({
               }
             }}
             disabled={validating}
-            className="px-4 py-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-yellow-200 dark:border-yellow-800 ripple hover-lift"
+            className="px-4 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-amber-300 dark:border-amber-700 ripple hover-lift"
           >
             {validating ? 'Validating...' : 'Validate Transactions'}
           </button>
@@ -284,7 +284,7 @@ export default function ClientPage({
           <button
             onClick={() => (window.location.href = '/api/dump')}
             disabled={busyLogout}
-            className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-red-200 dark:border-red-800 ripple hover-lift"
+            className="px-4 py-2 bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded-lg hover:bg-teal-200 dark:hover:bg-teal-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-teal-200 dark:border-teal-800 ripple hover-lift"
           >
             Download db dump
           </button>

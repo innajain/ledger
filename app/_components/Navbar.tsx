@@ -57,7 +57,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
 
           {/* Desktop Navigation Links */}
           {isLoggedIn && (
-            <ul className="hidden lg:flex gap-2 list-none p-0 m-0 flex-1 justify-center">
+            <ul className="hidden lg:flex gap-2 list-none p-0 m-0 ml-auto">
               {NAV_ITEMS.map(item => (
                 <li key={item.href}>
                   <NavLink href={item.href} label={item.label} active={isActive(item.href)} />
