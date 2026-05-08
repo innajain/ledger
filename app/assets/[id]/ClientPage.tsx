@@ -26,6 +26,14 @@ type LineItem = {
   line_item_description: string | null
 }
 
+type AllocationBreakdownItem = {
+  allocation_id: string
+  allocation_name: string
+  quantity: number
+  book_value: number | null
+  current_value: number
+}
+
 type AssetForClient = {
   id: string
   name: string
@@ -37,6 +45,7 @@ type AssetForClient = {
   price: number | null
   xirr?: number | null
   breakdown: BreakdownItem[]
+  allocation_breakdown: AllocationBreakdownItem[]
   line_items?: LineItem[]
 }
 
@@ -187,6 +196,67 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
           </div>
         )}
       </div>
+
+      {asset.allocation_breakdown.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holdings (aggregated by allocation)</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              {asset.allocation_breakdown.length} allocation{asset.allocation_breakdown.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+            <div className="p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
+                {asset.allocation_breakdown.map((b, i) => (
+                  <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm">
+                    <div className="flex flex-col h-full justify-between">
+                      <div>
+                        <Link
+                          href={`/allocations/${b.allocation_id}`}
+                          className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          {b.allocation_name}
+                        </Link>
+                        <div className="mt-3 text-sm text-slate-600 dark:text-slate-400 space-y-2">
+                          {asset.type === asset_type.rupees ? (
+                            <div>
+                              <span className="text-slate-500 dark:text-slate-400">Value:</span>{' '}
+                              <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{b.quantity} units</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">
+                                  {b.book_value === null ? '—' : currency_fmt.format(b.book_value)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-4 text-right">
+                        <Link href={`/allocations/${b.allocation_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                          View Allocation →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Transaction Line Items (original per-transaction data) */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">

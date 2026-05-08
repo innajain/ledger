@@ -58,6 +58,7 @@ export default async function Page({ params }: Props) {
   }[] = []
 
   const real_line_items = asset.line_items.filter(li => li.account.type === 'real')
+  const allocation_line_items = asset.line_items.filter(li => li.account.type === 'allocation')
 
   // single price fetch for this asset, reused across all its line items
   const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
@@ -112,6 +113,37 @@ export default async function Page({ params }: Props) {
       account_name: entry.account_name,
       quantity: entry.total_qty.toNumber(),
       book_value: entry.total_book.toNumber(),
+      current_value: current_value.toNumber(),
+    })
+  }
+
+  // aggregate per-allocation
+  const alloc_map: Record<string, { allocation_id: string; allocation_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
+  for (const li of allocation_line_items) {
+    const n = normalizedById.get(li.id)!
+    const qty = n.quantity!
+    const book = n.book_value!
+    const aid = li.account.id
+    if (!alloc_map[aid]) {
+      alloc_map[aid] = { allocation_id: aid, allocation_name: li.account.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0) }
+    }
+    alloc_map[aid].total_qty = alloc_map[aid].total_qty.add(qty)
+    alloc_map[aid].total_book = alloc_map[aid].total_book.add(book)
+  }
+
+  const allocation_breakdown: { allocation_id: string; allocation_name: string; quantity: number; book_value: number | null; current_value: number }[] = []
+  for (const k of Object.keys(alloc_map)) {
+    const entry = alloc_map[k]
+    if (entry.total_qty.equals(0)) continue
+    let current_value: Prisma.Decimal
+    if (asset.type === asset_type.rupees) current_value = entry.total_qty
+    else if (priceDecimal) current_value = priceDecimal.mul(entry.total_qty)
+    else current_value = entry.total_book
+    allocation_breakdown.push({
+      allocation_id: entry.allocation_id,
+      allocation_name: entry.allocation_name,
+      quantity: entry.total_qty.toNumber(),
+      book_value: asset.type === asset_type.rupees ? null : entry.total_book.toNumber(),
       current_value: current_value.toNumber(),
     })
   }
@@ -176,6 +208,7 @@ export default async function Page({ params }: Props) {
     price: priceDecimal ? priceDecimal.toNumber() : null,
     xirr: xirr_value,
     breakdown,
+    allocation_breakdown,
     line_items,
   }
   return <ClientPage asset={assetForClient} />
