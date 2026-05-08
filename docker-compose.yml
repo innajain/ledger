@@ -26,7 +26,8 @@ services:
       - SRC_URL=${NEON_URL}
       - DEST_URL=postgresql://postgres@postgres:5432/appdb
     entrypoint: >
-      sh -c "redis-cli -h redis -p 6379 FLUSHALL && \
+      sh -c "apt-get update -qq && apt-get install -y -qq redis-tools && \
+             redis-cli -h redis -p 6379 FLUSHALL && \
              pg_dump $$SRC_URL --format=custom --no-owner --no-privileges | \
              pg_restore -d $$DEST_URL --clean --if-exists --no-owner --no-privileges"
     depends_on:

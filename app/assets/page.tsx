@@ -4,8 +4,9 @@ import { get_current_user } from '@/app/_actions/auth'
 import { get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { account_type, asset_type, Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
-import { get_line_item_qty } from '../_utils/validate_line_items'
 import { get_or_compute_balances } from '../_actions/compute_balances'
+import { normalize_txn } from '../_utils/normalize_txn'
+import { calculate_xirr } from '../_utils/xirr_calculator'
 
 // Route segment config for performance
 export const dynamic = 'force-dynamic'
@@ -66,7 +67,42 @@ export default async function Page() {
 
   const grand_total = Array.from(currValuesByAsset.values()).reduce((sum, val) => sum.add(val), new Prisma.Decimal(0))
 
+  const asset_ids = assets.map(a => a.id)
+  const all_line_items = await prisma.line_item.findMany({
+    where: { asset_id: { in: asset_ids }, account: { type: 'real' } },
+    include: { transaction: true },
+  })
+  const tx_ids = Array.from(new Set(all_line_items.map(li => li.transaction_id)))
+  const normalizedById = new Map<string, { book_value: Prisma.Decimal }>()
+  if (tx_ids.length > 0) {
+    const rawTxns = await prisma.transaction.findMany({
+      where: { id: { in: tx_ids } },
+      include: { line_items: { include: { account: true, asset: true } } },
+    })
+    for (const tx of rawTxns.map(normalize_txn)) {
+      for (const li of tx.line_items) normalizedById.set(li.id, { book_value: li.book_value! })
+    }
+  }
+
+  const xirrByAsset = new Map<string, number | null>()
+  for (const asset of assets) {
+    const assetLineItems = all_line_items.filter(li => li.asset_id === asset.id)
+    const currentValue = currValuesByAsset.get(asset.id) ?? 0
+    if (asset.type === asset_type.rupees || assetLineItems.length === 0 || currentValue === 0) {
+      xirrByAsset.set(asset.id, null)
+      continue
+    }
+    const cashflows: { amount: number; when: Date }[] = []
+    for (const li of assetLineItems) {
+      const n = normalizedById.get(li.id)
+      if (!n) continue
+      cashflows.push({ amount: -n.book_value.toNumber(), when: li.datetime ?? li.transaction.datetime })
+    }
+    cashflows.push({ amount: currentValue, when: new Date() })
+    xirrByAsset.set(asset.id, calculate_xirr(cashflows))
+  }
+
   return (
-    <ClientPage assets={assets} assetAccountQuantities={assetAccountQuantities} totals={currValuesByAsset} grand_total={grand_total.toNumber()} />
+    <ClientPage assets={assets} assetAccountQuantities={assetAccountQuantities} totals={currValuesByAsset} grand_total={grand_total.toNumber()} xirrByAsset={xirrByAsset} />
   )
 }

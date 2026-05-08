@@ -14,9 +14,10 @@ type Props = {
   totals: Map<string, number>
   assetAccountQuantities: Map<string, Map<string, number>>
   grand_total: number
+  xirrByAsset: Map<string, number | null>
 }
 
-export default function ClientPage({ assets, totals, assetAccountQuantities, grand_total }: Props) {
+export default function ClientPage({ assets, totals, assetAccountQuantities, grand_total, xirrByAsset }: Props) {
   const [expandAll, setExpandAll] = useState(false)
   const [reorderEnabled, setReorderEnabled] = useState(false)
 
@@ -46,7 +47,17 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, gra
               if (asset.type === 'rupees') return null
               const accQty = assetAccountQuantities.get(asset.id) ?? new Map<string, number>()
               const qty = accQty.values().reduce((sum, q) => sum + q, 0)
-              return <span className="text-sm text-slate-600">{qty} units</span>
+              const xirr = xirrByAsset.get(asset.id) ?? null
+              return (
+                <span className="flex items-center gap-3 text-sm text-slate-600">
+                  <span>{qty} units</span>
+                  {xirr !== null && (
+                    <span className={xirr > 0 ? 'text-green-600 font-medium' : xirr < 0 ? 'text-red-600 font-medium' : 'text-slate-600'}>
+                      {(xirr * 100).toFixed(2)}% XIRR
+                    </span>
+                  )}
+                </span>
+              )
             }}
           />
         </div>
