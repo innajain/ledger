@@ -18,7 +18,7 @@ type Props = {
 }
 
 export default function ClientPage({ assets, totals, assetAccountQuantities, grand_total, xirrByAsset }: Props) {
-  const [expandAll, setExpandAll] = useState(false)
+  const [expandAll, setExpandAll] = useState(true)
   const [reorderEnabled, setReorderEnabled] = useState(false)
 
   return (
