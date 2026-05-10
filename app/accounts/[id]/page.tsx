@@ -63,6 +63,7 @@ export default async function Page({ params }: Props) {
     transaction_description: string | null
     line_item_description: string | null
     asset_type: asset_type
+    remaining_quantity: number | null
     _sortDate: Date
   }[] = []
   const cashflows: { amount: number; when: Date }[] = []
@@ -123,8 +124,49 @@ export default async function Page({ params }: Props) {
       transaction_description: li.transaction.description,
       line_item_description: li.description,
       asset_type: asset.type,
+      remaining_quantity: null,
       _sortDate: li.datetime ?? li.transaction.datetime,
     })
+  }
+
+  // FIFO per asset within this account: a sell consumes from the oldest open
+  // buy lot of the same asset. Only computed for non-rupees assets.
+  const remaining_by_id = new Map<string, Prisma.Decimal>()
+  const chrono = [...lineItemsWithValues]
+    .filter(li => li.asset_type !== asset_type.rupees)
+    .sort((a, b) => {
+      const cmp = a._sortDate.getTime() - b._sortDate.getTime()
+      if (cmp !== 0) return cmp
+      // Same instant: process buys before sells.
+      return b.quantity - a.quantity
+    })
+  const open_lots_by_asset = new Map<string, { id: string; remaining: Prisma.Decimal }[]>()
+  for (const item of chrono) {
+    const aid = item.asset_id
+    if (!open_lots_by_asset.has(aid)) open_lots_by_asset.set(aid, [])
+    const open_lots = open_lots_by_asset.get(aid)!
+    const qty = new Prisma.Decimal(item.quantity)
+    if (qty.greaterThan(0)) {
+      open_lots.push({ id: item.id, remaining: qty })
+      remaining_by_id.set(item.id, qty)
+    } else if (qty.lessThan(0)) {
+      let to_consume = qty.neg()
+      while (to_consume.greaterThan(0) && open_lots.length > 0) {
+        const lot = open_lots[0]
+        if (lot.remaining.lessThanOrEqualTo(to_consume)) {
+          to_consume = to_consume.sub(lot.remaining)
+          remaining_by_id.set(lot.id, new Prisma.Decimal(0))
+          open_lots.shift()
+        } else {
+          lot.remaining = lot.remaining.sub(to_consume)
+          remaining_by_id.set(lot.id, lot.remaining)
+          to_consume = new Prisma.Decimal(0)
+        }
+      }
+    }
+  }
+  for (const li of lineItemsWithValues) {
+    li.remaining_quantity = remaining_by_id.has(li.id) ? remaining_by_id.get(li.id)!.toNumber() : null
   }
 
   // Sort line items by datetime (line item datetime or transaction datetime), new to old

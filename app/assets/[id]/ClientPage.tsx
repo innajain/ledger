@@ -25,6 +25,7 @@ type LineItem = {
   transaction_date: string
   transaction_description: string | null
   line_item_description: string | null
+  remaining_quantity: number | null
 }
 
 type AllocationBreakdownItem = {
@@ -274,8 +275,13 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
         ) : (
           <div className="divide-y divide-slate-200">
             <div className="max-h-96 overflow-y-auto">
-              {(asset.line_items ?? []).map(li => (
-                <div key={li.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              {(asset.line_items ?? []).map(li => {
+                const is_depleted = li.remaining_quantity !== null && li.remaining_quantity === 0
+                return (
+                <div
+                  key={li.id}
+                  className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}
+                >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
@@ -302,22 +308,18 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                       )}
 
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                        {asset.type === asset_type.rupees ? (
-                          <div className="text-slate-600 dark:text-slate-400">
-                            <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(li.current_value)}</span>
-                          </div>
-                        ) : (
+                        {asset.type !== asset_type.rupees && (
                           <>
                             <div className="text-slate-600 dark:text-slate-400">
                               <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
                               <span className="font-medium text-slate-900 dark:text-slate-100">{li.quantity} units</span>
                             </div>
-                            <div className="text-slate-600 dark:text-slate-400">
-                              <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
-                              <span className="font-medium text-slate-900 dark:text-slate-100">
-                                {li.book_value === null ? '—' : currency_fmt.format(li.book_value)}
-                              </span>
-                            </div>
+                            {li.remaining_quantity !== null && (
+                              <div className="text-slate-600 dark:text-slate-400">
+                                <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{li.remaining_quantity} units</span>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -336,7 +338,8 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                     </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

@@ -18,6 +18,7 @@ export type LineItem = {
   transaction_description: string | null
   line_item_description: string | null
   asset_type: asset_type
+  remaining_quantity?: number | null
 }
 
 export type AccountData = {
@@ -148,6 +149,7 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
                 transactionDescription={li.transaction_description}
                 lineItemDescription={li.line_item_description}
                 assetType={li.asset_type}
+                remainingQuantity={li.remaining_quantity}
               />
             ))}
           </div>

@@ -149,31 +149,78 @@ export default async function Page({ params }: Props) {
   }
 
   // prepare per-line items for client (keep transaction-level detail)
-  const line_items = real_line_items
-    .map(li => {
-      const n = normalizedById.get(li.id)!
-      const qty = n.quantity!
-      const book = n.book_value!
+  const items_with_meta = real_line_items.map(li => {
+    const n = normalizedById.get(li.id)!
+    const qty = n.quantity!
+    const book = n.book_value!
 
-      let current_value: Prisma.Decimal
-      if (asset.type === asset_type.rupees) current_value = qty
-      else if (priceDecimal) current_value = priceDecimal.mul(qty)
-      else current_value = book
+    let current_value: Prisma.Decimal
+    if (asset.type === asset_type.rupees) current_value = qty
+    else if (priceDecimal) current_value = priceDecimal.mul(qty)
+    else current_value = book
 
-      return {
-        id: li.id,
-        account_id: li.account.id,
-        account_name: li.account.name,
-        quantity: qty.toNumber(),
-        book_value: book.toNumber(),
-        current_value: current_value.toNumber(),
-        transaction_id: li.transaction.id,
-        transaction_date: li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
-        transaction_description: li.transaction.description,
-        line_item_description: li.description,
-        _sortDate: li.datetime ?? li.transaction.datetime,
-      }
+    return {
+      li,
+      qty,
+      book,
+      current_value,
+      sortDate: li.datetime ?? li.transaction.datetime,
+    }
+  })
+
+  // FIFO per real account: a sell consumes from the oldest open buy lot in
+  // the same account. Cross-account transfers naturally don't interact since
+  // each account has its own queue.
+  const remaining_by_id = new Map<string, Prisma.Decimal>()
+  if (asset.type !== asset_type.rupees) {
+    const chrono = [...items_with_meta].sort((a, b) => {
+      const cmp = a.sortDate.getTime() - b.sortDate.getTime()
+      if (cmp !== 0) return cmp
+      // Same instant: process buys before sells so a sell consumes from
+      // older lots first (or from the same-instant buy if no older lots exist).
+      return b.qty.comparedTo(a.qty)
     })
+    const open_lots_by_account = new Map<string, { id: string; remaining: Prisma.Decimal }[]>()
+    for (const item of chrono) {
+      const aid = item.li.account.id
+      if (!open_lots_by_account.has(aid)) open_lots_by_account.set(aid, [])
+      const open_lots = open_lots_by_account.get(aid)!
+      if (item.qty.greaterThan(0)) {
+        open_lots.push({ id: item.li.id, remaining: item.qty })
+        remaining_by_id.set(item.li.id, item.qty)
+      } else if (item.qty.lessThan(0)) {
+        let to_consume = item.qty.neg()
+        while (to_consume.greaterThan(0) && open_lots.length > 0) {
+          const lot = open_lots[0]
+          if (lot.remaining.lessThanOrEqualTo(to_consume)) {
+            to_consume = to_consume.sub(lot.remaining)
+            remaining_by_id.set(lot.id, new Prisma.Decimal(0))
+            open_lots.shift()
+          } else {
+            lot.remaining = lot.remaining.sub(to_consume)
+            remaining_by_id.set(lot.id, lot.remaining)
+            to_consume = new Prisma.Decimal(0)
+          }
+        }
+      }
+    }
+  }
+
+  const line_items = items_with_meta
+    .map(({ li, qty, book, current_value, sortDate }) => ({
+      id: li.id,
+      account_id: li.account.id,
+      account_name: li.account.name,
+      quantity: qty.toNumber(),
+      book_value: book.toNumber(),
+      current_value: current_value.toNumber(),
+      transaction_id: li.transaction.id,
+      transaction_date: li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
+      transaction_description: li.transaction.description,
+      line_item_description: li.description,
+      remaining_quantity: remaining_by_id.has(li.id) ? remaining_by_id.get(li.id)!.toNumber() : null,
+      _sortDate: sortDate,
+    }))
     .sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime())
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .map(({ _sortDate, ...rest }) => rest)

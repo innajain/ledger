@@ -133,6 +133,7 @@ interface LineItemRowProps {
   transactionDescription?: string | null
   lineItemDescription?: string | null
   assetType: asset_type
+  remainingQuantity?: number | null
 }
 
 export function LineItemRow({
@@ -146,9 +147,11 @@ export function LineItemRow({
   transactionDescription,
   lineItemDescription,
   assetType,
+  remainingQuantity,
 }: LineItemRowProps) {
+  const is_depleted = remainingQuantity !== undefined && remainingQuantity !== null && remainingQuantity === 0
   return (
-    <div className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+    <div className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           {assetLink ? (
@@ -166,22 +169,18 @@ export function LineItemRow({
           {lineItemDescription && <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{lineItemDescription}</p>}
 
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {assetType === asset_type.rupees ? (
-              <div className="text-slate-600 dark:text-slate-400">
-                <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(currentValue)}</span>
-              </div>
-            ) : (
+            {assetType !== asset_type.rupees && (
               <>
                 <div className="text-slate-600 dark:text-slate-400">
                   <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
                   <span className="font-medium text-slate-900 dark:text-slate-100">{quantity} units</span>
                 </div>
-                <div className="text-slate-600 dark:text-slate-400">
-                  <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
-                  <span className="font-medium text-slate-900 dark:text-slate-100">
-                    {bookValue === null || bookValue === undefined ? '—' : currency_fmt.format(bookValue)}
-                  </span>
-                </div>
+                {remainingQuantity !== undefined && remainingQuantity !== null && (
+                  <div className="text-slate-600 dark:text-slate-400">
+                    <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
+                    <span className="font-medium text-slate-900 dark:text-slate-100">{remainingQuantity} units</span>
+                  </div>
+                )}
               </>
             )}
           </div>
