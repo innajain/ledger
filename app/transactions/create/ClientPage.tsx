@@ -7,6 +7,7 @@ import { create_transaction } from '@/app/_actions/transactions'
 import { create_transaction_template, update_transaction_template } from '@/app/_actions/templates'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
+import { LocalDateTime } from '@/app/_components/LocalDateTime'
 
 export default function ClientPage({
   accounts,
@@ -90,35 +91,6 @@ export default function ClientPage({
       sessionStorage.removeItem('ledger_quick_template')
     }
   }, [])
-  // Nicely formatted preview of the entered date
-  const formattedDate = (() => {
-    try {
-      const d = new Date(date)
-      if (isNaN(d.getTime())) return null
-
-      const day = d.getDate()
-      const ordinal = (n: number) => {
-        const j = n % 10
-        const k = n % 100
-        if (k >= 11 && k <= 13) return n + 'th'
-        if (j === 1) return n + 'st'
-        if (j === 2) return n + 'nd'
-        if (j === 3) return n + 'rd'
-        return n + 'th'
-      }
-
-      const month = d.toLocaleString('en-US', { month: 'long' })
-      const year = d.getFullYear()
-      const time = d.toLocaleString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      })
-      return `${ordinal(day)} ${month} ${year}, ${time}`
-    } catch {
-      return null
-    }
-  })()
 
   function addItemForType(typeKey: string) {
     let preferred: { id: string; name?: string; type?: string } | undefined
@@ -271,7 +243,11 @@ export default function ClientPage({
                 onChange={e => setDate(e.target.value)}
                 className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
               />
-              {formattedDate && <div className="text-sm text-slate-600 dark:text-slate-400 mt-2 italic">{formattedDate}</div>}
+              {date && (
+                <div className="text-sm text-slate-600 dark:text-slate-400 mt-2 italic">
+                  <LocalDateTime value={date} />
+                </div>
+              )}
             </div>
 
             <div>

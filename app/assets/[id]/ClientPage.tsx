@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents'
+import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { asset_type } from '@/generated/prisma/enums'
 import { currency_fmt, precise_currency_fmt } from '@/app/_utils/currency_formatter'
 
@@ -288,16 +289,8 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                         <Link
                           href={`/transactions/${li.transaction_id}`}
                           className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
-                          suppressHydrationWarning
                         >
-                          {new Date(li.transaction_date).toLocaleString('en-GB', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                          })}
+                          <LocalDateTime value={li.transaction_date} />
                         </Link>
                       </div>
 

@@ -7,6 +7,7 @@ import { currency_fmt } from '../_utils/currency_formatter'
 import { PageHeader } from '../_components/PageHeader'
 import { EmptyState } from '../_components/EmptyState'
 import { TransactionEmptyIcon } from '../_components/EmptyStateIcons'
+import { LocalDateTime } from '../_components/LocalDateTime'
 import { delete_transaction_template } from '../_actions/templates'
 
 type Transaction = {
@@ -415,13 +416,7 @@ export default function ClientPage({
                               {tx.description || 'No description'}
                             </p>
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                              {tx.date.toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                              <LocalDateTime value={tx.date} />
                             </p>
                           </div>
                         </div>

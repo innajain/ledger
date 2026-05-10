@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 import { account_type, asset_type } from '@/generated/prisma/enums'
 import { delete_transaction } from '@/app/_actions/transactions'
+import { LocalDateTime } from '@/app/_components/LocalDateTime'
 
 export default function ClientPage({
   transaction,
@@ -120,13 +121,7 @@ export default function ClientPage({
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Transaction Details</h1>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {new Date(transaction.date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  <LocalDateTime value={transaction.date} />
                 </p>
               </div>
             </div>
@@ -267,15 +262,8 @@ export default function ClientPage({
 
                         {li.description && <p className="text-sm italic text-slate-500 dark:text-slate-400 mt-2">{li.description}</p>}
                         {li.datetime && (
-                          <p className="text-xs text-slate-400 mt-1" suppressHydrationWarning>
-                            {new Date(li.datetime).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                              hour12: true,
-                            })}
+                          <p className="text-xs text-slate-400 mt-1">
+                            <LocalDateTime value={li.datetime} />
                           </p>
                         )}
                       </div>
