@@ -277,6 +277,10 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
             <div className="max-h-96 overflow-y-auto">
               {(asset.line_items ?? []).map(li => {
                 const is_depleted = li.remaining_quantity !== null && li.remaining_quantity === 0
+                const remaining_book_value =
+                  li.remaining_quantity !== null && li.book_value !== null && li.quantity !== 0
+                    ? (li.remaining_quantity / li.quantity) * li.book_value
+                    : null
                 return (
                 <div
                   key={li.id}
@@ -318,6 +322,12 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                               <div className="text-slate-600 dark:text-slate-400">
                                 <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{li.remaining_quantity} units</span>
+                                {remaining_book_value !== null && (
+                                  <>
+                                    {' '}
+                                    <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_book_value)} book)</span>
+                                  </>
+                                )}
                               </div>
                             )}
                           </>

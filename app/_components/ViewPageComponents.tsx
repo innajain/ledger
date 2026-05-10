@@ -150,6 +150,10 @@ export function LineItemRow({
   remainingQuantity,
 }: LineItemRowProps) {
   const is_depleted = remainingQuantity !== undefined && remainingQuantity !== null && remainingQuantity === 0
+  const remaining_book_value =
+    remainingQuantity !== undefined && remainingQuantity !== null && bookValue !== null && bookValue !== undefined && quantity !== 0
+      ? (remainingQuantity / quantity) * bookValue
+      : null
   return (
     <div className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
       <div className="flex items-start justify-between gap-4">
@@ -179,6 +183,12 @@ export function LineItemRow({
                   <div className="text-slate-600 dark:text-slate-400">
                     <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
                     <span className="font-medium text-slate-900 dark:text-slate-100">{remainingQuantity} units</span>
+                    {remaining_book_value !== null && (
+                      <>
+                        {' '}
+                        <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_book_value)} book)</span>
+                      </>
+                    )}
                   </div>
                 )}
               </>
