@@ -8,6 +8,8 @@ import { ActionResult } from '@/app/_actions/_result'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
+import type { LineItemDefaults } from '@/app/_actions/preferences'
+import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app/_utils/line_item_defaults'
 
 type LineItem = {
   id: string
@@ -26,6 +28,7 @@ export default function ClientPage({
   transaction,
   accounts,
   assets,
+  defaults,
   updateTransaction,
 }: {
   transaction: {
@@ -37,6 +40,7 @@ export default function ClientPage({
   }
   accounts: { id: string; name: string; type: string }[]
   assets: { id: string; name: string; type: asset_type }[]
+  defaults: LineItemDefaults
   updateTransaction: (
     id: string,
     line_items: CreateLineItemInput[],
@@ -71,12 +75,8 @@ export default function ClientPage({
   const [error, setError] = useState<string | null>(null)
 
   function addItemForType(typeKey: string) {
-    let preferred: { id: string; name?: string; type?: string } | undefined
-    if (typeKey === 'real') preferred = accounts.find(a => a.name === 'Google Pay' && a.type === 'real')
-    if (typeKey === 'allocation') preferred = accounts.find(a => a.name === 'Discretionary Expenses' && a.type === 'allocation')
-    if (typeKey === 'nominal') preferred = accounts.find(a => a.name === 'Expenses' && a.type === 'nominal')
-    const defaultAcc = preferred ?? accounts.find(a => a.type === typeKey) ?? accounts[0]
-    const defaultAsset = assets.find(a => a.name === 'Money') ?? assets[0]
+    const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
+    const defaultAsset = pickDefaultAsset(assets, defaults)
     setItems(prev => [
       {
         account_id: defaultAcc?.id ?? '',

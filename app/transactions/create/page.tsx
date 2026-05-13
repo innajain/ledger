@@ -2,6 +2,7 @@ import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_transaction_templates } from '@/app/_actions/templates'
+import { get_line_item_defaults } from '@/app/_actions/preferences'
 
 export default async function Page() {
   const user = await get_current_user()
@@ -14,14 +15,17 @@ export default async function Page() {
     )
   }
 
-  const accounts = await prisma.account.findMany({
-    where: { user_id: user.id },
-    orderBy: { name: 'asc' },
-  })
-  const assets = await prisma.asset.findMany({
-    where: { user_id: user.id },
-    orderBy: { name: 'asc' },
-  })
+  const [accounts, assets, defaults] = await Promise.all([
+    prisma.account.findMany({
+      where: { user_id: user.id },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.asset.findMany({
+      where: { user_id: user.id },
+      orderBy: { name: 'asc' },
+    }),
+    get_line_item_defaults(),
+  ])
 
   const accountsForClient = accounts.map(a => ({
     id: a.id,
@@ -34,5 +38,5 @@ export default async function Page() {
     type: a.type,
   }))
 
-  return <ClientPage accounts={accountsForClient} assets={assetsForClient} />
+  return <ClientPage accounts={accountsForClient} assets={assetsForClient} defaults={defaults} />
 }

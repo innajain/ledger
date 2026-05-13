@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation'
 import { get_current_user } from '@/app/_actions/auth'
+import { get_line_item_defaults } from '@/app/_actions/preferences'
+import { prisma } from '@/lib/prisma'
 import ClientPage from './ClientPage'
 
 export const metadata = {
@@ -13,5 +15,19 @@ export default async function SettingsPage() {
     redirect('/login')
   }
 
-  return <ClientPage user={user} />
+  const [accounts, assets, defaults] = await Promise.all([
+    prisma.account.findMany({
+      where: { user_id: user.id, is_active: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, type: true },
+    }),
+    prisma.asset.findMany({
+      where: { user_id: user.id, is_active: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+    get_line_item_defaults(),
+  ])
+
+  return <ClientPage user={user} accounts={accounts} assets={assets} defaults={defaults} />
 }

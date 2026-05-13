@@ -8,13 +8,17 @@ import { create_transaction_template, update_transaction_template } from '@/app/
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
+import type { LineItemDefaults } from '@/app/_actions/preferences'
+import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app/_utils/line_item_defaults'
 
 export default function ClientPage({
   accounts,
   assets,
+  defaults,
 }: {
   accounts: { id: string; name: string; type: string }[]
   assets: { id: string; name: string; type: asset_type }[]
+  defaults: LineItemDefaults
 }) {
   function toLocalDateTimeInputValue(d: Date | string) {
     const dt = typeof d === 'string' ? new Date(d) : d
@@ -29,12 +33,10 @@ export default function ClientPage({
 
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()))
   const [description, setDescription] = useState('')
-  // Preferred defaults (use if present)
-  const defaultReal = accounts.find(a => a.name === 'Google Pay' && a.type === 'real') ?? accounts.find(a => a.type === 'real') ?? accounts[0]
-  const defaultAllocation =
-    accounts.find(a => a.name === 'Discretionary Expenses' && a.type === 'allocation') ?? accounts.find(a => a.type === 'allocation') ?? accounts[0]
-  const defaultNominal = accounts.find(a => a.name === 'Expenses' && a.type === 'nominal') ?? accounts.find(a => a.type === 'nominal') ?? accounts[0]
-  const defaultAsset = assets.find(a => a.name === 'Money') ?? assets[0]
+  const defaultReal = pickDefaultAccount(accounts, defaults, 'real')
+  const defaultAllocation = pickDefaultAccount(accounts, defaults, 'allocation')
+  const defaultNominal = pickDefaultAccount(accounts, defaults, 'nominal')
+  const defaultAsset = pickDefaultAsset(assets, defaults)
 
   const [items, setItems] = useState<LineItemData[]>([
     {
@@ -93,11 +95,7 @@ export default function ClientPage({
   }, [])
 
   function addItemForType(typeKey: string) {
-    let preferred: { id: string; name?: string; type?: string } | undefined
-    if (typeKey === 'real') preferred = accounts.find(a => a.name === 'Google Pay' && a.type === 'real')
-    if (typeKey === 'allocation') preferred = accounts.find(a => a.name === 'Discretionary Expenses' && a.type === 'allocation')
-    if (typeKey === 'nominal') preferred = accounts.find(a => a.name === 'Expenses' && a.type === 'nominal')
-    const defaultAcc = preferred ?? accounts.find(a => a.type === typeKey) ?? accounts[0]
+    const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
     setItems(prev => [
       {
         account_id: defaultAcc?.id ?? '',

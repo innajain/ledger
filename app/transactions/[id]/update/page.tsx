@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
 import { update_transaction } from '@/app/_actions/transactions_update'
+import { get_line_item_defaults } from '@/app/_actions/preferences'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -35,14 +36,17 @@ export default async function Page({ params }: Props) {
       book_value: li.book_value === null ? null : li.book_value.toNumber(),
     })),
   }
-  const accounts = await prisma.account.findMany({
-    where: { user_id: user.id },
-    orderBy: { name: 'asc' },
-  })
-  const assets = await prisma.asset.findMany({
-    where: { user_id: user.id },
-    orderBy: { name: 'asc' },
-  })
+  const [accounts, assets, defaults] = await Promise.all([
+    prisma.account.findMany({
+      where: { user_id: user.id },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.asset.findMany({
+      where: { user_id: user.id },
+      orderBy: { name: 'asc' },
+    }),
+    get_line_item_defaults(),
+  ])
 
   const accountsForClient = accounts.map(a => ({
     id: a.id,
@@ -55,5 +59,13 @@ export default async function Page({ params }: Props) {
     type: a.type,
   }))
 
-  return <ClientPage transaction={txForClient} accounts={accountsForClient} assets={assetsForClient} updateTransaction={update_transaction} />
+  return (
+    <ClientPage
+      transaction={txForClient}
+      accounts={accountsForClient}
+      assets={assetsForClient}
+      defaults={defaults}
+      updateTransaction={update_transaction}
+    />
+  )
 }
