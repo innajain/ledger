@@ -41,6 +41,8 @@ export async function update_account(
   name?: string | undefined,
   type?: account_type | undefined,
   parent_id?: string | null | undefined,
+  is_active?: boolean | undefined,
+  is_placeholder_acc?: boolean | undefined,
 ): Promise<ActionResult> {
   try {
     const parsed = updateAccountSchema.safeParse({ id, name })
@@ -82,7 +84,13 @@ export async function update_account(
 
     await prisma.account.update({
       where: { id, user_id },
-      data: { name, type, parent_id },
+      data: {
+        name,
+        type,
+        parent_id,
+        ...(is_active !== undefined ? { is_active } : {}),
+        ...(is_placeholder_acc !== undefined ? { is_placeholder_acc } : {}),
+      },
     })
     await invalidate_balances(user_id)
     return ok()

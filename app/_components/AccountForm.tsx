@@ -112,6 +112,8 @@ export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
 export function UpdateAccountForm({ account, parents, config, deleteAccount }: UpdateAccountFormProps) {
   const [name, setName] = useState(account.name)
   const [parentId, setParentId] = useState<string | null>(account.parent_id ?? null)
+  const [isActive, setIsActive] = useState(account.is_active)
+  const [isPlaceholder, setIsPlaceholder] = useState(account.is_placeholder_acc)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -120,7 +122,7 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
     setError(null)
     setBusy(true)
     try {
-      const result = await update_account(account.id, name, config.accountType, parentId)
+      const result = await update_account(account.id, name, config.accountType, parentId, isActive, isPlaceholder)
       if (!result.success) throw new Error(result.message)
       window.location.href = config.basePath
     } catch (err: unknown) {
@@ -173,6 +175,50 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
             excludeId={account.id}
             helpText={config.parentHelpText}
           />
+
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Active</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Inactive accounts are hidden from transaction selectors</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsActive(v => !v)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
+                isActive ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
+              }`}
+              role="switch"
+              aria-checked={isActive}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  isActive ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Placeholder</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Placeholder accounts exist only to group sub-accounts and are hidden from transaction selectors</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPlaceholder(v => !v)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
+                isPlaceholder ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
+              }`}
+              role="switch"
+              aria-checked={isPlaceholder}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  isPlaceholder ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
         </FormCard>
 
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}

@@ -34,7 +34,8 @@ model account {
   user_id   String
   name      String
   type      account_type
-  is_active Boolean      @default(true)
+  is_active           Boolean @default(true)
+  is_placeholder_acc  Boolean @default(false)
 
   // --- Hierarchy Implementation ---
   parent_id String?

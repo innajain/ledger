@@ -17,7 +17,7 @@ export default async function Page() {
 
   const [accounts, assets, defaults] = await Promise.all([
     prisma.account.findMany({
-      where: { user_id: user.id },
+      where: { user_id: user.id, is_active: true, is_placeholder_acc: false },
       orderBy: { name: 'asc' },
     }),
     prisma.asset.findMany({
