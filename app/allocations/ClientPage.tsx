@@ -46,6 +46,7 @@ export default function ClientPage({ allocations, totals, assetQuantities, grand
             storageKey="allocations"
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
+            accentBorderClass="border-l-amber-500"
             renderExtraInfo={item => {
               const assetQtys = assetQuantities.get(item.id) || new Map<string, number>()
               const negativeAssets = [

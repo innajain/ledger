@@ -45,6 +45,7 @@ export default function ClientPage({ accounts, totals, grand_total }: Props) {
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
             getItemUrl={id => `/income_expenses/${id}`}
+            accentBorderClass="border-l-violet-500"
           />
         </div>
       ) : (

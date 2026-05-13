@@ -34,6 +34,7 @@ type HierarchyTreeProps<T extends BaseItem> = {
   storageKey?: string // Unique key for localStorage per page
   reorderEnabled?: boolean
   onReorderToggle?: (enabled: boolean) => void
+  accentBorderClass?: string // e.g. "border-l-emerald-500" for type-colored left border on root items
 }
 
 export function HierarchyTree<T extends BaseItem>({
@@ -45,6 +46,7 @@ export function HierarchyTree<T extends BaseItem>({
   storageKey,
   reorderEnabled = false,
   onReorderToggle,
+  accentBorderClass,
 }: HierarchyTreeProps<T>) {
   // Manual expand/collapse overrides - only used when user manually toggles
   const [manualExpanded, setManualExpanded] = useState<Record<string, boolean>>({})
@@ -242,7 +244,10 @@ export function HierarchyTree<T extends BaseItem>({
 
     // Build className parts for readability
     const baseClasses = 'flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors'
-    const depthClasses = depth === 0 ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700' : ''
+    const depthClasses =
+      depth === 0
+        ? `bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700${accentBorderClass ? ` border-l-4 ${accentBorderClass}` : ''}`
+        : ''
     const dragClasses = isDragging ? 'opacity-50' : ''
     const dragOverClasses = isDragOver ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-800' : ''
     const cursorClasses = canDrag ? 'cursor-grab active:cursor-grabbing' : ''
