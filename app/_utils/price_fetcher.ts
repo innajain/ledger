@@ -1,6 +1,4 @@
 import yahooFinance from 'yahoo-finance2'
-import readline from 'readline'
-import { Readable } from 'stream'
 import { parse } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
 import { get_indian_date_from_date_obj, get_date_obj_from_indian_date } from './date'
@@ -77,18 +75,16 @@ export async function sync_nav() {
 
   const url = 'https://www.amfiindia.com/spages/NAVAll.txt'
   const response = await fetch(url)
-  if (!response.ok || !response.body) throw new Error(`AMFI NAV fetch failed: ${response.status}`)
+  if (!response.ok) throw new Error(`AMFI NAV fetch failed: ${response.status}`)
 
-  const rl = readline.createInterface({
-    input: Readable.fromWeb(response.body as import('stream/web').ReadableStream),
-    crlfDelay: Infinity,
-  })
+  const text = await response.text()
+  const lines = text.split('\n')
 
   let pipeline = redis.pipeline()
   let count = 0
   let queuedCount = 0
 
-  for await (const line of rl) {
+  for (const line of lines) {
     const parts = line.split(';')
     if (parts.length >= 6 && parts[0] && !isNaN(Number(parts[0]))) {
       const isinGrowth = parts[1]?.trim()
@@ -105,7 +101,6 @@ export async function sync_nav() {
         if (isinGrowth && isinGrowth !== '-' && isinSet.has(isinGrowth)) {
           const navData = { isin: isinGrowth, schemeName, nav, date: istDate }
           const cacheKey = `price:nav:${isinGrowth}`
-          // Cache in Redis with 2-day TTL
           pipeline.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(navData))
           count++
           queuedCount++
@@ -114,7 +109,6 @@ export async function sync_nav() {
         if (isinReinvestment && isinReinvestment !== '-' && isinSet.has(isinReinvestment)) {
           const navData = { isin: isinReinvestment, schemeName, nav, date: istDate }
           const cacheKey = `price:nav:${isinReinvestment}`
-          // Cache in Redis with 2-day TTL
           pipeline.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(navData))
           count++
           queuedCount++
