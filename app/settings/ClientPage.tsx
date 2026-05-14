@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import type { user } from '@/generated/prisma/client'
 import { change_password, change_username } from '@/app/_actions/auth'
@@ -7,17 +8,31 @@ import { update_line_item_defaults, type LineItemDefaults } from '@/app/_actions
 
 type AccountOpt = { id: string; name: string; type: string }
 type AssetOpt = { id: string; name: string }
+type InactiveAccount = { id: string; name: string; type: string; is_placeholder_acc: boolean }
 
 type Props = {
   user: user
   accounts: AccountOpt[]
   assets: AssetOpt[]
   defaults: LineItemDefaults
+  inactiveAccounts: InactiveAccount[]
+}
+
+function accountUrl(a: InactiveAccount) {
+  if (a.type === 'allocation') return `/allocations/${a.id}`
+  if (a.type === 'nominal') return `/income_expenses/${a.id}`
+  return `/accounts/${a.id}`
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  real: 'Account',
+  allocation: 'Allocation',
+  nominal: 'Nominal',
 }
 
 const REDIRECT_DELAY_MS = 1500
 
-export default function ClientPage({ user, accounts, assets, defaults }: Props) {
+export default function ClientPage({ user, accounts, assets, defaults, inactiveAccounts }: Props) {
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -560,6 +575,38 @@ export default function ClientPage({ user, accounts, assets, defaults }: Props) 
             )}
           </button>
         </form>
+      </div>
+
+      {/* Inactive Accounts */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors mt-6">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Accounts</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Accounts that are hidden from transaction selectors. Click to manage.</p>
+        {inactiveAccounts.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400 italic">No inactive accounts.</p>
+        ) : (
+          <ul className="space-y-2">
+            {inactiveAccounts.map(a => (
+              <li key={a.id}>
+                <Link
+                  href={accountUrl(a)}
+                  className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                >
+                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {a.name}
+                    {a.is_placeholder_acc && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">(placeholder)</span>}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    a.type === 'real' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                    a.type === 'allocation' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                    'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                  }`}>
+                    {TYPE_LABELS[a.type] ?? a.type}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Appearance */}
