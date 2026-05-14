@@ -49,8 +49,13 @@ export function ValueChartLightweight({ points, title }: Props) {
   const investedSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
   const currentSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
   const xirrSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
+  const pointsRef = useRef<ValuePoint[]>(points)
   const { resolvedTheme } = useTheme()
   const [hover, setHover] = useState<HoverInfo>(null)
+
+  useEffect(() => {
+    pointsRef.current = points
+  }, [points])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -92,12 +97,35 @@ export function ValueChartLightweight({ points, title }: Props) {
         horzLine: { visible: false, labelVisible: false },
       },
       autoSize: true,
-      localization: {
-        priceFormatter: (v: number) => compactFmt.format(v),
-      },
       handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
       handleScale: { axisPressedMouseMove: true, mouseWheel: false, pinch: true },
     })
+
+    const getXirrRange = () => {
+      if (!chartRef.current) return null
+      const logicalRange = chartRef.current.timeScale().getVisibleLogicalRange()
+      if (!logicalRange) return null
+      const pts = pointsRef.current
+      if (!pts || pts.length === 0) return null
+
+      // xirr series only has entries where xirr IS NOT null.
+      // So logical indices for xirr might differ slightly from the full points array.
+      // For a robust approximation, we just scan the time range and filter.
+      const fromIdx = Math.max(0, Math.floor(logicalRange.from))
+      const toIdx = Math.min(pts.length - 1, Math.ceil(logicalRange.to))
+      const visiblePoints = pts.slice(fromIdx, toIdx + 1)
+      if (visiblePoints.length === 0) return null
+
+      const vals = visiblePoints.map(p => p.xirr).filter((v): v is number => v !== null)
+      if (vals.length === 0) return null
+
+      const sorted = vals.sort((a, b) => a - b)
+      const minValue = sorted[Math.floor(sorted.length * 0.2)]
+      const maxValue = sorted[Math.floor(sorted.length * 0.8)]
+      if (minValue === undefined || maxValue === undefined) return null
+
+      return { priceRange: { minValue, maxValue } }
+    }
 
     const investedSeries = chart.addSeries(AreaSeries, {
       lineColor: '#3b82f6',
@@ -109,6 +137,12 @@ export function ValueChartLightweight({ points, title }: Props) {
       // Suppress the persistent edge price label and its horizontal price line.
       lastValueVisible: false,
       priceLineVisible: false,
+      autoscaleInfoProvider: () => null, // Delegate autoscaling to currentSeries
+      priceFormat: {
+        type: 'custom',
+        formatter: (v: number) => compactFmt.format(v),
+        minMove: 0.01,
+      },
     })
     const currentSeries = chart.addSeries(AreaSeries, {
       lineColor: '#10b981',
@@ -118,6 +152,11 @@ export function ValueChartLightweight({ points, title }: Props) {
       priceScaleId: 'left',
       lastValueVisible: false,
       priceLineVisible: false,
+      priceFormat: {
+        type: 'custom',
+        formatter: (v: number) => compactFmt.format(v),
+        minMove: 0.01,
+      },
     })
     // XIRR as a thin line on its own scale (right side, percent units).
     const xirrSeries = chart.addSeries(LineSeries, {
@@ -127,6 +166,7 @@ export function ValueChartLightweight({ points, title }: Props) {
       priceScaleId: 'right',
       lastValueVisible: false,
       priceLineVisible: false,
+      autoscaleInfoProvider: getXirrRange,
       priceFormat: {
         type: 'custom',
         formatter: (v: number) => `${(v * 100).toFixed(1)}%`,
@@ -200,9 +240,7 @@ export function ValueChartLightweight({ points, title }: Props) {
     currentSeriesRef.current.setData(points.map(p => ({ time: p.date as Time, value: p.current })))
     // XIRR may be null on early days; lightweight-charts requires monotonic
     // time but allows gaps — just drop the null entries.
-    xirrSeriesRef.current.setData(
-      points.filter(p => p.xirr !== null).map(p => ({ time: p.date as Time, value: p.xirr as number })),
-    )
+    xirrSeriesRef.current.setData(points.filter(p => p.xirr !== null).map(p => ({ time: p.date as Time, value: p.xirr as number })))
     chartRef.current?.timeScale().fitContent()
   }, [points])
 

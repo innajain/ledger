@@ -1,6 +1,7 @@
 'use client'
 
 import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Brush } from 'recharts'
+import { useState, useMemo } from 'react'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 
 export type ValuePoint = {
@@ -33,6 +34,34 @@ function fmtTooltipDate(s: string) {
 }
 
 export function ValueChartBrush({ points, title }: Props) {
+  const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number } | null>(null)
+
+  const domains = useMemo(() => {
+    let startIndex = 0
+    let endIndex = points.length - 1
+    if (brushRange) {
+      startIndex = brushRange.startIndex
+      endIndex = brushRange.endIndex
+    }
+    const visiblePoints = points.slice(Math.max(0, startIndex), Math.min(points.length, endIndex + 1))
+
+    const xirrVals = visiblePoints
+      .map(p => p.xirr)
+      .filter((v): v is number => v !== null)
+      .sort((a, b) => a - b)
+    let rightDomain: [number | string, number | string] = ['auto', 'auto']
+    if (xirrVals.length > 0) {
+      const x25 = xirrVals[Math.floor(xirrVals.length * 0.2)]
+      const x75 = xirrVals[Math.floor(xirrVals.length * 0.8)]
+      if (x25 !== undefined && x75 !== undefined) {
+        const pad = (x75 - x25) * 0.05 || Math.abs(x25) * 0.05 || 0.01
+        rightDomain = [x25 - pad, x75 + pad]
+      }
+    }
+
+    return { rightDomain }
+  }, [points, brushRange])
+
   if (points.length === 0) return null
 
   const last = points[points.length - 1]
@@ -91,6 +120,8 @@ export function ValueChartBrush({ points, title }: Props) {
               tick={{ fontSize: 11 }}
               stroke="#f59e0b"
               width={42}
+              domain={domains.rightDomain}
+              allowDataOverflow
             />
             <Tooltip
               cursor={false}
@@ -112,8 +143,24 @@ export function ValueChartBrush({ points, title }: Props) {
               formatter={value => <span className="text-xs text-slate-700 dark:text-slate-300 capitalize">{value}</span>}
               wrapperStyle={{ fontSize: 12, paddingBottom: 8 }}
             />
-            <Area yAxisId="left" type="monotone" dataKey="invested" stroke="#3b82f6" strokeWidth={2} fill="url(#brushColorInvested)" isAnimationActive={false} />
-            <Area yAxisId="left" type="monotone" dataKey="current" stroke="#10b981" strokeWidth={2} fill="url(#brushColorCurrent)" isAnimationActive={false} />
+            <Area
+              yAxisId="left"
+              type="monotone"
+              dataKey="invested"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              fill="url(#brushColorInvested)"
+              isAnimationActive={false}
+            />
+            <Area
+              yAxisId="left"
+              type="monotone"
+              dataKey="current"
+              stroke="#10b981"
+              strokeWidth={2}
+              fill="url(#brushColorCurrent)"
+              isAnimationActive={false}
+            />
             <Line
               yAxisId="right"
               type="monotone"
@@ -132,6 +179,11 @@ export function ValueChartBrush({ points, title }: Props) {
               fill="rgba(59, 130, 246, 0.05)"
               tickFormatter={fmtAxisDate}
               travellerWidth={10}
+              onChange={(e: any) => {
+                if (e && typeof e.startIndex === 'number' && typeof e.endIndex === 'number') {
+                  setBrushRange({ startIndex: e.startIndex, endIndex: e.endIndex })
+                }
+              }}
             />
           </ComposedChart>
         </ResponsiveContainer>
