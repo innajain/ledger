@@ -379,3 +379,18 @@ html {
   z-index: 9999;
 }
 
+
+/* Recharts overrides to remove focus outlines */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-responsive-container {
+  outline: none !important;
+}
+
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-responsive-container:focus,
+.recharts-wrapper *:focus,
+.recharts-surface *:focus {
+  outline: none !important;
+}

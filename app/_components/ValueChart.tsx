@@ -224,7 +224,8 @@ export function ValueChart({ points, title }: Props) {
         </div>
       </div>
       <div
-        className="w-full h-64 sm:h-80 select-none touch-pan-y cursor-grab active:cursor-grabbing"
+        className="w-full h-64 sm:h-80 select-none touch-pan-y cursor-grab active:cursor-grabbing outline-none"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -235,8 +236,8 @@ export function ValueChart({ points, title }: Props) {
         onTouchEnd={handleMouseUp}
         onTouchCancel={handleMouseUp}
       >
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={sampled} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height="100%" className="outline-none focus:outline-none focus-visible:outline-none">
+          <AreaChart data={sampled} margin={{ top: 5, right: 8, left: 0, bottom: 0 }} onClick={(e) => e && (e as any).event?.preventDefault()} style={{ outline: 'none' }}>
             <defs>
               <linearGradient id="colorInvested" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
