@@ -122,10 +122,6 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         ]}
       />
 
-      {account.value_timeseries && account.value_timeseries.length > 0 && (
-        <ValueChart points={account.value_timeseries} title="Value over time" />
-      )}
-
       <HoldingsGrid title={config.holdingsTitle || 'Holdings (aggregated by asset)'} items={holdingsItems} linkLabel="View Asset →" />
 
       {/* Line items section */}
@@ -161,6 +157,10 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
           </div>
         )}
       </Card>
+
+      {account.value_timeseries && account.value_timeseries.length > 0 && (
+        <ValueChart points={account.value_timeseries} title="Value over time" />
+      )}
     </div>
   )
 }

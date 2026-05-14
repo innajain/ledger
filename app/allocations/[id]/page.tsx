@@ -168,11 +168,14 @@ export default async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
-  const value_timeseries = await compute_value_timeseries(
-    rawTransactions,
-    { kind: 'allocation', allocation_id: allocation.id },
-    uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
-  )
+  const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
+  const value_timeseries = has_priced_asset
+    ? await compute_value_timeseries(
+        rawTransactions,
+        { kind: 'allocation', allocation_id: allocation.id },
+        uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
+      )
+    : []
 
   const allocationForClient = {
     id: allocation.id,

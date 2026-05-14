@@ -245,14 +245,14 @@ export default async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
-  const value_timeseries =
-    asset.type === asset_type.rupees
-      ? []
-      : await compute_value_timeseries(
-          rawTransactions,
-          { kind: 'asset', asset_id: asset.id },
-          [{ id: asset.id, type: asset.type, ticker: asset.ticker }],
-        )
+  const has_priced_asset = asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares'
+  const value_timeseries = has_priced_asset
+    ? await compute_value_timeseries(
+        rawTransactions,
+        { kind: 'asset', asset_id: asset.id },
+        [{ id: asset.id, type: asset.type, ticker: asset.ticker }],
+      )
+    : []
 
   const assetForClient = {
     id: asset.id,

@@ -123,10 +123,6 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
         </div>
       </div>
 
-      {asset.value_timeseries && asset.value_timeseries.length > 0 && (
-        <ValueChart points={asset.value_timeseries} title="Value over time" />
-      )}
-
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holdings (aggregated by account)</h2>
@@ -360,6 +356,10 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
           </div>
         )}
       </div>
+
+      {asset.value_timeseries && asset.value_timeseries.length > 0 && (
+        <ValueChart points={asset.value_timeseries} title="Value over time" />
+      )}
     </div>
   )
 }

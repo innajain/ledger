@@ -211,9 +211,10 @@ export default async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
-  // For real accounts, compute value-over-time. Skip for placeholder/non-real accounts.
+  // Show timeseries only for real accounts that hold at least one priced asset (mf/etf/shares).
+  const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
   const value_timeseries =
-    account.type === 'real'
+    account.type === 'real' && has_priced_asset
       ? await compute_value_timeseries(
           rawTransactions,
           { kind: 'account', account_id: account.id },
