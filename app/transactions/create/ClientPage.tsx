@@ -154,7 +154,7 @@ export default function ClientPage({
         alert('Template updated!')
       }
     } catch (err: any) {
-      setTemplateError(err.message || String(err))
+      setTemplateError(err instanceof Error ? err.message : String(err))
     } finally {
       setSavingTemplate(false)
     }
@@ -178,7 +178,7 @@ export default function ClientPage({
         alert('Template saved!')
       }
     } catch (err: any) {
-      setTemplateError(err.message || String(err))
+      setTemplateError(err instanceof Error ? err.message : String(err))
     } finally {
       setSavingTemplate(false)
     }

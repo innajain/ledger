@@ -225,7 +225,7 @@ export default function ClientPage({
               setBusy(true)
               try {
                 const res = await flush_redis()
-                alert(res?.ok ? 'Redis flushed' : 'Flush returned: ' + JSON.stringify(res))
+                alert(res.success ? (res.message ?? 'Redis flushed') : 'Flush failed: ' + res.message)
               } catch (err: unknown) {
                 alert('Flush failed: ' + (err instanceof Error ? err.message : String(err)))
               } finally {

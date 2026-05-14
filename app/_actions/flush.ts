@@ -2,16 +2,15 @@
 
 import { redis } from '@/lib/redis'
 import { require_admin } from './auth'
+import { ActionResult, ok, fromError } from './_result'
 
-export async function flush_redis() {
-  await require_admin()
+export async function flush_redis(): Promise<ActionResult> {
   try {
-    // Ensure connection (ioredis with lazyConnect will connect automatically on command)
+    await require_admin()
     await redis.connect().catch(() => {})
-    // Flush all keys from the current Redis instance
     await redis.flushall()
-    return { ok: true }
+    return ok(undefined, 'Redis cache flushed successfully')
   } catch (err: unknown) {
-    throw new Error(err instanceof Error ? err.message : String(err))
+    return fromError(err)
   }
 }

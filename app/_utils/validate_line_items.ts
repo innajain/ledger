@@ -1,4 +1,5 @@
 import { asset_type, Prisma } from '@/generated/prisma/client'
+import { normalize_line_items } from './normalize_txn'
 
 // validates only qty and book value
 export function validate_line_items(
@@ -82,8 +83,9 @@ export function validate_line_items(
         }
     }
 
+    const real_qty_sum = group.real.reduce((acc, li) => acc.add(li.quantity!), new Prisma.Decimal(0))
+
     if (group.allocation.length === 0 || group.nominal.length === 0) {
-      const real_qty_sum = group.real.reduce((acc, li) => acc.add(li.quantity!), new Prisma.Decimal(0))
       if (!real_qty_sum.equals(0))
         return {
           is_valid: false,
@@ -99,60 +101,14 @@ export function validate_line_items(
       }
     }
   }
+
+  // Fill inferred quantities then reject any that resolved to zero.
+  const normalized = normalize_line_items(line_items)
+  const zeroItem = normalized.find(li => li.quantity.equals(0))
+  if (zeroItem)
+    return {
+      is_valid: false,
+      message: `A line item for asset ${zeroItem.asset.name} and account ${zeroItem.account.type} has a zero quantity`,
+    }
   return { is_valid: true, message: 'All line items are valid' }
-}
-
-export function get_line_item_qty(
-  li: Prisma.line_itemGetPayload<{
-    include: {
-      account: true
-      asset: true
-      transaction: { include: { line_items: { include: { account: true } } } }
-    }
-  }>,
-) {
-  if (li.quantity != null) return li.quantity
-  const total_qty = li.transaction.line_items
-    .filter(t_li => t_li.account.type === 'real' && t_li.asset_id === li.asset_id)
-    .reduce((sum, t_li) => sum.add(t_li.quantity!), new Prisma.Decimal(0))
-
-  const sum_qty = li.transaction.line_items
-    .filter(t_li => t_li.account.type === li.account.type && t_li.asset_id === li.asset_id)
-    .reduce((sum, t_li) => sum.add(t_li.quantity ?? 0), new Prisma.Decimal(0))
-
-  return total_qty.sub(sum_qty)
-}
-
-export function get_line_item_book_value(
-  li: Prisma.line_itemGetPayload<{
-    include: {
-      account: true
-      asset: true
-      transaction: {
-        include: {
-          line_items: {
-            include: {
-              account: true
-              asset: true
-              transaction: {
-                include: { line_items: { include: { account: true } } }
-              }
-            }
-          }
-        }
-      }
-    }
-  }>,
-) {
-  if (li.book_value != null) return li.book_value
-  if (li.asset.type === asset_type.rupees) return get_line_item_qty(li)
-  const total_book_value = li.transaction.line_items
-    .filter(t_li => t_li.account.type === 'real' && t_li.asset_id === li.asset_id)
-    .reduce((sum, t_li) => sum.add(t_li.book_value ?? t_li.quantity!), new Prisma.Decimal(0))
-
-  const sum_book_value = li.transaction.line_items
-    .filter(t_li => t_li.account.type === li.account.type && t_li.asset_id === li.asset_id)
-    .reduce((sum, t_li) => sum.add(t_li.book_value ?? 0), new Prisma.Decimal(0))
-
-  return total_book_value.sub(sum_book_value)
 }
