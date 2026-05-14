@@ -51,8 +51,8 @@ export function ValueChartBrush({ points, title }: Props) {
       .sort((a, b) => a - b)
     let rightDomain: [number | string, number | string] = ['auto', 'auto']
     if (xirrVals.length > 0) {
-      const x25 = xirrVals[Math.floor(xirrVals.length * 0.2)]
-      const x75 = xirrVals[Math.floor(xirrVals.length * 0.8)]
+      const x25 = -0.2
+      const x75 = 0.2
       if (x25 !== undefined && x75 !== undefined) {
         const pad = (x75 - x25) * 0.05 || Math.abs(x25) * 0.05 || 0.01
         rightDomain = [x25 - pad, x75 + pad]

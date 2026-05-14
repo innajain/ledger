@@ -120,8 +120,8 @@ export function ValueChartLightweight({ points, title }: Props) {
       if (vals.length === 0) return null
 
       const sorted = vals.sort((a, b) => a - b)
-      const minValue = sorted[Math.floor(sorted.length * 0.2)]
-      const maxValue = sorted[Math.floor(sorted.length * 0.8)]
+      const minValue = -0.2
+      const maxValue = 0.2
       if (minValue === undefined || maxValue === undefined) return null
 
       return { priceRange: { minValue, maxValue } }
