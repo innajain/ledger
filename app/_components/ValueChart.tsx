@@ -8,6 +8,7 @@ export type ValuePoint = {
   date: string // 'yyyy-MM-dd'
   invested: number
   current: number
+  xirr: number | null
 }
 
 type Props = {

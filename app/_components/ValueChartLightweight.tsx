@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   createChart,
   AreaSeries,
+  LineSeries,
   ColorType,
   CrosshairMode,
   type IChartApi,
@@ -11,6 +12,7 @@ import {
   type Time,
   type MouseEventParams,
   type AreaData,
+  type LineData,
 } from 'lightweight-charts'
 import { useTheme } from 'next-themes'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
@@ -26,6 +28,7 @@ export type ValuePoint = {
   date: string
   invested: number
   current: number
+  xirr: number | null
 }
 
 type Props = {
@@ -33,7 +36,7 @@ type Props = {
   title?: string
 }
 
-type HoverInfo = { date: string; invested: number; current: number; x: number; y: number } | null
+type HoverInfo = { date: string; invested: number; current: number; xirr: number | null; x: number; y: number } | null
 
 function fmtTooltipDate(s: string) {
   const d = new Date(s + 'T00:00:00')
@@ -45,6 +48,7 @@ export function ValueChartLightweight({ points, title }: Props) {
   const chartRef = useRef<IChartApi | null>(null)
   const investedSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
   const currentSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
+  const xirrSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const { resolvedTheme } = useTheme()
   const [hover, setHover] = useState<HoverInfo>(null)
 
@@ -62,8 +66,10 @@ export function ValueChartLightweight({ points, title }: Props) {
         vertLines: { color: 'transparent' },
         horzLines: { color: isDark ? '#334155' : '#e2e8f0' },
       },
+      // Right scale used for XIRR (percentage). Left scale for ₹ values.
       rightPriceScale: {
-        visible: false,
+        visible: true,
+        borderColor: isDark ? '#334155' : '#e2e8f0',
       },
       leftPriceScale: {
         visible: true,
@@ -113,10 +119,25 @@ export function ValueChartLightweight({ points, title }: Props) {
       lastValueVisible: false,
       priceLineVisible: false,
     })
+    // XIRR as a thin line on its own scale (right side, percent units).
+    const xirrSeries = chart.addSeries(LineSeries, {
+      color: '#f59e0b',
+      lineWidth: 2,
+      lineStyle: 2, // dashed
+      priceScaleId: 'right',
+      lastValueVisible: false,
+      priceLineVisible: false,
+      priceFormat: {
+        type: 'custom',
+        formatter: (v: number) => `${(v * 100).toFixed(1)}%`,
+        minMove: 0.0001,
+      },
+    })
 
     chartRef.current = chart
     investedSeriesRef.current = investedSeries
     currentSeriesRef.current = currentSeries
+    xirrSeriesRef.current = xirrSeries
 
     const onCrosshairMove = (param: MouseEventParams) => {
       if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
@@ -125,6 +146,7 @@ export function ValueChartLightweight({ points, title }: Props) {
       }
       const inv = param.seriesData.get(investedSeries) as AreaData | undefined
       const cur = param.seriesData.get(currentSeries) as AreaData | undefined
+      const xir = param.seriesData.get(xirrSeries) as LineData | undefined
       if (inv == null || cur == null) {
         setHover(null)
         return
@@ -133,6 +155,7 @@ export function ValueChartLightweight({ points, title }: Props) {
         date: param.time as string,
         invested: inv.value,
         current: cur.value,
+        xirr: xir?.value ?? null,
         x: param.point.x,
         y: param.point.y,
       })
@@ -172,9 +195,14 @@ export function ValueChartLightweight({ points, title }: Props) {
   }, [resolvedTheme])
 
   useEffect(() => {
-    if (!investedSeriesRef.current || !currentSeriesRef.current) return
+    if (!investedSeriesRef.current || !currentSeriesRef.current || !xirrSeriesRef.current) return
     investedSeriesRef.current.setData(points.map(p => ({ time: p.date as Time, value: p.invested })))
     currentSeriesRef.current.setData(points.map(p => ({ time: p.date as Time, value: p.current })))
+    // XIRR may be null on early days; lightweight-charts requires monotonic
+    // time but allows gaps — just drop the null entries.
+    xirrSeriesRef.current.setData(
+      points.filter(p => p.xirr !== null).map(p => ({ time: p.date as Time, value: p.xirr as number })),
+    )
     chartRef.current?.timeScale().fitContent()
   }, [points])
 
@@ -228,6 +256,15 @@ export function ValueChartLightweight({ points, title }: Props) {
               <span className="text-slate-300">Current</span>
               <span className="ml-auto font-medium">{currency_fmt.format(hover.current)}</span>
             </div>
+            {hover.xirr !== null && (
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#f59e0b' }} />
+                <span className="text-slate-300">XIRR</span>
+                <span className={`ml-auto font-medium ${hover.xirr > 0 ? 'text-green-400' : hover.xirr < 0 ? 'text-red-400' : ''}`}>
+                  {(hover.xirr * 100).toFixed(2)}%
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>

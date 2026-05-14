@@ -222,6 +222,13 @@ export default async function Page({ params }: Props) {
         )
       : []
 
+  // Reconcile today's chart point with the live values used in the InfoCard.
+  if (value_timeseries.length > 0) {
+    const last = value_timeseries[value_timeseries.length - 1]
+    last.current = acc_total.toNumber()
+    last.xirr = xirr_value
+  }
+
   const accountForClient = {
     id: account.id,
     name: account.name,

@@ -254,6 +254,15 @@ export default async function Page({ params }: Props) {
       )
     : []
 
+  // Reconcile today's chart point with the live values used in the InfoCard so
+  // the XIRR/current shown at the top of the page matches the chart's tail
+  // (historical NAV for "today" may not be published yet on mfapi.in).
+  if (value_timeseries.length > 0) {
+    const last = value_timeseries[value_timeseries.length - 1]
+    last.current = asset_total.toNumber()
+    last.xirr = xirr_value
+  }
+
   const assetForClient = {
     id: asset.id,
     name: asset.name,

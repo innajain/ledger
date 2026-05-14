@@ -4,11 +4,13 @@ import { fromZonedTime } from 'date-fns-tz'
 import { USER_TIMEZONE } from '@/lib/config'
 import { normalize_txn, type TransactionFull } from './normalize_txn'
 import { get_price_lookups_for_assets, ist_date_key } from './historical_price_fetcher'
+import { calculate_xirr } from './xirr_calculator'
 
 export type ValuePoint = {
   date: string // 'yyyy-MM-dd' in IST
   invested: number
   current: number
+  xirr: number | null // annualized return, or null if not computable on that day
 }
 
 export type TimeseriesFilter =
@@ -178,6 +180,18 @@ export async function compute_value_timeseries(
     return { invested, current }
   }
 
+  // Cashflows accumulate as events are applied. Each event's book_value is
+  // negated (a buy has +book_value -> -book_value cashflow = money out; a sell
+  // has -book_value -> +book_value cashflow = money in). The current value of
+  // the position on each snapshot day is appended as a final positive cashflow
+  // for that day's XIRR computation.
+  const cashflows: { amount: number; when: Date }[] = []
+
+  const apply_event_with_cashflow = (e: Event) => {
+    apply_event(e)
+    cashflows.push({ amount: -e.book.toNumber(), when: e.date })
+  }
+
   // Walk every IST day from the first event to today.
   const points: ValuePoint[] = []
   const todayKey = ist_date_key(new Date())
@@ -186,15 +200,22 @@ export async function compute_value_timeseries(
 
   while (cursorKey <= todayKey) {
     while (appliedIndex < events.length && events[appliedIndex].dateKey <= cursorKey) {
-      apply_event(events[appliedIndex])
+      apply_event_with_cashflow(events[appliedIndex])
       appliedIndex++
     }
     const cursorDate = fromZonedTime(parseISO(cursorKey), USER_TIMEZONE)
     const snap = snapshot(cursorDate)
+
+    let xirr: number | null = null
+    if (cashflows.length > 0 && !snap.current.equals(0)) {
+      xirr = calculate_xirr([...cashflows, { amount: snap.current.toNumber(), when: cursorDate }])
+    }
+
     points.push({
       date: cursorKey,
       invested: snap.invested.toNumber(),
       current: snap.current.toNumber(),
+      xirr,
     })
     const next = addDays(parseISO(cursorKey), 1)
     cursorKey = ist_date_key(fromZonedTime(next, USER_TIMEZONE))

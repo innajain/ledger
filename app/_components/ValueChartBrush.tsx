@@ -1,12 +1,13 @@
 'use client'
 
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Brush } from 'recharts'
+import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Brush } from 'recharts'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 
 export type ValuePoint = {
   date: string
   invested: number
   current: number
+  xirr: number | null
 }
 
 type Props = {
@@ -55,7 +56,7 @@ export function ValueChartBrush({ points, title }: Props) {
       </div>
       <div className="w-full h-72 sm:h-96">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={points} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
+          <ComposedChart data={points} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="brushColorInvested" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
@@ -76,15 +77,27 @@ export function ValueChartBrush({ points, title }: Props) {
               minTickGap={40}
             />
             <YAxis
+              yAxisId="left"
               tickFormatter={v => compactFmt.format(v as number)}
               tick={{ fontSize: 11 }}
               stroke="currentColor"
               className="text-slate-500 dark:text-slate-400"
               width={52}
             />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tickFormatter={v => `${((v as number) * 100).toFixed(0)}%`}
+              tick={{ fontSize: 11 }}
+              stroke="#f59e0b"
+              width={42}
+            />
             <Tooltip
               cursor={false}
-              formatter={(value, name) => [currency_fmt.format(Number(value ?? 0)), name === 'invested' ? 'Invested' : 'Current']}
+              formatter={(value, name) => {
+                if (name === 'xirr') return [`${(Number(value ?? 0) * 100).toFixed(2)}%`, 'XIRR']
+                return [currency_fmt.format(Number(value ?? 0)), name === 'invested' ? 'Invested' : 'Current']
+              }}
               labelFormatter={label => (typeof label === 'string' ? fmtTooltipDate(label) : String(label ?? ''))}
               contentStyle={{
                 backgroundColor: 'rgb(30 41 59)',
@@ -99,8 +112,19 @@ export function ValueChartBrush({ points, title }: Props) {
               formatter={value => <span className="text-xs text-slate-700 dark:text-slate-300 capitalize">{value}</span>}
               wrapperStyle={{ fontSize: 12, paddingBottom: 8 }}
             />
-            <Area type="monotone" dataKey="invested" stroke="#3b82f6" strokeWidth={2} fill="url(#brushColorInvested)" isAnimationActive={false} />
-            <Area type="monotone" dataKey="current" stroke="#10b981" strokeWidth={2} fill="url(#brushColorCurrent)" isAnimationActive={false} />
+            <Area yAxisId="left" type="monotone" dataKey="invested" stroke="#3b82f6" strokeWidth={2} fill="url(#brushColorInvested)" isAnimationActive={false} />
+            <Area yAxisId="left" type="monotone" dataKey="current" stroke="#10b981" strokeWidth={2} fill="url(#brushColorCurrent)" isAnimationActive={false} />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="xirr"
+              stroke="#f59e0b"
+              strokeWidth={2}
+              strokeDasharray="4 3"
+              dot={false}
+              connectNulls
+              isAnimationActive={false}
+            />
             <Brush
               dataKey="date"
               height={28}
@@ -109,7 +133,7 @@ export function ValueChartBrush({ points, title }: Props) {
               tickFormatter={fmtAxisDate}
               travellerWidth={10}
             />
-          </AreaChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>
