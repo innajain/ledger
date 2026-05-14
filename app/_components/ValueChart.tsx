@@ -106,7 +106,7 @@ export function ValueChart({ points, title }: Props) {
 
   const applyZoom = (delta: number) => {
     // scale factor
-    const zoomFactor = 0.1
+    const zoomFactor = 0.05
     const range = currentRange[1] - currentRange[0]
     if (range <= 0) return
 
@@ -180,7 +180,7 @@ export function ValueChart({ points, title }: Props) {
       const distDiff = lastPinchDist - dist
       
       // Apply zoom sensitivity
-      applyZoom(distDiff / 5)
+      applyZoom(distDiff / 20)
       setLastPinchDist(dist)
     }
   }
