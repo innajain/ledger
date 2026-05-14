@@ -86,10 +86,10 @@ export function ValueChart({ points, title }: Props) {
   // Panning state
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouseX, setLastMouseX] = useState<number | null>(null)
+  // Zooming state (pinch)
+  const [lastPinchDist, setLastPinchDist] = useState<number | null>(null)
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    // Zoom in/out based on wheel delta
-    const delta = e.deltaY > 0 ? 1 : -1
+  const applyZoom = (delta: number) => {
     // scale factor
     const zoomFactor = 0.1
     const range = currentRange[1] - currentRange[0]
@@ -114,6 +114,11 @@ export function ValueChart({ points, title }: Props) {
     setZoomRange([newStart, newEnd])
   }
 
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    // Zoom in/out based on wheel delta
+    applyZoom(e.deltaY > 0 ? 1 : -1)
+  }
+
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true)
     setLastMouseX(e.clientX)
@@ -127,18 +132,42 @@ export function ValueChart({ points, title }: Props) {
   const handleMouseUp = () => {
     setIsDragging(false)
     setLastMouseX(null)
+    setLastPinchDist(null)
   }
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 1) {
       setIsDragging(true)
       setLastMouseX(e.touches[0].clientX)
+      setLastPinchDist(null)
+    } else if (e.touches.length === 2) {
+      setIsDragging(false)
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      setLastPinchDist(dist)
     }
   }
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isDragging || lastMouseX === null || e.touches.length !== 1) return
-    handleDrag(e.touches[0].clientX)
+    if (e.touches.length === 1 && isDragging && lastMouseX !== null) {
+      handleDrag(e.touches[0].clientX)
+    } else if (e.touches.length === 2 && lastPinchDist !== null) {
+      // Pinch to zoom
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      
+      // If distance gets smaller (pinch inward), distDiff is positive -> zoom out (positive delta)
+      // If distance gets larger (pinch outward), distDiff is negative -> zoom in (negative delta)
+      const distDiff = lastPinchDist - dist
+      
+      // Apply zoom sensitivity
+      applyZoom(distDiff / 20)
+      setLastPinchDist(dist)
+    }
   }
 
   const handleDrag = (clientX: number) => {
@@ -175,7 +204,7 @@ export function ValueChart({ points, title }: Props) {
         <div>
           {title && <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>}
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Scroll to zoom • Drag to pan
+            Scroll or pinch to zoom • Drag to pan
             {zoomRange && (
               <>
                 {' • '}
