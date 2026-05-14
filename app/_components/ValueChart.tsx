@@ -121,8 +121,29 @@ export function ValueChart({ points, title }: Props) {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging || lastMouseX === null) return
-    const deltaX = e.clientX - lastMouseX
-    setLastMouseX(e.clientX)
+    handleDrag(e.clientX)
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+    setLastMouseX(null)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true)
+      setLastMouseX(e.touches[0].clientX)
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragging || lastMouseX === null || e.touches.length !== 1) return
+    handleDrag(e.touches[0].clientX)
+  }
+
+  const handleDrag = (clientX: number) => {
+    const deltaX = clientX - lastMouseX!
+    setLastMouseX(clientX)
 
     // Pan
     const range = currentRange[1] - currentRange[0]
@@ -144,13 +165,8 @@ export function ValueChart({ points, title }: Props) {
 
     newStart = Math.max(0, newStart)
     newEnd = Math.min(points.length - 1, newEnd)
-    
-    setZoomRange([newStart, newEnd])
-  }
 
-  const handleMouseUp = () => {
-    setIsDragging(false)
-    setLastMouseX(null)
+    setZoomRange([newStart, newEnd])
   }
 
   return (
@@ -178,19 +194,20 @@ export function ValueChart({ points, title }: Props) {
           </p>
         </div>
       </div>
-      <div 
-        className="w-full h-64 sm:h-80 select-none touch-none cursor-grab active:cursor-grabbing"
+      <div
+        className="w-full h-64 sm:h-80 select-none touch-pan-y cursor-grab active:cursor-grabbing"
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleMouseUp}
+        onTouchCancel={handleMouseUp}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart
-            data={sampled}
-            margin={{ top: 5, right: 8, left: 0, bottom: 0 }}
-          >
+          <AreaChart data={sampled} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorInvested" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
@@ -201,7 +218,7 @@ export function ValueChart({ points, title }: Props) {
                 <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-200 dark:text-slate-700" />
+              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-200 dark:text-slate-700" vertical={false} />
             <XAxis
               dataKey="date"
               tickFormatter={fmtAxisDate}
@@ -222,6 +239,7 @@ export function ValueChart({ points, title }: Props) {
               allowDataOverflow
             />
             <Tooltip
+              cursor={false}
               formatter={(value, name) => [currency_fmt.format(Number(value ?? 0)), name === 'invested' ? 'Invested' : 'Current']}
               labelFormatter={label => (typeof label === 'string' ? fmtTooltipDate(label) : String(label ?? ''))}
               contentStyle={{
