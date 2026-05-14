@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { update_asset } from '@/app/_actions/resources'
 import type { Prisma, asset_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
-import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents'
+import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert, ToggleSwitch } from '@/app/_components/AccountFormComponents'
 
 export default function ClientPage({
   asset,
@@ -19,6 +19,8 @@ export default function ClientPage({
   const [type, setType] = useState<asset_type>(asset.type)
   const [ticker, setTicker] = useState(asset.ticker ?? '')
   const [parentId, setParentId] = useState<string | null>(asset.parent_id ?? null)
+  const [isActive, setIsActive] = useState(asset.is_active)
+  const [isPlaceholder, setIsPlaceholder] = useState(asset.is_placeholder)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,7 +29,7 @@ export default function ClientPage({
     setError(null)
     setBusy(true)
     try {
-      const result = await update_asset(asset.id, name, type, ticker || undefined, parentId)
+      const result = await update_asset(asset.id, name, type, ticker || undefined, parentId, isActive, isPlaceholder)
       if (!result.success) throw new Error(result.message)
       window.location.href = '/assets'
     } catch (err: unknown) {
@@ -72,6 +74,19 @@ export default function ClientPage({
             parents={parents}
             excludeId={asset.id}
             helpText="Select a parent to create a sub-asset"
+          />
+
+          <ToggleSwitch
+            label="Active"
+            helpText="Inactive assets are hidden from transaction selectors"
+            value={isActive}
+            onChange={setIsActive}
+          />
+          <ToggleSwitch
+            label="Placeholder"
+            helpText="Placeholder assets exist only to group sub-assets and are hidden from transaction selectors"
+            value={isPlaceholder}
+            onChange={setIsPlaceholder}
           />
         </FormCard>
 

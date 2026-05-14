@@ -2,15 +2,9 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import {
-  getStoredOrder,
-  saveOrder,
-  clearStoredOrder,
-  applyStoredOrderToGroup,
-  getParentKey,
-  hasAnyCustomOrder,
-  type HierarchicalOrder,
-} from '../_utils/orderStorage'
+import { useRouter } from 'next/navigation'
+import { update_hierarchy_order } from '@/app/_actions/resources'
+import { useToast } from './Toast'
 import { currency_fmt } from '../_utils/currency_formatter'
 
 type BaseItem = {
@@ -31,10 +25,12 @@ type HierarchyTreeProps<T extends BaseItem> = {
   getItemUrl: (id: string) => string
   renderExtraInfo?: (item: T, node: Node<T>) => React.ReactNode
   expandAll?: boolean
-  storageKey?: string // Unique key for localStorage per page
+  // Setting `scope` enables the reorder button and persists order to the DB
+  // via the update_hierarchy_order server action.
+  scope?: 'account' | 'asset'
   reorderEnabled?: boolean
   onReorderToggle?: (enabled: boolean) => void
-  accentBorderClass?: string // e.g. "border-l-emerald-500" for type-colored left border on root items
+  accentBorderClass?: string
 }
 
 export function HierarchyTree<T extends BaseItem>({
@@ -43,45 +39,38 @@ export function HierarchyTree<T extends BaseItem>({
   getItemUrl,
   renderExtraInfo,
   expandAll,
-  storageKey,
+  scope,
   reorderEnabled = false,
   onReorderToggle,
   accentBorderClass,
 }: HierarchyTreeProps<T>) {
+  const router = useRouter()
+  const { showToast } = useToast()
+
   // Manual expand/collapse overrides - only used when user manually toggles
   const [manualExpanded, setManualExpanded] = useState<Record<string, boolean>>({})
 
-  // Custom order stored in localStorage - maps parent_id to ordered child IDs
-  // Load it after mount so the first client render matches the server render.
-  const [customOrder, setCustomOrder] = useState<HierarchicalOrder>({})
+  // Optimistic per-parent ordering after a drop, kept until the server refresh
+  // brings back the new order in `items`. Cleared whenever items change.
+  const [optimisticOrder, setOptimisticOrder] = useState<Record<string, string[]>>({})
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (!storageKey) {
-      setCustomOrder({})
-      return
-    }
-
-    setCustomOrder(getStoredOrder(storageKey))
-  }, [storageKey])
+    setOptimisticOrder({})
+  }, [items])
 
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [draggedParentId, setDraggedParentId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
 
-  // Compute expanded state: expandAll prop takes priority, then manual overrides
   const expanded = useMemo(() => {
     if (expandAll) {
-      // When expandAll is true, all items are expanded (manual overrides ignored)
       return items.reduce((acc, item) => ({ ...acc, [item.id]: true }), {} as Record<string, boolean>)
     }
-    // When expandAll is false/undefined, use manual overrides
     return manualExpanded
   }, [expandAll, items, manualExpanded])
 
-  const hasCustomOrderStored = hasAnyCustomOrder(customOrder)
-
   const toggle = (id: string) => {
-    // Only allow manual toggle when expandAll is not active
     if (!expandAll) {
       setManualExpanded(prev => ({ ...prev, [id]: !prev[id] }))
     }
@@ -97,7 +86,6 @@ export function HierarchyTree<T extends BaseItem>({
   const handleDragOver = useCallback(
     (e: React.DragEvent<HTMLDivElement>, id: string, parentId: string | null) => {
       e.preventDefault()
-      // Only allow drag over items with the same parent
       if (id !== draggedId && parentId === draggedParentId) {
         e.dataTransfer.dropEffect = 'move'
         setDragOverId(id)
@@ -112,11 +100,31 @@ export function HierarchyTree<T extends BaseItem>({
     setDragOverId(null)
   }, [])
 
+  const applyOrderToSiblings = useCallback(
+    (siblings: T[], parentId: string | null): T[] => {
+      const key = parentKey(parentId)
+      const order = optimisticOrder[key]
+      if (!order || order.length === 0) return siblings
+      const byId = new Map(siblings.map(s => [s.id, s]))
+      const out: T[] = []
+      const used = new Set<string>()
+      for (const id of order) {
+        const item = byId.get(id)
+        if (item) {
+          out.push(item)
+          used.add(id)
+        }
+      }
+      for (const item of siblings) if (!used.has(item.id)) out.push(item)
+      return out
+    },
+    [optimisticOrder],
+  )
+
   const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>, targetId: string, parentId: string | null) => {
+    async (e: React.DragEvent<HTMLDivElement>, targetId: string, parentId: string | null) => {
       e.preventDefault()
 
-      // Only allow drop on items with the same parent
       if (!draggedId || draggedId === targetId || parentId !== draggedParentId) {
         setDraggedId(null)
         setDraggedParentId(null)
@@ -124,14 +132,7 @@ export function HierarchyTree<T extends BaseItem>({
         return
       }
 
-      // Get sibling items (items with the same parent)
-      const parentKey = getParentKey(parentId)
-      const siblingItems = items.filter(item => item.parent_id === parentId)
-
-      // Apply existing custom order if any
-      const existingOrder = customOrder[parentKey] || []
-      const orderedSiblings = applyStoredOrderToGroup(siblingItems, existingOrder)
-
+      const orderedSiblings = applyOrderToSiblings(items.filter(item => item.parent_id === parentId), parentId)
       const draggedIndex = orderedSiblings.findIndex(item => item.id === draggedId)
       const targetIndex = orderedSiblings.findIndex(item => item.id === targetId)
 
@@ -142,25 +143,44 @@ export function HierarchyTree<T extends BaseItem>({
         return
       }
 
-      // Reorder siblings
-      const newOrderedSiblings = [...orderedSiblings]
-      const [draggedItem] = newOrderedSiblings.splice(draggedIndex, 1)
-      newOrderedSiblings.splice(targetIndex, 0, draggedItem)
+      const newOrder = [...orderedSiblings]
+      const [draggedItem] = newOrder.splice(draggedIndex, 1)
+      newOrder.splice(targetIndex, 0, draggedItem)
+      const orderIds = newOrder.map(i => i.id)
 
-      // Save to localStorage and state
-      const orderIds = newOrderedSiblings.map(item => item.id)
-      const newCustomOrder = { ...customOrder, [parentKey]: orderIds }
-
-      if (storageKey) {
-        saveOrder(storageKey, newCustomOrder)
-      }
-      setCustomOrder(newCustomOrder)
-
+      setOptimisticOrder(prev => ({ ...prev, [parentKey(parentId)]: orderIds }))
       setDraggedId(null)
       setDraggedParentId(null)
       setDragOverId(null)
+
+      if (!scope) return
+
+      setSaving(true)
+      try {
+        const result = await update_hierarchy_order({ scope, parent_id: parentId, ordered_ids: orderIds })
+        if (!result.success) {
+          showToast(result.message, 'error')
+          // Revert optimistic order — items prop hasn't changed.
+          setOptimisticOrder(prev => {
+            const next = { ...prev }
+            delete next[parentKey(parentId)]
+            return next
+          })
+        } else {
+          router.refresh()
+        }
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : String(err), 'error')
+        setOptimisticOrder(prev => {
+          const next = { ...prev }
+          delete next[parentKey(parentId)]
+          return next
+        })
+      } finally {
+        setSaving(false)
+      }
     },
-    [draggedId, draggedParentId, items, customOrder, storageKey],
+    [draggedId, draggedParentId, items, applyOrderToSiblings, scope, router, showToast],
   )
 
   const handleDragEnd = useCallback(() => {
@@ -169,61 +189,34 @@ export function HierarchyTree<T extends BaseItem>({
     setDragOverId(null)
   }, [])
 
-  const handleResetOrder = useCallback(() => {
-    if (storageKey) {
-      clearStoredOrder(storageKey)
-    }
-    setCustomOrder({})
-  }, [storageKey])
-
-  // Build tree structure - memoized to avoid rebuilding on every render
-  // Apply custom ordering at each level
   const roots = useMemo(() => {
     const nodeById = new Map<string, Node<T>>()
+    for (const item of items) nodeById.set(item.id, { item, children: [] })
 
-    // First pass: create all nodes
-    for (const item of items) {
-      nodeById.set(item.id, { item, children: [] })
-    }
-
-    // Group items by parent
     const childrenByParent = new Map<string, T[]>()
     const rootItems: T[] = []
-
     for (const item of items) {
-      if (item.parent_id === null) {
-        rootItems.push(item)
-      } else {
+      if (item.parent_id === null) rootItems.push(item)
+      else {
         const siblings = childrenByParent.get(item.parent_id) || []
         siblings.push(item)
         childrenByParent.set(item.parent_id, siblings)
       }
     }
 
-    // Apply custom order to root items
-    const rootKey = getParentKey(null)
-    const orderedRootItems = applyStoredOrderToGroup(rootItems, customOrder[rootKey] || [])
+    const orderedRootItems = applyOrderToSiblings(rootItems, null)
+    const rootNodes: Node<T>[] = orderedRootItems.map(item => nodeById.get(item.id)!)
 
-    // Build tree with ordered children
-    const rootNodes: Node<T>[] = []
-
-    for (const item of orderedRootItems) {
-      const node = nodeById.get(item.id)!
-      rootNodes.push(node)
-    }
-
-    // Add children to each node with custom ordering
     for (const [parentId, children] of childrenByParent) {
       const parentNode = nodeById.get(parentId)
       if (parentNode) {
-        const parentKey = getParentKey(parentId)
-        const orderedChildren = applyStoredOrderToGroup(children, customOrder[parentKey] || [])
+        const orderedChildren = applyOrderToSiblings(children, parentId)
         parentNode.children = orderedChildren.map(child => nodeById.get(child.id)!)
       }
     }
 
     return rootNodes
-  }, [items, customOrder])
+  }, [items, applyOrderToSiblings])
 
   function aggregateCurr(n: Node<T>): number {
     const own = totals.get(n.item.id) || 0
@@ -239,10 +232,8 @@ export function HierarchyTree<T extends BaseItem>({
     const ownCurr = totals.get(item.id) || 0
     const displayCurr = aggregateCurr(node)
 
-    // Allow drag at any level when reorder is enabled
-    const canDrag = reorderEnabled
+    const canDrag = reorderEnabled && !!scope
 
-    // Build className parts for readability
     const baseClasses = 'flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors'
     const depthClasses =
       depth === 0
@@ -276,7 +267,6 @@ export function HierarchyTree<T extends BaseItem>({
           onDrop={canDrag ? e => handleDrop(e, item.id, item.parent_id) : undefined}
           onDragEnd={canDrag ? handleDragEnd : undefined}
         >
-          {/* Drag handle shown when reorder is enabled */}
           {canDrag && (
             <span className="shrink-0 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-slate-400 dark:text-slate-500">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -326,7 +316,6 @@ export function HierarchyTree<T extends BaseItem>({
 
         {node.children.length > 0 && isExpanded && (
           <ul className="mt-2 ml-4 sm:ml-6 md:ml-9 space-y-1 border-l-2 border-slate-200 dark:border-slate-700 pl-2 sm:pl-3 md:pl-4">
-            {/* pseudo-child showing non-aggregate "self" value */}
             <li key={`${item.id}-self`} className="mb-2">
               <div className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
                 {canDrag && <span className="w-5 sm:w-6 shrink-0"></span>}
@@ -351,12 +340,12 @@ export function HierarchyTree<T extends BaseItem>({
 
   return (
     <div>
-      {/* Reorder controls */}
-      {storageKey && (
+      {scope && (
         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
           <button
             onClick={() => onReorderToggle?.(!reorderEnabled)}
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors font-medium flex items-center gap-2 ${
+            disabled={saving}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
               reorderEnabled
                 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800'
                 : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
@@ -367,18 +356,18 @@ export function HierarchyTree<T extends BaseItem>({
             </svg>
             {reorderEnabled ? 'Done Reordering' : 'Reorder'}
           </button>
-          {hasCustomOrderStored && (
-            <button
-              onClick={handleResetOrder}
-              className="px-3 py-1.5 text-sm bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
-            >
-              Reset Order
-            </button>
+          {reorderEnabled && (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {saving ? 'Saving…' : 'Drag items to reorder (within same level)'}
+            </span>
           )}
-          {reorderEnabled && <span className="text-sm text-slate-500 dark:text-slate-400">Drag items to reorder (within same level)</span>}
         </div>
       )}
       <ul className="space-y-2">{roots.map(r => renderNode(r, 0))}</ul>
     </div>
   )
+}
+
+function parentKey(parent_id: string | null): string {
+  return parent_id ?? '__root__'
 }

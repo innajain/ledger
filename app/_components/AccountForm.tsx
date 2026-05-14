@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { create_account, update_account } from '@/app/_actions/resources'
 import type { Prisma, account_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
-import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents'
+import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert, ToggleSwitch } from '@/app/_components/AccountFormComponents'
 
 type AccountFormConfig = {
   accountType: account_type
@@ -113,7 +113,7 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
   const [name, setName] = useState(account.name)
   const [parentId, setParentId] = useState<string | null>(account.parent_id ?? null)
   const [isActive, setIsActive] = useState(account.is_active)
-  const [isPlaceholder, setIsPlaceholder] = useState(account.is_placeholder_acc)
+  const [isPlaceholder, setIsPlaceholder] = useState(account.is_placeholder)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -176,49 +176,18 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
             helpText={config.parentHelpText}
           />
 
-          <div className="flex items-center justify-between gap-4 py-2">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Active</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Inactive accounts are hidden from transaction selectors</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsActive(v => !v)}
-              className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
-                isActive ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
-              }`}
-              role="switch"
-              aria-checked={isActive}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                  isActive ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 py-2">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Placeholder</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Placeholder accounts exist only to group sub-accounts and are hidden from transaction selectors</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsPlaceholder(v => !v)}
-              className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
-                isPlaceholder ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
-              }`}
-              role="switch"
-              aria-checked={isPlaceholder}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                  isPlaceholder ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
+          <ToggleSwitch
+            label="Active"
+            helpText="Inactive accounts are hidden from transaction selectors"
+            value={isActive}
+            onChange={setIsActive}
+          />
+          <ToggleSwitch
+            label="Placeholder"
+            helpText="Placeholder accounts exist only to group sub-accounts and are hidden from transaction selectors"
+            value={isPlaceholder}
+            onChange={setIsPlaceholder}
+          />
         </FormCard>
 
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}

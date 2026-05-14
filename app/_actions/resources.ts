@@ -42,7 +42,7 @@ export async function update_account(
   type?: account_type | undefined,
   parent_id?: string | null | undefined,
   is_active?: boolean | undefined,
-  is_placeholder_acc?: boolean | undefined,
+  is_placeholder?: boolean | undefined,
 ): Promise<ActionResult> {
   try {
     const parsed = updateAccountSchema.safeParse({ id, name })
@@ -89,7 +89,7 @@ export async function update_account(
         type,
         parent_id,
         ...(is_active !== undefined ? { is_active } : {}),
-        ...(is_placeholder_acc !== undefined ? { is_placeholder_acc } : {}),
+        ...(is_placeholder !== undefined ? { is_placeholder } : {}),
       },
     })
     await invalidate_balances(user_id)
@@ -174,6 +174,8 @@ export async function update_asset(
   type?: asset_type | undefined,
   ticker?: string | null | undefined,
   parent_id?: string | null | undefined,
+  is_active?: boolean | undefined,
+  is_placeholder?: boolean | undefined,
 ): Promise<ActionResult> {
   try {
     const parsed = updateAssetSchema.safeParse({ id, name, ticker })
@@ -215,7 +217,14 @@ export async function update_asset(
     await prisma.$transaction(async prisma => {
       const asset = await prisma.asset.update({
         where: { id, user_id },
-        data: { name, type, ticker, parent_id },
+        data: {
+          name,
+          type,
+          ticker,
+          parent_id,
+          ...(is_active !== undefined ? { is_active } : {}),
+          ...(is_placeholder !== undefined ? { is_placeholder } : {}),
+        },
       })
       if (type === 'etf' || type === 'mf' || type === 'shares') {
         if (!asset.ticker || asset.ticker.length === 0) throw new Error('ticker is required for asset type ' + type)
@@ -250,6 +259,51 @@ export async function delete_asset(id: string): Promise<ActionResult> {
 
     await prisma.asset.delete({ where: { id, user_id } })
     await invalidate_balances(user_id)
+    return ok()
+  } catch (error) {
+    return fromError(error)
+  }
+}
+
+const updateHierarchyOrderSchema = z.object({
+  scope: z.enum(['account', 'asset']),
+  parent_id: z.string().nullable(),
+  ordered_ids: z.array(z.string().min(1)).min(1),
+})
+
+export async function update_hierarchy_order(input: {
+  scope: 'account' | 'asset'
+  parent_id: string | null
+  ordered_ids: string[]
+}): Promise<ActionResult> {
+  try {
+    const parsed = updateHierarchyOrderSchema.safeParse(input)
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
+
+    const user_id = await get_current_user_id()
+    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
+
+    const { scope, parent_id, ordered_ids } = parsed.data
+
+    // Verify ownership and that all rows are siblings under the same parent.
+    const model = scope === 'account' ? prisma.account : prisma.asset
+    const rows = await (model as typeof prisma.account).findMany({
+      where: { id: { in: ordered_ids }, user_id, parent_id },
+      select: { id: true },
+    })
+    if (rows.length !== ordered_ids.length) {
+      return err('VALIDATION', 'One or more items are not siblings under this parent or do not belong to you')
+    }
+
+    // Reassign order_index sequentially. Wrap in a transaction so partial
+    // failures don't leave the ordering inconsistent.
+    await prisma.$transaction(
+      ordered_ids.map((id, i) =>
+        scope === 'account'
+          ? prisma.account.update({ where: { id }, data: { order_index: i } })
+          : prisma.asset.update({ where: { id }, data: { order_index: i } }),
+      ),
+    )
     return ok()
   } catch (error) {
     return fromError(error)

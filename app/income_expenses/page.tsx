@@ -30,6 +30,7 @@ export default async function Page() {
       prisma.account.findMany({
         where: { user_id: user.id, type: account_type.nominal },
         include: { parent: true },
+        orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       }),
       prisma.asset.findMany({ where: { user_id: user.id } }),
     ]),

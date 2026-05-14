@@ -32,6 +32,7 @@ export default async function Page() {
     prisma.asset.findMany({
       where: { user_id: user.id },
       include: { parent: true },
+      orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_or_compute_balances(),
   ])

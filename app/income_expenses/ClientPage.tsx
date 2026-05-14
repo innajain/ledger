@@ -41,7 +41,7 @@ export default function ClientPage({ accounts, totals, grand_total }: Props) {
             items={accounts}
             totals={totals}
             expandAll={expandAll}
-            storageKey="income_expenses"
+            scope="account"
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
             getItemUrl={id => `/income_expenses/${id}`}

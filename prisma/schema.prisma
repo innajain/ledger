@@ -30,12 +30,13 @@ model user {
 }
 
 model account {
-  id        String       @id @default(cuid())
-  user_id   String
-  name      String
-  type      account_type
-  is_active           Boolean @default(true)
-  is_placeholder_acc  Boolean @default(false)
+  id             String       @id @default(cuid())
+  user_id        String
+  name           String
+  type           account_type
+  is_active      Boolean      @default(true)
+  is_placeholder Boolean      @default(false)
+  order_index    Int?
 
   // --- Hierarchy Implementation ---
   parent_id String?
@@ -50,15 +51,18 @@ model account {
   @@unique([name, user_id])
   @@index([user_id, type])
   @@index([parent_id])
+  @@index([user_id, parent_id, order_index])
 }
 
 model asset {
-  id        String     @id @default(cuid())
-  user_id   String
-  name      String
-  type      asset_type
-  ticker    String?
-  is_active Boolean    @default(true)
+  id             String     @id @default(cuid())
+  user_id        String
+  name           String
+  type           asset_type
+  ticker         String?
+  is_active      Boolean    @default(true)
+  is_placeholder Boolean    @default(false)
+  order_index    Int?
 
   // --- Hierarchy Implementation ---
   parent_id String?
@@ -73,6 +77,7 @@ model asset {
   @@unique([name, user_id])
   @@index([user_id])
   @@index([parent_id])
+  @@index([user_id, parent_id, order_index])
 }
 
 model transaction_template {

@@ -222,6 +222,40 @@ export function ErrorAlert({ message, onDismiss }: ErrorAlertProps) {
   )
 }
 
+// Toggle Switch
+interface ToggleSwitchProps {
+  label: string
+  helpText?: string
+  value: boolean
+  onChange: (value: boolean) => void
+}
+
+export function ToggleSwitch({ label, helpText, value, onChange }: ToggleSwitchProps) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</p>
+        {helpText && <p className="text-xs text-slate-500 dark:text-slate-400">{helpText}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!value)}
+        className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
+          value ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
+        }`}
+        role="switch"
+        aria-checked={value}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+            value ? 'translate-x-6' : 'translate-x-1'
+          }`}
+        />
+      </button>
+    </div>
+  )
+}
+
 // Form Action Buttons
 interface FormActionsProps {
   cancelLink: string

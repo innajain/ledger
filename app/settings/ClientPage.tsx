@@ -8,7 +8,7 @@ import { update_line_item_defaults, type LineItemDefaults } from '@/app/_actions
 
 type AccountOpt = { id: string; name: string; type: string }
 type AssetOpt = { id: string; name: string }
-type InactiveAccount = { id: string; name: string; type: string; is_placeholder_acc: boolean }
+type InactiveAccount = { id: string; name: string; type: string; is_placeholder: boolean }
 
 type Props = {
   user: user
@@ -593,7 +593,7 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
                 >
                   <span className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                     {a.name}
-                    {a.is_placeholder_acc && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">(placeholder)</span>}
+                    {a.is_placeholder && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">(placeholder)</span>}
                   </span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     a.type === 'real' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :

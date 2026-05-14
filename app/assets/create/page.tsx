@@ -8,7 +8,7 @@ export default async function Page() {
   const parents: Prisma.assetGetPayload<Record<string, never>>[] = user
     ? await prisma.asset.findMany({
         where: { user_id: user.id },
-        orderBy: { name: 'asc' },
+        orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       })
     : []
 

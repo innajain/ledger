@@ -43,7 +43,7 @@ export default function ClientPage({ allocations, totals, assetQuantities, grand
             totals={totals}
             getItemUrl={id => `/allocations/${id}`}
             expandAll={expandAll}
-            storageKey="allocations"
+            scope="account"
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
             accentBorderClass="border-l-amber-500"

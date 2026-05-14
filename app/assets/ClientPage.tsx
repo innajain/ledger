@@ -40,7 +40,8 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, gra
             totals={totals}
             getItemUrl={id => `/assets/${id}`}
             expandAll={expandAll}
-            storageKey="assets"
+            scope="asset"
+            accentBorderClass="border-l-purple-500"
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
             renderExtraInfo={asset => {

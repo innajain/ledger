@@ -12,7 +12,7 @@ function ist_date_key(date: Date): string {
   return formatInTimeZone(date, USER_TIMEZONE, 'yyyy-MM-dd')
 }
 
-const yf = new yahooFinance({ suppressNotices: ['yahooSurvey'] })
+const yf = new yahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] })
 
 // Cache TTLs
 const SCHEME_MAP_TTL = 7 * 24 * 60 * 60 // 7 days
@@ -131,11 +131,14 @@ async function get_full_etf_history(symbol: string, from: Date): Promise<Map<str
   const fetchPromise = (async () => {
     try {
       const today = new Date()
-      const result = await yf.historical(symbol, { period1: from, period2: today, interval: '1d' })
+      // Use chart() directly (historical() is deprecated and trips on partial-null rows
+      // — chart() returns the same shape under `quotes` and we filter nulls ourselves).
+      const result = await yf.chart(symbol, { period1: from, period2: today, interval: '1d' })
       const map = new Map<string, number>()
-      for (const row of result) {
+      for (const row of result.quotes ?? []) {
+        if (row.close == null || !row.date) continue
         const dateKey = ist_date_key(row.date)
-        if (row.close != null) map.set(dateKey, row.close)
+        map.set(dateKey, row.close)
       }
       await redis.setex(cacheKey, ETF_HISTORY_TTL, JSON.stringify(Object.fromEntries(map)))
       return map

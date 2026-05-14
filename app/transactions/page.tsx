@@ -72,11 +72,11 @@ export default async function Page({
   const [accounts, assets, templates] = await Promise.all([
     prisma.account.findMany({
       where: { user_id: user.id },
-      orderBy: { name: 'asc' },
+      orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     prisma.asset.findMany({
       where: { user_id: user.id },
-      orderBy: { name: 'asc' },
+      orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_transaction_templates(),
   ])
