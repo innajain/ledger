@@ -1,7 +1,7 @@
 'use client'
 
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceArea } from 'recharts'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 
 export type ValuePoint = {
@@ -88,6 +88,21 @@ export function ValueChart({ points, title }: Props) {
   const [lastMouseX, setLastMouseX] = useState<number | null>(null)
   // Zooming state (pinch)
   const [lastPinchDist, setLastPinchDist] = useState<number | null>(null)
+  
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Prevent default browser pinch-to-zoom on the chart to allow our custom zoom
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const preventPinch = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault()
+      }
+    }
+    el.addEventListener('touchmove', preventPinch, { passive: false })
+    return () => el.removeEventListener('touchmove', preventPinch)
+  }, [])
 
   const applyZoom = (delta: number) => {
     // scale factor
@@ -165,7 +180,7 @@ export function ValueChart({ points, title }: Props) {
       const distDiff = lastPinchDist - dist
       
       // Apply zoom sensitivity
-      applyZoom(distDiff / 20)
+      applyZoom(distDiff / 5)
       setLastPinchDist(dist)
     }
   }
@@ -224,6 +239,7 @@ export function ValueChart({ points, title }: Props) {
         </div>
       </div>
       <div
+        ref={containerRef}
         className="w-full h-64 sm:h-80 select-none touch-pan-y cursor-grab active:cursor-grabbing outline-none"
         style={{ WebkitTapHighlightColor: 'transparent' }}
         onWheel={handleWheel}
