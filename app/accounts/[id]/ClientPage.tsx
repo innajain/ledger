@@ -2,6 +2,7 @@
 
 import { AccountDetailPage, AccountData } from '@/app/_components/AccountDetailPage'
 import { asset_type } from '@/generated/prisma/enums'
+import type { ValuePoint } from '@/app/_components/ValueChart'
 
 type LineItem = {
   id: string
@@ -35,6 +36,7 @@ type AccountForClient = {
     asset_type: asset_type
   }[]
   line_items: LineItem[]
+  value_timeseries?: ValuePoint[]
 }
 
 const accountDetailConfig = {
@@ -51,6 +53,7 @@ export default function ClientPage({ account }: { account: AccountForClient }) {
       asset_type: b.asset_type,
     })),
     line_items: account.line_items,
+    value_timeseries: account.value_timeseries,
   }
 
   return <AccountDetailPage account={accountData} config={accountDetailConfig} />

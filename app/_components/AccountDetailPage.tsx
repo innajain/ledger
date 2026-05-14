@@ -5,6 +5,7 @@ import { HoldingsGrid, HoldingItem } from '@/app/_components/HoldingsGrid'
 import { Card } from '@/app/_components/Card'
 import { asset_type } from '@/generated/prisma/enums'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
+import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 
 export type LineItem = {
   id: string
@@ -38,6 +39,7 @@ export type AccountData = {
     current_value: number
   }[]
   line_items: LineItem[]
+  value_timeseries?: ValuePoint[]
 }
 
 type AccountDetailConfig = {
@@ -119,6 +121,10 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
             : []),
         ]}
       />
+
+      {account.value_timeseries && account.value_timeseries.length > 0 && (
+        <ValueChart points={account.value_timeseries} title="Value over time" />
+      )}
 
       <HoldingsGrid title={config.holdingsTitle || 'Holdings (aggregated by asset)'} items={holdingsItems} linkLabel="View Asset →" />
 

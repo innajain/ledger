@@ -5,6 +5,7 @@ import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
+import { compute_value_timeseries } from '@/app/_utils/value_timeseries'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -210,6 +211,16 @@ export default async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
+  // For real accounts, compute value-over-time. Skip for placeholder/non-real accounts.
+  const value_timeseries =
+    account.type === 'real'
+      ? await compute_value_timeseries(
+          rawTransactions,
+          { kind: 'account', account_id: account.id },
+          uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
+        )
+      : []
+
   const accountForClient = {
     id: account.id,
     name: account.name,
@@ -220,6 +231,7 @@ export default async function Page({ params }: Props) {
     xirr: xirr_value,
     breakdown,
     line_items: sortedLineItems,
+    value_timeseries,
   }
   return <ClientPage account={accountForClient} />
 }

@@ -2,6 +2,7 @@
 
 import { AccountDetailPage, AccountData } from '@/app/_components/AccountDetailPage'
 import { asset_type } from '@/generated/prisma/enums'
+import type { ValuePoint } from '@/app/_components/ValueChart'
 
 type LineItem = {
   id: string
@@ -34,6 +35,7 @@ type AllocationForClient = {
     current_value: number
   }[]
   line_items: LineItem[]
+  value_timeseries?: ValuePoint[]
 }
 
 const allocationDetailConfig = {
@@ -50,6 +52,7 @@ export default function ClientPage({ allocation }: { allocation: AllocationForCl
       asset_type: b.asset_type,
     })),
     line_items: allocation.line_items,
+    value_timeseries: allocation.value_timeseries,
   }
 
   return <AccountDetailPage account={accountData} config={allocationDetailConfig} />

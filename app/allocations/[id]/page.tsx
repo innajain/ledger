@@ -5,6 +5,7 @@ import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
+import { compute_value_timeseries } from '@/app/_utils/value_timeseries'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -167,6 +168,12 @@ export default async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
+  const value_timeseries = await compute_value_timeseries(
+    rawTransactions,
+    { kind: 'allocation', allocation_id: allocation.id },
+    uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
+  )
+
   const allocationForClient = {
     id: allocation.id,
     name: allocation.name,
@@ -177,6 +184,7 @@ export default async function Page({ params }: Props) {
     xirr: xirr_value,
     line_items: sortedLineItems,
     breakdown,
+    value_timeseries,
   }
 
   return <ClientPage allocation={allocationForClient} />
