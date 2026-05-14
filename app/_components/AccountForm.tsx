@@ -176,15 +176,15 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
             helpText={config.parentHelpText}
           />
 
-          <div className="flex items-center justify-between py-2">
-            <div>
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Active</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">Inactive accounts are hidden from transaction selectors</p>
             </div>
             <button
               type="button"
               onClick={() => setIsActive(v => !v)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
+              className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
                 isActive ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
               }`}
               role="switch"
@@ -198,15 +198,15 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
             </button>
           </div>
 
-          <div className="flex items-center justify-between py-2">
-            <div>
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Placeholder</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">Placeholder accounts exist only to group sub-accounts and are hidden from transaction selectors</p>
             </div>
             <button
               type="button"
               onClick={() => setIsPlaceholder(v => !v)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
+              className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
                 isPlaceholder ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
               }`}
               role="switch"
