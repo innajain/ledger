@@ -130,7 +130,7 @@ export function ValueChart({ points, title }: Props) {
           </p>
         </div>
       </div>
-      <div className="w-full h-64 sm:h-80 select-none">
+      <div className="w-full h-64 sm:h-80 select-none touch-pan-y">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={sampled}
@@ -142,6 +142,9 @@ export function ValueChart({ points, title }: Props) {
               setRefLeft(null)
               setRefRight(null)
             }}
+            onTouchStart={onMouseDown}
+            onTouchMove={onMouseMove}
+            onTouchEnd={onMouseUp}
           >
             <defs>
               <linearGradient id="colorInvested" x1="0" y1="0" x2="0" y2="1">
