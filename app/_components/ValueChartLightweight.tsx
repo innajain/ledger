@@ -1,9 +1,26 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { createChart, AreaSeries, ColorType, type IChartApi, type ISeriesApi, type Time } from 'lightweight-charts'
+import { useEffect, useRef, useState } from 'react'
+import {
+  createChart,
+  AreaSeries,
+  ColorType,
+  CrosshairMode,
+  type IChartApi,
+  type ISeriesApi,
+  type Time,
+  type MouseEventParams,
+  type AreaData,
+} from 'lightweight-charts'
 import { useTheme } from 'next-themes'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
+
+const compactFmt = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
 
 export type ValuePoint = {
   date: string
@@ -16,14 +33,21 @@ type Props = {
   title?: string
 }
 
+type HoverInfo = { date: string; invested: number; current: number; x: number; y: number } | null
+
+function fmtTooltipDate(s: string) {
+  const d = new Date(s + 'T00:00:00')
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 export function ValueChartLightweight({ points, title }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const investedSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
   const currentSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
   const { resolvedTheme } = useTheme()
+  const [hover, setHover] = useState<HoverInfo>(null)
 
-  // Create chart once
   useEffect(() => {
     if (!containerRef.current) return
 
@@ -39,25 +63,33 @@ export function ValueChartLightweight({ points, title }: Props) {
         horzLines: { color: isDark ? '#334155' : '#e2e8f0' },
       },
       rightPriceScale: {
+        visible: false,
+      },
+      leftPriceScale: {
+        visible: true,
         borderColor: isDark ? '#334155' : '#e2e8f0',
       },
       timeScale: {
         borderColor: isDark ? '#334155' : '#e2e8f0',
         timeVisible: false,
         secondsVisible: false,
-        // Constrain panning so the user can't drift past the data on either side.
         fixLeftEdge: true,
         fixRightEdge: true,
         rightOffset: 0,
         lockVisibleTimeRangeOnResize: true,
       },
-      crosshair: { mode: 1 },
+      // Keep crosshair tracking for the hover tooltip but hide both lines and
+      // their axis labels — visual noise the user doesn't want.
+      crosshair: {
+        mode: CrosshairMode.Magnet,
+        vertLine: { visible: false, labelVisible: false },
+        horzLine: { visible: false, labelVisible: false },
+      },
       autoSize: true,
       localization: {
-        priceFormatter: (v: number) => currency_fmt.format(v),
+        priceFormatter: (v: number) => compactFmt.format(v),
       },
       handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
-      // Disable built-in mouse-wheel scaling; we attach our own faster wheel handler below.
       handleScale: { axisPressedMouseMove: true, mouseWheel: false, pinch: true },
     })
 
@@ -66,22 +98,47 @@ export function ValueChartLightweight({ points, title }: Props) {
       topColor: 'rgba(59, 130, 246, 0.3)',
       bottomColor: 'rgba(59, 130, 246, 0)',
       lineWidth: 2,
-      title: 'Invested',
+      // Attach to the left price scale so the axis renders on the left.
+      priceScaleId: 'left',
+      // Suppress the persistent edge price label and its horizontal price line.
+      lastValueVisible: false,
+      priceLineVisible: false,
     })
     const currentSeries = chart.addSeries(AreaSeries, {
       lineColor: '#10b981',
       topColor: 'rgba(16, 185, 129, 0.3)',
       bottomColor: 'rgba(16, 185, 129, 0)',
       lineWidth: 2,
-      title: 'Current',
+      priceScaleId: 'left',
+      lastValueVisible: false,
+      priceLineVisible: false,
     })
 
     chartRef.current = chart
     investedSeriesRef.current = investedSeries
     currentSeriesRef.current = currentSeries
 
-    // Custom wheel zoom: ~25% per tick (built-in is too gentle), centered on
-    // the cursor's logical position, clamped to data bounds.
+    const onCrosshairMove = (param: MouseEventParams) => {
+      if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
+        setHover(null)
+        return
+      }
+      const inv = param.seriesData.get(investedSeries) as AreaData | undefined
+      const cur = param.seriesData.get(currentSeries) as AreaData | undefined
+      if (inv == null || cur == null) {
+        setHover(null)
+        return
+      }
+      setHover({
+        date: param.time as string,
+        invested: inv.value,
+        current: cur.value,
+        x: param.point.x,
+        y: param.point.y,
+      })
+    }
+    chart.subscribeCrosshairMove(onCrosshairMove)
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       const ts = chart.timeScale()
@@ -106,6 +163,7 @@ export function ValueChartLightweight({ points, title }: Props) {
 
     return () => {
       el.removeEventListener('wheel', onWheel)
+      chart.unsubscribeCrosshairMove(onCrosshairMove)
       chart.remove()
       chartRef.current = null
       investedSeriesRef.current = null
@@ -113,7 +171,6 @@ export function ValueChartLightweight({ points, title }: Props) {
     }
   }, [resolvedTheme])
 
-  // Update data
   useEffect(() => {
     if (!investedSeriesRef.current || !currentSeriesRef.current) return
     investedSeriesRef.current.setData(points.map(p => ({ time: p.date as Time, value: p.invested })))
@@ -126,6 +183,17 @@ export function ValueChartLightweight({ points, title }: Props) {
   const last = points[points.length - 1]
   const gain = last.current - last.invested
   const gainPct = last.invested !== 0 ? (gain / last.invested) * 100 : null
+
+  // Position the tooltip just to one side of the cursor, clamped to the chart
+  // box so it doesn't get cut off near the edges.
+  const tooltipStyle: React.CSSProperties | undefined = hover
+    ? {
+        position: 'absolute',
+        left: Math.min(hover.x + 12, (containerRef.current?.clientWidth ?? 0) - 180),
+        top: Math.max(8, hover.y - 60),
+        pointerEvents: 'none',
+      }
+    : undefined
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
@@ -142,7 +210,27 @@ export function ValueChartLightweight({ points, title }: Props) {
           </p>
         </div>
       </div>
-      <div ref={containerRef} className="w-full h-64 sm:h-80" />
+      <div className="relative">
+        <div ref={containerRef} className="w-full h-64 sm:h-80" />
+        {hover && (
+          <div
+            style={tooltipStyle}
+            className="z-10 rounded-md border border-slate-700 bg-slate-900/95 text-slate-100 px-3 py-2 text-xs shadow-lg backdrop-blur-sm"
+          >
+            <div className="text-slate-400 mb-1">{fmtTooltipDate(hover.date)}</div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+              <span className="text-slate-300">Invested</span>
+              <span className="ml-auto font-medium">{currency_fmt.format(hover.invested)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#10b981' }} />
+              <span className="text-slate-300">Current</span>
+              <span className="ml-auto font-medium">{currency_fmt.format(hover.current)}</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

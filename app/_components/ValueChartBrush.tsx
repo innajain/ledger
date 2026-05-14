@@ -83,6 +83,7 @@ export function ValueChartBrush({ points, title }: Props) {
               width={52}
             />
             <Tooltip
+              cursor={false}
               formatter={(value, name) => [currency_fmt.format(Number(value ?? 0)), name === 'invested' ? 'Invested' : 'Current']}
               labelFormatter={label => (typeof label === 'string' ? fmtTooltipDate(label) : String(label ?? ''))}
               contentStyle={{

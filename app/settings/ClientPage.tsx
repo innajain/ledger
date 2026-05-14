@@ -9,6 +9,7 @@ import { update_line_item_defaults, type LineItemDefaults } from '@/app/_actions
 type AccountOpt = { id: string; name: string; type: string }
 type AssetOpt = { id: string; name: string }
 type InactiveAccount = { id: string; name: string; type: string; is_placeholder: boolean }
+type InactiveAsset = { id: string; name: string; type: string; is_placeholder: boolean }
 
 type Props = {
   user: user
@@ -16,6 +17,7 @@ type Props = {
   assets: AssetOpt[]
   defaults: LineItemDefaults
   inactiveAccounts: InactiveAccount[]
+  inactiveAssets: InactiveAsset[]
 }
 
 function accountUrl(a: InactiveAccount) {
@@ -32,7 +34,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 const REDIRECT_DELAY_MS = 1500
 
-export default function ClientPage({ user, accounts, assets, defaults, inactiveAccounts }: Props) {
+export default function ClientPage({ user, accounts, assets, defaults, inactiveAccounts, inactiveAssets }: Props) {
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -601,6 +603,34 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
                     'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
                   }`}>
                     {TYPE_LABELS[a.type] ?? a.type}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Inactive Assets */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors mt-6">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Assets</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Assets that are hidden from transaction selectors. Click to manage.</p>
+        {inactiveAssets.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400 italic">No inactive assets.</p>
+        ) : (
+          <ul className="space-y-2">
+            {inactiveAssets.map(a => (
+              <li key={a.id}>
+                <Link
+                  href={`/assets/${a.id}/update`}
+                  className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                >
+                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {a.name}
+                    {a.is_placeholder && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">(placeholder)</span>}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 capitalize">
+                    {a.type}
                   </span>
                 </Link>
               </li>

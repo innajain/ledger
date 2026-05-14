@@ -15,7 +15,7 @@ export default async function SettingsPage() {
     redirect('/login')
   }
 
-  const [accounts, assets, defaults, inactiveAccounts] = await Promise.all([
+  const [accounts, assets, defaults, inactiveAccounts, inactiveAssets] = await Promise.all([
     prisma.account.findMany({
       where: { user_id: user.id, is_active: true },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
@@ -32,7 +32,21 @@ export default async function SettingsPage() {
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true, type: true, is_placeholder: true },
     }),
+    prisma.asset.findMany({
+      where: { user_id: user.id, is_active: false },
+      orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+      select: { id: true, name: true, type: true, is_placeholder: true },
+    }),
   ])
 
-  return <ClientPage user={user} accounts={accounts} assets={assets} defaults={defaults} inactiveAccounts={inactiveAccounts} />
+  return (
+    <ClientPage
+      user={user}
+      accounts={accounts}
+      assets={assets}
+      defaults={defaults}
+      inactiveAccounts={inactiveAccounts}
+      inactiveAssets={inactiveAssets}
+    />
+  )
 }
