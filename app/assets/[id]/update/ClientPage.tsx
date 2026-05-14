@@ -4,7 +4,16 @@ import { useState } from 'react'
 import { update_asset } from '@/app/_actions/resources'
 import type { Prisma, asset_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
-import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert, ToggleSwitch } from '@/app/_components/AccountFormComponents'
+import {
+  PageHeader,
+  FormCard,
+  TextInput,
+  AssetTypeSelect,
+  ParentAssetSelect,
+  FormActions,
+  ErrorAlert,
+  ToggleSwitch,
+} from '@/app/_components/AccountFormComponents'
 
 export default function ClientPage({
   asset,
@@ -57,7 +66,7 @@ export default function ClientPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader backLink="/assets" backText="Back to Assets" title="Update Asset" description="Modify asset details or delete" />
+      <PageHeader backLink="/assets" backText="Assets" title="Update Asset" description="Modify asset details or delete" />
 
       <form onSubmit={onUpdate} className="space-y-6">
         <FormCard title="Asset Details">
@@ -76,12 +85,7 @@ export default function ClientPage({
             helpText="Select a parent to create a sub-asset"
           />
 
-          <ToggleSwitch
-            label="Active"
-            helpText="Inactive assets are hidden from transaction selectors"
-            value={isActive}
-            onChange={setIsActive}
-          />
+          <ToggleSwitch label="Active" helpText="Inactive assets are hidden from transaction selectors" value={isActive} onChange={setIsActive} />
           <ToggleSwitch
             label="Placeholder"
             helpText="Placeholder assets exist only to group sub-assets and are hidden from transaction selectors"

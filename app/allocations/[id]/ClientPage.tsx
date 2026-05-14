@@ -40,7 +40,7 @@ type AllocationForClient = {
 
 const allocationDetailConfig = {
   backLink: '/allocations',
-  backText: 'Back to Allocations',
+  backText: 'Allocations',
   entityName: 'Allocation',
 }
 

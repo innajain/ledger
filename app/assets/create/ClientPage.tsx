@@ -30,7 +30,7 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
 
   return (
     <div className="space-y-6">
-      <PageHeader backLink="/assets" backText="Back to Assets" title="Create Asset" description="Add a new asset to your portfolio" />
+      <PageHeader backLink="/assets" backText="Assets" title="Create Asset" description="Add a new asset to your portfolio" />
 
       <form onSubmit={onCreate} className="space-y-6">
         <FormCard title="Asset Details">

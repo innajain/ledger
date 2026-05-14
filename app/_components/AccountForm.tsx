@@ -20,7 +20,7 @@ const ACCOUNT_FORM_CONFIGS: Record<account_type, AccountFormConfig> = {
     accountType: 'real',
     entityName: 'Account',
     basePath: '/accounts',
-    backText: 'Back to Accounts',
+    backText: 'Accounts',
     parentLabel: 'Parent Account (Optional)',
     parentHelpText: 'Select a parent to create a sub-account',
   },
@@ -28,7 +28,7 @@ const ACCOUNT_FORM_CONFIGS: Record<account_type, AccountFormConfig> = {
     accountType: 'allocation',
     entityName: 'Allocation',
     basePath: '/allocations',
-    backText: 'Back to Allocations',
+    backText: 'Allocations',
     parentLabel: 'Parent Allocation (Optional)',
     parentHelpText: 'Select a parent to create a sub-allocation',
   },
@@ -36,7 +36,7 @@ const ACCOUNT_FORM_CONFIGS: Record<account_type, AccountFormConfig> = {
     accountType: 'nominal',
     entityName: 'Nominal Account',
     basePath: '/income_expenses',
-    backText: 'Back to Nominal Accounts',
+    backText: 'Nominal Accounts',
     parentLabel: 'Parent Account (Optional)',
     parentHelpText: 'Select a parent to create a sub-account',
   },
@@ -176,12 +176,7 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
             helpText={config.parentHelpText}
           />
 
-          <ToggleSwitch
-            label="Active"
-            helpText="Inactive accounts are hidden from transaction selectors"
-            value={isActive}
-            onChange={setIsActive}
-          />
+          <ToggleSwitch label="Active" helpText="Inactive accounts are hidden from transaction selectors" value={isActive} onChange={setIsActive} />
           <ToggleSwitch
             label="Placeholder"
             helpText="Placeholder accounts exist only to group sub-accounts and are hidden from transaction selectors"

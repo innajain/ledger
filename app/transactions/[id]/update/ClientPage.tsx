@@ -41,12 +41,7 @@ export default function ClientPage({
   accounts: { id: string; name: string; type: string }[]
   assets: { id: string; name: string; type: asset_type }[]
   defaults: LineItemDefaults
-  updateTransaction: (
-    id: string,
-    line_items: CreateLineItemInput[],
-    datetime?: Date,
-    description?: string | null,
-  ) => Promise<ActionResult>
+  updateTransaction: (id: string, line_items: CreateLineItemInput[], datetime?: Date, description?: string | null) => Promise<ActionResult>
 }) {
   function toLocalDateTimeInputValue(d: Date | string) {
     const dt = typeof d === 'string' ? new Date(d) : d
@@ -140,7 +135,6 @@ export default function ClientPage({
     }
   }
 
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -152,7 +146,7 @@ export default function ClientPage({
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back to Transaction
+          Transaction
         </Link>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Edit Transaction</h1>
         <p className="text-slate-600 dark:text-slate-400 mt-1">Update transaction details and line items</p>

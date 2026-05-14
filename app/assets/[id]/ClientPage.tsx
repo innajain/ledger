@@ -58,7 +58,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
     <div className="space-y-6">
       <ViewPageHeader
         backLink="/assets"
-        backText="Back to Assets"
+        backText="Assets"
         title={asset.name}
         description="Asset details and holdings breakdown"
         editLink={`/assets/${asset.id}/update`}
@@ -284,72 +284,69 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                     ? (li.remaining_quantity / li.quantity) * li.book_value
                     : null
                 return (
-                <div
-                  key={li.id}
-                  className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                        <Link
-                          href={`/accounts/${li.account_id}`}
-                          className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        >
-                          {li.account_name}
-                        </Link>
-                        <span>•</span>
+                  <div key={li.id} className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                          <Link
+                            href={`/accounts/${li.account_id}`}
+                            className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          >
+                            {li.account_name}
+                          </Link>
+                          <span>•</span>
+                          <Link
+                            href={`/transactions/${li.transaction_id}`}
+                            className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+                          >
+                            <LocalDateTime value={li.transaction_date} />
+                          </Link>
+                        </div>
+
+                        {li.line_item_description && (
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 italic">{li.line_item_description}</p>
+                        )}
+                        {li.transaction_description && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 italic">Transaction: {li.transaction_description}</p>
+                        )}
+
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                          {asset.type !== asset_type.rupees && (
+                            <>
+                              <div className="text-slate-600 dark:text-slate-400">
+                                <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{li.quantity} units</span>
+                              </div>
+                              {li.remaining_quantity !== null && (
+                                <div className="text-slate-600 dark:text-slate-400">
+                                  <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
+                                  <span className="font-medium text-slate-900 dark:text-slate-100">{li.remaining_quantity} units</span>
+                                  {remaining_book_value !== null && (
+                                    <>
+                                      {' '}
+                                      <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_book_value)} book)</span>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                          {currency_fmt.format(li.book_value !== null ? li.book_value : li.quantity)}
+                        </div>
                         <Link
                           href={`/transactions/${li.transaction_id}`}
-                          className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 inline-block"
                         >
-                          <LocalDateTime value={li.transaction_date} />
+                          View Transaction →
                         </Link>
                       </div>
-
-                      {li.line_item_description && (
-                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 italic">{li.line_item_description}</p>
-                      )}
-                      {li.transaction_description && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 italic">Transaction: {li.transaction_description}</p>
-                      )}
-
-                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                        {asset.type !== asset_type.rupees && (
-                          <>
-                            <div className="text-slate-600 dark:text-slate-400">
-                              <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
-                              <span className="font-medium text-slate-900 dark:text-slate-100">{li.quantity} units</span>
-                            </div>
-                            {li.remaining_quantity !== null && (
-                              <div className="text-slate-600 dark:text-slate-400">
-                                <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{li.remaining_quantity} units</span>
-                                {remaining_book_value !== null && (
-                                  <>
-                                    {' '}
-                                    <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_book_value)} book)</span>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                        {currency_fmt.format(li.book_value !== null ? li.book_value : li.quantity)}
-                      </div>
-                      <Link
-                        href={`/transactions/${li.transaction_id}`}
-                        className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 inline-block"
-                      >
-                        View Transaction →
-                      </Link>
                     </div>
                   </div>
-                </div>
                 )
               })}
             </div>
@@ -357,9 +354,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
         )}
       </div>
 
-      {asset.value_timeseries && asset.value_timeseries.length > 0 && (
-        <ValueChart points={asset.value_timeseries} title="Value over time" />
-      )}
+      {asset.value_timeseries && asset.value_timeseries.length > 0 && <ValueChart points={asset.value_timeseries} title="Value over time" />}
     </div>
   )
 }

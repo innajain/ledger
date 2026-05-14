@@ -37,7 +37,7 @@ type AccountForClient = {
 
 const nominalDetailConfig = {
   backLink: '/income_expenses',
-  backText: 'Back to Nominal Accounts',
+  backText: 'Nominal Accounts',
   entityName: 'Account',
 }
 

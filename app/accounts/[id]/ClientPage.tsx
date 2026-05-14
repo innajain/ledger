@@ -41,7 +41,7 @@ type AccountForClient = {
 
 const accountDetailConfig = {
   backLink: '/accounts',
-  backText: 'Back to Accounts',
+  backText: 'Accounts',
   entityName: 'Account',
 }
 
