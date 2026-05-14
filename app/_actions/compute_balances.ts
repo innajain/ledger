@@ -5,15 +5,17 @@ import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { normalize_txn } from '../_utils/normalize_txn'
 import { get_current_user_id } from '@/app/_actions/auth'
+import { invalidate_timeseries } from '@/app/_utils/value_timeseries'
 
 const balance_cache_key = (user_id: string) => `balances:${user_id}`
 
 /**
  * Drop the cached balance map for a user. Call this from any mutation that
  * could invalidate balances — transactions, accounts, assets, line items.
+ * Also bumps the user's timeseries version so chart data is recomputed.
  */
 export async function invalidate_balances(user_id: string): Promise<void> {
-  await redis.del(balance_cache_key(user_id))
+  await Promise.all([redis.del(balance_cache_key(user_id)), invalidate_timeseries(user_id)])
 }
 
 export async function get_or_compute_balances(invalidate_cache = false) {

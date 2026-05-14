@@ -14,10 +14,12 @@ function ist_date_key(date: Date): string {
 
 const yf = new yahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] })
 
-// Cache TTLs
-const SCHEME_MAP_TTL = 7 * 24 * 60 * 60 // 7 days
-const NAV_HISTORY_TTL = 24 * 60 * 60 // 1 day (latest NAV moves daily; full history is mostly stable)
-const ETF_HISTORY_TTL = 24 * 60 * 60 // 1 day
+// Cache TTLs. Historical price data is immutable for past dates; only "today"
+// can be in flux. The chart's last point is overridden with the live price by
+// the detail page anyway, so a slightly stale full-history cache is fine.
+const SCHEME_MAP_TTL = 30 * 24 * 60 * 60 // 30 days (AMFI master changes rarely)
+const NAV_HISTORY_TTL = 7 * 24 * 60 * 60 // 7 days
+const ETF_HISTORY_TTL = 7 * 24 * 60 * 60 // 7 days
 
 // In-flight dedup
 const inFlightSchemeMap = new Map<string, Promise<Record<string, string>>>()
