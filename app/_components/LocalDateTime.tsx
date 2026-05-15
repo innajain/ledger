@@ -33,12 +33,10 @@ export function LocalDateTime({ value }: { value: string | Date }) {
   const [text, setText] = useState('')
 
   useEffect(() => {
+    // Format client-side to avoid SSR/CSR timezone mismatches.
     const d = new Date(value)
-    if (isNaN(d.getTime())) {
-      setText('')
-      return
-    }
-    setText(format(d))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setText(isNaN(d.getTime()) ? '' : format(d))
   }, [value])
 
   return <span suppressHydrationWarning>{text}</span>

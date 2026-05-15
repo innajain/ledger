@@ -56,6 +56,8 @@ export function HierarchyTree<T extends BaseItem>({
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    // Reset optimistic order when the server returns a new items list.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOptimisticOrder({})
   }, [items])
 

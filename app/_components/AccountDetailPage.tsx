@@ -145,7 +145,6 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
                 assetLink={li.asset_id ? `/assets/${li.asset_id}` : undefined}
                 quantity={li.quantity}
                 bookValue={li.book_value}
-                currentValue={li.current_value}
                 transactionId={li.transaction_id}
                 transactionDate={li.transaction_date}
                 transactionDescription={li.transaction_description}

@@ -2,7 +2,7 @@ import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_price_for_asset } from '@/app/_utils/price_fetcher'
-import { account_type, asset_type, Prisma } from '@/generated/prisma/client'
+import { asset_type, Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { get_or_compute_balances } from '../_actions/compute_balances'
 import { normalize_txn } from '../_utils/normalize_txn'
@@ -45,7 +45,7 @@ export default async function Page() {
       const acc_qty_map = balances.get(ass.id) ?? new Map<string, { qty: number; book_value: number }>()
 
       let total_value = new Prisma.Decimal(0)
-      for (const [acc_id, { qty, book_value }] of acc_qty_map.entries()) {
+      for (const [, { qty, book_value }] of acc_qty_map.entries()) {
         if (price_data) {
           total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
         } else {
@@ -65,8 +65,6 @@ export default async function Page() {
     })
     assetAccountQuantities.set(asset_id, accQuantities)
   })
-
-  const grand_total = Array.from(currValuesByAsset.values()).reduce((sum, val) => sum.add(val), new Prisma.Decimal(0))
 
   const asset_ids = assets.map(a => a.id)
   const all_line_items = await prisma.line_item.findMany({
@@ -103,13 +101,5 @@ export default async function Page() {
     xirrByAsset.set(asset.id, calculate_xirr(cashflows))
   }
 
-  return (
-    <ClientPage
-      assets={assets}
-      assetAccountQuantities={assetAccountQuantities}
-      totals={currValuesByAsset}
-      grand_total={grand_total.toNumber()}
-      xirrByAsset={xirrByAsset}
-    />
-  )
+  return <ClientPage assets={assets} assetAccountQuantities={assetAccountQuantities} totals={currValuesByAsset} xirrByAsset={xirrByAsset} />
 }

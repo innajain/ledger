@@ -1,7 +1,6 @@
 import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
-import { get_transaction_templates } from '@/app/_actions/templates'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 
 export default async function Page() {

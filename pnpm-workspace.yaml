@@ -2,6 +2,7 @@ allowBuilds:
   '@prisma/engines': true
   prisma: true
   sharp: true
+  simple-git-hooks: false
   unrs-resolver: true
 onlyBuiltDependencies:
   - '@prisma/engines'

@@ -42,7 +42,7 @@ export function validate_line_items(
     group[li.account.type].push(li)
   }
 
-  for (const [asset_id, group] of assetwise_groups.entries()) {
+  for (const group of assetwise_groups.values()) {
     if (group.real.some(li => li.quantity === null))
       return {
         is_valid: false,

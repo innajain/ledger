@@ -2,10 +2,8 @@
 
 import { useState } from 'react'
 import type { Prisma } from '@/generated/prisma/client'
-import { currency_fmt } from '../_utils/currency_formatter'
 import { HierarchyTree } from '../_components/HierarchyTree'
 import { PageHeader } from '../_components/PageHeader'
-import { TotalCard } from '../_components/TotalCard'
 import { EmptyState } from '../_components/EmptyState'
 import { AccountEmptyIcon } from '../_components/EmptyStateIcons'
 
@@ -13,10 +11,9 @@ type Props = {
   accounts: Prisma.accountGetPayload<{ include: { parent: true } }>[]
   totals: Map<string, number>
   accountAssetQuantities: Map<string, Map<string, number>>
-  grand_total: number
 }
 
-export default function ClientPage({ accounts, totals, accountAssetQuantities: assetQuantities, grand_total }: Props) {
+export default function ClientPage({ accounts, totals, accountAssetQuantities: assetQuantities }: Props) {
   const [expandAll, setExpandAll] = useState(false)
   const [reorderEnabled, setReorderEnabled] = useState(false)
   return (
@@ -52,8 +49,8 @@ export default function ClientPage({ accounts, totals, accountAssetQuantities: a
               const negativeAssets = [
                 ...new Set(
                   Array.from(assetQtys.entries())
-                    .filter(([_, qty]) => qty < 0)
-                    .map(([assetId, _]) => assetId),
+                    .filter(([, qty]) => qty < 0)
+                    .map(([assetId]) => assetId),
                 ),
               ]
               if (negativeAssets.length === 0) return null

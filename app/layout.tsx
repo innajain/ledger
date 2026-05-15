@@ -5,7 +5,6 @@ import Navbar from './_components/Navbar'
 import { get_current_user } from './_actions/auth'
 import { ThemeProvider } from './_components/ThemeProvider'
 import { ToastProvider } from './_components/Toast'
-// @ts-ignore
 import './globals.css'
 import Link from 'next/link'
 

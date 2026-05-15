@@ -1,16 +1,12 @@
 import type { NextConfig } from 'next'
+import bundleAnalyzer from '@next/bundle-analyzer'
+
+const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === 'true' })
 
 const nextConfig: NextConfig = {
   // Production optimizations
   compress: true,
   poweredByHeader: false,
-
-  // Reduce bundle size by tree-shaking
-  modularizeImports: {
-    'lucide-react': {
-      transform: 'lucide-react/dist/esm/icons/{{member}}',
-    },
-  },
 }
 
-export default nextConfig
+export default withBundleAnalyzer(nextConfig)

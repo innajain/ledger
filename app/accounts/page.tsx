@@ -70,17 +70,11 @@ export default async function Page() {
     assetQuantitiesByAccount.set(accId, assetQuantities)
   })
 
-  const grand_total = currValuesByAccount
-    .values()
-    .reduce((sum, val) => sum.add(val), new Prisma.Decimal(0))
-    .toNumber()
-
   return (
     <ClientPage
       accounts={accounts}
       totals={new Map(currValuesByAccount.entries().map(([accId, total]) => [accId, total.toNumber()]))}
       accountAssetQuantities={assetQuantitiesByAccount}
-      grand_total={grand_total}
     />
   )
 }

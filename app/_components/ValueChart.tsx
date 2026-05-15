@@ -27,10 +27,11 @@ const STORAGE_KEY = 'value-chart-view'
 export function ValueChart({ points, title }: Props) {
   const [view, setView] = useState<View>('lightweight')
 
-  // Load saved preference on mount.
+  // Load saved preference on mount. SSR-safe: initial state matches server render.
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (saved === 'brush' || saved === 'lightweight') setView(saved)
     } catch {}
   }, [])

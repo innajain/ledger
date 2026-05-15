@@ -70,29 +70,43 @@ export default function ClientPage({
   const [templateError, setTemplateError] = useState<string | null>(null)
   const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null)
 
+  // Load template from sessionStorage (set by /transactions on chip click).
+  // Client-only init — sessionStorage is unavailable during SSR.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const rawTemplate = sessionStorage.getItem('ledger_quick_template')
     if (rawTemplate) {
       try {
-        const parsed = JSON.parse(rawTemplate)
+        const parsed = JSON.parse(rawTemplate) as {
+          id?: string
+          description?: string
+          line_items?: {
+            account_id: string
+            asset_id: string
+            quantity?: number | null
+            book_value?: number | null
+            description?: string
+          }[]
+        }
         if (parsed.id) setLoadedTemplateId(parsed.id)
         if (parsed.description) setDescription(parsed.description)
         if (parsed.line_items) {
           setItems(
-            parsed.line_items.map((li: any) => ({
+            parsed.line_items.map(li => ({
               account_id: li.account_id,
               asset_id: li.asset_id,
-              quantity: li.quantity ?? null,
-              book_value: li.book_value ?? null,
+              quantity: li.quantity == null ? null : String(li.quantity),
+              book_value: li.book_value == null ? null : String(li.book_value),
               description: li.description || '',
               datetime: '',
             })),
           )
         }
-      } catch (e) {}
+      } catch {}
       sessionStorage.removeItem('ledger_quick_template')
     }
   }, [])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function addItemForType(typeKey: string) {
     const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
@@ -147,13 +161,13 @@ export default function ClientPage({
         book_value: it.book_value === null || it.book_value === '' ? null : Number(it.book_value),
         description: it.description === '' ? null : it.description,
       }))
-      const result: any = await update_transaction_template(loadedTemplateId, line_items as any, description || null)
+      const result = await update_transaction_template(loadedTemplateId, line_items, description || null)
       if (!result.success) {
         setTemplateError(result.message)
       } else {
         alert('Template updated!')
       }
-    } catch (err: any) {
+    } catch (err) {
       setTemplateError(err instanceof Error ? err.message : String(err))
     } finally {
       setSavingTemplate(false)
@@ -171,13 +185,13 @@ export default function ClientPage({
         book_value: it.book_value === null || it.book_value === '' ? null : Number(it.book_value),
         description: it.description === '' ? null : it.description,
       }))
-      const result: any = await create_transaction_template(line_items as any, description || null)
+      const result = await create_transaction_template(line_items, description || null)
       if (!result.success) {
         setTemplateError(result.message)
       } else {
         alert('Template saved!')
       }
-    } catch (err: any) {
+    } catch (err) {
       setTemplateError(err instanceof Error ? err.message : String(err))
     } finally {
       setSavingTemplate(false)

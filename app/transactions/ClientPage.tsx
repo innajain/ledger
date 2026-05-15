@@ -19,6 +19,20 @@ type Transaction = {
 
 type Account = { id: string; name: string }
 type Asset = { id: string; name: string }
+type Template = {
+  id: string
+  description: string | null
+  line_items: {
+    id: string
+    account_id: string
+    asset_id: string
+    description: string | null
+    quantity: number | null
+    book_value: number | null
+    account: { name: string; type: string }
+    asset: { name: string; type: string }
+  }[]
+}
 
 export default function ClientPage({
   transactions,
@@ -37,7 +51,7 @@ export default function ClientPage({
   searchParams: Record<string, string | undefined>
   accounts: Account[]
   assets: Asset[]
-  templates?: any[]
+  templates?: Template[]
 }) {
   const router = useRouter()
   const params = useSearchParams()
@@ -54,6 +68,7 @@ export default function ClientPage({
 
   // Resync form drafts from URL on every URL change (e.g. browser back/forward,
   // chip removal). Without this, the inputs would silently show stale values.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setSearchInput(searchParams.search || '')
     setDateFrom(searchParams.dateFrom || '')
@@ -71,6 +86,7 @@ export default function ClientPage({
     searchParams.accountId,
     searchParams.assetId,
   ])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const handleGlobalClick = () => setDeletingTemplate(null)
@@ -163,7 +179,7 @@ export default function ClientPage({
 
       {templates && templates.length > 0 && (
         <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {templates.map((t: any) => (
+          {templates.map(t => (
             <div
               key={t.id}
               className="flex items-center shrink-0 py-1.5 px-3 border border-slate-200 dark:border-slate-600 rounded-full bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group cursor-pointer relative"
@@ -175,7 +191,7 @@ export default function ClientPage({
                 }
                 try {
                   sessionStorage.setItem('ledger_quick_template', JSON.stringify(t))
-                } catch (e) {}
+                } catch {}
                 router.push(`/transactions/create?templateId=${t.id}`)
               }}
               onContextMenu={e => {

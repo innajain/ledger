@@ -127,7 +127,6 @@ interface LineItemRowProps {
   assetLink?: string
   quantity: number
   bookValue?: number | null
-  currentValue: number
   transactionId: string
   transactionDate: string
   transactionDescription?: string | null
@@ -141,7 +140,6 @@ export function LineItemRow({
   assetLink,
   quantity,
   bookValue,
-  currentValue,
   transactionId,
   transactionDate,
   transactionDescription,

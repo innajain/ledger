@@ -179,8 +179,8 @@ export function ValueChartBrush({ points, title }: Props) {
               fill="rgba(59, 130, 246, 0.05)"
               tickFormatter={fmtAxisDate}
               travellerWidth={10}
-              onChange={(e: any) => {
-                if (e && typeof e.startIndex === 'number' && typeof e.endIndex === 'number') {
+              onChange={(e: { startIndex?: number; endIndex?: number }) => {
+                if (typeof e.startIndex === 'number' && typeof e.endIndex === 'number') {
                   setBrushRange({ startIndex: e.startIndex, endIndex: e.endIndex })
                 }
               }}

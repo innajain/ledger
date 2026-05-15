@@ -57,8 +57,9 @@ export default function ClientPage({
   const [welcomeMessage, setWelcomeMessage] = useState(WELCOME_MESSAGES[0])
 
   useEffect(() => {
-    // Pick a random welcome message
+    // Randomize client-side to avoid SSR/CSR hydration mismatch.
     const randomMessage = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)]
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWelcomeMessage(randomMessage)
   }, [])
 
@@ -247,7 +248,7 @@ export default function ClientPage({
                 if (!res || res.length === 0) {
                   alert('All transactions are valid')
                 } else {
-                  const details = res.map((r: any) => `id: ${r.id} — ${r.message}`).join('\n')
+                  const details = res.map(r => `id: ${r.id} — ${r.message}`).join('\n')
                   alert(`Invalid transactions found (${res.length}):\n\n${details}`)
                   console.error(`Invalid transactions found (${res.length}):\n\n${details}`)
                 }

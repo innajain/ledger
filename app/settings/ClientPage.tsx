@@ -66,6 +66,8 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
+    // Standard mounted-on-client guard for theme rendering (avoid hydration flash).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 

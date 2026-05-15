@@ -2,20 +2,17 @@
 
 import { useState } from 'react'
 import type { Prisma } from '@/generated/prisma/client'
-import { currency_fmt } from '../_utils/currency_formatter'
 import { HierarchyTree } from '../_components/HierarchyTree'
 import { PageHeader } from '../_components/PageHeader'
-import { TotalCard } from '../_components/TotalCard'
 import { EmptyState } from '../_components/EmptyState'
 import { NominalAccountEmptyIcon } from '../_components/EmptyStateIcons'
 
 type Props = {
   accounts: Prisma.accountGetPayload<{ include: { parent: true } }>[]
   totals: Map<string, number>
-  grand_total: number
 }
 
-export default function ClientPage({ accounts, totals, grand_total }: Props) {
+export default function ClientPage({ accounts, totals }: Props) {
   const [expandAll, setExpandAll] = useState(false)
   const [reorderEnabled, setReorderEnabled] = useState(false)
   return (

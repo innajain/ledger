@@ -36,7 +36,14 @@ type Props = {
   title?: string
 }
 
-type HoverInfo = { date: string; invested: number; current: number; xirr: number | null; x: number; y: number } | null
+type HoverInfo = {
+  date: string
+  invested: number
+  current: number
+  xirr: number | null
+  tooltipLeft: number
+  tooltipTop: number
+} | null
 
 function fmtTooltipDate(s: string) {
   const d = new Date(s + 'T00:00:00')
@@ -116,15 +123,10 @@ export function ValueChartLightweight({ points, title }: Props) {
       const visiblePoints = pts.slice(fromIdx, toIdx + 1)
       if (visiblePoints.length === 0) return null
 
-      const vals = visiblePoints.map(p => p.xirr).filter((v): v is number => v !== null)
-      if (vals.length === 0) return null
+      const hasXirr = visiblePoints.some(p => p.xirr !== null)
+      if (!hasXirr) return null
 
-      const sorted = vals.sort((a, b) => a - b)
-      const minValue = -0.2
-      const maxValue = 0.2
-      if (minValue === undefined || maxValue === undefined) return null
-
-      return { priceRange: { minValue, maxValue } }
+      return { priceRange: { minValue: -0.2, maxValue: 0.2 } }
     }
 
     const investedSeries = chart.addSeries(AreaSeries, {
@@ -191,13 +193,14 @@ export function ValueChartLightweight({ points, title }: Props) {
         setHover(null)
         return
       }
+      const containerWidth = containerRef.current?.clientWidth ?? 0
       setHover({
         date: param.time as string,
         invested: inv.value,
         current: cur.value,
         xirr: xir?.value ?? null,
-        x: param.point.x,
-        y: param.point.y,
+        tooltipLeft: Math.min(param.point.x + 12, containerWidth - 180),
+        tooltipTop: Math.max(8, param.point.y - 60),
       })
     }
     chart.subscribeCrosshairMove(onCrosshairMove)
@@ -255,8 +258,8 @@ export function ValueChartLightweight({ points, title }: Props) {
   const tooltipStyle: React.CSSProperties | undefined = hover
     ? {
         position: 'absolute',
-        left: Math.min(hover.x + 12, (containerRef.current?.clientWidth ?? 0) - 180),
-        top: Math.max(8, hover.y - 60),
+        left: hover.tooltipLeft,
+        top: hover.tooltipTop,
         pointerEvents: 'none',
       }
     : undefined
