@@ -5,6 +5,7 @@ import { get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { account_type, Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { get_or_compute_balances } from '../_actions/compute_balances'
+import { profile } from '@/lib/metrics/profile'
 
 // Route segment config for performance
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   description: 'View and manage your income and expense accounts',
 }
 
-export default async function Page() {
+async function Page() {
   const user = await get_current_user()
   if (!user) {
     return (
@@ -73,3 +74,5 @@ export default async function Page() {
 
   return <ClientPage accounts={accounts} totals={new Map(totalsByAccount.entries().map(([accId, total]) => [accId, total.toNumber()]))} />
 }
+
+export default profile('/income_expenses', Page)

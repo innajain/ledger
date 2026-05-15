@@ -6,8 +6,9 @@ import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { Prisma } from '@/generated/prisma/client'
 import { get_or_compute_balances } from './_actions/compute_balances'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
+import { profile } from '@/lib/metrics/profile'
 
-export default async function Home() {
+async function Home() {
   const user = await get_current_user()
   if (!user) {
     return <ClientPage invest={null} savings={null} networth={null} />
@@ -98,3 +99,5 @@ export default async function Home() {
 
   return <ClientPage invest={invest_with_value} investXirrSlot={investXirrSlot} savings={savings_with_value} networth={networth} />
 }
+
+export default profile('/', Home)

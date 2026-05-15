@@ -3,10 +3,11 @@ import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
 import { Prisma } from '@/generated/prisma/client'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
+import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ id: string }> }
 
-export default async function Page({ params }: Props) {
+async function Page({ params }: Props) {
   const id = (await params).id
   const user = await get_current_user()
   if (!user) return <div>Please log in.</div>
@@ -44,3 +45,5 @@ export default async function Page({ params }: Props) {
 
   return <ClientPage transaction={txForClient} />
 }
+
+export default profile('/transactions/[id]', Page)

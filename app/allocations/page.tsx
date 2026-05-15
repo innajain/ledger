@@ -5,6 +5,7 @@ import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { account_type, Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { get_or_compute_balances } from '../_actions/compute_balances'
+import { profile } from '@/lib/metrics/profile'
 
 // Route segment config for performance
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   description: 'View and manage your allocation accounts',
 }
 
-export default async function Page() {
+async function Page() {
   const user = await get_current_user()
   if (!user) {
     return (
@@ -77,3 +78,5 @@ export default async function Page() {
     />
   )
 }
+
+export default profile('/allocations', Page)

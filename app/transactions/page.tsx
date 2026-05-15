@@ -8,6 +8,7 @@ import { normalize_txn } from '../_utils/normalize_txn'
 import { USER_TIMEZONE } from '@/lib/config'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
+import { profile } from '@/lib/metrics/profile'
 
 // Convert a YYYY-MM-DD string into a UTC Date representing midnight on that day in IST.
 // Used for date-range filter bounds: pass dateFrom directly, pass (dateTo + 1 day) for exclusive upper bound.
@@ -33,7 +34,7 @@ type TxForClient = {
   total_book: number
 }
 
-export default async function Page({
+async function Page({
   searchParams,
 }: {
   searchParams: Promise<{
@@ -203,3 +204,5 @@ export default async function Page({
     />
   )
 }
+
+export default profile('/transactions', Page)

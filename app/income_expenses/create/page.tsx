@@ -2,8 +2,9 @@ import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import type { Prisma } from '@/generated/prisma/client'
+import { profile } from '@/lib/metrics/profile'
 
-export default async function Page() {
+async function Page() {
   const user = await get_current_user()
   const parents: Prisma.accountGetPayload<Record<string, never>>[] = user
     ? await prisma.account.findMany({
@@ -14,3 +15,5 @@ export default async function Page() {
 
   return <ClientPage parents={parents} />
 }
+
+export default profile('/income_expenses/create', Page)

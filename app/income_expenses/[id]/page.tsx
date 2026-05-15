@@ -4,10 +4,11 @@ import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
+import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ id: string }> }
 
-export default async function Page({ params }: Props) {
+async function Page({ params }: Props) {
   const id = (await params).id
   const user = await get_current_user()
   if (!user) {
@@ -165,3 +166,5 @@ export default async function Page({ params }: Props) {
 
   return <ClientPage account={accountForClient} />
 }
+
+export default profile('/income_expenses/[id]', Page)

@@ -3,12 +3,13 @@ import { get_current_user } from '@/app/_actions/auth'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { prisma } from '@/lib/prisma'
 import ClientPage from './ClientPage'
+import { profile } from '@/lib/metrics/profile'
 
 export const metadata = {
   title: 'Settings',
 }
 
-export default async function SettingsPage() {
+async function SettingsPage() {
   const user = await get_current_user()
 
   if (!user) {
@@ -50,3 +51,5 @@ export default async function SettingsPage() {
     />
   )
 }
+
+export default profile('/settings', SettingsPage)

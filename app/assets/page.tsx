@@ -7,6 +7,7 @@ import type { Metadata } from 'next'
 import { get_or_compute_balances } from '../_actions/compute_balances'
 import { normalize_txn } from '../_utils/normalize_txn'
 import { calculate_xirr } from '../_utils/xirr_calculator'
+import { profile } from '@/lib/metrics/profile'
 
 // Route segment config for performance
 export const dynamic = 'force-dynamic'
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   description: 'View and manage all your financial assets',
 }
 
-export default async function Page() {
+async function Page() {
   const user = await get_current_user()
   if (!user) {
     return (
@@ -103,3 +104,5 @@ export default async function Page() {
 
   return <ClientPage assets={assets} assetAccountQuantities={assetAccountQuantities} totals={currValuesByAsset} xirrByAsset={xirrByAsset} />
 }
+
+export default profile('/assets', Page)

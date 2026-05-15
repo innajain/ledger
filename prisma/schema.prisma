@@ -160,3 +160,64 @@ enum asset_type {
   shares
   other
 }
+
+// One row per server-side page render. Acts as the parent for slow_query
+// and web_vital rows via request_id (which equals server_metric.id).
+model server_metric {
+  id      String  @id @default(cuid())
+  user_id String?
+  route   String
+
+  total_ms          Int
+  db_query_count    Int @default(0)
+  db_query_ms       Int @default(0)
+  redis_hits        Int @default(0)
+  redis_misses      Int @default(0)
+  redis_ms          Int @default(0)
+  external_count    Int @default(0)
+  external_ms       Int @default(0)
+  compute_ms        Int @default(0)
+
+  created_at DateTime @default(now())
+
+  slow_queries slow_query[]
+
+  @@index([created_at])
+  @@index([route, created_at])
+}
+
+model slow_query {
+  id         String @id @default(cuid())
+  request_id String
+
+  model       String?
+  action      String?
+  duration_ms Int
+
+  created_at DateTime @default(now())
+
+  request server_metric @relation(fields: [request_id], references: [id], onDelete: Cascade)
+
+  @@index([request_id])
+  @@index([duration_ms])
+  @@index([created_at])
+}
+
+model web_vital {
+  id String @id @default(cuid())
+
+  route String // concrete pathname from window.location.pathname
+
+  // 'LCP' | 'INP' | 'FCP' | 'TTFB' | 'CLS'
+  name  String
+  value Float
+  // 'good' | 'needs-improvement' | 'poor'
+  rating String?
+
+  navigation_type String?
+
+  created_at DateTime @default(now())
+
+  @@index([route, name, created_at])
+  @@index([created_at])
+}

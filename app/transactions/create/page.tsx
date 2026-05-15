@@ -2,8 +2,9 @@ import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
+import { profile } from '@/lib/metrics/profile'
 
-export default async function Page() {
+async function Page() {
   const user = await get_current_user()
   if (!user) {
     return (
@@ -39,3 +40,5 @@ export default async function Page() {
 
   return <ClientPage accounts={accountsForClient} assets={assetsForClient} defaults={defaults} />
 }
+
+export default profile('/transactions/create', Page)
