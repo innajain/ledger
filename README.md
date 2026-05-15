@@ -118,8 +118,10 @@ When there are no Allocation or Nominal entries the Real quantities must sum to 
 
 - **Three account types** — Real, Nominal, Allocation with distinct purposes
 - **Parent-child relationships** — Organize into a tree; cycle detection prevents circular references
-- **`is_active`** — Deactivate accounts/assets without losing history; inactive accounts are hidden from transaction selectors
+- **Drag-to-reorder** — Child order is persisted to the database, so the hierarchy view is stable across sessions
+- **`is_active`** — Deactivate accounts/assets without losing history; inactive accounts/assets are hidden from transaction selectors; a dedicated Inactive Accounts list on the Settings page shows all deactivated accounts with their type badges and edit links
 - **`is_placeholder_acc`** — Mark an account as a grouping-only parent; placeholder accounts are hidden from transaction selectors while still appearing in the hierarchy view
+- **`is_placeholder` on assets** — Same concept for assets: placeholder assets act as grouping parents and are hidden from transaction selectors
 
 ### Multi-Asset Portfolio Tracking
 
@@ -136,10 +138,28 @@ When there are no Allocation or Nominal entries the Real quantities must sum to 
 - **FIFO remaining units** — Asset detail pages show the remaining quantity per buy lot using a FIFO match against sell entries
 - **Live valuation** — Per-asset and per-allocation pages price holdings using the latest cached price; falls back to book value when unavailable
 
+### Interactive Charts
+
+Every asset, account, and allocation detail page (and the dashboard) includes a timeseries chart showing **Invested vs Current Value** over time, with an optional **XIRR %** overlay series.
+
+**Two interchangeable view modes:**
+
+| Mode | Library | Controls |
+| --- | --- | --- |
+| **Interactive** | `lightweight-charts` | Scroll to zoom, drag to pan, pinch-to-zoom (mobile), drag-to-zoom range selection |
+| **Slider** | `recharts` + Brush | Drag handles to select a time window |
+
+Chart interactions:
+- Scroll wheel zooms in/out on the time axis
+- Click-and-drag pans the visible window
+- Pinch gesture zooms on touch devices
+- Browser-level zoom is suppressed to prevent accidental page scaling
+
 ### XIRR Returns
 
 - **Per-asset XIRR** — Asset detail pages compute XIRR from all cashflows implied by line items, with current market value as the closing flow
 - **Portfolio XIRR** — Dashboard computes XIRR across the entire Investments allocation subtree
+- **XIRR timeseries** — Charts include an XIRR % series computed at each historical date point, reconciled against the live InfoCard value at the most recent point
 
 ### Transaction Templates
 
@@ -434,12 +454,13 @@ DIRECT_URL="$(grep '^NEON_URL=' .env | sed -E 's/^NEON_URL=//; s/^"(.*)"$/\1/; s
 
 ## Caching
 
-| Cache                | Key                           | TTL    | Invalidation                              |
-| -------------------- | ----------------------------- | ------ | ----------------------------------------- |
-| ETF / shares price   | `price:etf:{symbol}`          | 2 days | TTL only                                  |
-| MF NAV               | `price:nav:{ISIN}`            | 2 days | Refreshed daily by cron                   |
-| Per-user balances    | `balances:{user_id}`          | 5 days | Overwritten after every transaction write |
-| NAV negative-cache   | `price:nav:{ISIN}` = `"null"` | 1 hour | TTL only                                  |
+| Cache                      | Key                                | TTL         | Invalidation                              |
+| -------------------------- | ---------------------------------- | ----------- | ----------------------------------------- |
+| ETF / shares price         | `price:etf:{symbol}`               | 2 days      | TTL only                                  |
+| MF NAV                     | `price:nav:{ISIN}`                 | 2 days      | Refreshed daily by cron                   |
+| Per-user balances          | `balances:{user_id}`               | 5 days      | Overwritten after every transaction write |
+| NAV negative-cache         | `price:nav:{ISIN}` = `"null"`      | 1 hour      | TTL only                                  |
+| Historical price timeseries| `timeseries:{asset_id}:{...range}` | Indefinite  | Only for frozen (past) date ranges; live ranges use normal TTLs |
 
 The dashboard exposes a **Flush Redis Cache** button that calls `FLUSHALL`.
 
