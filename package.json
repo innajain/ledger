@@ -49,10 +49,5 @@
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   },
-  "pnpm": {
-    "overrides": {
-      "follow-redirects": "^1.15.6"
-    }
-  },
   "packageManager": "pnpm@11.1.2"
 }
