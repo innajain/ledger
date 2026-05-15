@@ -122,8 +122,7 @@ model transaction {
   user       user        @relation(fields: [user_id], references: [id])
   line_items line_item[]
 
-  @@index([user_id])
-  @@index([datetime])
+  @@index([user_id, datetime])
 }
 
 model line_item {

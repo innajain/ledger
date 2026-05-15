@@ -1,5 +1,5 @@
-'use server'
-
+import 'server-only'
+import { cache } from 'react'
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
@@ -18,7 +18,7 @@ export async function invalidate_balances(user_id: string): Promise<void> {
   await Promise.all([redis.del(balance_cache_key(user_id)), invalidate_timeseries(user_id)])
 }
 
-export async function get_or_compute_balances(invalidate_cache = false) {
+export const get_or_compute_balances = cache(async (invalidate_cache = false) => {
   const user_id = await get_current_user_id()
   if (!user_id) throw new Error('unauthorized')
   const cache_key = balance_cache_key(user_id)
@@ -113,4 +113,4 @@ export async function get_or_compute_balances(invalidate_cache = false) {
   )
 
   return { accountsToAssets: clientAccountsToAssets, assetsToAccounts: clientAssetsToAccounts }
-}
+})

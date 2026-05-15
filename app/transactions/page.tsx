@@ -170,8 +170,9 @@ export default async function Page({
     }))
   } else {
     // Filter path: total depends on aggregation, can't paginate at SQL level.
-    // Fetch all matching, normalize, filter on amount, then slice in memory.
-    const allRaw = await prisma.transaction.findMany(baseQuery)
+    // Fetch up to AMOUNT_FILTER_SCAN_CAP matching, normalize, filter on amount, then slice in memory.
+    const AMOUNT_FILTER_SCAN_CAP = 5000
+    const allRaw = await prisma.transaction.findMany({ ...baseQuery, take: AMOUNT_FILTER_SCAN_CAP })
     const all = allRaw.map(normalize_txn)
     const allWithTotals: TxForClient[] = all.map(t => ({
       id: t.id,
