@@ -40,7 +40,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const isActive = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 
   return (
-    <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50 shadow-sm transition-all backdrop-blur-sm">
+    <header className={`sticky top-0 z-50 shadow-sm transition-all backdrop-blur-sm border-b ${process.env.NODE_ENV === 'development' ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
         <div className="flex items-center justify-between h-16">
           {/* Logo/Brand */}
@@ -53,6 +53,11 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
               <Image src="/favicon.ico" alt="Ledger" width={24} height={24} />
             </div>
             <span className="font-semibold text-lg">Ledger</span>
+            {process.env.NODE_ENV === 'development' && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-300 dark:border-amber-700">
+                dev
+              </span>
+            )}
           </Link>
 
           {/* Desktop Navigation Links */}
