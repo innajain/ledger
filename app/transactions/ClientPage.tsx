@@ -50,7 +50,7 @@ export default function ClientPage({
   const [accountId, setAccountId] = useState(searchParams.accountId || '')
   const [assetId, setAssetId] = useState(searchParams.assetId || '')
   const [selectedPageSize] = useState(pageSize)
-  const [deletingTemplate, setDeletingTemplate] = useState<{id: string, x: number, y: number} | null>(null)
+  const [deletingTemplate, setDeletingTemplate] = useState<{ id: string; x: number; y: number } | null>(null)
 
   // Resync form drafts from URL on every URL change (e.g. browser back/forward,
   // chip removal). Without this, the inputs would silently show stale values.
@@ -166,39 +166,39 @@ export default function ClientPage({
           {templates.map((t: any) => (
             <div
               key={t.id}
-                className="flex items-center shrink-0 py-1.5 px-3 border border-slate-200 dark:border-slate-600 rounded-full bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group cursor-pointer relative"
-                onClick={(e) => {
-                  if (deletingTemplate?.id === t.id) {
-                    e.stopPropagation()
-                    setDeletingTemplate(null)
-                    return
-                  }
-                  try {
-                    sessionStorage.setItem('ledger_quick_template', JSON.stringify(t))
-                  } catch (e) {}
-                  router.push(`/transactions/create?templateId=${t.id}`)
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault()
+              className="flex items-center shrink-0 py-1.5 px-3 border border-slate-200 dark:border-slate-600 rounded-full bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group cursor-pointer relative"
+              onClick={e => {
+                if (deletingTemplate?.id === t.id) {
                   e.stopPropagation()
-                  setDeletingTemplate({ id: t.id, x: e.clientX, y: e.clientY })
-                }}
-              >
-                <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate max-w-37.5 sm:max-w-62.5">
-                  {t.description || 'Unnamed Template'}
-                </div>
+                  setDeletingTemplate(null)
+                  return
+                }
+                try {
+                  sessionStorage.setItem('ledger_quick_template', JSON.stringify(t))
+                } catch (e) {}
+                router.push(`/transactions/create?templateId=${t.id}`)
+              }}
+              onContextMenu={e => {
+                e.preventDefault()
+                e.stopPropagation()
+                setDeletingTemplate({ id: t.id, x: e.clientX, y: e.clientY })
+              }}
+            >
+              <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate max-w-37.5 sm:max-w-62.5">
+                {t.description || 'Unnamed Template'}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {deletingTemplate && (
-        <div 
+        <div
           className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-36 animate-in fade-in zoom-in duration-150"
           style={{ top: deletingTemplate.y, left: deletingTemplate.x }}
         >
           <button
-            onClick={async (e) => {
+            onClick={async e => {
               e.stopPropagation()
               const id = deletingTemplate.id
               setDeletingTemplate(null)
@@ -209,7 +209,12 @@ export default function ClientPage({
             className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
           >
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
             </svg>
             Delete
           </button>
@@ -349,13 +354,12 @@ export default function ClientPage({
               title="Remove filter"
             >
               <span>{chip.label}</span>
-              <span aria-hidden className="text-blue-500 dark:text-blue-400">✕</span>
+              <span aria-hidden className="text-blue-500 dark:text-blue-400">
+                ✕
+              </span>
             </button>
           ))}
-          <button
-            onClick={clearFilters}
-            className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 ml-1"
-          >
+          <button onClick={clearFilters} className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 ml-1">
             Clear all
           </button>
         </div>

@@ -132,7 +132,13 @@ export default async function Page({ params }: Props) {
     alloc_map[aid].total_book = alloc_map[aid].total_book.add(book)
   }
 
-  const allocation_breakdown: { allocation_id: string; allocation_name: string; quantity: number; book_value: number | null; current_value: number }[] = []
+  const allocation_breakdown: {
+    allocation_id: string
+    allocation_name: string
+    quantity: number
+    book_value: number | null
+    current_value: number
+  }[] = []
   for (const k of Object.keys(alloc_map)) {
     const entry = alloc_map[k]
     if (entry.total_qty.equals(0)) continue
@@ -247,11 +253,9 @@ export default async function Page({ params }: Props) {
 
   const has_priced_asset = asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares'
   const value_timeseries = has_priced_asset
-    ? await compute_value_timeseries(
-        rawTransactions,
-        { kind: 'asset', asset_id: asset.id },
-        [{ id: asset.id, type: asset.type, ticker: asset.ticker }],
-      )
+    ? await compute_value_timeseries(rawTransactions, { kind: 'asset', asset_id: asset.id }, [
+        { id: asset.id, type: asset.type, ticker: asset.ticker },
+      ])
     : []
 
   // Reconcile today's chart point with the live values used in the InfoCard so

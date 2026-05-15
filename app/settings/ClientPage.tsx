@@ -469,8 +469,8 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors mt-6">
         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Transaction Line Item Defaults</h2>
         <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-          Pre-selected account and asset for new line items on the Create / Edit Transaction pages. Leave blank to fall back to the first account/asset
-          of that type.
+          Pre-selected account and asset for new line items on the Create / Edit Transaction pages. Leave blank to fall back to the first
+          account/asset of that type.
         </p>
         <form onSubmit={handleDefaultsSave} className="space-y-4">
           <div>
@@ -597,11 +597,15 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
                     {a.name}
                     {a.is_placeholder && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">(placeholder)</span>}
                   </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    a.type === 'real' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                    a.type === 'allocation' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                    'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
-                  }`}>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      a.type === 'real'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : a.type === 'allocation'
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                          : 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                    }`}
+                  >
                     {TYPE_LABELS[a.type] ?? a.type}
                   </span>
                 </Link>

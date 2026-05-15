@@ -21,26 +21,23 @@ function fromCatch(error: unknown): ActionResult<never> {
 
 const AuthSchema = z.object({
   username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required')
+  password: z.string().min(1, 'Password is required'),
 })
 
 const ChangePasswordSchema = z.object({
   current_password: z.string().min(1, 'Current password is required'),
-  new_password: z.string().min(1, 'New password is required')
+  new_password: z.string().min(1, 'New password is required'),
 })
 
 const ChangeUsernameSchema = z.object({
   new_username: z.string().min(1, 'New username is required'),
-  password: z.string().min(1, 'Password is required')
+  password: z.string().min(1, 'Password is required'),
 })
 
 const secret_bytes = new TextEncoder().encode(env.JWT_SECRET)
 
 async function sign_token(payload: { uid: string }): Promise<string> {
-  return new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime(`${JWT_EXPIRY_DAYS}d`)
-    .sign(secret_bytes)
+  return new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setExpirationTime(`${JWT_EXPIRY_DAYS}d`).sign(secret_bytes)
 }
 
 async function verify_token(token: string): Promise<{ uid: string }> {

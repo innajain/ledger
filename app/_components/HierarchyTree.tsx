@@ -132,7 +132,10 @@ export function HierarchyTree<T extends BaseItem>({
         return
       }
 
-      const orderedSiblings = applyOrderToSiblings(items.filter(item => item.parent_id === parentId), parentId)
+      const orderedSiblings = applyOrderToSiblings(
+        items.filter(item => item.parent_id === parentId),
+        parentId,
+      )
       const draggedIndex = orderedSiblings.findIndex(item => item.id === draggedId)
       const targetIndex = orderedSiblings.findIndex(item => item.id === targetId)
 
@@ -357,9 +360,7 @@ export function HierarchyTree<T extends BaseItem>({
             {reorderEnabled ? 'Done Reordering' : 'Reorder'}
           </button>
           {reorderEnabled && (
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {saving ? 'Saving…' : 'Drag items to reorder (within same level)'}
-            </span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">{saving ? 'Saving…' : 'Drag items to reorder (within same level)'}</span>
           )}
         </div>
       )}

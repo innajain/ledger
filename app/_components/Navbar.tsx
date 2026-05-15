@@ -22,7 +22,19 @@ const navLinkClasses = (active: boolean, block = false) =>
       : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
   }`
 
-function NavLink({ href, label, active, block = false, onClick }: { href: string; label: string; active: boolean; block?: boolean; onClick?: () => void }) {
+function NavLink({
+  href,
+  label,
+  active,
+  block = false,
+  onClick,
+}: {
+  href: string
+  label: string
+  active: boolean
+  block?: boolean
+  onClick?: () => void
+}) {
   return (
     <Link href={href} className={navLinkClasses(active, block)} onClick={onClick}>
       {label}
@@ -40,7 +52,9 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const isActive = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 
   return (
-    <header className={`sticky top-0 z-50 shadow-sm transition-all backdrop-blur-sm border-b ${process.env.NODE_ENV === 'development' ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
+    <header
+      className={`sticky top-0 z-50 shadow-sm transition-all backdrop-blur-sm border-b ${process.env.NODE_ENV === 'development' ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}
+    >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
         <div className="flex items-center justify-between h-16">
           {/* Logo/Brand */}

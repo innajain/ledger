@@ -18,14 +18,14 @@ jobs:
           sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
-      
+
       - name: Create Backup
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
           # Use pg_dump from PostgreSQL 17 explicitly
           /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --no-owner --no-acl > backup-$(date +%Y%m%d-%H%M%S).sql
-      
+
       - name: Upload to Artifacts
         uses: actions/upload-artifact@v4
         with:

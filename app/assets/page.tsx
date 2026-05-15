@@ -104,6 +104,12 @@ export default async function Page() {
   }
 
   return (
-    <ClientPage assets={assets} assetAccountQuantities={assetAccountQuantities} totals={currValuesByAsset} grand_total={grand_total.toNumber()} xirrByAsset={xirrByAsset} />
+    <ClientPage
+      assets={assets}
+      assetAccountQuantities={assetAccountQuantities}
+      totals={currValuesByAsset}
+      grand_total={grand_total.toNumber()}
+      xirrByAsset={xirrByAsset}
+    />
   )
 }

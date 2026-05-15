@@ -10,8 +10,7 @@ import { get_price_lookups_for_assets, ist_date_key, type PriceLookup } from './
 import { calculate_xirr } from './xirr_calculator'
 
 const VERSION_KEY = (user_id: string) => `timeseries_version:${user_id}`
-const FROZEN_KEY = (user_id: string, version: number, kind: string, id: string) =>
-  `timeseries_frozen:${user_id}:v${version}:${kind}:${id}`
+const FROZEN_KEY = (user_id: string, version: number, kind: string, id: string) => `timeseries_frozen:${user_id}:v${version}:${kind}:${id}`
 
 export async function invalidate_timeseries(user_id: string): Promise<void> {
   await redis.incr(VERSION_KEY(user_id))

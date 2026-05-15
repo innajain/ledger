@@ -164,11 +164,7 @@ async function get_full_etf_history(symbol: string, from: Date): Promise<Map<str
  */
 export type PriceLookup = (date: Date) => number | null
 
-export async function get_price_lookup_for_asset(
-  type: asset_type,
-  ticker: string | null,
-  earliestDate: Date,
-): Promise<PriceLookup> {
+export async function get_price_lookup_for_asset(type: asset_type, ticker: string | null, earliestDate: Date): Promise<PriceLookup> {
   if (type === asset_type.rupees) return () => 1
   if (!ticker) return () => null
 

@@ -11,11 +11,7 @@ function preferredAccountId(defaults: LineItemDefaults, typeKey: AccountTypeKey)
   return defaults.default_nominal_account_id
 }
 
-export function pickDefaultAccount<A extends AccountLite>(
-  accounts: A[],
-  defaults: LineItemDefaults,
-  typeKey: AccountTypeKey,
-): A | undefined {
+export function pickDefaultAccount<A extends AccountLite>(accounts: A[], defaults: LineItemDefaults, typeKey: AccountTypeKey): A | undefined {
   const preferredId = preferredAccountId(defaults, typeKey)
   const preferred = preferredId ? accounts.find(a => a.id === preferredId && a.type === typeKey) : undefined
   return preferred ?? accounts.find(a => a.type === typeKey) ?? accounts[0]

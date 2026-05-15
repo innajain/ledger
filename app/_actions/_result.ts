@@ -7,9 +7,7 @@
  */
 export type ActionErrorCode = 'VALIDATION' | 'UNAUTHORIZED' | 'NOT_FOUND' | 'SERVER'
 
-export type ActionResult<T = void> =
-  | { success: true; message?: string; data?: T }
-  | { success: false; code: ActionErrorCode; message: string }
+export type ActionResult<T = void> = { success: true; message?: string; data?: T } | { success: false; code: ActionErrorCode; message: string }
 
 export function ok<T = void>(data?: T, message?: string): ActionResult<T> {
   return { success: true, ...(data !== undefined ? { data } : {}), ...(message !== undefined ? { message } : {}) }

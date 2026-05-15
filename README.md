@@ -71,9 +71,9 @@ After normalization the classic invariant is always satisfied:
 {
   "description": "Lunch at office cafeteria",
   "line_items": [
-    { "account": "Google Pay",   "type": "real",       "asset": "Money", "quantity": -35   },
-    { "account": "Expenses",     "type": "nominal",    "asset": "Money", "quantity": null  },
-    { "account": "Office Food",  "type": "allocation", "asset": "Money", "quantity": null  }
+    { "account": "Google Pay", "type": "real", "asset": "Money", "quantity": -35 },
+    { "account": "Expenses", "type": "nominal", "asset": "Money", "quantity": null },
+    { "account": "Office Food", "type": "allocation", "asset": "Money", "quantity": null }
   ]
 }
 ```
@@ -86,12 +86,12 @@ After normalization: Real (−35) = Allocation (−35) = Nominal (−35) ✅
 {
   "description": "SIP in Axis Bluechip Fund",
   "line_items": [
-    { "account": "Bank HDFC",    "type": "real",       "asset": "Money",        "quantity": -10000, "book_value": null  },
-    { "account": "Investments",  "type": "nominal",    "asset": "Money",        "quantity": null                       },
-    { "account": "Equity MF",    "type": "allocation", "asset": "Money",        "quantity": null                       },
-    { "account": "Demat",        "type": "real",       "asset": "Axis Bluechip","quantity": 50.25,  "book_value": 10000 },
-    { "account": "Investments",  "type": "nominal",    "asset": "Axis Bluechip","quantity": null,   "book_value": null  },
-    { "account": "Equity MF",    "type": "allocation", "asset": "Axis Bluechip","quantity": null,   "book_value": null  }
+    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -10000, "book_value": null },
+    { "account": "Investments", "type": "nominal", "asset": "Money", "quantity": null },
+    { "account": "Equity MF", "type": "allocation", "asset": "Money", "quantity": null },
+    { "account": "Demat", "type": "real", "asset": "Axis Bluechip", "quantity": 50.25, "book_value": 10000 },
+    { "account": "Investments", "type": "nominal", "asset": "Axis Bluechip", "quantity": null, "book_value": null },
+    { "account": "Equity MF", "type": "allocation", "asset": "Axis Bluechip", "quantity": null, "book_value": null }
   ]
 }
 ```
@@ -102,7 +102,7 @@ After normalization: Real (−35) = Allocation (−35) = Nominal (−35) ✅
 {
   "description": "Transfer from bank to wallet",
   "line_items": [
-    { "account": "Bank HDFC",   "type": "real", "asset": "Money", "quantity": -5000 },
+    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -5000 },
     { "account": "Cash Wallet", "type": "real", "asset": "Money", "quantity": +5000 }
   ]
 }
@@ -144,12 +144,13 @@ Every asset, account, and allocation detail page (and the dashboard) includes a 
 
 **Two interchangeable view modes:**
 
-| Mode | Library | Controls |
-| --- | --- | --- |
+| Mode            | Library              | Controls                                                                          |
+| --------------- | -------------------- | --------------------------------------------------------------------------------- |
 | **Interactive** | `lightweight-charts` | Scroll to zoom, drag to pan, pinch-to-zoom (mobile), drag-to-zoom range selection |
-| **Slider** | `recharts` + Brush | Drag handles to select a time window |
+| **Slider**      | `recharts` + Brush   | Drag handles to select a time window                                              |
 
 Chart interactions:
+
 - Scroll wheel zooms in/out on the time axis
 - Click-and-drag pans the visible window
 - Pinch gesture zooms on touch devices
@@ -454,13 +455,13 @@ DIRECT_URL="$(grep '^NEON_URL=' .env | sed -E 's/^NEON_URL=//; s/^"(.*)"$/\1/; s
 
 ## Caching
 
-| Cache                      | Key                                | TTL         | Invalidation                              |
-| -------------------------- | ---------------------------------- | ----------- | ----------------------------------------- |
-| ETF / shares price         | `price:etf:{symbol}`               | 2 days      | TTL only                                  |
-| MF NAV                     | `price:nav:{ISIN}`                 | 2 days      | Refreshed daily by cron                   |
-| Per-user balances          | `balances:{user_id}`               | 5 days      | Overwritten after every transaction write |
-| NAV negative-cache         | `price:nav:{ISIN}` = `"null"`      | 1 hour      | TTL only                                  |
-| Historical price timeseries| `timeseries:{asset_id}:{...range}` | Indefinite  | Only for frozen (past) date ranges; live ranges use normal TTLs |
+| Cache                       | Key                                | TTL        | Invalidation                                                    |
+| --------------------------- | ---------------------------------- | ---------- | --------------------------------------------------------------- |
+| ETF / shares price          | `price:etf:{symbol}`               | 2 days     | TTL only                                                        |
+| MF NAV                      | `price:nav:{ISIN}`                 | 2 days     | Refreshed daily by cron                                         |
+| Per-user balances           | `balances:{user_id}`               | 5 days     | Overwritten after every transaction write                       |
+| NAV negative-cache          | `price:nav:{ISIN}` = `"null"`      | 1 hour     | TTL only                                                        |
+| Historical price timeseries | `timeseries:{asset_id}:{...range}` | Indefinite | Only for frozen (past) date ranges; live ranges use normal TTLs |
 
 The dashboard exposes a **Flush Redis Cache** button that calls `FLUSHALL`.
 

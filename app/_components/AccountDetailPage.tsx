@@ -158,9 +158,7 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         )}
       </Card>
 
-      {account.value_timeseries && account.value_timeseries.length > 0 && (
-        <ValueChart points={account.value_timeseries} title="Value over time" />
-      )}
+      {account.value_timeseries && account.value_timeseries.length > 0 && <ValueChart points={account.value_timeseries} title="Value over time" />}
     </div>
   )
 }

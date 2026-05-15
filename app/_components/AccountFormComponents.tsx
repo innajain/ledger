@@ -247,9 +247,7 @@ export function ToggleSwitch({ label, helpText, value, onChange }: ToggleSwitchP
         aria-checked={value}
       >
         <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-            value ? 'translate-x-6' : 'translate-x-1'
-          }`}
+          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-1'}`}
         />
       </button>
     </div>
