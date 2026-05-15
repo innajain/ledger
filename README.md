@@ -252,6 +252,9 @@ CRON_SECRET="your-cron-secret"
 
 # Production Neon DB (used by the sync-db docker service and prod migrations)
 NEON_URL="postgresql://..."
+
+# Optional: disable performance profiling (default: on)
+# PROFILING=off
 ```
 
 ### 5. Database setup
@@ -307,7 +310,8 @@ ledger/
 │   ├── allocations/                 # Allocation pages
 │   ├── api/
 │   │   ├── cron/sync-nav/route.ts   # Daily AMFI NAV bulk pull (Vercel cron)
-│   │   └── dump/route.ts            # Authenticated SQL dump download
+│   │   ├── dump/route.ts            # Authenticated SQL dump download
+│   │   └── metrics/web-vital/route.ts  # Web Vitals ingestion (sendBeacon target)
 │   ├── assets/                      # Asset pages (list / detail with XIRR + FIFO / create / update)
 │   ├── income_expenses/             # Nominal account pages
 │   ├── login/                       # Auth UI
@@ -317,10 +321,11 @@ ledger/
 │   ├── layout.tsx
 │   └── page.tsx
 ├── lib/
-│   ├── prisma.ts                    # Prisma singleton (PrismaPg adapter)
-│   ├── redis.ts                     # ioredis singleton
+│   ├── prisma.ts                    # Prisma singleton (PrismaPg adapter) + profiling $extends
+│   ├── redis.ts                     # ioredis singleton + per-request hit/miss counters
 │   ├── env.ts                       # Typed env var access
-│   └── logger.ts                    # Pino logger
+│   ├── logger.ts                    # Pino logger
+│   └── metrics/                     # AsyncLocalStorage request context + profile() HOC + persist
 ├── prisma/
 │   ├── schema.prisma
 │   └── migrations/
@@ -416,6 +421,8 @@ enum account_type { real  nominal  allocation }
 enum asset_type   { rupees  mf  etf  shares  other }
 ```
 
+Profiling tables (`server_metric`, `slow_query`, `web_vital`) live alongside the domain tables — see the [Performance Profiling](#performance-profiling) section.
+
 **Key design points:**
 
 - `quantity` / `book_value` nullable — null-remainder pattern; `normalize_txn` derives at read time
@@ -485,6 +492,22 @@ Checks performed:
 2. Allocation / Nominal groups each have exactly one `null` quantity placeholder
 3. Book-value rules are respected per asset type
 4. Real-only transactions (transfers) have quantity and book-value sums of zero
+
+---
+
+## Performance Profiling
+
+Every server-rendered page is wrapped with `profile()` (see [`lib/metrics/profile.ts`](lib/metrics/profile.ts)), which uses Node's `AsyncLocalStorage` to attribute work to a per-request context. Prisma is `$extends`-instrumented to count queries and time them; ioredis is wrapped to track hits/misses; `recordCompute` / `recordExternal` helpers tag explicit spans.
+
+Three tables collect the data:
+
+| Table           | Per                          | Captures                                                                                                                     |
+| --------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `server_metric` | page render                  | `total_ms`, `db_query_count` + `db_query_ms`, `redis_hits` / `misses` / `ms`, `external_*`, `compute_ms`, `route`, `user_id` |
+| `slow_query`    | Prisma query above 100 ms    | `model`, `action`, `duration_ms` (linked to `server_metric`)                                                                 |
+| `web_vital`     | LCP / INP / CLS / FCP / TTFB | `route`, `value`, `rating` — collected client-side via `next/web-vitals` and `sendBeacon`                                    |
+
+Writes are fire-and-forget so profiling never blocks the response. Set `PROFILING=off` in the environment to disable the wrapper entirely (the page function runs untouched).
 
 ---
 

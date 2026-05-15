@@ -6,7 +6,7 @@ import { ValueChartLightweight } from './ValueChartLightweight'
 
 const ValueChartBrush = dynamic(() => import('./ValueChartBrush').then(m => ({ default: m.ValueChartBrush })), {
   ssr: false,
-  loading: () => <div className="h-[360px] flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">Loading chart…</div>,
+  loading: () => <div className="h-90 flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">Loading chart…</div>,
 })
 
 export type ValuePoint = {
