@@ -24,7 +24,7 @@ export default function ClientPage({
       asset_name: string
       asset_type: asset_type
       quantity: number | null
-      book_value: number | null
+      txn_value: number | null
       description: string | null
       datetime: Date | null
     }[]
@@ -265,7 +265,7 @@ export default function ClientPage({
                           ) : (
                             <div className="flex items-center gap-4">
                               <span>{li.quantity} units</span>
-                              <span>Book: {li.book_value === null ? '—' : currency_fmt.format(li.book_value)}</span>
+                              <span>Book: {li.txn_value === null ? '—' : currency_fmt.format(li.txn_value)}</span>
                             </div>
                           )}
                         </div>

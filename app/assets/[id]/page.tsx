@@ -55,7 +55,7 @@ async function Page({ params }: Props) {
     account_id: string
     account_name: string
     quantity: number
-    book_value: number | null
+    txn_value: number | null
     current_value: number
   }[] = []
 
@@ -79,7 +79,7 @@ async function Page({ params }: Props) {
   for (const li of real_line_items) {
     const n = normalizedById.get(li.id)!
     const qty = n.quantity!
-    const book = n.book_value!
+    const book = n.txn_value!
     const aid = li.account.id
     if (!map[aid]) {
       map[aid] = {
@@ -105,16 +105,17 @@ async function Page({ params }: Props) {
       current_value = entry.total_book
     }
 
-    if (current_value.equals(0)) continue
+    book_total = book_total.add(entry.total_book)
+
+    if (entry.total_qty.equals(0)) continue
 
     asset_total = asset_total.add(current_value)
-    book_total = book_total.add(entry.total_book)
 
     breakdown.push({
       account_id: entry.account_id,
       account_name: entry.account_name,
       quantity: entry.total_qty.toNumber(),
-      book_value: entry.total_book.toNumber(),
+      txn_value: entry.total_book.toNumber(),
       current_value: current_value.toNumber(),
     })
   }
@@ -124,7 +125,7 @@ async function Page({ params }: Props) {
   for (const li of allocation_line_items) {
     const n = normalizedById.get(li.id)!
     const qty = n.quantity!
-    const book = n.book_value!
+    const book = n.txn_value!
     const aid = li.account.id
     if (!alloc_map[aid]) {
       alloc_map[aid] = { allocation_id: aid, allocation_name: li.account.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0) }
@@ -137,7 +138,7 @@ async function Page({ params }: Props) {
     allocation_id: string
     allocation_name: string
     quantity: number
-    book_value: number | null
+    txn_value: number | null
     current_value: number
   }[] = []
   for (const k of Object.keys(alloc_map)) {
@@ -151,7 +152,7 @@ async function Page({ params }: Props) {
       allocation_id: entry.allocation_id,
       allocation_name: entry.allocation_name,
       quantity: entry.total_qty.toNumber(),
-      book_value: asset.type === asset_type.rupees ? null : entry.total_book.toNumber(),
+      txn_value: asset.type === asset_type.rupees ? null : entry.total_book.toNumber(),
       current_value: current_value.toNumber(),
     })
   }
@@ -160,7 +161,7 @@ async function Page({ params }: Props) {
   const items_with_meta = real_line_items.map(li => {
     const n = normalizedById.get(li.id)!
     const qty = n.quantity!
-    const book = n.book_value!
+    const book = n.txn_value!
 
     let current_value: Prisma.Decimal
     if (asset.type === asset_type.rupees) current_value = qty
@@ -220,7 +221,7 @@ async function Page({ params }: Props) {
       account_id: li.account.id,
       account_name: li.account.name,
       quantity: qty.toNumber(),
-      book_value: book.toNumber(),
+      txn_value: book.toNumber(),
       current_value: current_value.toNumber(),
       transaction_id: li.transaction.id,
       transaction_date: li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
@@ -236,7 +237,7 @@ async function Page({ params }: Props) {
   let xirr_value: number | null = null
   if (asset.type !== asset_type.rupees && real_line_items.length > 0) {
     const cashflows = real_line_items.map(li => {
-      const bv = normalizedById.get(li.id)!.book_value!
+      const bv = normalizedById.get(li.id)!.txn_value!
       return {
         amount: -bv.toNumber(),
         when: li.datetime ?? li.transaction.datetime,
@@ -275,7 +276,7 @@ async function Page({ params }: Props) {
     ticker: asset.ticker,
     parent: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
     total: asset_total.toNumber(),
-    book_value_total: asset.type === asset_type.rupees ? null : book_total.toNumber(),
+    txn_value_total: asset.type === asset_type.rupees ? null : book_total.toNumber(),
     price: priceDecimal ? priceDecimal.toNumber() : null,
     xirr: xirr_value,
     breakdown,

@@ -11,7 +11,7 @@ export type HoldingItem = {
   link: string
   asset_type?: asset_type
   quantity: number
-  book_value: number | null
+  txn_value: number | null
   current_value: number
 }
 
@@ -82,9 +82,9 @@ export function HoldingsGrid({
                             <span className="font-medium text-slate-900 dark:text-slate-100">{item.quantity} units</span>
                           </div>
                           <div>
-                            <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
+                            <span className="text-slate-500 dark:text-slate-400">Txn:</span>{' '}
                             <span className="font-medium text-slate-900 dark:text-slate-100">
-                              {item.book_value === null ? '—' : currency_fmt.format(item.book_value)}
+                              {item.txn_value === null ? '—' : currency_fmt.format(item.txn_value)}
                             </span>
                           </div>
                           <div>

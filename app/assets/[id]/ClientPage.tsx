@@ -11,7 +11,7 @@ type BreakdownItem = {
   account_id: string
   account_name: string
   quantity: number
-  book_value: number | null
+  txn_value: number | null
   current_value: number
 }
 
@@ -20,7 +20,7 @@ type LineItem = {
   account_id: string
   account_name: string
   quantity: number
-  book_value: number | null
+  txn_value: number | null
   current_value: number
   transaction_id: string
   transaction_date: string
@@ -33,7 +33,7 @@ type AllocationBreakdownItem = {
   allocation_id: string
   allocation_name: string
   quantity: number
-  book_value: number | null
+  txn_value: number | null
   current_value: number
 }
 
@@ -44,7 +44,7 @@ type AssetForClient = {
   ticker: string | null
   parent: { id: string; name: string } | null
   total: number
-  book_value_total: number | null
+  txn_value_total: number | null
   price: number | null
   xirr?: number | null
   breakdown: BreakdownItem[]
@@ -109,15 +109,15 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
       />
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-        <div className={`grid grid-cols-1 ${asset.book_value_total !== null ? 'sm:grid-cols-2' : ''} gap-4`}>
+        <div className={`grid grid-cols-1 ${asset.txn_value_total !== null ? 'sm:grid-cols-2' : ''} gap-4`}>
           <div>
             <p className="text-sm text-slate-500 dark:text-slate-400">Total Across Real Accounts</p>
             <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.total)}</p>
           </div>
-          {asset.book_value_total !== null && (
+          {asset.txn_value_total !== null && (
             <div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Total Book Value</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.book_value_total)}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Total Txn Value</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.txn_value_total)}</p>
             </div>
           )}
         </div>
@@ -173,9 +173,9 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{b.quantity} units</span>
                               </div>
                               <div>
-                                <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
+                                <span className="text-slate-500 dark:text-slate-400">Txn:</span>{' '}
                                 <span className="font-medium text-slate-900 dark:text-slate-100">
-                                  {b.book_value === null ? '—' : currency_fmt.format(b.book_value)}
+                                  {b.txn_value === null ? '—' : currency_fmt.format(b.txn_value)}
                                 </span>
                               </div>
                               <div>
@@ -235,9 +235,9 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{b.quantity} units</span>
                               </div>
                               <div>
-                                <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
+                                <span className="text-slate-500 dark:text-slate-400">Txn:</span>{' '}
                                 <span className="font-medium text-slate-900 dark:text-slate-100">
-                                  {b.book_value === null ? '—' : currency_fmt.format(b.book_value)}
+                                  {b.txn_value === null ? '—' : currency_fmt.format(b.txn_value)}
                                 </span>
                               </div>
                               <div>
@@ -279,9 +279,9 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
             <div className="max-h-96 overflow-y-auto">
               {(asset.line_items ?? []).map(li => {
                 const is_depleted = li.remaining_quantity !== null && li.remaining_quantity === 0
-                const remaining_book_value =
-                  li.remaining_quantity !== null && li.book_value !== null && li.quantity !== 0
-                    ? (li.remaining_quantity / li.quantity) * li.book_value
+                const remaining_txn_value =
+                  li.remaining_quantity !== null && li.txn_value !== null && li.quantity !== 0
+                    ? (li.remaining_quantity / li.quantity) * li.txn_value
                     : null
                 return (
                   <div key={li.id} className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
@@ -321,10 +321,10 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                                 <div className="text-slate-600 dark:text-slate-400">
                                   <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
                                   <span className="font-medium text-slate-900 dark:text-slate-100">{li.remaining_quantity} units</span>
-                                  {remaining_book_value !== null && (
+                                  {remaining_txn_value !== null && (
                                     <>
                                       {' '}
-                                      <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_book_value)} book)</span>
+                                      <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_txn_value)} txn)</span>
                                     </>
                                   )}
                                 </div>
@@ -336,7 +336,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
 
                       <div className="text-right shrink-0">
                         <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                          {currency_fmt.format(li.book_value !== null ? li.book_value : li.quantity)}
+                          {currency_fmt.format(li.txn_value !== null ? li.txn_value : li.quantity)}
                         </div>
                         <Link
                           href={`/transactions/${li.transaction_id}`}

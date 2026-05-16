@@ -2,8 +2,8 @@ import { Prisma } from '@/generated/prisma/client'
 import { asset_type, account_type } from '@/generated/prisma/enums'
 
 /**
- * Raw transaction shape as fetched from Prisma — quantity and book_value
- * may be null on the allocation/nominal sides (and on book_value for rupees).
+ * Raw transaction shape as fetched from Prisma — quantity and txn_value
+ * may be null on the allocation/nominal sides (and on txn_value for rupees).
  */
 export type TransactionFull = Prisma.transactionGetPayload<{
   include: { line_items: { include: { account: true; asset: true } } }
@@ -11,12 +11,12 @@ export type TransactionFull = Prisma.transactionGetPayload<{
 
 /**
  * A transaction whose line items have been normalized: every quantity is
- * non-null, and every book_value is non-null. This is what callers should
+ * non-null, and every txn_value is non-null. This is what callers should
  * reason about; only the storage layer sees the raw form.
  */
 export type NormalizedLineItem = TransactionFull['line_items'][number] & {
   quantity: Prisma.Decimal
-  book_value: Prisma.Decimal
+  txn_value: Prisma.Decimal
 }
 
 export type NormalizedTransaction = Omit<TransactionFull, 'line_items'> & {
@@ -27,16 +27,16 @@ export type NormalizableLineItem = {
   asset: { id: string; type: asset_type; name: string }
   account: { type: account_type }
   quantity: Prisma.Decimal | null
-  book_value: Prisma.Decimal | null
+  txn_value: Prisma.Decimal | null
 }
 
 /**
- * Pure: fills null quantity / book_value on copies of the provided line items
+ * Pure: fills null quantity / txn_value on copies of the provided line items
  * per the triple-entry invariants. The original items are not mutated.
  */
 export function normalize_line_items<T extends NormalizableLineItem>(
   line_items: T[],
-): (T & { quantity: Prisma.Decimal; book_value: Prisma.Decimal })[] {
+): (T & { quantity: Prisma.Decimal; txn_value: Prisma.Decimal })[] {
   type Group = { real: T[]; allocation: T[]; nominal: T[]; asset_type: asset_type }
   const assetwise_groups = new Map<string, Group>()
 
@@ -48,16 +48,16 @@ export function normalize_line_items<T extends NormalizableLineItem>(
     assetwise_groups.get(li.asset.id)![li.account.type].push(li)
   }
 
-  const assetwise_total = new Map<string, { total_qty: Prisma.Decimal; total_book_value: Prisma.Decimal }>()
+  const assetwise_total = new Map<string, { total_qty: Prisma.Decimal; total_txn_value: Prisma.Decimal }>()
   for (const [asset_id, group] of assetwise_groups) {
     let total_qty = new Prisma.Decimal(0)
-    let total_book_value = new Prisma.Decimal(0)
+    let total_txn_value = new Prisma.Decimal(0)
     for (const li of group.real) {
       if (li.quantity === null) throw new Error('Real line item with null quantity')
       total_qty = total_qty.add(li.quantity)
-      total_book_value = total_book_value.add(li.book_value !== null ? li.book_value : li.quantity)
+      total_txn_value = total_txn_value.add(li.txn_value !== null ? li.txn_value : li.quantity)
     }
-    assetwise_total.set(asset_id, { total_qty, total_book_value })
+    assetwise_total.set(asset_id, { total_qty, total_txn_value })
   }
 
   for (const [asset_id, group] of assetwise_groups) {
@@ -78,28 +78,28 @@ export function normalize_line_items<T extends NormalizableLineItem>(
     }
 
     if (group.asset_type === asset_type.rupees) {
-      for (const li of [...group.real, ...group.allocation, ...group.nominal]) li.book_value = li.quantity
+      for (const li of [...group.real, ...group.allocation, ...group.nominal]) li.txn_value = li.quantity
     } else {
       if (group.allocation.length > 0) {
-        const sum = group.allocation.reduce((acc, li) => acc.add(li.book_value ?? new Prisma.Decimal(0)), new Prisma.Decimal(0))
-        const nullEntry = group.allocation.find(li => li.book_value === null)
-        if (!nullEntry) throw new Error('Allocation group with no null book value line item for non-rupees asset')
-        nullEntry.book_value = totals.total_book_value.sub(sum)
+        const sum = group.allocation.reduce((acc, li) => acc.add(li.txn_value ?? new Prisma.Decimal(0)), new Prisma.Decimal(0))
+        const nullEntry = group.allocation.find(li => li.txn_value === null)
+        if (!nullEntry) throw new Error('Allocation group with no null txn value line item for non-rupees asset')
+        nullEntry.txn_value = totals.total_txn_value.sub(sum)
       }
       if (group.nominal.length > 0) {
-        const sum = group.nominal.reduce((acc, li) => acc.add(li.book_value ?? new Prisma.Decimal(0)), new Prisma.Decimal(0))
-        const nullEntry = group.nominal.find(li => li.book_value === null)
-        if (!nullEntry) throw new Error('Nominal group with no null book value line item for non-rupees asset')
-        nullEntry.book_value = totals.total_book_value.sub(sum)
+        const sum = group.nominal.reduce((acc, li) => acc.add(li.txn_value ?? new Prisma.Decimal(0)), new Prisma.Decimal(0))
+        const nullEntry = group.nominal.find(li => li.txn_value === null)
+        if (!nullEntry) throw new Error('Nominal group with no null txn value line item for non-rupees asset')
+        nullEntry.txn_value = totals.total_txn_value.sub(sum)
       }
     }
   }
 
-  return copies as (T & { quantity: Prisma.Decimal; book_value: Prisma.Decimal })[]
+  return copies as (T & { quantity: Prisma.Decimal; txn_value: Prisma.Decimal })[]
 }
 
 /**
- * Pure: returns a new transaction with all null quantity / book_value
+ * Pure: returns a new transaction with all null quantity / txn_value
  * filled per the triple-entry invariants. The input is not mutated.
  */
 export function normalize_txn(txn: TransactionFull): NormalizedTransaction {

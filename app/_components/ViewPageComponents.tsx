@@ -148,7 +148,7 @@ export function LineItemRow({
   remainingQuantity,
 }: LineItemRowProps) {
   const is_depleted = remainingQuantity !== undefined && remainingQuantity !== null && remainingQuantity === 0
-  const remaining_book_value =
+  const remaining_txn_value =
     remainingQuantity !== undefined && remainingQuantity !== null && bookValue !== null && bookValue !== undefined && quantity !== 0
       ? (remainingQuantity / quantity) * bookValue
       : null
@@ -181,10 +181,10 @@ export function LineItemRow({
                   <div className="text-slate-600 dark:text-slate-400">
                     <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
                     <span className="font-medium text-slate-900 dark:text-slate-100">{remainingQuantity} units</span>
-                    {remaining_book_value !== null && (
+                    {remaining_txn_value !== null && (
                       <>
                         {' '}
-                        <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_book_value)} book)</span>
+                        <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_txn_value)} book)</span>
                       </>
                     )}
                   </div>

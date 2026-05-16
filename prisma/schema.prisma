@@ -106,7 +106,7 @@ model line_item_template {
   asset    asset  @relation(fields: [asset_id], references: [id])
 
   quantity   Decimal? @db.Decimal(14, 4)
-  book_value Decimal? @db.Decimal(14, 4)
+  txn_value Decimal? @db.Decimal(14, 4)
 
   @@index([transaction_template_id])
   @@index([account_id])
@@ -140,7 +140,7 @@ model line_item {
   asset    asset  @relation(fields: [asset_id], references: [id])
 
   quantity   Decimal? @db.Decimal(14, 4)
-  book_value Decimal? @db.Decimal(14, 4)
+  txn_value Decimal? @db.Decimal(14, 4)
 
   @@index([transaction_id])
   @@index([account_id])

@@ -23,7 +23,7 @@ async function Page({ params }: Props) {
     id: tx.id,
     date: tx.datetime,
     description: tx.description,
-    total: tx.line_items.reduce((s, li) => s + (li.book_value ? Number(li.book_value.toString()) : 0), 0),
+    total: tx.line_items.reduce((s, li) => s + (li.txn_value ? Number(li.txn_value.toString()) : 0), 0),
     line_items: tx.line_items.map(li => ({
       id: li.id,
       account_id: li.account.id,
@@ -34,7 +34,7 @@ async function Page({ params }: Props) {
       description: li.description ?? null,
       datetime: li.datetime,
       quantity: li.quantity === null ? null : li.quantity.toNumber(),
-      book_value: li.book_value === null ? null : li.book_value.toNumber(),
+      txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
     })),
   }
   const [accounts, assets, defaults] = await Promise.all([

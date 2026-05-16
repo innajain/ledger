@@ -26,7 +26,7 @@ async function Page({ params }: Props) {
     description: tx.description,
     total: tx.line_items
       .filter(li => li.account.type === 'real')
-      .reduce((sum, li) => sum.add(li.book_value), new Prisma.Decimal(0))
+      .reduce((sum, li) => sum.add(li.txn_value), new Prisma.Decimal(0))
       .toNumber(),
     line_items: tx.line_items.map(li => ({
       id: li.id,
@@ -37,7 +37,7 @@ async function Page({ params }: Props) {
       asset_name: li.asset.name,
       asset_type: li.asset.type,
       quantity: li.quantity.toNumber(),
-      book_value: li.book_value.toNumber(),
+      txn_value: li.txn_value.toNumber(),
       description: li.description,
       datetime: li.datetime,
     })),

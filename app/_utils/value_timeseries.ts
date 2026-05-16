@@ -72,7 +72,7 @@ function build_events(transactions: TransactionFull[], filter: TimeseriesFilter)
         asset_type: li.asset.type,
         account_id: li.account.id,
         qty: li.quantity,
-        book: li.book_value,
+        book: li.txn_value,
         date,
         dateKey: ist_date_key(date),
       })

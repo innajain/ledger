@@ -7,7 +7,7 @@ export type LineItemData = {
   account_id: string
   asset_id: string
   quantity: string | null
-  book_value: string | null
+  txn_value: string | null
   description: string
   datetime: string
 }
@@ -181,13 +181,13 @@ function LineItemCard({ item, idx, typeKey, accounts, assets, asset, onUpdateIte
 
         {!(asset?.type === asset_type.rupees) && (
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Book Value</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Txn Value</label>
             <input
               type="number"
               step="any"
               placeholder="Book value"
-              value={item.book_value ?? ''}
-              onChange={e => onUpdateItem(idx, 'book_value', e.target.value === '' ? null : e.target.value)}
+              value={item.txn_value ?? ''}
+              onChange={e => onUpdateItem(idx, 'txn_value', e.target.value === '' ? null : e.target.value)}
               className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
             />
           </div>

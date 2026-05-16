@@ -43,16 +43,16 @@ async function Page() {
 
   await Promise.all(
     accounts.map(async acc => {
-      const asset_qty_map = balances.get(acc.id) ?? new Map<string, { qty: number; book_value: number }>()
+      const asset_qty_map = balances.get(acc.id) ?? new Map<string, { qty: number; txn_value: number }>()
 
       let total_value = new Prisma.Decimal(0)
-      for (const [asset_id, { qty, book_value }] of asset_qty_map.entries()) {
+      for (const [asset_id, { qty, txn_value }] of asset_qty_map.entries()) {
         const asset = assetMap.get(asset_id)!
         const price_data = await get_price_for_asset(asset.type, asset.ticker)
         if (price_data) {
           total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
         } else {
-          total_value = total_value.add(book_value)
+          total_value = total_value.add(txn_value)
         }
       }
 

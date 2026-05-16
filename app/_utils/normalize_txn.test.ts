@@ -11,7 +11,7 @@ function makeTxn(
     account_type: 'real' | 'allocation' | 'nominal'
     asset: typeof RUPEES | typeof MF
     quantity: number | null
-    book_value?: number | null
+    txn_value?: number | null
   }>,
 ) {
   return {
@@ -23,7 +23,7 @@ function makeTxn(
       account: { type: li.account_type, id: `acc-${li.account_type}` },
       asset: li.asset,
       quantity: li.quantity === null ? null : D(li.quantity),
-      book_value: li.book_value === undefined ? null : li.book_value === null ? null : D(li.book_value),
+      txn_value: li.txn_value === undefined ? null : li.txn_value === null ? null : D(li.txn_value),
     })),
   }
 }
@@ -47,7 +47,7 @@ describe('normalize_txn — rupees', () => {
     expect(nom.quantity!.toNumber()).toBe(-35)
   })
 
-  it('mirrors quantity into book_value for rupees', () => {
+  it('mirrors quantity into txn_value for rupees', () => {
     const t = n(
       makeTxn([
         { account_type: 'real', asset: RUPEES, quantity: -35 },
@@ -56,7 +56,7 @@ describe('normalize_txn — rupees', () => {
       ]),
     )
     for (const li of t.line_items) {
-      expect(li.book_value!.toNumber()).toBe(li.quantity!.toNumber())
+      expect(li.txn_value!.toNumber()).toBe(li.quantity!.toNumber())
     }
   })
 
@@ -101,31 +101,31 @@ describe('normalize_txn — purity', () => {
 })
 
 describe('normalize_txn — non-rupees (MF)', () => {
-  it('fills both qty AND book_value nulls on allocation and nominal sides', () => {
+  it('fills both qty AND txn_value nulls on allocation and nominal sides', () => {
     const t = n(
       makeTxn([
-        { account_type: 'real', asset: MF, quantity: 10, book_value: 1500 },
-        { account_type: 'allocation', asset: MF, quantity: null, book_value: null },
-        { account_type: 'nominal', asset: MF, quantity: null, book_value: null },
+        { account_type: 'real', asset: MF, quantity: 10, txn_value: 1500 },
+        { account_type: 'allocation', asset: MF, quantity: null, txn_value: null },
+        { account_type: 'nominal', asset: MF, quantity: null, txn_value: null },
       ]),
     )
     const alloc = t.line_items.find(li => li.account.type === 'allocation')!
     const nom = t.line_items.find(li => li.account.type === 'nominal')!
     expect(alloc.quantity!.toNumber()).toBe(10)
-    expect(alloc.book_value!.toNumber()).toBe(1500)
+    expect(alloc.txn_value!.toNumber()).toBe(1500)
     expect(nom.quantity!.toNumber()).toBe(10)
-    expect(nom.book_value!.toNumber()).toBe(1500)
+    expect(nom.txn_value!.toNumber()).toBe(1500)
   })
 
-  it('throws when nominal has no null book_value for non-rupees', () => {
+  it('throws when nominal has no null txn_value for non-rupees', () => {
     expect(() =>
       n(
         makeTxn([
-          { account_type: 'real', asset: MF, quantity: 10, book_value: 1500 },
-          { account_type: 'allocation', asset: MF, quantity: null, book_value: null },
-          { account_type: 'nominal', asset: MF, quantity: null, book_value: 1500 },
+          { account_type: 'real', asset: MF, quantity: 10, txn_value: 1500 },
+          { account_type: 'allocation', asset: MF, quantity: null, txn_value: null },
+          { account_type: 'nominal', asset: MF, quantity: null, txn_value: 1500 },
         ]),
       ),
-    ).toThrow('Nominal group with no null book value')
+    ).toThrow('Nominal group with no null txn value')
   })
 })

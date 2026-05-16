@@ -18,7 +18,7 @@ const updateTransactionSchema = z.object({
         account_id: z.string(),
         asset_id: z.string(),
         quantity: z.number().optional(),
-        book_value: z.number().nullish(),
+        txn_value: z.number().nullish(),
         description: z
           .string()
           .trim()
@@ -74,7 +74,7 @@ export async function update_transaction(
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
           quantity: toDecimal(li.quantity),
-          book_value: toDecimal(li.book_value),
+          txn_value: toDecimal(li.txn_value),
           asset: assets.find(a => a.id === li.asset_id)!,
           account: accounts.find(a => a.id === li.account_id)!,
         })),
@@ -92,7 +92,7 @@ export async function update_transaction(
           line_items: {
             create: line_items.map(li => ({
               quantity: toDecimal(li.quantity),
-              book_value: toDecimal(li.book_value),
+              txn_value: toDecimal(li.txn_value),
               account_id: li.account_id,
               asset_id: li.asset_id,
               description: li.description,

@@ -9,7 +9,7 @@ type LineItem = {
   asset_id?: string
   asset_name: string
   quantity: number
-  book_value: number | null
+  txn_value: number | null
   current_value: number
   transaction_id: string
   transaction_date: string
@@ -24,14 +24,14 @@ type AllocationForClient = {
   type: string
   parent: { id: string; name: string } | null
   total: number
-  book_value_total: number
+  txn_value_total: number
   xirr: number | null
   breakdown: {
     asset_id: string
     asset_name: string
     asset_type: asset_type
     quantity: number
-    book_value: number | null
+    txn_value: number | null
     current_value: number
   }[]
   line_items: LineItem[]

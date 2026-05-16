@@ -12,7 +12,7 @@ export type LineItem = {
   asset_id?: string
   asset_name: string
   quantity: number
-  book_value: number | null
+  txn_value: number | null
   current_value: number
   transaction_id: string
   transaction_date: string
@@ -28,14 +28,14 @@ export type AccountData = {
   type: string
   parent: { id: string; name: string } | null
   total: number
-  book_value_total?: number | null
+  txn_value_total?: number | null
   xirr?: number | null
   breakdown: {
     asset_id: string
     asset_name: string
     asset_type: asset_type
     quantity: number
-    book_value: number | null
+    txn_value: number | null
     current_value: number
   }[]
   line_items: LineItem[]
@@ -61,7 +61,7 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
     link: `/assets/${b.asset_id}`,
     asset_type: b.asset_type,
     quantity: b.quantity,
-    book_value: b.book_value,
+    txn_value: b.txn_value,
     current_value: b.current_value,
   }))
 
@@ -91,11 +91,11 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
             label: 'Total Value',
             value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.total)}</p>,
           },
-          ...(account.book_value_total !== undefined && account.book_value_total !== null
+          ...(account.txn_value_total !== undefined && account.txn_value_total !== null
             ? [
                 {
-                  label: 'Total Book Value',
-                  value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.book_value_total)}</p>,
+                  label: 'Total Txn Value',
+                  value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.txn_value_total)}</p>,
                 },
               ]
             : []),
@@ -144,7 +144,7 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
                 assetName={li.asset_name}
                 assetLink={li.asset_id ? `/assets/${li.asset_id}` : undefined}
                 quantity={li.quantity}
-                bookValue={li.book_value}
+                bookValue={li.txn_value}
                 transactionId={li.transaction_id}
                 transactionDate={li.transaction_date}
                 transactionDescription={li.transaction_description}

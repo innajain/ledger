@@ -1,7 +1,7 @@
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import { normalize_line_items } from './normalize_txn'
 
-// validates only qty and book value
+// validates only qty and txn value
 export function validate_line_items(
   line_items: Prisma.transactionGetPayload<{
     include: {
@@ -10,7 +10,7 @@ export function validate_line_items(
           account: true
           asset: true
           quantity: true
-          book_value: true
+          txn_value: true
         }
       }
     }
@@ -60,26 +60,26 @@ export function validate_line_items(
       }
 
     if (group.asset_type === asset_type.rupees) {
-      if ([...group.real, ...group.allocation, ...group.nominal].some(li => li.book_value != null))
+      if ([...group.real, ...group.allocation, ...group.nominal].some(li => li.txn_value != null))
         return {
           is_valid: false,
-          message: `Line items for rupees asset should not have book value`,
+          message: `Line items for rupees asset should not have txn value`,
         }
     } else {
-      if (group.real.some(li => li.book_value == null))
+      if (group.real.some(li => li.txn_value == null))
         return {
           is_valid: false,
-          message: `A real account line item for non-rupees asset ${group.name} has null book value.`,
+          message: `A real account line item for non-rupees asset ${group.name} has null txn value.`,
         }
-      if (group.allocation.length > 0 && group.allocation.filter(li => li.book_value === null).length !== 1)
+      if (group.allocation.length > 0 && group.allocation.filter(li => li.txn_value === null).length !== 1)
         return {
           is_valid: false,
-          message: `There should be exactly one line item with null book value in allocation accounts for non-rupees asset ${group.name}`,
+          message: `There should be exactly one line item with null txn value in allocation accounts for non-rupees asset ${group.name}`,
         }
-      if (group.nominal.length > 0 && group.nominal.filter(li => li.book_value === null).length !== 1)
+      if (group.nominal.length > 0 && group.nominal.filter(li => li.txn_value === null).length !== 1)
         return {
           is_valid: false,
-          message: `There should be exactly one line item with null book value in nominal accounts for non-rupees asset ${group.name}`,
+          message: `There should be exactly one line item with null txn value in nominal accounts for non-rupees asset ${group.name}`,
         }
     }
 
@@ -92,11 +92,11 @@ export function validate_line_items(
           message: `The sum of quantities in real accounts for asset ${group.name} should be zero when there are either no allocation or no nominal line items`,
         }
       if (group.asset_type !== asset_type.rupees) {
-        const real_book_value_sum = group.real.reduce((acc, li) => acc.add(li.book_value ?? 0), new Prisma.Decimal(0))
-        if (!real_book_value_sum.equals(0))
+        const real_txn_value_sum = group.real.reduce((acc, li) => acc.add(li.txn_value ?? 0), new Prisma.Decimal(0))
+        if (!real_txn_value_sum.equals(0))
           return {
             is_valid: false,
-            message: `The sum of book values in real accounts for asset ${group.name} should be zero when there are either no allocation or no nominal line items`,
+            message: `The sum of txn values in real accounts for asset ${group.name} should be zero when there are either no allocation or no nominal line items`,
           }
       }
     }

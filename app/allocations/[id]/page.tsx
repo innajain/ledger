@@ -58,7 +58,7 @@ async function Page({ params }: Props) {
     asset_id?: string
     asset_name: string
     quantity: number
-    book_value: number | null
+    txn_value: number | null
     current_value: number
     transaction_id: string
     transaction_date: string
@@ -82,7 +82,7 @@ async function Page({ params }: Props) {
   for (const li of allocation.line_items) {
     const n = normalizedById.get(li.id)!
     const qty = n.quantity!
-    const book_value = n.book_value!
+    const txn_value = n.txn_value!
     const asset = li.asset
 
     const priceData = priceByAsset.get(asset.id) ?? null
@@ -91,10 +91,9 @@ async function Page({ params }: Props) {
     let current_value: Prisma.Decimal
     if (asset.type === asset_type.rupees) current_value = qty
     else if (priceDecimal) current_value = priceDecimal.mul(qty)
-    else current_value = book_value
+    else current_value = txn_value
 
     acc_total = acc_total.add(current_value)
-    book_total = book_total.add(book_value)
 
     if (!map[asset.id]) {
       map[asset.id] = {
@@ -106,10 +105,10 @@ async function Page({ params }: Props) {
       }
     }
     map[asset.id].total_qty = map[asset.id].total_qty.add(qty)
-    map[asset.id].total_book = map[asset.id].total_book.add(book_value)
+    map[asset.id].total_book = map[asset.id].total_book.add(txn_value)
 
     cashflows.push({
-      amount: -book_value.toNumber(),
+      amount: -txn_value.toNumber(),
       when: li.datetime ?? li.transaction.datetime,
     })
 
@@ -118,7 +117,7 @@ async function Page({ params }: Props) {
       asset_id: asset.id,
       asset_name: asset.name,
       quantity: qty.toNumber(),
-      book_value: book_value.toNumber(),
+      txn_value: txn_value.toNumber(),
       current_value: current_value.toNumber(),
       transaction_id: li.transaction.id,
       transaction_date: li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
@@ -137,12 +136,14 @@ async function Page({ params }: Props) {
     asset_id: string
     asset_name: string
     quantity: number
-    book_value: number | null
+    txn_value: number | null
     current_value: number
     asset_type: asset_type
   }[] = []
   for (const k of Object.keys(map)) {
     const e = map[k]
+    book_total = book_total.add(e.total_book)
+
     if (e.total_qty.equals(0)) continue
 
     const priceData = priceByAsset.get(e.asset_id) ?? null
@@ -155,7 +156,7 @@ async function Page({ params }: Props) {
       asset_id: e.asset_id,
       asset_name: e.asset_name,
       quantity: e.total_qty.toNumber(),
-      book_value: e.total_book.toNumber(),
+      txn_value: e.total_book.toNumber(),
       current_value: current_value.toNumber(),
       asset_type: e.asset_type,
     })
@@ -191,7 +192,7 @@ async function Page({ params }: Props) {
     type: allocation.type,
     parent: allocation.parent ? { id: allocation.parent.id, name: allocation.parent.name } : null,
     total: acc_total.toNumber(),
-    book_value_total: book_total.toNumber(),
+    txn_value_total: book_total.toNumber(),
     xirr: xirr_value,
     line_items: sortedLineItems,
     breakdown,

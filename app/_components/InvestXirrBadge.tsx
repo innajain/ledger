@@ -28,7 +28,7 @@ export async function InvestXirrBadge({ userId, subtreeAccountIds, currentValue 
     for (const li of tx.line_items) {
       if (!subtreeIdSet.has(li.account_id)) continue
       cashflows.push({
-        amount: -(li.book_value as Prisma.Decimal).toNumber(),
+        amount: -(li.txn_value as Prisma.Decimal).toNumber(),
         when: li.datetime ?? tx.datetime,
       })
     }

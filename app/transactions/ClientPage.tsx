@@ -28,7 +28,7 @@ type Template = {
     asset_id: string
     description: string | null
     quantity: number | null
-    book_value: number | null
+    txn_value: number | null
     account: { name: string; type: string }
     asset: { name: string; type: string }
   }[]

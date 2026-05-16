@@ -43,7 +43,7 @@ export default function ClientPage({
       account_id: defaultReal?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
-      book_value: null,
+      txn_value: null,
       description: '',
       datetime: '',
     },
@@ -51,7 +51,7 @@ export default function ClientPage({
       account_id: defaultNominal?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
-      book_value: null,
+      txn_value: null,
       description: '',
       datetime: '',
     },
@@ -59,7 +59,7 @@ export default function ClientPage({
       account_id: defaultAllocation?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
-      book_value: null,
+      txn_value: null,
       description: '',
       datetime: '',
     },
@@ -84,7 +84,7 @@ export default function ClientPage({
             account_id: string
             asset_id: string
             quantity?: number | null
-            book_value?: number | null
+            txn_value?: number | null
             description?: string
           }[]
         }
@@ -96,7 +96,7 @@ export default function ClientPage({
               account_id: li.account_id,
               asset_id: li.asset_id,
               quantity: li.quantity == null ? null : String(li.quantity),
-              book_value: li.book_value == null ? null : String(li.book_value),
+              txn_value: li.txn_value == null ? null : String(li.txn_value),
               description: li.description || '',
               datetime: '',
             })),
@@ -115,7 +115,7 @@ export default function ClientPage({
         account_id: defaultAcc?.id ?? '',
         asset_id: defaultAsset?.id ?? assets[0]?.id ?? '',
         quantity: null,
-        book_value: null,
+        txn_value: null,
         description: '',
         datetime: '',
       },
@@ -130,20 +130,20 @@ export default function ClientPage({
   function updateItem(idx: number, field: keyof LineItemData, value: string | null) {
     setItems(prev => {
       const copy = [...prev]
-      // Allow `quantity` and `book_value` to be null; coerce other nulls to empty string
-      const v: string = field === 'quantity' || field === 'book_value' ? (value === null ? '' : value) : (value ?? '')
+      // Allow `quantity` and `txn_value` to be null; coerce other nulls to empty string
+      const v: string = field === 'quantity' || field === 'txn_value' ? (value === null ? '' : value) : (value ?? '')
       copy[idx] = { ...copy[idx], [field]: v }
-      // Clear book_value when switching to rupees asset
+      // Clear txn_value when switching to rupees asset
       if (field === 'asset_id') {
         const sel = assets.find(a => a.id === v)
-        if (sel?.type === asset_type.rupees) copy[idx].book_value = null
+        if (sel?.type === asset_type.rupees) copy[idx].txn_value = null
       }
-      // Preserve null for quantity/book_value when requested
+      // Preserve null for quantity/txn_value when requested
       if (field === 'quantity' && value === null) {
         ;(copy[idx] as LineItemData).quantity = null
       }
-      if (field === 'book_value' && value === null) {
-        ;(copy[idx] as LineItemData).book_value = null
+      if (field === 'txn_value' && value === null) {
+        ;(copy[idx] as LineItemData).txn_value = null
       }
       return copy
     })
@@ -158,7 +158,7 @@ export default function ClientPage({
         account_id: it.account_id,
         asset_id: it.asset_id,
         quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
-        book_value: it.book_value === null || it.book_value === '' ? null : Number(it.book_value),
+        txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),
         description: it.description === '' ? null : it.description,
       }))
       const result = await update_transaction_template(loadedTemplateId, line_items, description || null)
@@ -182,7 +182,7 @@ export default function ClientPage({
         account_id: it.account_id,
         asset_id: it.asset_id,
         quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
-        book_value: it.book_value === null || it.book_value === '' ? null : Number(it.book_value),
+        txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),
         description: it.description === '' ? null : it.description,
       }))
       const result = await create_transaction_template(line_items, description || null)
@@ -207,7 +207,7 @@ export default function ClientPage({
         account_id: it.account_id,
         asset_id: it.asset_id,
         quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
-        book_value: it.book_value === null || it.book_value === '' ? null : Number(it.book_value),
+        txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),
         description: it.description === '' ? null : it.description,
         datetime: it.datetime === '' ? null : new Date(it.datetime),
       }))

@@ -91,7 +91,7 @@ async function Page({
       asset_id: li.asset_id,
       description: li.description,
       quantity: li.quantity ? Number(li.quantity) : null,
-      book_value: li.book_value ? Number(li.book_value) : null,
+      txn_value: li.txn_value ? Number(li.txn_value) : null,
       account: li.account,
       asset: li.asset,
     })),
@@ -143,10 +143,10 @@ async function Page({
     orderBy: { datetime: 'desc' as const },
   }
 
-  const txTotal = (t: { line_items: { account: { type: string }; book_value: Prisma.Decimal | null }[] }) =>
+  const txTotal = (t: { line_items: { account: { type: string }; txn_value: Prisma.Decimal | null }[] }) =>
     t.line_items
       .filter(li => li.account.type === 'real')
-      .reduce((s, li) => s.add(li.book_value!), new Prisma.Decimal(0))
+      .reduce((s, li) => s.add(li.txn_value!), new Prisma.Decimal(0))
       .toNumber()
 
   let totalCount: number

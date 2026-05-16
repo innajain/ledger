@@ -43,14 +43,14 @@ async function Page() {
   await Promise.all(
     assets.map(async ass => {
       const price_data = await get_price_for_asset(ass.type, ass.ticker)
-      const acc_qty_map = balances.get(ass.id) ?? new Map<string, { qty: number; book_value: number }>()
+      const acc_qty_map = balances.get(ass.id) ?? new Map<string, { qty: number; txn_value: number }>()
 
       let total_value = new Prisma.Decimal(0)
-      for (const [, { qty, book_value }] of acc_qty_map.entries()) {
+      for (const [, { qty, txn_value }] of acc_qty_map.entries()) {
         if (price_data) {
           total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
         } else {
-          total_value = total_value.add(book_value)
+          total_value = total_value.add(txn_value)
         }
       }
 
@@ -73,14 +73,14 @@ async function Page() {
     include: { transaction: true },
   })
   const tx_ids = Array.from(new Set(all_line_items.map(li => li.transaction_id)))
-  const normalizedById = new Map<string, { book_value: Prisma.Decimal }>()
+  const normalizedById = new Map<string, { txn_value: Prisma.Decimal }>()
   if (tx_ids.length > 0) {
     const rawTxns = await prisma.transaction.findMany({
       where: { id: { in: tx_ids } },
       include: { line_items: { include: { account: true, asset: true } } },
     })
     for (const tx of rawTxns.map(normalize_txn)) {
-      for (const li of tx.line_items) normalizedById.set(li.id, { book_value: li.book_value! })
+      for (const li of tx.line_items) normalizedById.set(li.id, { txn_value: li.txn_value! })
     }
   }
 
@@ -96,7 +96,7 @@ async function Page() {
     for (const li of assetLineItems) {
       const n = normalizedById.get(li.id)
       if (!n) continue
-      cashflows.push({ amount: -n.book_value.toNumber(), when: li.datetime ?? li.transaction.datetime })
+      cashflows.push({ amount: -n.txn_value.toNumber(), when: li.datetime ?? li.transaction.datetime })
     }
     cashflows.push({ amount: currentValue, when: new Date() })
     xirrByAsset.set(asset.id, calculate_xirr(cashflows))

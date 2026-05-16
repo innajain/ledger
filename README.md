@@ -35,12 +35,12 @@ Line items are stored in a **compressed format**: instead of repeating the same 
 
 **Rules enforced on every save:**
 
-| Side                              | `quantity` rule                                                 | `book_value` rule (non-rupees only)   |
-| --------------------------------- | --------------------------------------------------------------- | ------------------------------------- |
-| **Real**                          | Must always be provided (never `null`)                          | Must always be provided               |
-| **Allocation**                    | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`        |
-| **Nominal**                       | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`        |
-| **No Allocation _or_ No Nominal** | Real quantities must sum to **zero**                            | Real book values must sum to **zero** |
+| Side                              | `quantity` rule                                                 | `txn_value` rule (non-rupees only)   |
+| --------------------------------- | --------------------------------------------------------------- | ------------------------------------ |
+| **Real**                          | Must always be provided (never `null`)                          | Must always be provided              |
+| **Allocation**                    | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`       |
+| **Nominal**                       | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`       |
+| **No Allocation _or_ No Nominal** | Real quantities must sum to **zero**                            | Real txn values must sum to **zero** |
 
 At read time, `normalize_txn` fills every `null` with:
 
@@ -54,12 +54,12 @@ After normalization the classic invariant is always satisfied:
 ∑ quantity(Real) = ∑ quantity(Allocation) = ∑ quantity(Nominal)
 ```
 
-### Book Value Rules
+### Txn Value Rules
 
-| Asset Type                              | `book_value` in Real items             | `book_value` in Allocation/Nominal          |
-| --------------------------------------- | -------------------------------------- | ------------------------------------------- |
-| **Rupees**                              | Must be `null` (quantity IS the value) | Must be `null`                              |
-| **Non-rupees (MF, ETF, Shares, Other)** | Must be provided — tracks cost basis   | Exactly one `null` per group (auto-derived) |
+| Asset Type                              | `txn_value` in Real items                         | `txn_value` in Allocation/Nominal           |
+| --------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
+| **Rupees**                              | Must be `null` (quantity IS the value)            | Must be `null`                              |
+| **Non-rupees (MF, ETF, Shares, Other)** | Must be provided — cash flow amount for the trade | Exactly one `null` per group (auto-derived) |
 
 ---
 
@@ -86,12 +86,12 @@ After normalization: Real (−35) = Allocation (−35) = Nominal (−35) ✅
 {
   "description": "SIP in Axis Bluechip Fund",
   "line_items": [
-    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -10000, "book_value": null },
+    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -10000, "txn_value": null },
     { "account": "Investments", "type": "nominal", "asset": "Money", "quantity": null },
     { "account": "Equity MF", "type": "allocation", "asset": "Money", "quantity": null },
-    { "account": "Demat", "type": "real", "asset": "Axis Bluechip", "quantity": 50.25, "book_value": 10000 },
-    { "account": "Investments", "type": "nominal", "asset": "Axis Bluechip", "quantity": null, "book_value": null },
-    { "account": "Equity MF", "type": "allocation", "asset": "Axis Bluechip", "quantity": null, "book_value": null }
+    { "account": "Demat", "type": "real", "asset": "Axis Bluechip", "quantity": 50.25, "txn_value": 10000 },
+    { "account": "Investments", "type": "nominal", "asset": "Axis Bluechip", "quantity": null, "txn_value": null },
+    { "account": "Equity MF", "type": "allocation", "asset": "Axis Bluechip", "quantity": null, "txn_value": null }
   ]
 }
 ```
@@ -134,9 +134,9 @@ When there are no Allocation or Nominal entries the Real quantities must sum to 
 | Other             | No              | Cost basis only          |
 
 - **Ticker validation** — Asset creation rejects invalid tickers by hitting the price source upfront
-- **Cost-basis tracking** — `quantity` (units) and `book_value` (cost) stored separately for non-rupees assets
+- **Txn value tracking** — `quantity` (units) and `txn_value` (cash flow amount) stored separately for non-rupees assets
 - **FIFO remaining units** — Asset detail pages show the remaining quantity per buy lot using a FIFO match against sell entries
-- **Live valuation** — Per-asset and per-allocation pages price holdings using the latest cached price; falls back to book value when unavailable
+- **Live valuation** — Per-asset and per-allocation pages price holdings using the latest cached price; falls back to txn value when unavailable
 
 ### Interactive Charts
 
@@ -399,7 +399,7 @@ model line_item {
   account_id     String
   asset_id       String
   quantity       Decimal?  @db.Decimal(14, 4) // null in Allocation/Nominal = auto-derived
-  book_value     Decimal?  @db.Decimal(14, 4) // null for rupees, or auto-derived
+  txn_value      Decimal?  @db.Decimal(14, 4) // null for rupees, or auto-derived
   description    String?
   datetime       DateTime? // per-line-item datetime override
 }
@@ -414,7 +414,7 @@ model transaction_template {
 model line_item_template {
   // Same shape as line_item, no datetime
   quantity   Decimal? @db.Decimal(14, 4)
-  book_value Decimal? @db.Decimal(14, 4)
+  txn_value  Decimal? @db.Decimal(14, 4)
 }
 
 enum account_type { real  nominal  allocation }
@@ -425,7 +425,7 @@ Profiling tables (`server_metric`, `slow_query`, `web_vital`) live alongside the
 
 **Key design points:**
 
-- `quantity` / `book_value` nullable — null-remainder pattern; `normalize_txn` derives at read time
+- `quantity` / `txn_value` nullable — null-remainder pattern; `normalize_txn` derives at read time
 - `Decimal(14, 4)` throughout — sufficient for fund-unit precision
 - Hierarchical accounts/assets with cycle detection at the application layer
 - Cascade deletion: removing a transaction or template removes all its line items
@@ -490,8 +490,8 @@ Checks performed:
 
 1. Real line items never have `null` quantity
 2. Allocation / Nominal groups each have exactly one `null` quantity placeholder
-3. Book-value rules are respected per asset type
-4. Real-only transactions (transfers) have quantity and book-value sums of zero
+3. Txn-value rules are respected per asset type
+4. Real-only transactions (transfers) have quantity and txn-value sums of zero
 
 ---
 

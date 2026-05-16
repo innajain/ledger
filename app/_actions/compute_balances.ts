@@ -26,16 +26,16 @@ export const get_or_compute_balances = cache(async (invalidate_cache = false) =>
   const cached = invalidate_cache ? null : await redis.get(cache_key)
   if (cached) {
     const parsed = JSON.parse(cached)
-    const accountsToAssets = new Map<string, Map<string, { qty: number; book_value: number }>>(
-      parsed.accountsToAssets.map(([k, v]: [string, [string, { qty: number; book_value: number }][]]) => [
+    const accountsToAssets = new Map<string, Map<string, { qty: number; txn_value: number }>>(
+      parsed.accountsToAssets.map(([k, v]: [string, [string, { qty: number; txn_value: number }][]]) => [
         k,
-        new Map(v.map(([k2, v2]) => [k2, { qty: v2.qty, book_value: v2.book_value }])),
+        new Map(v.map(([k2, v2]) => [k2, { qty: v2.qty, txn_value: v2.txn_value }])),
       ]),
     )
-    const assetsToAccounts = new Map<string, Map<string, { qty: number; book_value: number }>>(
-      parsed.assetsToAccounts.map(([k, v]: [string, [string, { qty: number; book_value: number }][]]) => [
+    const assetsToAccounts = new Map<string, Map<string, { qty: number; txn_value: number }>>(
+      parsed.assetsToAccounts.map(([k, v]: [string, [string, { qty: number; txn_value: number }][]]) => [
         k,
-        new Map(v.map(([k2, v2]) => [k2, { qty: v2.qty, book_value: v2.book_value }])),
+        new Map(v.map(([k2, v2]) => [k2, { qty: v2.qty, txn_value: v2.txn_value }])),
       ]),
     )
     return { accountsToAssets, assetsToAccounts }
@@ -47,58 +47,58 @@ export const get_or_compute_balances = cache(async (invalidate_cache = false) =>
   })
   const transactions = rawTransactions.map(normalize_txn)
 
-  const accountsToAssets = new Map<string, Map<string, { qty: Prisma.Decimal; book_value: Prisma.Decimal }>>()
-  const assetsToAccounts = new Map<string, Map<string, { qty: Prisma.Decimal; book_value: Prisma.Decimal }>>()
+  const accountsToAssets = new Map<string, Map<string, { qty: Prisma.Decimal; txn_value: Prisma.Decimal }>>()
+  const assetsToAccounts = new Map<string, Map<string, { qty: Prisma.Decimal; txn_value: Prisma.Decimal }>>()
 
   for (const tx of transactions) {
     for (const li of tx.line_items) {
       const acc_id = li.account_id
       const asset_id = li.asset_id
       const qty = li.quantity
-      const book_value = li.book_value
+      const txn_value = li.txn_value
 
       if (!accountsToAssets.has(acc_id)) accountsToAssets.set(acc_id, new Map())
       const assetMap = accountsToAssets.get(acc_id)!
-      if (!assetMap.has(asset_id)) assetMap.set(asset_id, { qty, book_value })
+      if (!assetMap.has(asset_id)) assetMap.set(asset_id, { qty, txn_value })
       else {
         const existing = assetMap.get(asset_id)!
         assetMap.set(asset_id, {
           qty: existing.qty.add(qty),
-          book_value: existing.book_value.add(book_value),
+          txn_value: existing.txn_value.add(txn_value),
         })
       }
 
       if (li.account.type === 'real') {
         if (!assetsToAccounts.has(asset_id)) assetsToAccounts.set(asset_id, new Map())
         const accMap = assetsToAccounts.get(asset_id)!
-        if (!accMap.has(acc_id)) accMap.set(acc_id, { qty, book_value })
+        if (!accMap.has(acc_id)) accMap.set(acc_id, { qty, txn_value })
         else {
           const existing_acc = accMap.get(acc_id)!
           accMap.set(acc_id, {
             qty: existing_acc.qty.add(qty),
-            book_value: existing_acc.book_value.add(book_value),
+            txn_value: existing_acc.txn_value.add(txn_value),
           })
         }
       }
     }
   }
 
-  const clientAccountsToAssets = new Map<string, Map<string, { qty: number; book_value: number }>>()
+  const clientAccountsToAssets = new Map<string, Map<string, { qty: number; txn_value: number }>>()
   for (const [k, v] of accountsToAssets.entries()) {
     clientAccountsToAssets.set(
       k,
-      new Map<string, { qty: number; book_value: number }>(
-        Array.from(v.entries()).map(([k2, v2]) => [k2, { qty: v2.qty.toNumber(), book_value: v2.book_value.toNumber() }]),
+      new Map<string, { qty: number; txn_value: number }>(
+        Array.from(v.entries()).map(([k2, v2]) => [k2, { qty: v2.qty.toNumber(), txn_value: v2.txn_value.toNumber() }]),
       ),
     )
   }
 
-  const clientAssetsToAccounts = new Map<string, Map<string, { qty: number; book_value: number }>>()
+  const clientAssetsToAccounts = new Map<string, Map<string, { qty: number; txn_value: number }>>()
   for (const [k, v] of assetsToAccounts.entries()) {
     clientAssetsToAccounts.set(
       k,
-      new Map<string, { qty: number; book_value: number }>(
-        Array.from(v.entries()).map(([k2, v2]) => [k2, { qty: v2.qty.toNumber(), book_value: v2.book_value.toNumber() }]),
+      new Map<string, { qty: number; txn_value: number }>(
+        Array.from(v.entries()).map(([k2, v2]) => [k2, { qty: v2.qty.toNumber(), txn_value: v2.txn_value.toNumber() }]),
       ),
     )
   }

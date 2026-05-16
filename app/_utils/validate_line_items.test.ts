@@ -6,7 +6,7 @@ type LineItemShape = {
   account: { type: 'real' | 'allocation' | 'nominal' }
   asset: { id: string; type: 'rupees' | 'mf' | 'etf' | 'shares' | 'other'; name: string }
   quantity: Prisma.Decimal | null
-  book_value: Prisma.Decimal | null
+  txn_value: Prisma.Decimal | null
 }
 
 const D = (n: number) => new Prisma.Decimal(n)
@@ -17,13 +17,13 @@ function li(
   account_type: 'real' | 'allocation' | 'nominal',
   asset: typeof RUPEES | typeof MF,
   quantity: number | null,
-  book_value: number | null = null,
+  txn_value: number | null = null,
 ): LineItemShape {
   return {
     account: { type: account_type },
     asset,
     quantity: quantity === null ? null : D(quantity),
-    book_value: book_value === null ? null : D(book_value),
+    txn_value: txn_value === null ? null : D(txn_value),
   }
 }
 
@@ -55,10 +55,10 @@ describe('validate_line_items — rupees', () => {
     expect(result.is_valid).toBe(false)
   })
 
-  it('rejects rupees line items with non-null book_value', () => {
+  it('rejects rupees line items with non-null txn_value', () => {
     const result = check([li('real', RUPEES, -35, -35), li('allocation', RUPEES, null), li('nominal', RUPEES, null)])
     expect(result.is_valid).toBe(false)
-    expect(result.message).toContain('rupees asset should not have book value')
+    expect(result.message).toContain('rupees asset should not have txn value')
   })
 
   it('requires real qty sum = 0 when no allocation/nominal', () => {
@@ -74,20 +74,20 @@ describe('validate_line_items — rupees', () => {
 })
 
 describe('validate_line_items — non-rupees (MF)', () => {
-  it('accepts a simple buy with explicit book_value on real and one null in each side', () => {
+  it('accepts a simple buy with explicit txn_value on real and one null in each side', () => {
     const result = check([li('real', MF, 10, 1500), li('allocation', MF, null, null), li('nominal', MF, null, null)])
     expect(result.is_valid).toBe(true)
   })
 
-  it('rejects a non-rupees real item with null book_value', () => {
+  it('rejects a non-rupees real item with null txn_value', () => {
     const result = check([li('real', MF, 10, null), li('allocation', MF, null, null), li('nominal', MF, null, null)])
     expect(result.is_valid).toBe(false)
-    expect(result.message).toContain('null book value')
+    expect(result.message).toContain('null txn value')
   })
 
-  it('requires exactly one null book_value on the allocation side', () => {
+  it('requires exactly one null txn_value on the allocation side', () => {
     const result = check([li('real', MF, 10, 1500), li('allocation', MF, null, 1500), li('nominal', MF, null, null)])
     expect(result.is_valid).toBe(false)
-    expect(result.message).toContain('exactly one line item with null book value in allocation')
+    expect(result.message).toContain('exactly one line item with null txn value in allocation')
   })
 })
