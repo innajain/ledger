@@ -10,13 +10,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const body = (await req.json()) as HandleUploadBody
 
-  const jsonResponse = await handleUpload({
-    body,
-    request: req,
-    onBeforeGenerateToken: async () => ({
-      allowedContentTypes: ALLOWED_TYPES,
-      maximumSizeInBytes: 10 * 1024 * 1024,
-    }),
-  })
-  return NextResponse.json(jsonResponse)
+  try {
+    const jsonResponse = await handleUpload({
+      body,
+      request: req,
+      onBeforeGenerateToken: async () => ({
+        allowedContentTypes: ALLOWED_TYPES,
+        maximumSizeInBytes: 10 * 1024 * 1024,
+      }),
+    })
+    return NextResponse.json(jsonResponse)
+  } catch (e) {
+    console.error('[upload] handleUpload failed:', e)
+    return NextResponse.json({ error: (e as Error).message }, { status: 400 })
+  }
 }
