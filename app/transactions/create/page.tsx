@@ -38,7 +38,9 @@ async function Page() {
     type: a.type,
   }))
 
-  return <ClientPage accounts={accountsForClient} assets={assetsForClient} defaults={defaults} />
+  return (
+    <ClientPage accounts={accountsForClient} assets={assetsForClient} defaults={defaults} attachmentsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN} />
+  )
 }
 
 export default profile('/transactions/create', Page)

@@ -34,6 +34,17 @@ services:
       - postgres
       - redis
 
+  blob:
+    image: ghcr.io/payloadcms/vercel-blob-emulator:latest
+    container_name: local-blob
+    ports:
+      - '3100:3000'
+    environment:
+      EMULATOR_BASE_URL: 'http://localhost:3100'
+    volumes:
+      - blob_data:/data
+
 volumes:
   postgres_data:
   redis_data:
+  blob_data:

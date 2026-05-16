@@ -7,6 +7,15 @@ import { account_type, asset_type } from '@/generated/prisma/enums'
 import { delete_transaction } from '@/app/_actions/transactions'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 
+type Attachment = { id: string; url: string; filename: string; content_type: string | null; size: number | null }
+
+function fmt_size(bytes: number | null) {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
 export default function ClientPage({
   transaction,
 }: {
@@ -15,6 +24,7 @@ export default function ClientPage({
     date: string
     description: string | null
     total: number
+    attachments: Attachment[]
     line_items: {
       id: string
       account_id: string
@@ -203,6 +213,37 @@ export default function ClientPage({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* Attachments */}
+      {transaction.attachments.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Attachments</h2>
+          <div className="space-y-2">
+            {transaction.attachments.map(att => (
+              <div
+                key={att.id}
+                className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600"
+              >
+                {att.content_type?.startsWith('image/') && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={att.url} alt={att.filename} className="h-10 w-10 object-cover rounded shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <a
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate block"
+                  >
+                    {att.filename}
+                  </a>
+                  {att.size && <p className="text-xs text-slate-400">{fmt_size(att.size)}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

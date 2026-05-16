@@ -14,7 +14,7 @@ async function Page({ params }: Props) {
 
   const tx = await prisma.transaction.findUnique({
     where: { id, user_id: user.id },
-    include: { line_items: { include: { asset: true, account: true } } },
+    include: { line_items: { include: { asset: true, account: true } }, attachments: true },
   })
   if (!tx) return <div>Transaction not found.</div>
 
@@ -60,6 +60,14 @@ async function Page({ params }: Props) {
     type: a.type,
   }))
 
+  const attachmentsForClient = tx.attachments.map(a => ({
+    id: a.id,
+    url: a.url,
+    filename: a.filename,
+    content_type: a.content_type,
+    size: a.size,
+  }))
+
   return (
     <ClientPage
       transaction={txForClient}
@@ -67,6 +75,8 @@ async function Page({ params }: Props) {
       assets={assetsForClient}
       defaults={defaults}
       updateTransaction={update_transaction}
+      existingAttachments={attachmentsForClient}
+      attachmentsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN}
     />
   )
 }

@@ -4,8 +4,10 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { asset_type } from '@/generated/prisma/enums'
 import { CreateLineItemInput } from '@/app/_actions/transactions'
+import { save_attachments, delete_attachment, type AttachmentInput } from '@/app/_actions/attachments'
 import { ActionResult } from '@/app/_actions/_result'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
+import { AttachmentUpload } from '@/app/_components/AttachmentUpload'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
@@ -24,12 +26,16 @@ type LineItem = {
   datetime?: Date | null
 }
 
+type ExistingAttachment = { id: string; url: string; filename: string; content_type: string | null; size: number | null }
+
 export default function ClientPage({
   transaction,
   accounts,
   assets,
   defaults,
   updateTransaction,
+  existingAttachments = [],
+  attachmentsEnabled = false,
 }: {
   transaction: {
     id: string
@@ -42,6 +48,8 @@ export default function ClientPage({
   assets: { id: string; name: string; type: asset_type }[]
   defaults: LineItemDefaults
   updateTransaction: (id: string, line_items: CreateLineItemInput[], datetime?: Date, description?: string | null) => Promise<ActionResult>
+  existingAttachments?: ExistingAttachment[]
+  attachmentsEnabled?: boolean
 }) {
   function toLocalDateTimeInputValue(d: Date | string) {
     const dt = typeof d === 'string' ? new Date(d) : d
@@ -66,8 +74,14 @@ export default function ClientPage({
       datetime: li.datetime ? toLocalDateTimeInputValue(li.datetime) : '',
     })),
   )
+  const [pendingAttachments, setPendingAttachments] = useState<AttachmentInput[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function handleDeleteExisting(id: string) {
+    const result = await delete_attachment(id)
+    if (!result.success) throw new Error(result.message)
+  }
 
   function addItemForType(typeKey: string) {
     const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
@@ -124,6 +138,9 @@ export default function ClientPage({
       }))
       const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null)
       if (result.success) {
+        if (pendingAttachments.length > 0) {
+          await save_attachments(transaction.id, pendingAttachments)
+        }
         window.location.href = `/transactions/${transaction.id}`
       } else {
         setError(result.message)
@@ -183,6 +200,17 @@ export default function ClientPage({
                 className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
               />
             </div>
+
+            {attachmentsEnabled && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Attachments</label>
+                <AttachmentUpload
+                  existingAttachments={existingAttachments}
+                  onPendingChange={setPendingAttachments}
+                  onDeleteExisting={handleDeleteExisting}
+                />
+              </div>
+            )}
           </div>
         </div>
 

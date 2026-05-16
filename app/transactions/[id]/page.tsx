@@ -14,7 +14,7 @@ async function Page({ params }: Props) {
 
   const rawTx = await prisma.transaction.findUnique({
     where: { id, user_id: user.id },
-    include: { line_items: { include: { asset: true, account: true } } },
+    include: { line_items: { include: { asset: true, account: true } }, attachments: true },
   })
   if (!rawTx) return <div>Transaction not found.</div>
 
@@ -28,6 +28,13 @@ async function Page({ params }: Props) {
       .filter(li => li.account.type === 'real')
       .reduce((sum, li) => sum.add(li.txn_value), new Prisma.Decimal(0))
       .toNumber(),
+    attachments: rawTx.attachments.map(a => ({
+      id: a.id,
+      url: a.url,
+      filename: a.filename,
+      content_type: a.content_type,
+      size: a.size,
+    })),
     line_items: tx.line_items.map(li => ({
       id: li.id,
       account_id: li.account.id,

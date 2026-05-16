@@ -119,10 +119,26 @@ model transaction {
   datetime    DateTime
   description String?
 
-  user       user        @relation(fields: [user_id], references: [id])
-  line_items line_item[]
+  user        user                     @relation(fields: [user_id], references: [id])
+  line_items  line_item[]
+  attachments transaction_attachment[]
 
   @@index([user_id, datetime])
+}
+
+model transaction_attachment {
+  id             String   @id @default(cuid())
+  transaction_id String
+  url            String
+  pathname       String
+  filename       String
+  content_type   String?
+  size           Int?
+  created_at     DateTime @default(now())
+
+  transaction transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+
+  @@index([transaction_id])
 }
 
 model line_item {

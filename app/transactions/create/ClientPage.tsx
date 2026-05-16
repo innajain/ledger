@@ -4,8 +4,10 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { asset_type } from '@/generated/prisma/enums'
 import { create_transaction } from '@/app/_actions/transactions'
+import { save_attachments, type AttachmentInput } from '@/app/_actions/attachments'
 import { create_transaction_template, update_transaction_template } from '@/app/_actions/templates'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
+import { AttachmentUpload } from '@/app/_components/AttachmentUpload'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
@@ -15,10 +17,12 @@ export default function ClientPage({
   accounts,
   assets,
   defaults,
+  attachmentsEnabled = false,
 }: {
   accounts: { id: string; name: string; type: string }[]
   assets: { id: string; name: string; type: asset_type }[]
   defaults: LineItemDefaults
+  attachmentsEnabled?: boolean
 }) {
   function toLocalDateTimeInputValue(d: Date | string) {
     const dt = typeof d === 'string' ? new Date(d) : d
@@ -64,6 +68,7 @@ export default function ClientPage({
       datetime: '',
     },
   ])
+  const [pendingAttachments, setPendingAttachments] = useState<AttachmentInput[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savingTemplate, setSavingTemplate] = useState(false)
@@ -213,6 +218,9 @@ export default function ClientPage({
       }))
       const result = await create_transaction(new Date(date), line_items, description || null)
       if (result.success) {
+        if (pendingAttachments.length > 0) {
+          await save_attachments(result.data!.id, pendingAttachments)
+        }
         window.location.href = `/transactions/${result.data!.id}`
       } else {
         setError(result.message)
@@ -272,6 +280,13 @@ export default function ClientPage({
                 className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
               />
             </div>
+
+            {attachmentsEnabled && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Attachments</label>
+                <AttachmentUpload onPendingChange={setPendingAttachments} />
+              </div>
+            )}
           </div>
         </div>
 
