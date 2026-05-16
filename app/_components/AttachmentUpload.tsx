@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { upload } from '@vercel/blob/client'
 import type { AttachmentInput } from '@/app/_actions/attachments'
 
 type ExistingAttachment = {
@@ -74,21 +75,11 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
     const uploaded: AttachmentInput[] = []
     try {
       for (const file of Array.from(files)) {
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          body: file,
-          headers: {
-            'Content-Type': 'application/octet-stream',
-            'x-filename': file.name,
-            'x-content-type': file.type,
-            'x-file-size': String(file.size),
-          },
+        const blob = await upload(`attachments/${Date.now()}-${file.name}`, file, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
         })
-        if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.error ?? 'Upload failed')
-        }
-        uploaded.push(await res.json())
+        uploaded.push({ url: blob.url, pathname: blob.pathname, filename: file.name, content_type: file.type || null, size: file.size })
       }
       const next = [...pending, ...uploaded]
       setPending(next)
