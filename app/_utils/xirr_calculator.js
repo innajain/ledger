@@ -21,7 +21,12 @@ export function calculate_xirr(cashflows) {
       // Newton-Raphson on a true-zero return lands on floating-point noise
       // (e.g. 8e-16). Snap to exact 0 below display precision so colour logic
       // and rounding agree.
-      return Math.abs(rate) < 1e-6 ? 0 : rate
+      if (Math.abs(rate) < 1e-6) return 0
+      // Tiny-time-window cashflows (e.g. a buy just hours ago) can produce
+      // astronomical annualized returns. Treat anything beyond ±1000% as
+      // noise — chart libraries can't render values that large anyway.
+      if (!Number.isFinite(rate) || Math.abs(rate) > 10) return null
+      return rate
     } catch {
       // try next guess
     }
