@@ -59,7 +59,7 @@ export default async function RootLayout({
 }>) {
   const user = await get_current_user()
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-900 transition-colors`}>
         <WebVitalsReporter />
         <ThemeProvider>
