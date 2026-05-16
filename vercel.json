@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/sync-nav",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-orphan-blobs",
+      "schedule": "0 3 * * 0"
     }
   ]
 }
