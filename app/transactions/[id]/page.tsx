@@ -30,7 +30,7 @@ async function Page({ params }: Props) {
       .toNumber(),
     attachments: rawTx.attachments.map(a => ({
       id: a.id,
-      url: a.url,
+      url: `/api/attachments/${a.id}`,
       filename: a.filename,
       content_type: a.content_type,
       size: a.size,

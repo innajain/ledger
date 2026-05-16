@@ -76,7 +76,7 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
     try {
       for (const file of Array.from(files)) {
         const blob = await upload(`attachments/${Date.now()}-${file.name}`, file, {
-          access: 'public',
+          access: 'private',
           handleUploadUrl: '/api/upload',
         })
         uploaded.push({ url: blob.url, pathname: blob.pathname, filename: file.name, content_type: file.type || null, size: file.size })
