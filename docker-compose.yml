@@ -21,15 +21,47 @@ services:
       - redis_data:/data
 
   sync-db:
-    image: postgres:17
+    image: python:3.12-slim
     environment:
-      - SRC_URL=${NEON_URL}
-      - DEST_URL=postgresql://postgres@postgres:5432/appdb
-    entrypoint: >
-      sh -c "apt-get update -qq && apt-get install -y -qq redis-tools && \
-             redis-cli -h redis -p 6379 FLUSHALL && \
-             pg_dump $$SRC_URL --format=custom --no-owner --no-privileges | \
-             pg_restore -d $$DEST_URL --clean --if-exists --no-owner --no-privileges"
+      - PG_SRC=${NEON_URL}
+      - PG_DEST=postgresql://postgres@postgres:5432/appdb
+      - REDIS_SRC=${PROD_REDIS_URL:-}
+      - REDIS_DEST=redis://redis:6379
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -e
+        apt-get update -qq && apt-get install -y -qq postgresql-client ca-certificates
+        pip install --quiet redis
+        python3 - <<'PYEOF'
+        import os
+        import redis
+        dest = redis.from_url(os.environ['REDIS_DEST'])
+        dest.flushall()
+        print('Flushed local Redis')
+        src_url = os.environ.get('REDIS_SRC')
+        if src_url:
+            src = redis.from_url(src_url)
+            n = 0
+            for key in src.scan_iter():
+                ttl = src.pttl(key)
+                if ttl < 0:
+                    ttl = 0
+                dump = src.dump(key)
+                if dump:
+                    dest.restore(key, ttl, dump, replace=True)
+                    n += 1
+            print(f'Synced {n} keys from prod Redis')
+        else:
+            print('PROD_REDIS_URL not set; skipped Redis copy')
+        PYEOF
+        echo 'Syncing Postgres from prod...'
+        # PGSSLROOTCERT=system tells libpq to verify Neon's cert via the system trust
+        # store (needed because channel_binding=require triggers verify-full on libpq 17).
+        # Applied only to pg_dump; the local pg_restore connection doesn't use SSL.
+        PGSSLROOTCERT=system pg_dump "$$PG_SRC" --format=custom --no-owner --no-privileges | \
+          pg_restore -d "$$PG_DEST" --clean --if-exists --no-owner --no-privileges
     depends_on:
       - postgres
       - redis
