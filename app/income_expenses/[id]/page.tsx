@@ -3,7 +3,8 @@ import { get_current_user } from '@/app/_actions/auth'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
-import { normalize_txn } from '@/app/_utils/normalize_txn'
+import { compute_current_value } from '@/app/_utils/compute_current_value'
+import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
 import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ id: string }> }
@@ -37,20 +38,14 @@ async function Page({ params }: Props) {
     )
   }
 
-  const tx_ids = Array.from(new Set(account.line_items.map(li => li.transaction_id)))
-  const rawTransactions = await prisma.transaction.findMany({
-    where: { id: { in: tx_ids } },
-    include: { line_items: { include: { account: true, asset: true } } },
-  })
-  const transactions = rawTransactions.map(normalize_txn)
-  const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()
-  for (const tx of transactions) for (const li of tx.line_items) normalizedById.set(li.id, li)
-
+  const { normalizedById } = await fetch_and_normalize_transactions(account.line_items)
   const uniqueAssets = Array.from(new Map(account.line_items.map(li => [li.asset.id, li.asset])).values())
   const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
   let acc_total = new Prisma.Decimal(0)
   let book_total = new Prisma.Decimal(0)
+  const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
+    {}
   const lineItemsWithValues: {
     id: string
     asset_id: string
@@ -65,34 +60,18 @@ async function Page({ params }: Props) {
     line_item_description: string | null
     _sortDate: Date
   }[] = []
-  const map: Record<
-    string,
-    {
-      asset_id: string
-      asset_name: string
-      total_qty: Prisma.Decimal
-      total_book: Prisma.Decimal
-      asset_type: asset_type
-    }
-  > = {}
 
   for (const li of account.line_items) {
     const n = normalizedById.get(li.id)!
     const qty = n.quantity!
     const txn_value = n.txn_value!
     const asset = li.asset
-
-    const priceData = priceByAsset.get(asset.id) ?? null
-    const priceDecimal = priceData ? new Prisma.Decimal(priceData.price) : null
-
-    let current_value: Prisma.Decimal
-    if (asset.type === asset_type.rupees) current_value = qty
-    else if (priceDecimal) current_value = priceDecimal.mul(qty)
-    else current_value = txn_value
+    const priceDecimal = (priceByAsset.get(asset.id) ?? null) && new Prisma.Decimal(priceByAsset.get(asset.id)!.price)
+    const current_value = compute_current_value(asset.type, qty, priceDecimal, txn_value)
 
     acc_total = acc_total.add(current_value)
 
-    if (!map[asset.id]) {
+    if (!map[asset.id])
       map[asset.id] = {
         asset_id: asset.id,
         asset_name: asset.name,
@@ -100,7 +79,6 @@ async function Page({ params }: Props) {
         total_book: new Prisma.Decimal(0),
         asset_type: asset.type,
       }
-    }
     map[asset.id].total_qty = map[asset.id].total_qty.add(qty)
     map[asset.id].total_book = map[asset.id].total_book.add(txn_value)
 
@@ -132,18 +110,11 @@ async function Page({ params }: Props) {
     current_value: number
     asset_type: asset_type
   }[] = []
-  for (const k of Object.keys(map)) {
-    const e = map[k]
+  for (const e of Object.values(map)) {
     book_total = book_total.add(e.total_book)
-
     if (e.total_qty.equals(0)) continue
-
     const priceData = priceByAsset.get(e.asset_id) ?? null
-    let current_value: Prisma.Decimal
-    if (e.asset_type === asset_type.rupees) current_value = e.total_qty
-    else if (priceData) current_value = new Prisma.Decimal(priceData.price).mul(e.total_qty)
-    else current_value = e.total_book
-
+    const current_value = compute_current_value(e.asset_type, e.total_qty, priceData ? new Prisma.Decimal(priceData.price) : null, e.total_book)
     breakdown.push({
       asset_id: e.asset_id,
       asset_name: e.asset_name,
@@ -154,18 +125,20 @@ async function Page({ params }: Props) {
     })
   }
 
-  const accountForClient = {
-    id: account.id,
-    name: account.name,
-    type: account.type,
-    parent: account.parent ? { id: account.parent.id, name: account.parent.name } : null,
-    total: acc_total.toNumber(),
-    txn_value_total: book_total.toNumber(),
-    breakdown,
-    line_items: sortedLineItems,
-  }
-
-  return <ClientPage account={accountForClient} />
+  return (
+    <ClientPage
+      account={{
+        id: account.id,
+        name: account.name,
+        type: account.type,
+        parent: account.parent ? { id: account.parent.id, name: account.parent.name } : null,
+        total: acc_total.toNumber(),
+        txn_value_total: book_total.toNumber(),
+        breakdown,
+        line_items: sortedLineItems,
+      }}
+    />
+  )
 }
 
 export default profile('/income_expenses/[id]', Page)

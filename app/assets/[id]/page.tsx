@@ -3,9 +3,11 @@ import { get_current_user } from '@/app/_actions/auth'
 import { get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
-import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
-import { compute_value_timeseries } from '@/app/_utils/value_timeseries'
+import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
+import { compute_current_value } from '@/app/_utils/compute_current_value'
+import { compute_fifo_remaining } from '@/app/_utils/fifo'
+import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
 import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ id: string }> }
@@ -39,78 +41,33 @@ async function Page({ params }: Props) {
     )
   }
 
-  const tx_ids = Array.from(new Set(asset.line_items.map(li => li.transaction_id)))
-  const rawTransactions = await prisma.transaction.findMany({
-    where: { id: { in: tx_ids } },
-    include: { line_items: { include: { account: true, asset: true } } },
-  })
-  const transactions = rawTransactions.map(normalize_txn)
-  const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()
-  for (const tx of transactions) for (const li of tx.line_items) normalizedById.set(li.id, li)
-
-  // compute total across real accounts and aggregate holdings by account
-  let asset_total = new Prisma.Decimal(0)
-  let book_total = new Prisma.Decimal(0)
-  const breakdown: {
-    account_id: string
-    account_name: string
-    quantity: number
-    txn_value: number | null
-    current_value: number
-  }[] = []
+  const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(asset.line_items)
 
   const real_line_items = asset.line_items.filter(li => li.account.type === 'real')
   const allocation_line_items = asset.line_items.filter(li => li.account.type === 'allocation')
 
-  // single price fetch for this asset, reused across all its line items
   const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
   const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
 
-  // aggregate per-account
-  const map: Record<
-    string,
-    {
-      account_id: string
-      account_name: string
-      total_qty: Prisma.Decimal
-      total_book: Prisma.Decimal
-    }
-  > = {}
+  // Aggregate per real account
+  let asset_total = new Prisma.Decimal(0)
+  let book_total = new Prisma.Decimal(0)
+  const acc_map: Record<string, { account_id: string; account_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
   for (const li of real_line_items) {
     const n = normalizedById.get(li.id)!
-    const qty = n.quantity!
-    const book = n.txn_value!
     const aid = li.account.id
-    if (!map[aid]) {
-      map[aid] = {
-        account_id: aid,
-        account_name: li.account.name,
-        total_qty: new Prisma.Decimal(0),
-        total_book: new Prisma.Decimal(0),
-      }
-    }
-    map[aid].total_qty = map[aid].total_qty.add(qty)
-    map[aid].total_book = map[aid].total_book.add(book)
+    if (!acc_map[aid])
+      acc_map[aid] = { account_id: aid, account_name: li.account.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0) }
+    acc_map[aid].total_qty = acc_map[aid].total_qty.add(n.quantity!)
+    acc_map[aid].total_book = acc_map[aid].total_book.add(n.txn_value!)
   }
 
-  for (const k of Object.keys(map)) {
-    const entry = map[k]
-
-    let current_value = new Prisma.Decimal(0)
-    if (asset.type === asset_type.rupees) {
-      current_value = entry.total_qty
-    } else if (priceDecimal) {
-      current_value = priceDecimal.mul(entry.total_qty)
-    } else {
-      current_value = entry.total_book
-    }
-
+  const breakdown: { account_id: string; account_name: string; quantity: number; txn_value: number | null; current_value: number }[] = []
+  for (const entry of Object.values(acc_map)) {
     book_total = book_total.add(entry.total_book)
-
     if (entry.total_qty.equals(0)) continue
-
+    const current_value = compute_current_value(asset.type, entry.total_qty, priceDecimal, entry.total_book)
     asset_total = asset_total.add(current_value)
-
     breakdown.push({
       account_id: entry.account_id,
       account_name: entry.account_name,
@@ -120,18 +77,15 @@ async function Page({ params }: Props) {
     })
   }
 
-  // aggregate per-allocation
+  // Aggregate per allocation
   const alloc_map: Record<string, { allocation_id: string; allocation_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
   for (const li of allocation_line_items) {
     const n = normalizedById.get(li.id)!
-    const qty = n.quantity!
-    const book = n.txn_value!
     const aid = li.account.id
-    if (!alloc_map[aid]) {
+    if (!alloc_map[aid])
       alloc_map[aid] = { allocation_id: aid, allocation_name: li.account.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0) }
-    }
-    alloc_map[aid].total_qty = alloc_map[aid].total_qty.add(qty)
-    alloc_map[aid].total_book = alloc_map[aid].total_book.add(book)
+    alloc_map[aid].total_qty = alloc_map[aid].total_qty.add(n.quantity!)
+    alloc_map[aid].total_book = alloc_map[aid].total_book.add(n.txn_value!)
   }
 
   const allocation_breakdown: {
@@ -141,13 +95,9 @@ async function Page({ params }: Props) {
     txn_value: number | null
     current_value: number
   }[] = []
-  for (const k of Object.keys(alloc_map)) {
-    const entry = alloc_map[k]
+  for (const entry of Object.values(alloc_map)) {
     if (entry.total_qty.equals(0)) continue
-    let current_value: Prisma.Decimal
-    if (asset.type === asset_type.rupees) current_value = entry.total_qty
-    else if (priceDecimal) current_value = priceDecimal.mul(entry.total_qty)
-    else current_value = entry.total_book
+    const current_value = compute_current_value(asset.type, entry.total_qty, priceDecimal, entry.total_book)
     allocation_breakdown.push({
       allocation_id: entry.allocation_id,
       allocation_name: entry.allocation_name,
@@ -157,61 +107,31 @@ async function Page({ params }: Props) {
     })
   }
 
-  // prepare per-line items for client (keep transaction-level detail)
+  // Per-line-item detail with FIFO remaining
   const items_with_meta = real_line_items.map(li => {
     const n = normalizedById.get(li.id)!
     const qty = n.quantity!
     const book = n.txn_value!
-
-    let current_value: Prisma.Decimal
-    if (asset.type === asset_type.rupees) current_value = qty
-    else if (priceDecimal) current_value = priceDecimal.mul(qty)
-    else current_value = book
-
     return {
       li,
       qty,
       book,
-      current_value,
+      current_value: compute_current_value(asset.type, qty, priceDecimal, book),
       sortDate: li.datetime ?? li.transaction.datetime,
     }
   })
 
-  // FIFO per real account: a sell consumes from the oldest open buy lot in
-  // the same account. Cross-account transfers naturally don't interact since
-  // each account has its own queue.
-  const remaining_by_id = new Map<string, Prisma.Decimal>()
-  if (asset.type !== asset_type.rupees) {
-    const chrono = [...items_with_meta].sort((a, b) => {
-      const cmp = a.sortDate.getTime() - b.sortDate.getTime()
-      if (cmp !== 0) return cmp
-      // Same instant: process buys before sells so a sell consumes from
-      // older lots first (or from the same-instant buy if no older lots exist).
-      return b.qty.comparedTo(a.qty)
-    })
-    const open_lots_by_account = new Map<string, { id: string; remaining: Prisma.Decimal }[]>()
-    for (const item of chrono) {
-      const aid = item.li.account.id
-      if (!open_lots_by_account.has(aid)) open_lots_by_account.set(aid, [])
-      const open_lots = open_lots_by_account.get(aid)!
-      if (item.qty.greaterThan(0)) {
-        open_lots.push({ id: item.li.id, remaining: item.qty })
-        remaining_by_id.set(item.li.id, item.qty)
-      } else if (item.qty.lessThan(0)) {
-        let to_consume = item.qty.neg()
-        while (to_consume.greaterThan(0) && open_lots.length > 0) {
-          const lot = open_lots[0]
-          if (lot.remaining.lessThanOrEqualTo(to_consume)) {
-            to_consume = to_consume.sub(lot.remaining)
-            remaining_by_id.set(lot.id, new Prisma.Decimal(0))
-            open_lots.shift()
-          } else {
-            lot.remaining = lot.remaining.sub(to_consume)
-            remaining_by_id.set(lot.id, lot.remaining)
-            to_consume = new Prisma.Decimal(0)
-          }
-        }
-      }
+  const remaining_by_id =
+    asset.type !== asset_type.rupees
+      ? compute_fifo_remaining(items_with_meta.map(item => ({ id: item.li.id, group_key: item.li.account.id, qty: item.qty, date: item.sortDate })))
+      : new Map<string, Prisma.Decimal>()
+
+  // Current investment = proportional cost basis of remaining FIFO lots
+  let current_investment = new Prisma.Decimal(0)
+  for (const { li, qty, book } of items_with_meta) {
+    if (qty.greaterThan(0)) {
+      const remaining = remaining_by_id.get(li.id) ?? new Prisma.Decimal(0)
+      if (remaining.greaterThan(0)) current_investment = current_investment.add(book.mul(remaining).div(qty))
     }
   }
 
@@ -236,20 +156,11 @@ async function Page({ params }: Props) {
 
   let xirr_value: number | null = null
   if (asset.type !== asset_type.rupees && real_line_items.length > 0) {
-    const cashflows = real_line_items.map(li => {
-      const bv = normalizedById.get(li.id)!.txn_value!
-      return {
-        amount: -bv.toNumber(),
-        when: li.datetime ?? li.transaction.datetime,
-      }
-    })
-
-    if (!asset_total.equals(0)) {
-      cashflows.push({
-        amount: asset_total.toNumber(),
-        when: new Date(),
-      })
-    }
+    const cashflows = real_line_items.map(li => ({
+      amount: -normalizedById.get(li.id)!.txn_value!.toNumber(),
+      when: li.datetime ?? li.transaction.datetime,
+    }))
+    if (!asset_total.equals(0)) cashflows.push({ amount: asset_total.toNumber(), when: new Date() })
     xirr_value = calculate_xirr(cashflows)
   }
 
@@ -260,31 +171,28 @@ async function Page({ params }: Props) {
       ])
     : []
 
-  // Reconcile today's chart point with the live values used in the InfoCard so
-  // the XIRR/current shown at the top of the page matches the chart's tail
-  // (historical NAV for "today" may not be published yet on mfapi.in).
-  if (value_timeseries.length > 0) {
-    const last = value_timeseries[value_timeseries.length - 1]
-    last.current = asset_total.toNumber()
-    last.xirr = xirr_value
-  }
+  reconcile_timeseries_tail(value_timeseries, asset_total.toNumber(), xirr_value)
 
-  const assetForClient = {
-    id: asset.id,
-    name: asset.name,
-    type: asset.type,
-    ticker: asset.ticker,
-    parent: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
-    total: asset_total.toNumber(),
-    txn_value_total: asset.type === asset_type.rupees ? null : book_total.toNumber(),
-    price: priceDecimal ? priceDecimal.toNumber() : null,
-    xirr: xirr_value,
-    breakdown,
-    allocation_breakdown,
-    line_items,
-    value_timeseries,
-  }
-  return <ClientPage asset={assetForClient} />
+  return (
+    <ClientPage
+      asset={{
+        id: asset.id,
+        name: asset.name,
+        type: asset.type,
+        ticker: asset.ticker,
+        parent: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
+        total: asset_total.toNumber(),
+        txn_value_total: asset.type === asset_type.rupees ? null : book_total.toNumber(),
+        current_investment: asset.type === asset_type.rupees ? null : current_investment.toNumber(),
+        price: priceDecimal ? priceDecimal.toNumber() : null,
+        xirr: xirr_value,
+        breakdown,
+        allocation_breakdown,
+        line_items,
+        value_timeseries,
+      }}
+    />
+  )
 }
 
 export default profile('/assets/[id]', Page)

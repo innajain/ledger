@@ -45,6 +45,7 @@ type AssetForClient = {
   parent: { id: string; name: string } | null
   total: number
   txn_value_total: number | null
+  current_investment: number | null
   price: number | null
   xirr?: number | null
   breakdown: BreakdownItem[]
@@ -109,11 +110,17 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
       />
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-        <div className={`grid grid-cols-1 ${asset.txn_value_total !== null ? 'sm:grid-cols-2' : ''} gap-4`}>
+        <div className={`grid grid-cols-1 ${asset.txn_value_total !== null ? 'sm:grid-cols-3' : ''} gap-4`}>
           <div>
             <p className="text-sm text-slate-500 dark:text-slate-400">Total Across Real Accounts</p>
             <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.total)}</p>
           </div>
+          {asset.current_investment !== null && (
+            <div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Current Investment</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.current_investment)}</p>
+            </div>
+          )}
           {asset.txn_value_total !== null && (
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400">Total Txn Value</p>

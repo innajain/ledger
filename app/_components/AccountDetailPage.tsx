@@ -29,6 +29,7 @@ export type AccountData = {
   parent: { id: string; name: string } | null
   total: number
   txn_value_total?: number | null
+  current_investment?: number | null
   xirr?: number | null
   breakdown: {
     asset_id: string
@@ -91,6 +92,14 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
             label: 'Total Value',
             value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.total)}</p>,
           },
+          ...(account.current_investment !== undefined && account.current_investment !== null
+            ? [
+                {
+                  label: 'Current Investment',
+                  value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.current_investment)}</p>,
+                },
+              ]
+            : []),
           ...(account.txn_value_total !== undefined && account.txn_value_total !== null
             ? [
                 {

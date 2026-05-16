@@ -23,6 +23,14 @@ export type ValuePoint = {
   xirr: number | null
 }
 
+export function reconcile_timeseries_tail(timeseries: ValuePoint[], current: number, xirr: number | null): void {
+  if (timeseries.length > 0) {
+    const last = timeseries[timeseries.length - 1]
+    last.current = current
+    last.xirr = xirr
+  }
+}
+
 export type TimeseriesFilter =
   | { kind: 'asset'; asset_id: string }
   | { kind: 'account'; account_id: string }
