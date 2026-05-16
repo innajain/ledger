@@ -3,7 +3,6 @@ import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
 import { Prisma } from '@/generated/prisma/client'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
-import { get_signed_get_url } from '@/app/_utils/s3'
 import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ id: string }> }
@@ -29,15 +28,13 @@ async function Page({ params }: Props) {
       .filter(li => li.account.type === 'real')
       .reduce((sum, li) => sum.add(li.txn_value), new Prisma.Decimal(0))
       .toNumber(),
-    attachments: await Promise.all(
-      rawTx.attachments.map(async a => ({
-        id: a.id,
-        url: await get_signed_get_url(a.pathname),
-        filename: a.filename,
-        content_type: a.content_type,
-        size: a.size,
-      })),
-    ),
+    attachments: rawTx.attachments.map(a => ({
+      id: a.id,
+      url: a.url,
+      filename: a.filename,
+      content_type: a.content_type,
+      size: a.size,
+    })),
     line_items: tx.line_items.map(li => ({
       id: li.id,
       account_id: li.account.id,

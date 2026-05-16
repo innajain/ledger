@@ -1,11 +1,12 @@
 'use server'
 
+import { del } from '@vercel/blob'
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
-import { delete_object } from '@/app/_utils/s3'
 import { ActionResult, ok, err, fromError } from './_result'
 
 export type AttachmentInput = {
+  url: string
   pathname: string
   filename: string
   content_type: string | null
@@ -41,7 +42,7 @@ export async function delete_attachment(attachment_id: string): Promise<ActionRe
     })
     if (!attachment || attachment.transaction.user_id !== user_id) return err('NOT_FOUND', 'Attachment not found')
 
-    await delete_object(attachment.pathname)
+    await del(attachment.url)
     await prisma.transaction_attachment.delete({ where: { id: attachment_id } })
     return ok()
   } catch (error) {
