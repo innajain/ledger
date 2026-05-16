@@ -174,6 +174,16 @@ Reusable transaction shapes for recurring entries (rent, SIPs, payday splits):
 
 Per-user default accounts and asset pre-selected when creating a new line item on the transaction create/update pages. Configured from the Settings page with dropdowns filtered by account type. Falls back to first available account of each type when no default is set or the saved account has been deactivated.
 
+### Transaction Attachments
+
+Upload images, PDFs, and text files (≤ 10 MB each) against any transaction. Files are stored in a **private** Vercel Blob store and served through an authenticated proxy route, so URLs aren't shareable.
+
+- **Direct upload** — Browser uses `@vercel/blob/client` `upload()` with a server-issued client token; file bytes go straight to Blob storage (bypasses Vercel's ~4.5 MB serverless function body limit)
+- **Server-issued client tokens** — `/api/upload` validates auth, content type, and size via `handleUpload({ onBeforeGenerateToken })` before signing a short-lived client token
+- **Proxy display** — `/api/attachments/[id]` fetches the private blob with the read/write token, scopes it to the transaction owner, and streams it back with `Cache-Control: private, max-age=3600`
+- **Local dev** — `docker compose up -d blob` runs the [payloadcms/vercel-blob-emulator](https://github.com/payloadcms/vercel-blob-emulator) so uploads stay on your laptop; the SDK respects `VERCEL_BLOB_API_URL`
+- **Orphan cleanup cron** — `/api/cron/cleanup-orphan-blobs` runs weekly, listing every blob in the store and deleting any whose `pathname` isn't referenced in `transaction_attachment`. A 1-hour grace period protects in-flight uploads
+
 ### Data Integrity Tools
 
 - **Integrity checker** — `validate_all_txns` loads every transaction, runs each through `validate_line_items`, and surfaces any that violate the invariants; wired to a button on the dashboard
@@ -190,23 +200,24 @@ Per-user default accounts and asset pre-selected when creating a new line item o
 - **Edge proxy gate** — `proxy.ts` verifies the JWT on every non-public route, redirects to `/login` on failure, and stamps `x-user-id` on the request header
 - **bcryptjs** — 10 rounds
 - **User isolation** — Every query scoped to `user_id`; updates use composite `where: { id, user_id }`
-- **Cron auth** — `/api/cron/sync-nav` requires `Bearer ${CRON_SECRET}` in production
+- **Cron auth** — All `/api/cron/*` routes require `Bearer ${CRON_SECRET}` in production
 
 ---
 
 ## Technology Stack
 
-| Layer           | Technology                          |
-| --------------- | ----------------------------------- |
-| **Framework**   | Next.js 16.1 (App Router)           |
-| **Language**    | TypeScript 5                        |
-| **UI**          | React 19, Tailwind CSS 4            |
-| **ORM**         | Prisma 7.6 (`prisma-client` engine) |
-| **Database**    | PostgreSQL (Neon Serverless)        |
-| **Cache**       | Redis (ioredis)                     |
-| **Market data** | Yahoo Finance, AMFI India           |
-| **Auth**        | JWT + bcryptjs                      |
-| **Returns**     | `xirr`                              |
+| Layer            | Technology                          |
+| ---------------- | ----------------------------------- |
+| **Framework**    | Next.js 16.1 (App Router)           |
+| **Language**     | TypeScript 5                        |
+| **UI**           | React 19, Tailwind CSS 4            |
+| **ORM**          | Prisma 7.6 (`prisma-client` engine) |
+| **Database**     | PostgreSQL (Neon Serverless)        |
+| **Cache**        | Redis (ioredis)                     |
+| **File storage** | Vercel Blob (private, proxied)      |
+| **Market data**  | Yahoo Finance, AMFI India           |
+| **Auth**         | JWT + bcryptjs                      |
+| **Returns**      | `xirr`                              |
 
 ---
 
@@ -234,15 +245,18 @@ pnpm install
 
 ### 3. Local infrastructure (optional)
 
-`docker-compose.yml` spins up PostgreSQL 17 and Redis locally. An optional `sync-db` service can copy a Neon snapshot into local Postgres for testing.
+`docker-compose.yml` spins up PostgreSQL 17, Redis, and the Vercel Blob emulator locally. An optional `sync-db` service can copy a Neon snapshot (and optionally a prod Redis snapshot) into the local stack for testing.
 
 ```bash
-docker compose up -d postgres redis
+docker compose up -d postgres redis blob
+
+# One-shot: pull prod data into local Postgres (and Redis if PROD_REDIS_URL is set)
+docker compose run --rm sync-db
 ```
 
 ### 4. Environment
 
-Create `.env` in the project root:
+Create `.env` in the project root (see `example.env` for the full list):
 
 ```env
 DATABASE_URL="postgresql://postgres@localhost:5432/appdb"
@@ -250,8 +264,18 @@ REDIS_URL="redis://localhost:6379"
 JWT_SECRET="your-secure-jwt-secret-key"
 CRON_SECRET="your-cron-secret"
 
-# Production Neon DB (used by the sync-db docker service and prod migrations)
+# Production Neon DB (used by sync-db and prod migrations)
 NEON_URL="postgresql://..."
+
+# Optional: prod Redis snapshot source for sync-db
+# PROD_REDIS_URL="redis://..."
+
+# Vercel Blob — local emulator
+BLOB_READ_WRITE_TOKEN="vercel_blob_rw_local_dev"
+VERCEL_BLOB_API_URL="http://localhost:3100/api/blob"
+NEXT_PUBLIC_VERCEL_BLOB_API_URL="http://localhost:3100/api/blob"
+# In production set BLOB_READ_WRITE_TOKEN to a real (private) store token
+# and omit the *_VERCEL_BLOB_API_URL variables.
 
 # Optional: disable performance profiling (default: on)
 # PROFILING=off
@@ -281,6 +305,7 @@ ledger/
 ├── app/
 │   ├── _actions/
 │   │   ├── _result.ts               # Discriminated ActionResult type
+│   │   ├── attachments.ts           # save_attachments / delete_attachment
 │   │   ├── auth.ts                  # Sign up / log in / JWT / change credentials
 │   │   ├── compute_balances.ts      # Balance aggregation + Redis cache
 │   │   ├── flush.ts                 # Redis FLUSHALL (admin)
@@ -293,6 +318,7 @@ ledger/
 │   ├── _components/                 # Shared React components
 │   │   ├── AccountForm.tsx          # Create/Update forms for all account types
 │   │   ├── AccountFormComponents.tsx# Reusable form primitives (inputs, selects, actions)
+│   │   ├── AttachmentUpload.tsx     # Drag-and-drop attachment uploader (private Blob)
 │   │   ├── HierarchyTree.tsx        # Recursive tree display
 │   │   ├── HoldingsGrid.tsx         # Asset holdings grid
 │   │   ├── TransactionLineItems.tsx # Line-item editor (grouped by account type)
@@ -309,9 +335,12 @@ ledger/
 │   ├── accounts/                    # Real account pages (list / detail / create / update)
 │   ├── allocations/                 # Allocation pages
 │   ├── api/
-│   │   ├── cron/sync-nav/route.ts   # Daily AMFI NAV bulk pull (Vercel cron)
-│   │   ├── dump/route.ts            # Authenticated SQL dump download
-│   │   └── metrics/web-vital/route.ts  # Web Vitals ingestion (sendBeacon target)
+│   │   ├── attachments/[id]/route.ts          # Authenticated proxy that streams private blobs
+│   │   ├── cron/sync-nav/route.ts             # Daily AMFI NAV bulk pull (Vercel cron)
+│   │   ├── cron/cleanup-orphan-blobs/route.ts # Weekly orphan-blob sweep (Vercel cron)
+│   │   ├── dump/route.ts                      # Authenticated SQL dump download
+│   │   ├── metrics/web-vital/route.ts         # Web Vitals ingestion (sendBeacon target)
+│   │   └── upload/route.ts                    # handleUpload() — issues client tokens for Blob
 │   ├── assets/                      # Asset pages (list / detail with XIRR + FIFO / create / update)
 │   ├── income_expenses/             # Nominal account pages
 │   ├── login/                       # Auth UI
@@ -331,8 +360,8 @@ ledger/
 │   └── migrations/
 ├── generated/prisma/                # Generated Prisma client (engineType=client)
 ├── proxy.ts                         # JWT gate + x-user-id header injection
-├── docker-compose.yml               # Local Postgres + Redis (+ optional Neon sync)
-├── vercel.json                      # Cron schedule for sync-nav
+├── docker-compose.yml               # Local Postgres, Redis, Vercel Blob emulator (+ optional sync-db)
+├── vercel.json                      # Cron schedules (sync-nav + cleanup-orphan-blobs)
 └── package.json
 ```
 
@@ -386,11 +415,23 @@ model asset {
 }
 
 model transaction {
-  id          String    @id @default(cuid())
+  id          String                   @id @default(cuid())
   user_id     String
   datetime    DateTime
   description String?
   line_items  line_item[]
+  attachments transaction_attachment[]
+}
+
+model transaction_attachment {
+  id             String   @id @default(cuid())
+  transaction_id String
+  url            String   // Vercel Blob URL (private)
+  pathname       String   // Used as the storage key for proxy fetch and orphan-cleanup
+  filename       String
+  content_type   String?
+  size           Int?
+  created_at     DateTime @default(now())
 }
 
 model line_item {
@@ -474,11 +515,16 @@ The dashboard exposes a **Flush Redis Cache** button that calls `FLUSHALL`.
 
 ---
 
-## Daily NAV Sync
+## Cron Jobs
 
-`GET /api/cron/sync-nav` streams the AMFI bulk NAV file, filters ISINs matching known `mf` assets, and pipelines them into Redis with a 2-day TTL. Vercel runs this daily at `0 2 * * *` UTC.
+Two scheduled routes wired into Vercel cron via `vercel.json`. Both require `Bearer ${CRON_SECRET}` in production.
 
-In development (or on cache miss) `get_nav` triggers an in-process `sync_nav()` — deduplicated via a module-level promise — so the first request on a fresh boot still resolves.
+| Route                            | Schedule (UTC) | Purpose                                                                                                                                                             |
+| -------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/cron/sync-nav`             | `0 2 * * *`    | Streams the AMFI bulk NAV file, filters ISINs matching known `mf` assets, and pipelines them into Redis with a 2-day TTL.                                           |
+| `/api/cron/cleanup-orphan-blobs` | `0 3 * * 0`    | Lists every blob in the Vercel Blob store, deletes any whose `pathname` isn't referenced in `transaction_attachment`. 1-hour grace period covers in-flight uploads. |
+
+In development (or on cache miss) `get_nav` also triggers an in-process `sync_nav()` — deduplicated via a module-level promise — so the first request on a fresh boot still resolves.
 
 ---
 
