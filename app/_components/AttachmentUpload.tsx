@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { upload } from '@vercel/blob/client'
 import type { AttachmentInput } from '@/app/_actions/attachments'
 
 type ExistingAttachment = {
   id: string
-  url: string
+  url: string // presigned GET URL generated server-side at render time
   filename: string
   content_type: string | null
   size: number | null
 }
+
+type PendingAttachment = AttachmentInput & { preview_url: string }
 
 type Props = {
   existingAttachments?: ExistingAttachment[]
@@ -61,7 +62,7 @@ function fmt_size(bytes: number | null) {
 }
 
 export function AttachmentUpload({ existingAttachments = [], onPendingChange, onDeleteExisting }: Props) {
-  const [pending, setPending] = useState<AttachmentInput[]>([])
+  const [pending, setPending] = useState<PendingAttachment[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -72,18 +73,26 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
     if (!files || files.length === 0) return
     setUploadError(null)
     setUploading(true)
-    const uploaded: AttachmentInput[] = []
+    const uploaded: PendingAttachment[] = []
     try {
       for (const file of Array.from(files)) {
-        const blob = await upload(`attachments/${Date.now()}-${file.name}`, file, {
-          access: 'public',
-          handleUploadUrl: '/api/upload',
+        const meta = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, content_type: file.type, size: file.size }),
         })
-        uploaded.push({ url: blob.url, pathname: blob.pathname, filename: file.name, content_type: file.type || null, size: file.size })
+        if (!meta.ok) {
+          const data = await meta.json()
+          throw new Error(data.error ?? 'Upload failed')
+        }
+        const { presigned_url, pathname } = (await meta.json()) as { presigned_url: string; pathname: string }
+        const put = await fetch(presigned_url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
+        if (!put.ok) throw new Error('Upload to storage failed')
+        uploaded.push({ pathname, filename: file.name, content_type: file.type || null, size: file.size, preview_url: URL.createObjectURL(file) })
       }
       const next = [...pending, ...uploaded]
       setPending(next)
-      onPendingChange(next)
+      onPendingChange(next.map(({ preview_url: _p, ...a }) => a))
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
@@ -95,7 +104,7 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
   function removePending(idx: number) {
     const next = pending.filter((_, i) => i !== idx)
     setPending(next)
-    onPendingChange(next)
+    onPendingChange(next.map(({ preview_url: _p, ...a }) => a))
   }
 
   async function handleDeleteExisting(id: string) {
@@ -162,6 +171,10 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
               <span className="text-blue-500 shrink-0">
                 <FileIcon content_type={att.content_type} />
               </span>
+              {att.content_type?.startsWith('image/') ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={att.preview_url} alt={att.filename} className="h-10 w-10 object-cover rounded shrink-0" />
+              ) : null}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{att.filename}</p>
                 {att.size && <p className="text-xs text-slate-400">{fmt_size(att.size)}</p>}

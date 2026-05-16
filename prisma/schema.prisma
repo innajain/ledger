@@ -129,7 +129,6 @@ model transaction {
 model transaction_attachment {
   id             String   @id @default(cuid())
   transaction_id String
-  url            String
   pathname       String
   filename       String
   content_type   String?

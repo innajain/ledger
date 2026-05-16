@@ -34,17 +34,31 @@ services:
       - postgres
       - redis
 
-  blob:
-    image: ghcr.io/payloadcms/vercel-blob-emulator:latest
-    container_name: local-blob
+  minio:
+    image: minio/minio
+    container_name: local-minio
     ports:
-      - '3100:3000'
+      - '9000:9000'
+      - '9001:9001'
     environment:
-      EMULATOR_BASE_URL: 'http://localhost:3100'
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
     volumes:
-      - blob_data:/data
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      sh -c "
+      sleep 3 &&
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb -p local/attachments || true
+      "
 
 volumes:
   postgres_data:
   redis_data:
-  blob_data:
+  minio_data:

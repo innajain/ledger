@@ -3,6 +3,7 @@ import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
 import { update_transaction } from '@/app/_actions/transactions_update'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
+import { get_signed_get_url } from '@/app/_utils/s3'
 import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ id: string }> }
@@ -60,13 +61,15 @@ async function Page({ params }: Props) {
     type: a.type,
   }))
 
-  const attachmentsForClient = tx.attachments.map(a => ({
-    id: a.id,
-    url: a.url,
-    filename: a.filename,
-    content_type: a.content_type,
-    size: a.size,
-  }))
+  const attachmentsForClient = await Promise.all(
+    tx.attachments.map(async a => ({
+      id: a.id,
+      url: await get_signed_get_url(a.pathname),
+      filename: a.filename,
+      content_type: a.content_type,
+      size: a.size,
+    })),
+  )
 
   return (
     <ClientPage
@@ -76,7 +79,7 @@ async function Page({ params }: Props) {
       defaults={defaults}
       updateTransaction={update_transaction}
       existingAttachments={attachmentsForClient}
-      attachmentsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN}
+      attachmentsEnabled={!!process.env.S3_ENDPOINT}
     />
   )
 }

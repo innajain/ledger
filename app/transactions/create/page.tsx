@@ -38,9 +38,7 @@ async function Page() {
     type: a.type,
   }))
 
-  return (
-    <ClientPage accounts={accountsForClient} assets={assetsForClient} defaults={defaults} attachmentsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN} />
-  )
+  return <ClientPage accounts={accountsForClient} assets={assetsForClient} defaults={defaults} attachmentsEnabled={!!process.env.S3_ENDPOINT} />
 }
 
 export default profile('/transactions/create', Page)
