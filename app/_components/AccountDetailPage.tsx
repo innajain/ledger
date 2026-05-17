@@ -25,11 +25,7 @@ export type LineItem = {
 export type AccountData = {
   id: string
   name: string
-  type: string
-  parent: { id: string; name: string } | null
   total: number
-  txn_value_total?: number | null
-  current_investment?: number | null
   xirr?: number | null
   breakdown: {
     asset_id: string
@@ -81,33 +77,9 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         title={`${config.entityName} Information`}
         fields={[
           {
-            label: `${config.entityName} Type`,
-            value: <span className="capitalize">{account.type}</span>,
-          },
-          {
-            label: `Parent ${config.entityName}`,
-            value: account.parent ? account.parent.name : '—',
-          },
-          {
             label: 'Total Value',
             value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.total)}</p>,
           },
-          ...(account.current_investment !== undefined && account.current_investment !== null
-            ? [
-                {
-                  label: 'Current Investment',
-                  value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.current_investment)}</p>,
-                },
-              ]
-            : []),
-          ...(account.txn_value_total !== undefined && account.txn_value_total !== null
-            ? [
-                {
-                  label: 'Total Txn Value',
-                  value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.txn_value_total)}</p>,
-                },
-              ]
-            : []),
           ...(account.xirr !== undefined && account.xirr !== null
             ? [
                 {

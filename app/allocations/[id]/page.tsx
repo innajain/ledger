@@ -45,8 +45,6 @@ async function Page({ params }: Props) {
   const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
   let acc_total = new Prisma.Decimal(0)
-  let book_total = new Prisma.Decimal(0)
-  let current_investment = new Prisma.Decimal(0)
   const cashflows: { amount: number; when: Date }[] = []
   const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
     {}
@@ -116,9 +114,7 @@ async function Page({ params }: Props) {
     asset_type: asset_type
   }[] = []
   for (const e of Object.values(map)) {
-    book_total = book_total.add(e.total_book)
     if (e.total_qty.equals(0)) continue
-    current_investment = current_investment.add(e.asset_type === asset_type.rupees ? e.total_qty : e.total_book)
     const priceData = priceByAsset.get(e.asset_id) ?? null
     const current_value = compute_current_value(e.asset_type, e.total_qty, priceData ? new Prisma.Decimal(priceData.price) : null, e.total_book)
     breakdown.push({
@@ -153,11 +149,7 @@ async function Page({ params }: Props) {
       allocation={{
         id: allocation.id,
         name: allocation.name,
-        type: allocation.type,
-        parent: allocation.parent ? { id: allocation.parent.id, name: allocation.parent.name } : null,
         total: acc_total.toNumber(),
-        txn_value_total: book_total.toNumber(),
-        current_investment: current_investment.toNumber(),
         xirr: xirr_value,
         line_items: sortedLineItems,
         breakdown,

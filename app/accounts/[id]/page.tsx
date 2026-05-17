@@ -46,7 +46,6 @@ async function Page({ params }: Props) {
   const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
   let acc_total = new Prisma.Decimal(0)
-  let book_total = new Prisma.Decimal(0)
   const cashflows: { amount: number; when: Date }[] = []
   const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; type: asset_type }> = {}
   const lineItemsWithValues: {
@@ -111,13 +110,8 @@ async function Page({ params }: Props) {
       .map(li => ({ id: li.id, group_key: li.asset_id, qty: new Prisma.Decimal(li.quantity), date: li._sortDate })),
   )
 
-  let current_investment = new Prisma.Decimal(0)
   for (const li of lineItemsWithValues) {
     li.remaining_quantity = remaining_by_id.has(li.id) ? remaining_by_id.get(li.id)!.toNumber() : null
-    if (li.asset_type !== asset_type.rupees && li.quantity > 0 && li.txn_value !== null) {
-      const remaining = remaining_by_id.get(li.id) ?? new Prisma.Decimal(0)
-      if (remaining.greaterThan(0)) current_investment = current_investment.add(new Prisma.Decimal(li.txn_value).mul(remaining).div(li.quantity))
-    }
   }
 
   lineItemsWithValues.sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime())
@@ -133,9 +127,7 @@ async function Page({ params }: Props) {
     asset_type: asset_type
   }[] = []
   for (const e of Object.values(map)) {
-    book_total = book_total.add(e.total_book)
     if (e.total_qty.equals(0)) continue
-    if (e.type === asset_type.rupees) current_investment = current_investment.add(e.total_qty)
     const priceData = priceByAsset.get(e.asset_id) ?? null
     const current_value = compute_current_value(e.type, e.total_qty, priceData ? new Prisma.Decimal(priceData.price) : null, e.total_book)
     breakdown.push({
@@ -171,11 +163,7 @@ async function Page({ params }: Props) {
       account={{
         id: account.id,
         name: account.name,
-        type: account.type,
-        parent: account.parent ? { id: account.parent.id, name: account.parent.name } : null,
         total: acc_total.toNumber(),
-        txn_value_total: book_total.toNumber(),
-        current_investment: current_investment.toNumber(),
         xirr: xirr_value,
         breakdown,
         line_items: sortedLineItems,

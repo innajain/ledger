@@ -43,7 +43,6 @@ async function Page({ params }: Props) {
   const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
   let acc_total = new Prisma.Decimal(0)
-  let book_total = new Prisma.Decimal(0)
   const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
     {}
   const lineItemsWithValues: {
@@ -111,7 +110,6 @@ async function Page({ params }: Props) {
     asset_type: asset_type
   }[] = []
   for (const e of Object.values(map)) {
-    book_total = book_total.add(e.total_book)
     if (e.total_qty.equals(0)) continue
     const priceData = priceByAsset.get(e.asset_id) ?? null
     const current_value = compute_current_value(e.asset_type, e.total_qty, priceData ? new Prisma.Decimal(priceData.price) : null, e.total_book)
@@ -130,10 +128,7 @@ async function Page({ params }: Props) {
       account={{
         id: account.id,
         name: account.name,
-        type: account.type,
-        parent: account.parent ? { id: account.parent.id, name: account.parent.name } : null,
         total: acc_total.toNumber(),
-        txn_value_total: book_total.toNumber(),
         breakdown,
         line_items: sortedLineItems,
       }}
