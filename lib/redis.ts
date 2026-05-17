@@ -25,7 +25,7 @@ baseRedis.on('connect', () => {
 
 // Wrap key read methods to record hit/miss + timing into the request context.
 // We only instrument the methods we actually use elsewhere in the codebase.
-function instrument<Fn extends (...args: never[]) => Promise<unknown>>(name: 'get' | 'setex' | 'del' | 'pipeline_exec', fn: Fn): Fn {
+function instrument<Fn extends (...args: never[]) => Promise<unknown>>(name: 'get' | 'mget' | 'setex' | 'del' | 'pipeline_exec', fn: Fn): Fn {
   return (async (...args: Parameters<Fn>) => {
     const ctx = currentMetrics()
     const start = ctx ? performance.now() : 0
@@ -36,6 +36,11 @@ function instrument<Fn extends (...args: never[]) => Promise<unknown>>(name: 'ge
         if (name === 'get') {
           if (result === null) ctx.redis_misses += 1
           else ctx.redis_hits += 1
+        } else if (name === 'mget' && Array.isArray(result)) {
+          for (const v of result) {
+            if (v === null) ctx.redis_misses += 1
+            else ctx.redis_hits += 1
+          }
         }
       }
       return result
@@ -47,9 +52,11 @@ function instrument<Fn extends (...args: never[]) => Promise<unknown>>(name: 'ge
 }
 
 const origGet = baseRedis.get.bind(baseRedis)
+const origMget = baseRedis.mget.bind(baseRedis)
 const origSetex = baseRedis.setex.bind(baseRedis)
 const origDel = baseRedis.del.bind(baseRedis)
 baseRedis.get = instrument('get', origGet) as typeof baseRedis.get
+baseRedis.mget = instrument('mget', origMget) as typeof baseRedis.mget
 baseRedis.setex = instrument('setex', origSetex) as typeof baseRedis.setex
 baseRedis.del = instrument('del', origDel) as typeof baseRedis.del
 

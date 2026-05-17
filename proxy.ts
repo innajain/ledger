@@ -13,11 +13,12 @@ function isPublicPath(pathname: string) {
   return false
 }
 
-async function verifyToken(token: string): Promise<{ uid: string } | null> {
+async function verifyToken(token: string): Promise<{ uid: string; username: string | null } | null> {
   try {
     const { payload } = await jwtVerify(token, secret)
     if (typeof payload.uid !== 'string') return null
-    return { uid: payload.uid }
+    const username = typeof payload.username === 'string' ? payload.username : null
+    return { uid: payload.uid, username }
   } catch {
     return null
   }
@@ -26,9 +27,10 @@ async function verifyToken(token: string): Promise<{ uid: string } | null> {
 export async function proxy(request: NextRequest) {
   const pathname = new URL(request.url).pathname
 
-  // Defense in depth: strip any client-supplied x-user-id before trusting it downstream.
+  // Defense in depth: strip any client-supplied x-user-id / x-username before trusting them downstream.
   const requestHeaders = new Headers(request.headers)
   requestHeaders.delete('x-user-id')
+  requestHeaders.delete('x-username')
 
   if (isPublicPath(pathname)) {
     return NextResponse.next({ request: { headers: requestHeaders } })
@@ -41,6 +43,7 @@ export async function proxy(request: NextRequest) {
   if (!verified) return NextResponse.redirect(new URL('/login', request.url))
 
   requestHeaders.set('x-user-id', verified.uid)
+  if (verified.username) requestHeaders.set('x-username', verified.username)
   return NextResponse.next({ request: { headers: requestHeaders } })
 }
 

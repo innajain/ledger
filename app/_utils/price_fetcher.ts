@@ -172,9 +172,9 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
   }
 }
 
-// Dedups by (type, ticker) and fetches all unique prices in parallel.
-// Returns a Map keyed by asset.id, so callers can look up O(1) inside loops
-// without each iteration paying for a Redis round-trip.
+// Dedups by (type, ticker) and fetches all unique prices in a single MGET round-trip
+// for the cache hits, falling back to per-asset fetch only on misses.
+// Returns a Map keyed by asset.id, so callers can look up O(1) inside loops.
 export async function get_prices_for_assets(
   assets: { id: string; type: asset_type; ticker: string | null }[],
 ): Promise<Map<string, { price: number; date: Date } | null>> {
@@ -185,11 +185,64 @@ export async function get_prices_for_assets(
   }
 
   const fetched = new Map<string, { price: number; date: Date } | null>()
-  await Promise.all(
-    Array.from(uniqueKeys.entries()).map(async ([key, { type, ticker }]) => {
-      fetched.set(key, await get_price_for_asset(type, ticker))
-    }),
-  )
+  const cacheable: { dedupKey: string; type: asset_type; ticker: string; redisKey: string }[] = []
+  const today = get_date_obj_from_indian_date(get_indian_date_from_date_obj(new Date()))
+
+  for (const [dedupKey, { type, ticker }] of uniqueKeys) {
+    if (type === asset_type.rupees) {
+      fetched.set(dedupKey, { price: 1, date: today })
+    } else if (!ticker) {
+      fetched.set(dedupKey, null)
+    } else if (type === 'mf') {
+      cacheable.push({ dedupKey, type, ticker, redisKey: `price:nav:${ticker}` })
+    } else if (type === 'etf' || type === 'shares') {
+      cacheable.push({ dedupKey, type, ticker, redisKey: `price:etf:${ticker}` })
+    } else {
+      fetched.set(dedupKey, null)
+    }
+  }
+
+  if (cacheable.length > 0) {
+    let values: (string | null)[] = []
+    try {
+      values = await redis.mget(...cacheable.map(c => c.redisKey))
+    } catch (err) {
+      logger.error({ err }, 'redis.mget failed in get_prices_for_assets; falling back per-key')
+      values = cacheable.map(() => null)
+    }
+
+    const misses: typeof cacheable = []
+    for (let i = 0; i < cacheable.length; i++) {
+      const c = cacheable[i]
+      const raw = values[i]
+      if (raw === null) {
+        misses.push(c)
+        continue
+      }
+      if (raw === 'null') {
+        fetched.set(c.dedupKey, null)
+        continue
+      }
+      try {
+        if (c.type === 'mf') {
+          const data = JSON.parse(raw) as NAVData
+          fetched.set(c.dedupKey, { price: data.nav, date: new Date(data.date) })
+        } else {
+          const data = JSON.parse(raw) as PriceData
+          fetched.set(c.dedupKey, { price: data.price, date: new Date(data.date) })
+        }
+      } catch (err) {
+        logger.error({ err, redisKey: c.redisKey }, 'Failed to parse cached price; refetching')
+        misses.push(c)
+      }
+    }
+
+    await Promise.all(
+      misses.map(async c => {
+        fetched.set(c.dedupKey, await get_price_for_asset(c.type, c.ticker))
+      }),
+    )
+  }
 
   const byAssetId = new Map<string, { price: number; date: Date } | null>()
   for (const a of assets) {

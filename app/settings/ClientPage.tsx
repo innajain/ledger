@@ -12,7 +12,7 @@ type InactiveAccount = { id: string; name: string; type: string; is_placeholder:
 type InactiveAsset = { id: string; name: string; type: string; is_placeholder: boolean }
 
 type Props = {
-  user: user
+  user: Pick<user, 'id' | 'username'>
   accounts: AccountOpt[]
   assets: AssetOpt[]
   defaults: LineItemDefaults

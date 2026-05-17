@@ -6,7 +6,7 @@ import { log_in, sign_up, log_out } from '@/app/_actions/auth'
 import { useRouter } from 'next/navigation'
 import { Confetti } from '@/app/_components/Confetti'
 
-type Props = { user: user | null }
+type Props = { user: Pick<user, 'id' | 'username'> | null }
 
 export default function ClientPage({ user }: Props) {
   const router = useRouter()

@@ -36,14 +36,28 @@ const ChangeUsernameSchema = z.object({
 
 const secret_bytes = new TextEncoder().encode(env.JWT_SECRET)
 
-async function sign_token(payload: { uid: string }): Promise<string> {
+async function sign_token(payload: { uid: string; username: string }): Promise<string> {
   return new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setExpirationTime(`${JWT_EXPIRY_DAYS}d`).sign(secret_bytes)
 }
 
-async function verify_token(token: string): Promise<{ uid: string }> {
+async function verify_token(token: string): Promise<{ uid: string; username?: string }> {
   const { payload } = await jwtVerify(token, secret_bytes)
   if (typeof payload.uid !== 'string') throw new Error('invalid token')
-  return { uid: payload.uid }
+  const username = typeof payload.username === 'string' ? payload.username : undefined
+  return { uid: payload.uid, username }
+}
+
+async function set_session_cookie(token: string): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set({
+    name: token_name,
+    value: token,
+    httpOnly: true,
+    path: '/',
+    sameSite: 'lax',
+    secure: isProd(),
+    maxAge: JWT_EXPIRY_SECONDS,
+  })
 }
 
 export async function sign_up(payload: z.infer<typeof AuthSchema>): Promise<ActionResult> {
@@ -62,17 +76,8 @@ export async function sign_up(payload: z.infer<typeof AuthSchema>): Promise<Acti
       select: { id: true, username: true },
     })
 
-    const token = await sign_token({ uid: created.id })
-    const cookieStore = await cookies()
-    cookieStore.set({
-      name: token_name,
-      value: token,
-      httpOnly: true,
-      path: '/',
-      sameSite: 'lax',
-      secure: isProd(),
-      maxAge: JWT_EXPIRY_SECONDS,
-    })
+    const token = await sign_token({ uid: created.id, username: created.username })
+    await set_session_cookie(token)
 
     return ok(undefined, 'Account created successfully')
   } catch (error) {
@@ -93,17 +98,8 @@ export async function log_in(payload: z.infer<typeof AuthSchema>): Promise<Actio
     const passwordOk = await bcrypt.compare(password, userRec.password_hash)
     if (!passwordOk) return err('UNAUTHORIZED', 'invalid credentials')
 
-    const token = await sign_token({ uid: userRec.id })
-    const cookieStore = await cookies()
-    cookieStore.set({
-      name: token_name,
-      value: token,
-      httpOnly: true,
-      path: '/',
-      sameSite: 'lax',
-      secure: isProd(),
-      maxAge: JWT_EXPIRY_SECONDS,
-    })
+    const token = await sign_token({ uid: userRec.id, username: userRec.username })
+    await set_session_cookie(token)
 
     return ok(undefined, 'Logged in successfully')
   } catch (error) {
@@ -146,14 +142,31 @@ export const get_current_user_id = cache(async (): Promise<string | null> => {
 // Cache the current user (full record) for the duration of the request.
 // Use this only when callers need username/etc. — for ownership scoping,
 // prefer `get_current_user_id`.
-export const get_current_user = cache(async (): Promise<user | null> => {
-  const id = await get_current_user_id()
-  if (!id) return null
+//
+// Reads uid+username from the proxy-set headers when available to avoid a DB
+// round-trip on every authenticated render. Falls back to verifying the cookie
+// (and, for tokens issued before username was embedded, a one-time DB lookup).
+export const get_current_user = cache(async (): Promise<Pick<user, 'id' | 'username'> | null> => {
+  const h = await headers()
+  const headerUid = h.get('x-user-id')
+  const headerUsername = h.get('x-username')
+  if (headerUid && headerUsername) return { id: headerUid, username: headerUsername }
+
+  const cookie = (await cookies()).get(token_name)?.value
+  if (!cookie) return null
+  let payload: { uid: string; username?: string }
+  try {
+    payload = await verify_token(cookie)
+  } catch {
+    return null
+  }
+  if (payload.username) return { id: payload.uid, username: payload.username }
+
   const userRec = await prisma.user.findUnique({
-    where: { id },
+    where: { id: payload.uid },
     select: { id: true, username: true },
   })
-  return userRec as user | null
+  return userRec
 })
 
 /**
@@ -231,6 +244,11 @@ export async function change_username(payload: z.infer<typeof ChangeUsernameSche
       where: { id: user.id },
       data: { username: new_username },
     })
+
+    // Re-issue the cookie so the JWT payload (and proxy-set x-username header)
+    // reflects the new username instead of the stale one until the next login.
+    const token = await sign_token({ uid: user.id, username: new_username })
+    await set_session_cookie(token)
 
     return ok(undefined, 'Username changed successfully')
   } catch (error) {
