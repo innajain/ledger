@@ -39,5 +39,5 @@ export function LocalDateTime({ value }: { value: string | Date }) {
     setText(isNaN(d.getTime()) ? '' : format(d))
   }, [value])
 
-  return <span suppressHydrationWarning>{text}</span>
+  return <span>{text}</span>
 }
