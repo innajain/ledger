@@ -10,7 +10,6 @@ import './globals.css'
 import Link from 'next/link'
 
 const BackToTop = dynamic(() => import('./_components/BackToTop').then(m => m.BackToTop))
-const KeyboardShortcuts = dynamic(() => import('./_components/KeyboardShortcuts').then(m => m.KeyboardShortcuts))
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -90,7 +89,6 @@ export default async function RootLayout({
               </footer>
             </div>
             <BackToTop />
-            {user && <KeyboardShortcuts />}
           </ToastProvider>
         </ThemeProvider>
       </body>
