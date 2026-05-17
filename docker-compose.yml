@@ -23,7 +23,7 @@ services:
   sync-db:
     image: python:3.12-slim
     environment:
-      - PG_SRC=${NEON_URL}
+      - PG_SRC=${PROD_DATABASE_URL}
       - PG_DEST=postgresql://postgres@postgres:5432/appdb
       - REDIS_SRC=${PROD_REDIS_URL:-}
       - REDIS_DEST=redis://redis:6379
