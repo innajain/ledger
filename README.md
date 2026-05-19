@@ -11,19 +11,21 @@ A personal finance management application built with Next.js, implementing a **T
 
 ## The Philosophy: Triple-Entry Bookkeeping
 
-Traditional double-entry bookkeeping tracks _where money came from_ and _where it went_. This system goes further — every transaction must balance across **three dimensions**:
+Traditional double-entry bookkeeping tracks _where money came from_ and _where it went_. This system goes further — every transaction line item is tagged with one **accounting head**, and each head has one of three types, balancing across all three **dimensions**:
 
-| Account Type   | Purpose                           | Examples                                  |
-| -------------- | --------------------------------- | ----------------------------------------- |
-| **Real**       | Where money physically exists     | Bank Account, Wallet, Google Pay, BHIM    |
-| **Nominal**    | Classification of the transaction | Expenses, Income, Salary, Investments     |
-| **Allocation** | Budget/allocation category        | Office Food, Commute, Discretionary, Rent |
+| `accounting_head.type` | Purpose                                 | Examples                                  | UI Label           |
+| ---------------------- | --------------------------------------- | ----------------------------------------- | ------------------ |
+| **`account`**          | Where money physically exists           | Bank Account, Wallet, Google Pay, BHIM    | "Real Accounts"    |
+| **`income_expense`**   | Income / expense classification (taxes) | Salary, Business Income, Groceries, Rent  | "Nominal Accounts" |
+| **`allocation`**       | Budget / allocation category            | Office Food, Commute, Discretionary, Rent | "Allocations"      |
 
 This answers three questions simultaneously:
 
-1. **Where is the money?** (Real)
-2. **What type of transaction is it?** (Nominal)
-3. **Which budget category does it affect?** (Allocation)
+1. **Where is the money?** (`account`)
+2. **What income/expense head is it?** (`income_expense`)
+3. **Which budget category does it affect?** (`allocation`)
+
+The single underlying table is `accounting_head`; each row is one head with one of the three `type` values. The earlier names — `real` / `nominal` — were renamed to `account` / `income_expense` so each value self-describes; see [migration 20260519120000](prisma/migrations/20260519120000_rename_account_to_accounting_head/migration.sql).
 
 ---
 
@@ -31,35 +33,35 @@ This answers three questions simultaneously:
 
 ### The Null-Remainder Storage Model
 
-Line items are stored in a **compressed format**: instead of repeating the same value across all three account types, the system stores only the Real entries (which determine totals) plus any explicit splits on the Allocation/Nominal side. The balancing entry in each group is stored as `null` and **computed at read time** by `normalize_txn`.
+Line items are stored in a **compressed format**: instead of repeating the same value across all three head types, the system stores only the `account` entries (which determine totals) plus any explicit splits on the `allocation` / `income_expense` side. The balancing entry in each group is stored as `null` and **computed at read time** by `normalize_txn`.
 
 **Rules enforced on every save:**
 
-| Side                              | `quantity` rule                                                 | `txn_value` rule (non-rupees only)   |
-| --------------------------------- | --------------------------------------------------------------- | ------------------------------------ |
-| **Real**                          | Must always be provided (never `null`)                          | Must always be provided              |
-| **Allocation**                    | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`       |
-| **Nominal**                       | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`       |
-| **No Allocation _or_ No Nominal** | Real quantities must sum to **zero**                            | Real txn values must sum to **zero** |
+| Side                                         | `quantity` rule                                                 | `txn_value` rule (non-rupees only)        |
+| -------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------- |
+| **`account`**                                | Must always be provided (never `null`)                          | Must always be provided                   |
+| **`allocation`**                             | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`            |
+| **`income_expense`**                         | Exactly **one** item may be `null` (the auto-derived remainder) | Exactly one item may be `null`            |
+| **No `allocation` _or_ No `income_expense`** | `account` quantities must sum to **zero**                       | `account` txn values must sum to **zero** |
 
 At read time, `normalize_txn` fills every `null` with:
 
 ```
-null_qty = ∑ qty(Real) − ∑ non-null qty(same account type)
+null_qty = ∑ qty(account) − ∑ non-null qty(same head type)
 ```
 
 After normalization the classic invariant is always satisfied:
 
 ```
-∑ quantity(Real) = ∑ quantity(Allocation) = ∑ quantity(Nominal)
+∑ quantity(account) = ∑ quantity(allocation) = ∑ quantity(income_expense)
 ```
 
 ### Txn Value Rules
 
-| Asset Type                              | `txn_value` in Real items                         | `txn_value` in Allocation/Nominal           |
-| --------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
-| **Rupees**                              | Must be `null` (quantity IS the value)            | Must be `null`                              |
-| **Non-rupees (MF, ETF, Shares, Other)** | Must be provided — cash flow amount for the trade | Exactly one `null` per group (auto-derived) |
+| Asset Type                              | `txn_value` in `account` items                    | `txn_value` in `allocation` / `income_expense` |
+| --------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
+| **Rupees**                              | Must be `null` (quantity IS the value)            | Must be `null`                                 |
+| **Non-rupees (MF, ETF, Shares, Other)** | Must be provided — cash flow amount for the trade | Exactly one `null` per group (auto-derived)    |
 
 ---
 
@@ -71,14 +73,14 @@ After normalization the classic invariant is always satisfied:
 {
   "description": "Lunch at office cafeteria",
   "line_items": [
-    { "account": "Google Pay", "type": "real", "asset": "Money", "quantity": -35 },
-    { "account": "Expenses", "type": "nominal", "asset": "Money", "quantity": null },
-    { "account": "Office Food", "type": "allocation", "asset": "Money", "quantity": null }
+    { "accounting_head": "Google Pay", "type": "account", "asset": "Money", "quantity": -35 },
+    { "accounting_head": "Expenses", "type": "income_expense", "asset": "Money", "quantity": null },
+    { "accounting_head": "Office Food", "type": "allocation", "asset": "Money", "quantity": null }
   ]
 }
 ```
 
-After normalization: Real (−35) = Allocation (−35) = Nominal (−35) ✅
+After normalization: account (−35) = allocation (−35) = income_expense (−35) ✅
 
 ### Example 2: Buying Mutual Fund Units (₹10,000)
 
@@ -86,41 +88,41 @@ After normalization: Real (−35) = Allocation (−35) = Nominal (−35) ✅
 {
   "description": "SIP in Axis Bluechip Fund",
   "line_items": [
-    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -10000, "txn_value": null },
-    { "account": "Investments", "type": "nominal", "asset": "Money", "quantity": null },
-    { "account": "Equity MF", "type": "allocation", "asset": "Money", "quantity": null },
-    { "account": "Demat", "type": "real", "asset": "Axis Bluechip", "quantity": 50.25, "txn_value": 10000 },
-    { "account": "Investments", "type": "nominal", "asset": "Axis Bluechip", "quantity": null, "txn_value": null },
-    { "account": "Equity MF", "type": "allocation", "asset": "Axis Bluechip", "quantity": null, "txn_value": null }
+    { "accounting_head": "Bank HDFC", "type": "account", "asset": "Money", "quantity": -10000, "txn_value": null },
+    { "accounting_head": "Investments", "type": "income_expense", "asset": "Money", "quantity": null },
+    { "accounting_head": "Equity MF", "type": "allocation", "asset": "Money", "quantity": null },
+    { "accounting_head": "Demat", "type": "account", "asset": "Axis Bluechip", "quantity": 50.25, "txn_value": 10000 },
+    { "accounting_head": "Investments", "type": "income_expense", "asset": "Axis Bluechip", "quantity": null, "txn_value": null },
+    { "accounting_head": "Equity MF", "type": "allocation", "asset": "Axis Bluechip", "quantity": null, "txn_value": null }
   ]
 }
 ```
 
-### Example 3: Transfer Between Real Accounts
+### Example 3: Transfer Between `account`-type Heads
 
 ```json
 {
   "description": "Transfer from bank to wallet",
   "line_items": [
-    { "account": "Bank HDFC", "type": "real", "asset": "Money", "quantity": -5000 },
-    { "account": "Cash Wallet", "type": "real", "asset": "Money", "quantity": +5000 }
+    { "accounting_head": "Bank HDFC", "type": "account", "asset": "Money", "quantity": -5000 },
+    { "accounting_head": "Cash Wallet", "type": "account", "asset": "Money", "quantity": +5000 }
   ]
 }
 ```
 
-When there are no Allocation or Nominal entries the Real quantities must sum to zero.
+When there are no `allocation` or `income_expense` entries the `account` quantities must sum to zero.
 
 ---
 
 ## Features
 
-### Hierarchical Accounts & Assets
+### Hierarchical Accounting Heads & Assets
 
-- **Three account types** — Real, Nominal, Allocation with distinct purposes
+- **Three head types** — `account`, `income_expense`, `allocation` with distinct purposes
 - **Parent-child relationships** — Organize into a tree; cycle detection prevents circular references
 - **Drag-to-reorder** — Child order is persisted to the database, so the hierarchy view is stable across sessions
-- **`is_active`** — Deactivate accounts/assets without losing history; inactive accounts/assets are hidden from transaction selectors; a dedicated Inactive Accounts list on the Settings page shows all deactivated accounts with their type badges and edit links
-- **`is_placeholder_acc`** — Mark an account as a grouping-only parent; placeholder accounts are hidden from transaction selectors while still appearing in the hierarchy view
+- **`is_active`** — Deactivate accounting heads / assets without losing history; inactive entries are hidden from transaction selectors; a dedicated Inactive list on the Settings page shows all deactivated heads with their type badges and edit links
+- **`is_placeholder`** — Mark a head as a grouping-only parent; placeholder heads are hidden from transaction selectors while still appearing in the hierarchy view
 - **`is_placeholder` on assets** — Same concept for assets: placeholder assets act as grouping parents and are hidden from transaction selectors
 
 ### Multi-Asset Portfolio Tracking
@@ -172,7 +174,7 @@ Reusable transaction shapes for recurring entries (rent, SIPs, payday splits):
 
 ### Configurable Line-Item Defaults
 
-Per-user default accounts and asset pre-selected when creating a new line item on the transaction create/update pages. Configured from the Settings page with dropdowns filtered by account type. Falls back to first available account of each type when no default is set or the saved account has been deactivated.
+Per-user default accounting heads (one per type) and asset pre-selected when creating a new line item on the transaction create/update pages. Configured from the Settings page with dropdowns filtered by head type. Falls back to the first available head of each type when no default is set or the saved head has been deactivated.
 
 ### Transaction Attachments
 
@@ -188,7 +190,7 @@ Upload images, PDFs, and text files (≤ 10 MB each) against any transaction. Fi
 
 - **Integrity checker** — `validate_all_txns` loads every transaction, runs each through `validate_line_items`, and surfaces any that violate the invariants; wired to a button on the dashboard
 - **Atomic writes** — All create/update flows run inside a Prisma `$transaction`
-- **Balance cache** — `get_or_compute_balances` aggregates `account → asset` and `asset → account` balance maps via `normalize_txn` and caches them in Redis (5-day TTL); overwritten after every transaction write
+- **Balance cache** — `get_or_compute_balances` aggregates `accounting_head → asset` and `asset → accounting_head` balance maps via `normalize_txn` and caches them in Redis (5-day TTL); overwritten after every transaction write
 
 ### Database Dump
 
@@ -310,18 +312,18 @@ ledger/
 │   │   ├── compute_balances.ts      # Balance aggregation + Redis cache
 │   │   ├── flush.ts                 # Redis FLUSHALL (admin)
 │   │   ├── preferences.ts           # Per-user line-item defaults (read/write)
-│   │   ├── resources.ts             # Account / Asset CRUD with hierarchy + cycle detection
+│   │   ├── resources.ts             # Accounting head / Asset CRUD with hierarchy + cycle detection
 │   │   ├── templates.ts             # Transaction template CRUD
 │   │   ├── transactions.ts          # Create transaction (validation + write)
 │   │   ├── transactions_update.ts   # Update transaction (same validation pipeline)
 │   │   └── validate_all_txns.ts     # Bulk integrity checker
 │   ├── _components/                 # Shared React components
-│   │   ├── AccountForm.tsx          # Create/Update forms for all account types
+│   │   ├── AccountForm.tsx          # Create/Update forms for all accounting head types
 │   │   ├── AccountFormComponents.tsx# Reusable form primitives (inputs, selects, actions)
 │   │   ├── AttachmentUpload.tsx     # Drag-and-drop attachment uploader (private Blob)
 │   │   ├── HierarchyTree.tsx        # Recursive tree display
 │   │   ├── HoldingsGrid.tsx         # Asset holdings grid
-│   │   ├── TransactionLineItems.tsx # Line-item editor (grouped by account type)
+│   │   ├── TransactionLineItems.tsx # Line-item editor (grouped by head type)
 │   │   └── ...                      # Toast, Navbar, LocalDateTime, etc.
 │   ├── _utils/
 │   │   ├── currency_formatter.ts    # ₹ formatters
@@ -332,8 +334,8 @@ ledger/
 │   │   ├── orderStorage.ts          # Per-page sort persistence (localStorage)
 │   │   ├── price_fetcher.ts         # Yahoo Finance / AMFI NAV sync + Redis cache
 │   │   └── validate_line_items.ts   # Invariant checks on line items
-│   ├── accounts/                    # Real account pages (list / detail / create / update)
-│   ├── allocations/                 # Allocation pages
+│   ├── accounts/                    # `account`-type head pages (list / detail / create / update)
+│   ├── allocations/                 # `allocation`-type head pages
 │   ├── api/
 │   │   ├── attachments/[id]/route.ts          # Authenticated proxy that streams private blobs
 │   │   ├── cron/sync-nav/route.ts             # Daily AMFI NAV bulk pull (Vercel cron)
@@ -342,7 +344,7 @@ ledger/
 │   │   ├── metrics/web-vital/route.ts         # Web Vitals ingestion (sendBeacon target)
 │   │   └── upload/route.ts                    # handleUpload() — issues client tokens for Blob
 │   ├── assets/                      # Asset pages (list / detail with XIRR + FIFO / create / update)
-│   ├── income_expenses/             # Nominal account pages
+│   ├── income_expenses/             # `income_expense`-type head pages
 │   ├── login/                       # Auth UI
 │   ├── settings/                    # Username / password / theme / line-item defaults
 │   ├── transactions/                # Transaction list / detail / create / update
@@ -388,20 +390,20 @@ model user {
 
   // Per-user defaults for new line items (stored as plain IDs;
   // ownership validated in the server action)
-  default_real_account_id       String?
-  default_allocation_account_id String?
-  default_nominal_account_id    String?
-  default_asset_id              String?
+  default_account_id        String?
+  default_allocation_id     String?
+  default_income_expense_id String?
+  default_asset_id          String?
 }
 
-model account {
-  id                 String       @id @default(cuid())
-  user_id            String
-  name               String
-  type               account_type // real | nominal | allocation
-  is_active          Boolean      @default(true)
-  is_placeholder_acc Boolean      @default(false)
-  parent_id          String?
+model accounting_head {
+  id             String               @id @default(cuid())
+  user_id        String
+  name           String
+  type           accounting_head_type // account | income_expense | allocation
+  is_active      Boolean              @default(true)
+  is_placeholder Boolean              @default(false)
+  parent_id      String?
 }
 
 model asset {
@@ -435,14 +437,14 @@ model transaction_attachment {
 }
 
 model line_item {
-  id             String    @id @default(cuid())
-  transaction_id String
-  account_id     String
-  asset_id       String
-  quantity       Decimal?  @db.Decimal(14, 4) // null in Allocation/Nominal = auto-derived
-  txn_value      Decimal?  @db.Decimal(14, 4) // null for rupees, or auto-derived
-  description    String?
-  datetime       DateTime? // per-line-item datetime override
+  id                  String    @id @default(cuid())
+  transaction_id      String
+  accounting_head_id  String
+  asset_id            String
+  quantity            Decimal?  @db.Decimal(14, 4) // null in allocation / income_expense = auto-derived
+  txn_value           Decimal?  @db.Decimal(14, 4) // null for rupees, or auto-derived
+  description         String?
+  datetime            DateTime? // per-line-item datetime override
 }
 
 model transaction_template {
@@ -458,8 +460,8 @@ model line_item_template {
   txn_value  Decimal? @db.Decimal(14, 4)
 }
 
-enum account_type { real  nominal  allocation }
-enum asset_type   { rupees  mf  etf  shares  other }
+enum accounting_head_type { account  income_expense  allocation }
+enum asset_type            { rupees   mf              etf         shares  other }
 ```
 
 Profiling tables (`server_metric`, `slow_query`, `web_vital`) live alongside the domain tables — see the [Performance Profiling](#performance-profiling) section.
@@ -468,7 +470,7 @@ Profiling tables (`server_metric`, `slow_query`, `web_vital`) live alongside the
 
 - `quantity` / `txn_value` nullable — null-remainder pattern; `normalize_txn` derives at read time
 - `Decimal(14, 4)` throughout — sufficient for fund-unit precision
-- Hierarchical accounts/assets with cycle detection at the application layer
+- Hierarchical accounting heads / assets with cycle detection at the application layer
 - Cascade deletion: removing a transaction or template removes all its line items
 
 ---
@@ -503,13 +505,16 @@ DIRECT_URL="$(grep '^NEON_URL=' .env | sed -E 's/^NEON_URL=//; s/^"(.*)"$/\1/; s
 
 ## Caching
 
-| Cache                       | Key                                | TTL        | Invalidation                                                    |
-| --------------------------- | ---------------------------------- | ---------- | --------------------------------------------------------------- |
-| ETF / shares price          | `price:etf:{symbol}`               | 2 days     | TTL only                                                        |
-| MF NAV                      | `price:nav:{ISIN}`                 | 2 days     | Refreshed daily by cron                                         |
-| Per-user balances           | `balances:{user_id}`               | 5 days     | Overwritten after every transaction write                       |
-| NAV negative-cache          | `price:nav:{ISIN}` = `"null"`      | 1 hour     | TTL only                                                        |
-| Historical price timeseries | `timeseries:{asset_id}:{...range}` | Indefinite | Only for frozen (past) date ranges; live ranges use normal TTLs |
+| Cache                  | Key                                              | TTL        | Invalidation                                                              |
+| ---------------------- | ------------------------------------------------ | ---------- | ------------------------------------------------------------------------- |
+| ETF / shares price     | `price:etf:{symbol}`                             | 2 days     | TTL only                                                                  |
+| MF NAV                 | `price:nav:{ISIN}`                               | 2 days     | Refreshed daily by cron                                                   |
+| Historical NAV series  | `price:nav_history:{ISIN}`                       | 7 days     | TTL only; `"null"` sentinel for unknown ISINs (1 hour)                    |
+| Historical ETF series  | `price:etf_history:{symbol}:{from_date}`         | 7 days     | TTL only                                                                  |
+| AMFI ISIN → scheme map | `amfi:isin_to_scheme_code`                       | 30 days    | TTL only                                                                  |
+| Per-user balances      | `balances:{user_id}`                             | 5 days     | Overwritten after every transaction write                                 |
+| Timeseries version     | `timeseries_version:{user_id}`                   | Indefinite | `INCR` on every transaction write (invalidates frozen series by mismatch) |
+| Frozen chart series    | `timeseries_frozen:{user_id}:{kind}:{entity_id}` | Indefinite | Embedded version checked against `timeseries_version` on read             |
 
 The dashboard exposes a **Flush Redis Cache** button that calls `FLUSHALL`.
 
@@ -534,10 +539,10 @@ In development (or on cache miss) `get_nav` also triggers an in-process `sync_na
 
 Checks performed:
 
-1. Real line items never have `null` quantity
-2. Allocation / Nominal groups each have exactly one `null` quantity placeholder
+1. `account` line items never have `null` quantity
+2. `allocation` / `income_expense` groups each have exactly one `null` quantity placeholder
 3. Txn-value rules are respected per asset type
-4. Real-only transactions (transfers) have quantity and txn-value sums of zero
+4. `account`-only transactions (transfers) have quantity and txn-value sums of zero
 
 ---
 
