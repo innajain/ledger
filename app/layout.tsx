@@ -6,6 +6,9 @@ import { get_current_user } from './_actions/auth'
 import { ThemeProvider } from './_components/ThemeProvider'
 import { ToastProvider } from './_components/Toast'
 import { WebVitalsReporter } from './_components/WebVitalsReporter'
+import { DevQueryToaster } from './_components/DevQueryToaster'
+import { PROFILING_ENABLED } from '@/lib/metrics/profile'
+import { isDev } from '@/lib/env'
 import './globals.css'
 import Link from 'next/link'
 
@@ -60,9 +63,10 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-900 transition-colors`}>
-        <WebVitalsReporter />
+        {PROFILING_ENABLED && <WebVitalsReporter />}
         <ThemeProvider>
           <ToastProvider>
+            {isDev() && <DevQueryToaster />}
             <div className="min-h-screen flex flex-col">
               {/* Header */}
               <Navbar isLoggedIn={!!user} />

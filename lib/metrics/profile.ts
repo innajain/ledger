@@ -3,7 +3,7 @@ import { headers } from 'next/headers'
 import { metricsStorage, type MetricsContext } from './context'
 import { persistMetrics } from './persist'
 
-const PROFILING_ENABLED = process.env.PROFILING !== 'off'
+export const PROFILING_ENABLED = process.env.PROFILING !== 'off'
 
 /**
  * Wrap a server-component page (or any async server function tied to a

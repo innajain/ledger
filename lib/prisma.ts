@@ -1,9 +1,11 @@
+import 'server-only'
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import 'dotenv/config'
 import { env, isDev, isProd } from './env'
 import { logger } from './logger'
 import { currentMetrics, SLOW_QUERY_THRESHOLD_MS } from './metrics/context'
+import { publishQueryEvent } from './dev/query-bus'
 
 const adapter = new PrismaPg({ connectionString: env.DATABASE_URL })
 
@@ -32,22 +34,33 @@ function buildPrisma() {
       $allOperations: async ({ model, operation, args, query }) => {
         if (model && PROFILING_MODELS.has(model)) return query(args)
         const ctx = currentMetrics()
-        if (!ctx) return query(args)
-
         const start = performance.now()
+        let errored = false
         try {
           return await query(args)
+        } catch (err) {
+          errored = true
+          throw err
         } finally {
           const ms = performance.now() - start
-          ctx.db_query_count += 1
-          ctx.db_query_ms += ms
-          if (ms >= SLOW_QUERY_THRESHOLD_MS) {
-            ctx.slow_queries.push({
-              model: model ?? undefined,
-              action: operation,
-              duration_ms: ms,
-            })
+          if (ctx) {
+            ctx.db_query_count += 1
+            ctx.db_query_ms += ms
+            if (ms >= SLOW_QUERY_THRESHOLD_MS) {
+              ctx.slow_queries.push({
+                model: model ?? undefined,
+                action: operation,
+                duration_ms: ms,
+              })
+            }
           }
+          publishQueryEvent({
+            kind: 'db',
+            model: model ?? undefined,
+            action: operation,
+            duration_ms: ms,
+            error: errored || undefined,
+          })
         }
       },
     },

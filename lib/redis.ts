@@ -1,7 +1,9 @@
+import 'server-only'
 import Redis from 'ioredis'
 import { env } from './env'
 import { logger } from './logger'
 import { currentMetrics } from './metrics/context'
+import { publishQueryEvent } from './dev/query-bus'
 
 // Create a Redis client instance
 const baseRedis = new Redis(env.REDIS_URL, {
@@ -25,12 +27,18 @@ baseRedis.on('connect', () => {
 
 // Wrap key read methods to record hit/miss + timing into the request context.
 // We only instrument the methods we actually use elsewhere in the codebase.
-function instrument<Fn extends (...args: never[]) => Promise<unknown>>(name: 'get' | 'mget' | 'setex' | 'del' | 'pipeline_exec', fn: Fn): Fn {
+function instrument<Fn extends (...args: never[]) => Promise<unknown>>(
+  name: 'get' | 'mget' | 'set' | 'setex' | 'del' | 'incr' | 'pipeline_exec',
+  fn: Fn,
+): Fn {
   return (async (...args: Parameters<Fn>) => {
     const ctx = currentMetrics()
-    const start = ctx ? performance.now() : 0
+    const start = performance.now()
+    let errored = false
+    let hit: boolean | undefined
     try {
       const result = await fn(...args)
+      if (name === 'get') hit = result !== null
       if (ctx) {
         ctx.redis_ms += performance.now() - start
         if (name === 'get') {
@@ -45,19 +53,32 @@ function instrument<Fn extends (...args: never[]) => Promise<unknown>>(name: 'ge
       }
       return result
     } catch (err) {
+      errored = true
       if (ctx) ctx.redis_ms += performance.now() - start
       throw err
+    } finally {
+      publishQueryEvent({
+        kind: 'redis',
+        op: name,
+        duration_ms: performance.now() - start,
+        hit,
+        error: errored || undefined,
+      })
     }
   }) as Fn
 }
 
 const origGet = baseRedis.get.bind(baseRedis)
 const origMget = baseRedis.mget.bind(baseRedis)
+const origSet = baseRedis.set.bind(baseRedis)
 const origSetex = baseRedis.setex.bind(baseRedis)
 const origDel = baseRedis.del.bind(baseRedis)
+const origIncr = baseRedis.incr.bind(baseRedis)
 baseRedis.get = instrument('get', origGet) as typeof baseRedis.get
 baseRedis.mget = instrument('mget', origMget) as typeof baseRedis.mget
+baseRedis.set = instrument('set', origSet) as typeof baseRedis.set
 baseRedis.setex = instrument('setex', origSetex) as typeof baseRedis.setex
 baseRedis.del = instrument('del', origDel) as typeof baseRedis.del
+baseRedis.incr = instrument('incr', origIncr) as typeof baseRedis.incr
 
 export const redis = baseRedis

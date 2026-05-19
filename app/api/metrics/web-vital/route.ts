@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import { PROFILING_ENABLED } from '@/lib/metrics/profile'
 
 const VitalSchema = z.object({
   route: z.string().min(1).max(256),
@@ -12,6 +13,7 @@ const VitalSchema = z.object({
 })
 
 export async function POST(req: Request) {
+  if (!PROFILING_ENABLED) return NextResponse.json({ ok: true })
   try {
     const body = await req.json()
     const parsed = VitalSchema.safeParse(body)
