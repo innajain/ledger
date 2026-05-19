@@ -267,7 +267,7 @@ JWT_SECRET="your-secure-jwt-secret-key"
 CRON_SECRET="your-cron-secret"
 
 # Production Neon DB (used by sync-db and prod migrations)
-NEON_URL="postgresql://..."
+PROD_DATABASE_URL="postgresql://..."
 
 # Optional: prod Redis snapshot source for sync-db
 # PROD_REDIS_URL="redis://..."
@@ -494,10 +494,10 @@ pnpm exec prisma studio               # Prisma Studio GUI
 
 ### Migrating prod (Neon)
 
-The stored `NEON_URL` uses pgbouncer's pooled endpoint which doesn't support Prisma's migration engine. Strip `-pooler` from the hostname and add a connect timeout to handle Neon's auto-suspend:
+The stored `PROD_DATABASE_URL` uses pgbouncer's pooled endpoint which doesn't support Prisma's migration engine. Strip `-pooler` from the hostname and add a connect timeout to handle Neon's auto-suspend:
 
 ```bash
-DIRECT_URL="$(grep '^NEON_URL=' .env | sed -E 's/^NEON_URL=//; s/^"(.*)"$/\1/; s/-pooler\././')" \
+DIRECT_URL="$(grep '^PROD_DATABASE_URL=' .env | sed -E 's/^PROD_DATABASE_URL=//; s/^"(.*)"$/\1/; s/-pooler\././')" \
   DATABASE_URL="${DIRECT_URL}&connect_timeout=30" pnpm exec prisma migrate deploy
 ```
 
