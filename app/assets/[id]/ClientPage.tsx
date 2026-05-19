@@ -8,7 +8,7 @@ import { currency_fmt, precise_currency_fmt } from '@/app/_utils/currency_format
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 
 type BreakdownItem = {
-  account_id: string
+  accounting_head_id: string
   account_name: string
   quantity: number
   txn_value: number | null
@@ -17,7 +17,7 @@ type BreakdownItem = {
 
 type LineItem = {
   id: string
-  account_id: string
+  accounting_head_id: string
   account_name: string
   quantity: number
   txn_value: number | null
@@ -161,7 +161,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                     <div className="flex flex-col h-full justify-between">
                       <div>
                         <Link
-                          href={`/accounts/${b.account_id}`}
+                          href={`/accounts/${b.accounting_head_id}`}
                           className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         >
                           {b.account_name}
@@ -195,7 +195,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                       </div>
 
                       <div className="mt-4 text-right">
-                        <Link href={`/accounts/${b.account_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                        <Link href={`/accounts/${b.accounting_head_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
                           View Account →
                         </Link>
                       </div>
@@ -296,7 +296,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                           <Link
-                            href={`/accounts/${li.account_id}`}
+                            href={`/accounts/${li.accounting_head_id}`}
                             className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >
                             {li.account_name}

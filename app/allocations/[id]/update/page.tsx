@@ -16,7 +16,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       </div>
     )
   }
-  const allocation = await prisma.account.findUnique({
+  const allocation = await prisma.accounting_head.findUnique({
     where: { id, user_id: user.id, type: 'allocation' },
   })
   if (!allocation) {
@@ -28,8 +28,8 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     )
   }
 
-  const parents: Prisma.accountGetPayload<Record<string, never>>[] = user
-    ? await prisma.account.findMany({
+  const parents: Prisma.accounting_headGetPayload<Record<string, never>>[] = user
+    ? await prisma.accounting_head.findMany({
         where: { user_id: user.id, type: 'allocation' },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       })

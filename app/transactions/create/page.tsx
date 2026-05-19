@@ -16,7 +16,7 @@ async function Page() {
   }
 
   const [accounts, assets, defaults] = await Promise.all([
-    prisma.account.findMany({
+    prisma.accounting_head.findMany({
       where: { user_id: user.id, is_active: true, is_placeholder: false },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),

@@ -9,9 +9,9 @@ export default function ClientPage({
   parents,
   deleteAccount,
 }: {
-  account: Prisma.accountGetPayload<Record<string, never>>
-  parents: Prisma.accountGetPayload<Record<string, never>>[]
+  account: Prisma.accounting_headGetPayload<Record<string, never>>
+  parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
   deleteAccount?: (id: string) => Promise<ActionResult>
 }) {
-  return <UpdateAccountForm account={account} parents={parents} config={accountFormConfig('nominal')} deleteAccount={deleteAccount} />
+  return <UpdateAccountForm account={account} parents={parents} config={accountFormConfig('income_expense')} deleteAccount={deleteAccount} />
 }

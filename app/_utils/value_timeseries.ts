@@ -34,13 +34,13 @@ export function reconcile_timeseries_tail(timeseries: ValuePoint[], current: num
 
 export type TimeseriesFilter =
   | { kind: 'asset'; asset_id: string }
-  | { kind: 'account'; account_id: string }
+  | { kind: 'account'; accounting_head_id: string }
   | { kind: 'allocation'; allocation_id: string }
 
 type Event = {
   asset_id: string
   asset_type: asset_type
-  account_id: string
+  accounting_head_id: string
   qty: Prisma.Decimal
   book: Prisma.Decimal
   date: Date
@@ -51,14 +51,14 @@ type Lot = { qty: Prisma.Decimal; original_qty: Prisma.Decimal; original_book: P
 type AllocState = Map<string, { qty: Prisma.Decimal; book: Prisma.Decimal }>
 
 type WalkState = {
-  open_lots: Map<string, Lot[]> // key = `${account_id}|${asset_id}`
+  open_lots: Map<string, Lot[]> // key = `${accounting_head_id}|${asset_id}`
   alloc_state: AllocState
   cashflows: { amount: number; when: Date }[]
 }
 
 function entity_id_for_filter(filter: TimeseriesFilter): string {
   if (filter.kind === 'asset') return filter.asset_id
-  if (filter.kind === 'account') return filter.account_id
+  if (filter.kind === 'account') return filter.accounting_head_id
   return filter.allocation_id
 }
 
@@ -69,17 +69,17 @@ function build_events(transactions: TransactionFull[], filter: TimeseriesFilter)
     for (const li of norm.line_items) {
       if (filter.kind === 'asset') {
         if (li.asset.id !== filter.asset_id) continue
-        if (li.account.type !== 'real') continue
+        if (li.accounting_head.type !== 'account') continue
       } else if (filter.kind === 'account') {
-        if (li.account.id !== filter.account_id) continue
+        if (li.accounting_head.id !== filter.accounting_head_id) continue
       } else {
-        if (li.account.id !== filter.allocation_id) continue
+        if (li.accounting_head.id !== filter.allocation_id) continue
       }
       const date = li.datetime ?? tx.datetime
       events.push({
         asset_id: li.asset.id,
         asset_type: li.asset.type,
-        account_id: li.account.id,
+        accounting_head_id: li.accounting_head.id,
         qty: li.quantity,
         book: li.txn_value,
         date,
@@ -102,7 +102,7 @@ function apply_event(state: WalkState, filter: TimeseriesFilter, e: Event): void
     cur.book = cur.book.add(e.book)
     state.alloc_state.set(e.asset_id, cur)
   } else {
-    const key = `${e.account_id}|${e.asset_id}`
+    const key = `${e.accounting_head_id}|${e.asset_id}`
     if (!state.open_lots.has(key)) state.open_lots.set(key, [])
     const lots = state.open_lots.get(key)!
     if (e.qty.greaterThan(0)) {

@@ -27,7 +27,7 @@ async function Page({ params }: Props) {
   const asset = await prisma.asset.findUnique({
     where: { id, user_id: user.id },
     include: {
-      line_items: { include: { account: true, transaction: true } },
+      line_items: { include: { accounting_head: true, transaction: true } },
       parent: true,
     },
   })
@@ -43,8 +43,8 @@ async function Page({ params }: Props) {
 
   const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(asset.line_items)
 
-  const real_line_items = asset.line_items.filter(li => li.account.type === 'real')
-  const allocation_line_items = asset.line_items.filter(li => li.account.type === 'allocation')
+  const real_line_items = asset.line_items.filter(li => li.accounting_head.type === 'account')
+  const allocation_line_items = asset.line_items.filter(li => li.accounting_head.type === 'allocation')
 
   const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
   const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
@@ -52,24 +52,29 @@ async function Page({ params }: Props) {
   // Aggregate per real account
   let asset_total = new Prisma.Decimal(0)
   let book_total = new Prisma.Decimal(0)
-  const acc_map: Record<string, { account_id: string; account_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
+  const acc_map: Record<string, { accounting_head_id: string; account_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
   for (const li of real_line_items) {
     const n = normalizedById.get(li.id)!
-    const aid = li.account.id
+    const aid = li.accounting_head.id
     if (!acc_map[aid])
-      acc_map[aid] = { account_id: aid, account_name: li.account.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0) }
+      acc_map[aid] = {
+        accounting_head_id: aid,
+        account_name: li.accounting_head.name,
+        total_qty: new Prisma.Decimal(0),
+        total_book: new Prisma.Decimal(0),
+      }
     acc_map[aid].total_qty = acc_map[aid].total_qty.add(n.quantity!)
     acc_map[aid].total_book = acc_map[aid].total_book.add(n.txn_value!)
   }
 
-  const breakdown: { account_id: string; account_name: string; quantity: number; txn_value: number | null; current_value: number }[] = []
+  const breakdown: { accounting_head_id: string; account_name: string; quantity: number; txn_value: number | null; current_value: number }[] = []
   for (const entry of Object.values(acc_map)) {
     book_total = book_total.add(entry.total_book)
     if (entry.total_qty.equals(0)) continue
     const current_value = compute_current_value(asset.type, entry.total_qty, priceDecimal, entry.total_book)
     asset_total = asset_total.add(current_value)
     breakdown.push({
-      account_id: entry.account_id,
+      accounting_head_id: entry.accounting_head_id,
       account_name: entry.account_name,
       quantity: entry.total_qty.toNumber(),
       txn_value: entry.total_book.toNumber(),
@@ -81,9 +86,14 @@ async function Page({ params }: Props) {
   const alloc_map: Record<string, { allocation_id: string; allocation_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
   for (const li of allocation_line_items) {
     const n = normalizedById.get(li.id)!
-    const aid = li.account.id
+    const aid = li.accounting_head.id
     if (!alloc_map[aid])
-      alloc_map[aid] = { allocation_id: aid, allocation_name: li.account.name, total_qty: new Prisma.Decimal(0), total_book: new Prisma.Decimal(0) }
+      alloc_map[aid] = {
+        allocation_id: aid,
+        allocation_name: li.accounting_head.name,
+        total_qty: new Prisma.Decimal(0),
+        total_book: new Prisma.Decimal(0),
+      }
     alloc_map[aid].total_qty = alloc_map[aid].total_qty.add(n.quantity!)
     alloc_map[aid].total_book = alloc_map[aid].total_book.add(n.txn_value!)
   }
@@ -123,7 +133,9 @@ async function Page({ params }: Props) {
 
   const remaining_by_id =
     asset.type !== asset_type.rupees
-      ? compute_fifo_remaining(items_with_meta.map(item => ({ id: item.li.id, group_key: item.li.account.id, qty: item.qty, date: item.sortDate })))
+      ? compute_fifo_remaining(
+          items_with_meta.map(item => ({ id: item.li.id, group_key: item.li.accounting_head.id, qty: item.qty, date: item.sortDate })),
+        )
       : new Map<string, Prisma.Decimal>()
 
   // Current investment = proportional cost basis of remaining FIFO lots
@@ -138,8 +150,8 @@ async function Page({ params }: Props) {
   const line_items = items_with_meta
     .map(({ li, qty, book, current_value, sortDate }) => ({
       id: li.id,
-      account_id: li.account.id,
-      account_name: li.account.name,
+      accounting_head_id: li.accounting_head.id,
+      account_name: li.accounting_head.name,
       quantity: qty.toNumber(),
       txn_value: book.toNumber(),
       current_value: current_value.toNumber(),

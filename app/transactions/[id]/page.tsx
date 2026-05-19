@@ -14,7 +14,7 @@ async function Page({ params }: Props) {
 
   const rawTx = await prisma.transaction.findUnique({
     where: { id, user_id: user.id },
-    include: { line_items: { include: { asset: true, account: true } }, attachments: true },
+    include: { line_items: { include: { asset: true, accounting_head: true } }, attachments: true },
   })
   if (!rawTx) return <div>Transaction not found.</div>
 
@@ -25,7 +25,7 @@ async function Page({ params }: Props) {
     date: tx.datetime.toISOString(),
     description: tx.description,
     total: tx.line_items
-      .filter(li => li.account.type === 'real')
+      .filter(li => li.accounting_head.type === 'account')
       .reduce((sum, li) => sum.add(li.txn_value), new Prisma.Decimal(0))
       .toNumber(),
     attachments: rawTx.attachments.map(a => ({
@@ -37,9 +37,9 @@ async function Page({ params }: Props) {
     })),
     line_items: tx.line_items.map(li => ({
       id: li.id,
-      account_id: li.account.id,
-      account_name: li.account.name,
-      account_type: li.account.type,
+      accounting_head_id: li.accounting_head.id,
+      account_name: li.accounting_head.name,
+      accounting_head_type: li.accounting_head.type,
       asset_id: li.asset.id,
       asset_name: li.asset.name,
       asset_type: li.asset.type,

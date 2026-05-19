@@ -7,7 +7,7 @@ import { require_admin } from './auth'
 export async function validate_all_txns() {
   await require_admin()
   const transactions = await prisma.transaction.findMany({
-    include: { line_items: { include: { account: true, asset: true } } },
+    include: { line_items: { include: { accounting_head: true, asset: true } } },
   })
   const wrong_txns = []
 

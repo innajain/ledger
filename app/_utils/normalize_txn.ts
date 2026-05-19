@@ -1,12 +1,12 @@
 import { Prisma } from '@/generated/prisma/client'
-import { asset_type, account_type } from '@/generated/prisma/enums'
+import { asset_type, accounting_head_type } from '@/generated/prisma/enums'
 
 /**
  * Raw transaction shape as fetched from Prisma — quantity and txn_value
  * may be null on the allocation/nominal sides (and on txn_value for rupees).
  */
 export type TransactionFull = Prisma.transactionGetPayload<{
-  include: { line_items: { include: { account: true; asset: true } } }
+  include: { line_items: { include: { accounting_head: true; asset: true } } }
 }>
 
 /**
@@ -25,7 +25,7 @@ export type NormalizedTransaction = Omit<TransactionFull, 'line_items'> & {
 
 export type NormalizableLineItem = {
   asset: { id: string; type: asset_type; name: string }
-  account: { type: account_type }
+  accounting_head: { type: accounting_head_type }
   quantity: Prisma.Decimal | null
   txn_value: Prisma.Decimal | null
 }
@@ -37,23 +37,23 @@ export type NormalizableLineItem = {
 export function normalize_line_items<T extends NormalizableLineItem>(
   line_items: T[],
 ): (T & { quantity: Prisma.Decimal; txn_value: Prisma.Decimal })[] {
-  type Group = { real: T[]; allocation: T[]; nominal: T[]; asset_type: asset_type }
+  type Group = { account: T[]; allocation: T[]; income_expense: T[]; asset_type: asset_type }
   const assetwise_groups = new Map<string, Group>()
 
   const copies = line_items.map(li => ({ ...li }))
   for (const li of copies) {
     if (!assetwise_groups.has(li.asset.id)) {
-      assetwise_groups.set(li.asset.id, { real: [], allocation: [], nominal: [], asset_type: li.asset.type })
+      assetwise_groups.set(li.asset.id, { account: [], allocation: [], income_expense: [], asset_type: li.asset.type })
     }
-    assetwise_groups.get(li.asset.id)![li.account.type].push(li)
+    assetwise_groups.get(li.asset.id)![li.accounting_head.type].push(li)
   }
 
   const assetwise_total = new Map<string, { total_qty: Prisma.Decimal; total_txn_value: Prisma.Decimal }>()
   for (const [asset_id, group] of assetwise_groups) {
     let total_qty = new Prisma.Decimal(0)
     let total_txn_value = new Prisma.Decimal(0)
-    for (const li of group.real) {
-      if (li.quantity === null) throw new Error('Real line item with null quantity')
+    for (const li of group.account) {
+      if (li.quantity === null) throw new Error('Account line item with null quantity')
       total_qty = total_qty.add(li.quantity)
       total_txn_value = total_txn_value.add(li.txn_value !== null ? li.txn_value : li.quantity)
     }
@@ -70,15 +70,15 @@ export function normalize_line_items<T extends NormalizableLineItem>(
       nullEntry.quantity = totals.total_qty.sub(sum)
     }
 
-    if (group.nominal.length > 0) {
-      const sum = group.nominal.reduce((acc, li) => acc.add(li.quantity ?? new Prisma.Decimal(0)), new Prisma.Decimal(0))
-      const nullEntry = group.nominal.find(li => li.quantity === null)
-      if (!nullEntry) throw new Error('Nominal group with no null quantity line item')
+    if (group.income_expense.length > 0) {
+      const sum = group.income_expense.reduce((acc, li) => acc.add(li.quantity ?? new Prisma.Decimal(0)), new Prisma.Decimal(0))
+      const nullEntry = group.income_expense.find(li => li.quantity === null)
+      if (!nullEntry) throw new Error('Income/expense group with no null quantity line item')
       nullEntry.quantity = totals.total_qty.sub(sum)
     }
 
     if (group.asset_type === asset_type.rupees) {
-      for (const li of [...group.real, ...group.allocation, ...group.nominal]) li.txn_value = li.quantity
+      for (const li of [...group.account, ...group.allocation, ...group.income_expense]) li.txn_value = li.quantity
     } else {
       if (group.allocation.length > 0) {
         const sum = group.allocation.reduce((acc, li) => acc.add(li.txn_value ?? new Prisma.Decimal(0)), new Prisma.Decimal(0))
@@ -86,10 +86,10 @@ export function normalize_line_items<T extends NormalizableLineItem>(
         if (!nullEntry) throw new Error('Allocation group with no null txn value line item for non-rupees asset')
         nullEntry.txn_value = totals.total_txn_value.sub(sum)
       }
-      if (group.nominal.length > 0) {
-        const sum = group.nominal.reduce((acc, li) => acc.add(li.txn_value ?? new Prisma.Decimal(0)), new Prisma.Decimal(0))
-        const nullEntry = group.nominal.find(li => li.txn_value === null)
-        if (!nullEntry) throw new Error('Nominal group with no null txn value line item for non-rupees asset')
+      if (group.income_expense.length > 0) {
+        const sum = group.income_expense.reduce((acc, li) => acc.add(li.txn_value ?? new Prisma.Decimal(0)), new Prisma.Decimal(0))
+        const nullEntry = group.income_expense.find(li => li.txn_value === null)
+        if (!nullEntry) throw new Error('Income/expense group with no null txn value line item for non-rupees asset')
         nullEntry.txn_value = totals.total_txn_value.sub(sum)
       }
     }

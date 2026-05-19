@@ -3,7 +3,7 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
-import type { account_type, asset_type } from '@/generated/prisma/client'
+import type { accounting_head_type, asset_type } from '@/generated/prisma/client'
 import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher'
 import { invalidate_balances } from './compute_balances'
 import { ActionResult, ok, err, fromError } from './_result'
@@ -12,7 +12,7 @@ const createAccountSchema = z.object({
   name: z.string().trim().min(1, 'name cannot be empty string'),
 })
 
-export async function create_account(name: string, type: account_type, parent_id?: string | null): Promise<ActionResult> {
+export async function create_account(name: string, type: accounting_head_type, parent_id?: string | null): Promise<ActionResult> {
   try {
     const parsed = createAccountSchema.safeParse({ name })
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
@@ -21,7 +21,7 @@ export async function create_account(name: string, type: account_type, parent_id
     const user_id = await get_current_user_id()
     if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
-    await prisma.account.create({
+    await prisma.accounting_head.create({
       data: { name, type, user_id, parent_id },
     })
     await invalidate_balances(user_id)
@@ -39,7 +39,7 @@ const updateAccountSchema = z.object({
 export async function update_account(
   id: string,
   name?: string | undefined,
-  type?: account_type | undefined,
+  type?: accounting_head_type | undefined,
   parent_id?: string | null | undefined,
   is_active?: boolean | undefined,
   is_placeholder?: boolean | undefined,
@@ -53,7 +53,7 @@ export async function update_account(
     const user_id = await get_current_user_id()
     if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
-    const existing = await prisma.account.findUnique({
+    const existing = await prisma.accounting_head.findUnique({
       where: { id, user_id },
     })
     if (!existing) throw new Error('account not found')
@@ -62,13 +62,13 @@ export async function update_account(
     if (parent_id) {
       if (parent_id === id) throw new Error('parent cannot be the account itself')
       // ensure parent exists and belongs to user
-      const p = await prisma.account.findUnique({
+      const p = await prisma.accounting_head.findUnique({
         where: { id: parent_id, user_id },
         select: { id: true, user_id: true, parent_id: true },
       })
       if (!p) throw new Error('invalid parent account')
 
-      const all_accounts = await prisma.account.findMany({
+      const all_accounts = await prisma.accounting_head.findMany({
         where: { user_id },
         select: { id: true, parent_id: true },
       })
@@ -82,7 +82,7 @@ export async function update_account(
       }
     }
 
-    await prisma.account.update({
+    await prisma.accounting_head.update({
       where: { id, user_id },
       data: {
         name,
@@ -112,7 +112,7 @@ export async function delete_account(id: string): Promise<ActionResult> {
     const user_id = await get_current_user_id()
     if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
-    await prisma.account.delete({ where: { id, user_id } })
+    await prisma.accounting_head.delete({ where: { id, user_id } })
     await invalidate_balances(user_id)
     return ok()
   } catch (error) {
@@ -286,8 +286,8 @@ export async function update_hierarchy_order(input: {
     const { scope, parent_id, ordered_ids } = parsed.data
 
     // Verify ownership and that all rows are siblings under the same parent.
-    const model = scope === 'account' ? prisma.account : prisma.asset
-    const rows = await (model as typeof prisma.account).findMany({
+    const model = scope === 'account' ? prisma.accounting_head : prisma.asset
+    const rows = await (model as typeof prisma.accounting_head).findMany({
       where: { id: { in: ordered_ids }, user_id, parent_id },
       select: { id: true },
     })
@@ -300,7 +300,7 @@ export async function update_hierarchy_order(input: {
     await prisma.$transaction(
       ordered_ids.map((id, i) =>
         scope === 'account'
-          ? prisma.account.update({ where: { id }, data: { order_index: i } })
+          ? prisma.accounting_head.update({ where: { id }, data: { order_index: i } })
           : prisma.asset.update({ where: { id }, data: { order_index: i } }),
       ),
     )

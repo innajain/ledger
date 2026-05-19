@@ -2,7 +2,7 @@ import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
-import { account_type, Prisma } from '@/generated/prisma/client'
+import { accounting_head_type, Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { get_or_compute_balances } from '../_actions/compute_balances'
 import { profile } from '@/lib/metrics/profile'
@@ -29,8 +29,8 @@ async function Page() {
 
   const [[allocations, assets], { accountsToAssets: balances }] = await Promise.all([
     prisma.$transaction([
-      prisma.account.findMany({
-        where: { user_id: user.id, type: account_type.allocation },
+      prisma.accounting_head.findMany({
+        where: { user_id: user.id, type: accounting_head_type.allocation },
         include: { parent: true },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       }),

@@ -8,7 +8,7 @@ import { EmptyState } from '../_components/EmptyState'
 import { AllocationEmptyIcon } from '../_components/EmptyStateIcons'
 
 type Props = {
-  allocations: Prisma.accountGetPayload<{ include: { parent: true } }>[]
+  allocations: Prisma.accounting_headGetPayload<{ include: { parent: true } }>[]
   totals: Map<string, number>
   assetQuantities: Map<string, Map<string, number>>
 }

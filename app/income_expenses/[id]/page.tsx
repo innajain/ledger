@@ -21,7 +21,7 @@ async function Page({ params }: Props) {
     )
   }
 
-  const account = await prisma.account.findUnique({
+  const account = await prisma.accounting_head.findUnique({
     where: { id, user_id: user.id },
     include: {
       line_items: { include: { asset: true, transaction: true } },
@@ -29,7 +29,7 @@ async function Page({ params }: Props) {
     },
   })
 
-  if (!account || account.type !== 'nominal') {
+  if (!account || account.type !== 'income_expense') {
     return (
       <div>
         <h1>Nominal Account</h1>

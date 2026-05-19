@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import { create_account, update_account } from '@/app/_actions/resources'
-import type { Prisma, account_type } from '@/generated/prisma/client'
+import type { Prisma, accounting_head_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
 import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert, ToggleSwitch } from '@/app/_components/AccountFormComponents'
 
 type AccountFormConfig = {
-  accountType: account_type
+  accountType: accounting_head_type
   entityName: string // "Account", "Allocation", "Nominal Account"
   basePath: string // "/accounts", "/allocations", "/income_expenses"
   backText: string
@@ -15,9 +15,9 @@ type AccountFormConfig = {
   parentHelpText: string
 }
 
-const ACCOUNT_FORM_CONFIGS: Record<account_type, AccountFormConfig> = {
-  real: {
-    accountType: 'real',
+const ACCOUNT_FORM_CONFIGS: Record<accounting_head_type, AccountFormConfig> = {
+  account: {
+    accountType: 'account',
     entityName: 'Account',
     basePath: '/accounts',
     backText: 'Accounts',
@@ -32,8 +32,8 @@ const ACCOUNT_FORM_CONFIGS: Record<account_type, AccountFormConfig> = {
     parentLabel: 'Parent Allocation (Optional)',
     parentHelpText: 'Select a parent to create a sub-allocation',
   },
-  nominal: {
-    accountType: 'nominal',
+  income_expense: {
+    accountType: 'income_expense',
     entityName: 'Nominal Account',
     basePath: '/income_expenses',
     backText: 'Nominal Accounts',
@@ -42,18 +42,18 @@ const ACCOUNT_FORM_CONFIGS: Record<account_type, AccountFormConfig> = {
   },
 }
 
-export function accountFormConfig(type: account_type): AccountFormConfig {
+export function accountFormConfig(type: accounting_head_type): AccountFormConfig {
   return ACCOUNT_FORM_CONFIGS[type]
 }
 
 type CreateAccountFormProps = {
-  parents: Prisma.accountGetPayload<Record<string, never>>[]
+  parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
   config: AccountFormConfig
 }
 
 type UpdateAccountFormProps = {
-  account: Prisma.accountGetPayload<Record<string, never>>
-  parents: Prisma.accountGetPayload<Record<string, never>>[]
+  account: Prisma.accounting_headGetPayload<Record<string, never>>
+  parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
   config: AccountFormConfig
   deleteAccount?: (id: string) => Promise<ActionResult>
 }

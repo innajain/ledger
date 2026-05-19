@@ -37,14 +37,14 @@ export default function ClientPage({
 
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()))
   const [description, setDescription] = useState('')
-  const defaultReal = pickDefaultAccount(accounts, defaults, 'real')
+  const defaultReal = pickDefaultAccount(accounts, defaults, 'account')
   const defaultAllocation = pickDefaultAccount(accounts, defaults, 'allocation')
-  const defaultNominal = pickDefaultAccount(accounts, defaults, 'nominal')
+  const defaultNominal = pickDefaultAccount(accounts, defaults, 'income_expense')
   const defaultAsset = pickDefaultAsset(assets, defaults)
 
   const [items, setItems] = useState<LineItemData[]>([
     {
-      account_id: defaultReal?.id ?? '',
+      accounting_head_id: defaultReal?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
       txn_value: null,
@@ -52,7 +52,7 @@ export default function ClientPage({
       datetime: '',
     },
     {
-      account_id: defaultNominal?.id ?? '',
+      accounting_head_id: defaultNominal?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
       txn_value: null,
@@ -60,7 +60,7 @@ export default function ClientPage({
       datetime: '',
     },
     {
-      account_id: defaultAllocation?.id ?? '',
+      accounting_head_id: defaultAllocation?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
       txn_value: null,
@@ -86,7 +86,7 @@ export default function ClientPage({
           id?: string
           description?: string
           line_items?: {
-            account_id: string
+            accounting_head_id: string
             asset_id: string
             quantity?: number | null
             txn_value?: number | null
@@ -98,7 +98,7 @@ export default function ClientPage({
         if (parsed.line_items) {
           setItems(
             parsed.line_items.map(li => ({
-              account_id: li.account_id,
+              accounting_head_id: li.accounting_head_id,
               asset_id: li.asset_id,
               quantity: li.quantity == null ? null : String(li.quantity),
               txn_value: li.txn_value == null ? null : String(li.txn_value),
@@ -117,7 +117,7 @@ export default function ClientPage({
     const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
     setItems(prev => [
       {
-        account_id: defaultAcc?.id ?? '',
+        accounting_head_id: defaultAcc?.id ?? '',
         asset_id: defaultAsset?.id ?? assets[0]?.id ?? '',
         quantity: null,
         txn_value: null,
@@ -160,7 +160,7 @@ export default function ClientPage({
     setSavingTemplate(true)
     try {
       const line_items = items.map(it => ({
-        account_id: it.account_id,
+        accounting_head_id: it.accounting_head_id,
         asset_id: it.asset_id,
         quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
         txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),
@@ -184,7 +184,7 @@ export default function ClientPage({
     setSavingTemplate(true)
     try {
       const line_items = items.map(it => ({
-        account_id: it.account_id,
+        accounting_head_id: it.accounting_head_id,
         asset_id: it.asset_id,
         quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
         txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),
@@ -209,7 +209,7 @@ export default function ClientPage({
     setBusy(true)
     try {
       const line_items = items.map(it => ({
-        account_id: it.account_id,
+        accounting_head_id: it.accounting_head_id,
         asset_id: it.asset_id,
         quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
         txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),

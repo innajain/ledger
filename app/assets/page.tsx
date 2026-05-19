@@ -68,7 +68,7 @@ async function Page() {
 
   const asset_ids = assets.map(a => a.id)
   const all_line_items = await prisma.line_item.findMany({
-    where: { asset_id: { in: asset_ids }, account: { type: 'real' } },
+    where: { asset_id: { in: asset_ids }, accounting_head: { type: 'account' } },
     include: { transaction: true },
   })
   const tx_ids = Array.from(new Set(all_line_items.map(li => li.transaction_id)))
@@ -76,7 +76,7 @@ async function Page() {
   if (tx_ids.length > 0) {
     const rawTxns = await prisma.transaction.findMany({
       where: { id: { in: tx_ids } },
-      include: { line_items: { include: { account: true, asset: true } } },
+      include: { line_items: { include: { accounting_head: true, asset: true } } },
     })
     for (const tx of rawTxns.map(normalize_txn)) {
       for (const li of tx.line_items) normalizedById.set(li.id, { txn_value: li.txn_value! })

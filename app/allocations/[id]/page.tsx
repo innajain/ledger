@@ -23,7 +23,7 @@ async function Page({ params }: Props) {
     )
   }
 
-  const allocation = await prisma.account.findUnique({
+  const allocation = await prisma.accounting_head.findUnique({
     where: { id, user_id: user.id, type: 'allocation' },
     include: {
       line_items: { include: { asset: true, transaction: true } },

@@ -43,7 +43,7 @@ export const get_or_compute_balances = cache(async (invalidate_cache = false) =>
 
   const rawTransactions = await prisma.transaction.findMany({
     where: { user_id },
-    include: { line_items: { include: { account: true, asset: true } } },
+    include: { line_items: { include: { accounting_head: true, asset: true } } },
   })
   const transactions = rawTransactions.map(normalize_txn)
 
@@ -52,7 +52,7 @@ export const get_or_compute_balances = cache(async (invalidate_cache = false) =>
 
   for (const tx of transactions) {
     for (const li of tx.line_items) {
-      const acc_id = li.account_id
+      const acc_id = li.accounting_head_id
       const asset_id = li.asset_id
       const qty = li.quantity
       const txn_value = li.txn_value
@@ -68,7 +68,7 @@ export const get_or_compute_balances = cache(async (invalidate_cache = false) =>
         })
       }
 
-      if (li.account.type === 'real') {
+      if (li.accounting_head.type === 'account') {
         if (!assetsToAccounts.has(asset_id)) assetsToAccounts.set(asset_id, new Map())
         const accMap = assetsToAccounts.get(asset_id)!
         if (!accMap.has(acc_id)) accMap.set(acc_id, { qty, txn_value })

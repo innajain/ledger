@@ -16,9 +16,9 @@ export async function InvestXirrBadge({ userId, subtreeAccountIds, currentValue 
   const rawTransactions = await prisma.transaction.findMany({
     where: {
       user_id: userId,
-      line_items: { some: { account_id: { in: subtreeAccountIds } } },
+      line_items: { some: { accounting_head_id: { in: subtreeAccountIds } } },
     },
-    include: { line_items: { include: { account: true, asset: true } } },
+    include: { line_items: { include: { accounting_head: true, asset: true } } },
   })
   if (rawTransactions.length === 0) return null
 
@@ -26,7 +26,7 @@ export async function InvestXirrBadge({ userId, subtreeAccountIds, currentValue 
   const cashflows: { amount: number; when: Date }[] = []
   for (const tx of rawTransactions.map(normalize_txn)) {
     for (const li of tx.line_items) {
-      if (!subtreeIdSet.has(li.account_id)) continue
+      if (!subtreeIdSet.has(li.accounting_head_id)) continue
       cashflows.push({
         amount: -(li.txn_value as Prisma.Decimal).toNumber(),
         when: li.datetime ?? tx.datetime,

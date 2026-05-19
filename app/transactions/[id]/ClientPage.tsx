@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
-import { account_type, asset_type } from '@/generated/prisma/enums'
+import { accounting_head_type, asset_type } from '@/generated/prisma/enums'
 import { delete_transaction } from '@/app/_actions/transactions'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 
@@ -27,9 +27,9 @@ export default function ClientPage({
     attachments: Attachment[]
     line_items: {
       id: string
-      account_id: string
+      accounting_head_id: string
       account_name: string
-      account_type: string
+      accounting_head_type: string
       asset_id: string
       asset_name: string
       asset_type: asset_type
@@ -59,19 +59,19 @@ export default function ClientPage({
 
   // Group line items by account type
   const groups: Record<string, typeof transaction.line_items> = {
-    real: [],
+    account: [],
     allocation: [],
-    nominal: [],
+    income_expense: [],
   }
 
   for (const li of transaction.line_items) {
-    const t = li.account_type ?? 'real'
+    const t = li.accounting_head_type ?? 'account'
     if (!groups[t]) groups[t] = []
     groups[t].push(li)
   }
 
   const accountTypeConfig = {
-    real: {
+    account: {
       title: 'Real Accounts',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +95,7 @@ export default function ClientPage({
       ),
       color: 'orange',
     },
-    nominal: {
+    income_expense: {
       title: 'Nominal Accounts',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -251,7 +251,7 @@ export default function ClientPage({
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line Items</h2>
 
-        {(['real', 'allocation', 'nominal'] as const).map(typeKey => {
+        {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
           const items = groups[typeKey] || []
           if (!items || items.length === 0) return null
 
@@ -281,11 +281,11 @@ export default function ClientPage({
                         <div className="flex items-center gap-2 mb-1">
                           <Link
                             href={
-                              li.account_type === account_type.real
-                                ? `/accounts/${li.account_id}`
-                                : li.account_type === account_type.allocation
-                                  ? `/allocations/${li.account_id}`
-                                  : `/income_expenses/${li.account_id}`
+                              li.accounting_head_type === accounting_head_type.account
+                                ? `/accounts/${li.accounting_head_id}`
+                                : li.accounting_head_type === accounting_head_type.allocation
+                                  ? `/allocations/${li.accounting_head_id}`
+                                  : `/income_expenses/${li.accounting_head_id}`
                             }
                             className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >

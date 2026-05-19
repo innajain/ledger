@@ -14,7 +14,7 @@ async function Page({ params }: Props) {
 
   const tx = await prisma.transaction.findUnique({
     where: { id, user_id: user.id },
-    include: { line_items: { include: { asset: true, account: true } }, attachments: true },
+    include: { line_items: { include: { asset: true, accounting_head: true } }, attachments: true },
   })
   if (!tx) return <div>Transaction not found.</div>
 
@@ -26,9 +26,9 @@ async function Page({ params }: Props) {
     total: tx.line_items.reduce((s, li) => s + (li.txn_value ? Number(li.txn_value.toString()) : 0), 0),
     line_items: tx.line_items.map(li => ({
       id: li.id,
-      account_id: li.account.id,
-      account_name: li.account.name,
-      account_type: li.account.type,
+      accounting_head_id: li.accounting_head.id,
+      account_name: li.accounting_head.name,
+      accounting_head_type: li.accounting_head.type,
       asset_id: li.asset.id,
       asset_name: li.asset.name,
       description: li.description ?? null,
@@ -38,7 +38,7 @@ async function Page({ params }: Props) {
     })),
   }
   const [accounts, assets, defaults] = await Promise.all([
-    prisma.account.findMany({
+    prisma.accounting_head.findMany({
       where: { user_id: user.id, is_active: true, is_placeholder: false },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),

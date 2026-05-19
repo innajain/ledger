@@ -22,7 +22,7 @@ type Props = {
 
 function accountUrl(a: InactiveAccount) {
   if (a.type === 'allocation') return `/allocations/${a.id}`
-  if (a.type === 'nominal') return `/income_expenses/${a.id}`
+  if (a.type === 'income_expense') return `/income_expenses/${a.id}`
   return `/accounts/${a.id}`
 }
 
@@ -54,9 +54,9 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
   const [usernameError, setUsernameError] = useState<string | null>(null)
   const [usernameSuccess, setUsernameSuccess] = useState<string | null>(null)
   // Line-item defaults state
-  const [defaultReal, setDefaultReal] = useState<string>(defaults.default_real_account_id ?? '')
-  const [defaultAllocation, setDefaultAllocation] = useState<string>(defaults.default_allocation_account_id ?? '')
-  const [defaultNominal, setDefaultNominal] = useState<string>(defaults.default_nominal_account_id ?? '')
+  const [defaultReal, setDefaultReal] = useState<string>(defaults.default_account_id ?? '')
+  const [defaultAllocation, setDefaultAllocation] = useState<string>(defaults.default_allocation_id ?? '')
+  const [defaultNominal, setDefaultNominal] = useState<string>(defaults.default_income_expense_id ?? '')
   const [defaultAsset, setDefaultAsset] = useState<string>(defaults.default_asset_id ?? '')
   const [defaultsLoading, setDefaultsLoading] = useState(false)
   const [defaultsError, setDefaultsError] = useState<string | null>(null)
@@ -71,9 +71,9 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
     setMounted(true)
   }, [])
 
-  const realAccounts = accounts.filter(a => a.type === 'real')
+  const realAccounts = accounts.filter(a => a.type === 'account')
   const allocationAccounts = accounts.filter(a => a.type === 'allocation')
-  const nominalAccounts = accounts.filter(a => a.type === 'nominal')
+  const nominalAccounts = accounts.filter(a => a.type === 'income_expense')
 
   async function handleDefaultsSave(e: React.FormEvent) {
     e.preventDefault()
@@ -82,9 +82,9 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
     setDefaultsLoading(true)
     try {
       const result = await update_line_item_defaults({
-        default_real_account_id: defaultReal === '' ? null : defaultReal,
-        default_allocation_account_id: defaultAllocation === '' ? null : defaultAllocation,
-        default_nominal_account_id: defaultNominal === '' ? null : defaultNominal,
+        default_account_id: defaultReal === '' ? null : defaultReal,
+        default_allocation_id: defaultAllocation === '' ? null : defaultAllocation,
+        default_income_expense_id: defaultNominal === '' ? null : defaultNominal,
         default_asset_id: defaultAsset === '' ? null : defaultAsset,
       })
       if (!result.success) throw new Error(result.message)
@@ -601,7 +601,7 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
                   </span>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      a.type === 'real'
+                      a.type === 'account'
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                         : a.type === 'allocation'
                           ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'

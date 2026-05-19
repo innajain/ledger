@@ -24,12 +24,12 @@ type Template = {
   description: string | null
   line_items: {
     id: string
-    account_id: string
+    accounting_head_id: string
     asset_id: string
     description: string | null
     quantity: number | null
     txn_value: number | null
-    account: { name: string; type: string }
+    accounting_head: { name: string; type: string }
     asset: { name: string; type: string }
   }[]
 }

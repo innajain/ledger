@@ -24,7 +24,7 @@ async function Page({ params }: Props) {
     )
   }
 
-  const account = await prisma.account.findUnique({
+  const account = await prisma.accounting_head.findUnique({
     where: { id, user_id: user.id },
     include: {
       line_items: { include: { asset: true, transaction: true } },
@@ -148,10 +148,10 @@ async function Page({ params }: Props) {
 
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
   const value_timeseries =
-    account.type === 'real' && has_priced_asset
+    account.type === 'account' && has_priced_asset
       ? await compute_value_timeseries(
           rawTransactions,
-          { kind: 'account', account_id: account.id },
+          { kind: 'account', accounting_head_id: account.id },
           uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
         )
       : []

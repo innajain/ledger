@@ -15,9 +15,9 @@ import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app
 
 type LineItem = {
   id: string
-  account_id: string
+  accounting_head_id: string
   account_name: string
-  account_type: string
+  accounting_head_type: string
   asset_id: string
   asset_name: string
   quantity: number | null
@@ -66,7 +66,7 @@ export default function ClientPage({
   const [description, setDescription] = useState(transaction.description ?? '')
   const [items, setItems] = useState<LineItemData[]>(
     transaction.line_items.map(li => ({
-      account_id: li.account_id,
+      accounting_head_id: li.accounting_head_id,
       asset_id: li.asset_id,
       quantity: li.quantity === null ? null : String(li.quantity),
       txn_value: li.txn_value == null ? null : String(li.txn_value),
@@ -88,7 +88,7 @@ export default function ClientPage({
     const defaultAsset = pickDefaultAsset(assets, defaults)
     setItems(prev => [
       {
-        account_id: defaultAcc?.id ?? '',
+        accounting_head_id: defaultAcc?.id ?? '',
         asset_id: defaultAsset?.id ?? '',
         quantity: null,
         txn_value: null,
@@ -129,7 +129,7 @@ export default function ClientPage({
     setBusy(true)
     try {
       const line_items = items.map(it => ({
-        account_id: it.account_id,
+        accounting_head_id: it.accounting_head_id,
         asset_id: it.asset_id,
         quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
         txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),

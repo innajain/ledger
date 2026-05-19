@@ -15,7 +15,7 @@ const updateTransactionSchema = z.object({
   line_items: z
     .array(
       z.object({
-        account_id: z.string(),
+        accounting_head_id: z.string(),
         asset_id: z.string(),
         quantity: z.number().optional(),
         txn_value: z.number().nullish(),
@@ -58,13 +58,13 @@ export async function update_transaction(
       })
       if (!existing) throw new Error('Transaction not found or does not belong to your user')
 
-      const account_ids = Array.from(new Set(line_items.map(li => li.account_id)))
+      const accounting_head_ids = Array.from(new Set(line_items.map(li => li.accounting_head_id)))
       const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
 
-      const accounts = await prisma.account.findMany({
-        where: { id: { in: account_ids }, user_id },
+      const accounts = await prisma.accounting_head.findMany({
+        where: { id: { in: accounting_head_ids }, user_id },
       })
-      if (accounts.length !== account_ids.length) throw new Error('One or more accounts not found or do not belong to your user')
+      if (accounts.length !== accounting_head_ids.length) throw new Error('One or more accounts not found or do not belong to your user')
 
       const assets = await prisma.asset.findMany({
         where: { id: { in: asset_ids }, user_id },
@@ -76,7 +76,7 @@ export async function update_transaction(
           quantity: toDecimal(li.quantity),
           txn_value: toDecimal(li.txn_value),
           asset: assets.find(a => a.id === li.asset_id)!,
-          account: accounts.find(a => a.id === li.account_id)!,
+          accounting_head: accounts.find(a => a.id === li.accounting_head_id)!,
         })),
       )
 
@@ -93,7 +93,7 @@ export async function update_transaction(
             create: line_items.map(li => ({
               quantity: toDecimal(li.quantity),
               txn_value: toDecimal(li.txn_value),
-              account_id: li.account_id,
+              accounting_head_id: li.accounting_head_id,
               asset_id: li.asset_id,
               description: li.description,
               datetime: li.datetime,

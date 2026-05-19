@@ -6,7 +6,7 @@ export async function fetch_and_normalize_transactions(line_items: { transaction
   const tx_ids = Array.from(new Set(line_items.map(li => li.transaction_id)))
   const rawTransactions = await prisma.transaction.findMany({
     where: { id: { in: tx_ids } },
-    include: { line_items: { include: { account: true, asset: true } } },
+    include: { line_items: { include: { accounting_head: true, asset: true } } },
   })
   const transactions = rawTransactions.map(normalize_txn)
   const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()

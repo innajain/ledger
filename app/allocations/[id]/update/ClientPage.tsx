@@ -9,8 +9,8 @@ export default function ClientPage({
   parents,
   deleteAccount,
 }: {
-  account: Prisma.accountGetPayload<Record<string, never>>
-  parents: Prisma.accountGetPayload<Record<string, never>>[]
+  account: Prisma.accounting_headGetPayload<Record<string, never>>
+  parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
   deleteAccount?: (id: string) => Promise<ActionResult>
 }) {
   return <UpdateAccountForm account={account} parents={parents} config={accountFormConfig('allocation')} deleteAccount={deleteAccount} />

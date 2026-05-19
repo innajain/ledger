@@ -6,8 +6,8 @@ import { profile } from '@/lib/metrics/profile'
 
 async function Page() {
   const user = await get_current_user()
-  const parents: Prisma.accountGetPayload<Record<string, never>>[] = user
-    ? await prisma.account.findMany({
+  const parents: Prisma.accounting_headGetPayload<Record<string, never>>[] = user
+    ? await prisma.accounting_head.findMany({
         where: { user_id: user.id, type: 'allocation' },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       })

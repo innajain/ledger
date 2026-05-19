@@ -7,16 +7,16 @@ import { ActionResult, ok, err, fromError } from './_result'
 import { revalidatePath } from 'next/cache'
 
 export type LineItemDefaults = {
-  default_real_account_id: string | null
-  default_allocation_account_id: string | null
-  default_nominal_account_id: string | null
+  default_account_id: string | null
+  default_allocation_id: string | null
+  default_income_expense_id: string | null
   default_asset_id: string | null
 }
 
 const updateSchema = z.object({
-  default_real_account_id: z.string().min(1).nullable(),
-  default_allocation_account_id: z.string().min(1).nullable(),
-  default_nominal_account_id: z.string().min(1).nullable(),
+  default_account_id: z.string().min(1).nullable(),
+  default_allocation_id: z.string().min(1).nullable(),
+  default_income_expense_id: z.string().min(1).nullable(),
   default_asset_id: z.string().min(1).nullable(),
 })
 
@@ -24,26 +24,26 @@ export async function get_line_item_defaults(): Promise<LineItemDefaults> {
   const user_id = await get_current_user_id()
   if (!user_id) {
     return {
-      default_real_account_id: null,
-      default_allocation_account_id: null,
-      default_nominal_account_id: null,
+      default_account_id: null,
+      default_allocation_id: null,
+      default_income_expense_id: null,
       default_asset_id: null,
     }
   }
   const u = await prisma.user.findUnique({
     where: { id: user_id },
     select: {
-      default_real_account_id: true,
-      default_allocation_account_id: true,
-      default_nominal_account_id: true,
+      default_account_id: true,
+      default_allocation_id: true,
+      default_income_expense_id: true,
       default_asset_id: true,
     },
   })
   return (
     u ?? {
-      default_real_account_id: null,
-      default_allocation_account_id: null,
-      default_nominal_account_id: null,
+      default_account_id: null,
+      default_allocation_id: null,
+      default_income_expense_id: null,
       default_asset_id: null,
     }
   )
@@ -56,14 +56,14 @@ export async function update_line_item_defaults(input: LineItemDefaults): Promis
 
     const parsed = updateSchema.parse(input)
 
-    // Validate ownership and account_type for the chosen IDs.
+    // Validate ownership and accounting_head_type for the chosen IDs.
     const accountIds = [
-      { id: parsed.default_real_account_id, type: 'real' as const, label: 'real' },
-      { id: parsed.default_allocation_account_id, type: 'allocation' as const, label: 'allocation' },
-      { id: parsed.default_nominal_account_id, type: 'nominal' as const, label: 'nominal' },
+      { id: parsed.default_account_id, type: 'account' as const, label: 'account' },
+      { id: parsed.default_allocation_id, type: 'allocation' as const, label: 'allocation' },
+      { id: parsed.default_income_expense_id, type: 'income_expense' as const, label: 'income_expense' },
     ].filter(x => x.id)
     if (accountIds.length > 0) {
-      const found = await prisma.account.findMany({
+      const found = await prisma.accounting_head.findMany({
         where: { id: { in: accountIds.map(x => x.id!) }, user_id },
         select: { id: true, type: true },
       })
@@ -86,9 +86,9 @@ export async function update_line_item_defaults(input: LineItemDefaults): Promis
       where: { id: user_id },
       data: parsed,
       select: {
-        default_real_account_id: true,
-        default_allocation_account_id: true,
-        default_nominal_account_id: true,
+        default_account_id: true,
+        default_allocation_id: true,
+        default_income_expense_id: true,
         default_asset_id: true,
       },
     })

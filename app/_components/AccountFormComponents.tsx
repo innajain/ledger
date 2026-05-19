@@ -1,6 +1,6 @@
 // components/AccountFormComponents.tsx
 import Link from 'next/link'
-import type { account_type, Prisma } from '@/generated/prisma/client'
+import type { accounting_head_type, Prisma } from '@/generated/prisma/client'
 import { Card } from './Card'
 
 // Page Header with Back Navigation
@@ -72,27 +72,27 @@ export function TextInput({ label, value, onChange, placeholder, required }: Tex
 // Account Type Select
 interface AccountTypeSelectProps {
   label: string
-  value: account_type
-  onChange: (value: account_type) => void
+  value: accounting_head_type
+  onChange: (value: accounting_head_type) => void
   disabled?: boolean
-  restrictedTo?: account_type[]
+  restrictedTo?: accounting_head_type[]
 }
 
 export function AccountTypeSelect({ label, value, onChange, disabled, restrictedTo }: AccountTypeSelectProps) {
-  const allowedTypes = restrictedTo || ['real', 'allocation', 'nominal']
+  const allowedTypes = restrictedTo || ['account', 'allocation', 'income_expense']
 
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
       <select
         value={value}
-        onChange={e => onChange(e.target.value as account_type)}
+        onChange={e => onChange(e.target.value as accounting_head_type)}
         disabled={disabled}
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {allowedTypes.includes('real') && <option value="real">Real</option>}
+        {allowedTypes.includes('account') && <option value="account">Real</option>}
         {allowedTypes.includes('allocation') && <option value="allocation">Allocation</option>}
-        {allowedTypes.includes('nominal') && <option value="nominal">Nominal</option>}
+        {allowedTypes.includes('income_expense') && <option value="income_expense">Nominal</option>}
       </select>
     </div>
   )
@@ -103,7 +103,7 @@ interface ParentSelectProps {
   label: string
   value: string | null
   onChange: (value: string | null) => void
-  parents: Prisma.accountGetPayload<Record<string, never>>[]
+  parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
   excludeId?: string
   helpText?: string
 }

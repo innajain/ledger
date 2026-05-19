@@ -16,10 +16,10 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       </div>
     )
   }
-  const account = await prisma.account.findUnique({
+  const account = await prisma.accounting_head.findUnique({
     where: { id, user_id: user.id },
   })
-  if (!account || account.type !== 'nominal') {
+  if (!account || account.type !== 'income_expense') {
     return (
       <div>
         <h1>Update Nominal Account</h1>
@@ -28,14 +28,14 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     )
   }
 
-  const parents: Prisma.accountGetPayload<Record<string, never>>[] = user
-    ? await prisma.account.findMany({
-        where: { user_id: user.id, type: 'nominal' },
+  const parents: Prisma.accounting_headGetPayload<Record<string, never>>[] = user
+    ? await prisma.accounting_head.findMany({
+        where: { user_id: user.id, type: 'income_expense' },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       })
     : []
 
-  return <ClientPage account={account as Prisma.accountGetPayload<Record<string, never>>} parents={parents} deleteAccount={delete_account} />
+  return <ClientPage account={account as Prisma.accounting_headGetPayload<Record<string, never>>} parents={parents} deleteAccount={delete_account} />
 }
 
 export default profile('/income_expenses/[id]/update', Page)

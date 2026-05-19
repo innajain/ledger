@@ -42,31 +42,31 @@ function makeDate(year: number, month: number, day: number, hour = 12, minute = 
 
 // ---------- account & asset definitions ----------
 
-type AccountSpec = { type: 'real' | 'nominal' | 'allocation'; name: string; parent?: string; is_placeholder?: boolean }
+type AccountSpec = { type: 'account' | 'income_expense' | 'allocation'; name: string; parent?: string; is_placeholder?: boolean }
 
 const ACCOUNTS: AccountSpec[] = [
   // --- Real ---
-  { type: 'real', name: 'Bank', is_placeholder: true },
-  { type: 'real', name: 'HDFC Salary', parent: 'Bank' },
-  { type: 'real', name: 'SBI Savings', parent: 'Bank' },
-  { type: 'real', name: 'Wallet' },
-  { type: 'real', name: 'Credit Cards', is_placeholder: true },
-  { type: 'real', name: 'Axis Card', parent: 'Credit Cards' },
-  { type: 'real', name: 'Demat', is_placeholder: true },
-  { type: 'real', name: 'MF Holdings', parent: 'Demat' },
-  { type: 'real', name: 'ETF Holdings', parent: 'Demat' },
-  { type: 'real', name: 'Friends', is_placeholder: true },
-  { type: 'real', name: 'Rohan', parent: 'Friends' },
-  { type: 'real', name: 'Priya', parent: 'Friends' },
+  { type: 'account', name: 'Bank', is_placeholder: true },
+  { type: 'account', name: 'HDFC Salary', parent: 'Bank' },
+  { type: 'account', name: 'SBI Savings', parent: 'Bank' },
+  { type: 'account', name: 'Wallet' },
+  { type: 'account', name: 'Credit Cards', is_placeholder: true },
+  { type: 'account', name: 'Axis Card', parent: 'Credit Cards' },
+  { type: 'account', name: 'Demat', is_placeholder: true },
+  { type: 'account', name: 'MF Holdings', parent: 'Demat' },
+  { type: 'account', name: 'ETF Holdings', parent: 'Demat' },
+  { type: 'account', name: 'Friends', is_placeholder: true },
+  { type: 'account', name: 'Rohan', parent: 'Friends' },
+  { type: 'account', name: 'Priya', parent: 'Friends' },
 
   // --- Nominal ---
-  { type: 'nominal', name: 'Income', is_placeholder: true },
-  { type: 'nominal', name: 'Salary', parent: 'Income' },
-  { type: 'nominal', name: 'Cashbacks', parent: 'Income' },
-  { type: 'nominal', name: 'Interest', parent: 'Income' },
-  { type: 'nominal', name: 'Expenses' },
-  { type: 'nominal', name: 'Opening Balance' },
-  { type: 'nominal', name: 'Trading Account' },
+  { type: 'income_expense', name: 'Income', is_placeholder: true },
+  { type: 'income_expense', name: 'Salary', parent: 'Income' },
+  { type: 'income_expense', name: 'Cashbacks', parent: 'Income' },
+  { type: 'income_expense', name: 'Interest', parent: 'Income' },
+  { type: 'income_expense', name: 'Expenses' },
+  { type: 'income_expense', name: 'Opening Balance' },
+  { type: 'income_expense', name: 'Trading Account' },
 
   // --- Allocation ---
   { type: 'allocation', name: 'Monthly Expenses', is_placeholder: true },
@@ -327,7 +327,7 @@ async function main() {
     console.log(`Deleting existing demo user ${existing.id}...`)
     await prisma.transaction.deleteMany({ where: { user_id: existing.id } })
     await prisma.transaction_template.deleteMany({ where: { user_id: existing.id } })
-    await prisma.account.deleteMany({ where: { user_id: existing.id } })
+    await prisma.accounting_head.deleteMany({ where: { user_id: existing.id } })
     await prisma.asset.deleteMany({ where: { user_id: existing.id } })
     await prisma.user.delete({ where: { id: existing.id } })
   }
@@ -340,13 +340,13 @@ async function main() {
   // 3. Create accounts (two passes: parents first, then children)
   const accIdByName = new Map<string, string>()
   for (const a of ACCOUNTS.filter(a => !a.parent)) {
-    const row = await prisma.account.create({
+    const row = await prisma.accounting_head.create({
       data: { user_id: user.id, name: a.name, type: a.type, is_placeholder: a.is_placeholder ?? false, order_index: accIdByName.size },
     })
     accIdByName.set(a.name, row.id)
   }
   for (const a of ACCOUNTS.filter(a => a.parent)) {
-    const row = await prisma.account.create({
+    const row = await prisma.accounting_head.create({
       data: {
         user_id: user.id,
         name: a.name,
@@ -381,7 +381,7 @@ async function main() {
         description: t.description ?? null,
         line_items: {
           create: t.lines.map(li => ({
-            account_id: accIdByName.get(li.account)!,
+            accounting_head_id: accIdByName.get(li.account)!,
             asset_id: assetIdByName.get(li.asset ?? 'Money')!,
             quantity: li.quantity,
             txn_value: li.txn_value ?? null,

@@ -17,7 +17,7 @@ async function SettingsPage() {
   }
 
   const [accounts, assets, defaults, inactiveAccounts, inactiveAssets] = await Promise.all([
-    prisma.account.findMany({
+    prisma.accounting_head.findMany({
       where: { user_id: user.id, is_active: true },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true, type: true },
@@ -28,7 +28,7 @@ async function SettingsPage() {
       select: { id: true, name: true },
     }),
     get_line_item_defaults(),
-    prisma.account.findMany({
+    prisma.accounting_head.findMany({
       where: { user_id: user.id, is_active: false },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true, type: true, is_placeholder: true },

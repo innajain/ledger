@@ -71,7 +71,7 @@ async function Page({
 
   // Fetch accounts and assets for filter dropdowns
   const [accounts, assets, templates] = await Promise.all([
-    prisma.account.findMany({
+    prisma.accounting_head.findMany({
       where: { user_id: user.id },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
@@ -87,18 +87,18 @@ async function Page({
     description: t.description,
     line_items: t.line_items.map(li => ({
       id: li.id,
-      account_id: li.account_id,
+      accounting_head_id: li.accounting_head_id,
       asset_id: li.asset_id,
       description: li.description,
       quantity: li.quantity ? Number(li.quantity) : null,
       txn_value: li.txn_value ? Number(li.txn_value) : null,
-      account: li.account,
+      accounting_head: li.accounting_head,
       asset: li.asset,
     })),
   }))
 
   const lineItemFilters: Prisma.transactionWhereInput[] = []
-  if (accountId) lineItemFilters.push({ line_items: { some: { account_id: accountId } } })
+  if (accountId) lineItemFilters.push({ line_items: { some: { accounting_head_id: accountId } } })
   if (assetId) lineItemFilters.push({ line_items: { some: { asset_id: assetId } } })
 
   const where: Prisma.transactionWhereInput = {
@@ -139,13 +139,13 @@ async function Page({
 
   const baseQuery = {
     where,
-    include: { line_items: { include: { asset: true, account: true } } },
+    include: { line_items: { include: { asset: true, accounting_head: true } } },
     orderBy: { datetime: 'desc' as const },
   }
 
-  const txTotal = (t: { line_items: { account: { type: string }; txn_value: Prisma.Decimal | null }[] }) =>
+  const txTotal = (t: { line_items: { accounting_head: { type: string }; txn_value: Prisma.Decimal | null }[] }) =>
     t.line_items
-      .filter(li => li.account.type === 'real')
+      .filter(li => li.accounting_head.type === 'account')
       .reduce((s, li) => s.add(li.txn_value!), new Prisma.Decimal(0))
       .toNumber()
 

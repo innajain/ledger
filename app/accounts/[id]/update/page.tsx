@@ -16,8 +16,8 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       </div>
     )
   }
-  const account = await prisma.account.findUnique({
-    where: { id, user_id: user.id, type: 'real' },
+  const account = await prisma.accounting_head.findUnique({
+    where: { id, user_id: user.id, type: 'account' },
   })
   if (!account) {
     return (
@@ -28,14 +28,14 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     )
   }
 
-  const parents: Prisma.accountGetPayload<Record<string, never>>[] = user
-    ? await prisma.account.findMany({
-        where: { user_id: user.id, type: 'real' },
+  const parents: Prisma.accounting_headGetPayload<Record<string, never>>[] = user
+    ? await prisma.accounting_head.findMany({
+        where: { user_id: user.id, type: 'account' },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       })
     : []
 
-  return <ClientPage account={account as Prisma.accountGetPayload<Record<string, never>>} parents={parents} deleteAccount={delete_account} />
+  return <ClientPage account={account as Prisma.accounting_headGetPayload<Record<string, never>>} parents={parents} deleteAccount={delete_account} />
 }
 
 export default profile('/accounts/[id]/update', Page)

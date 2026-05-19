@@ -15,7 +15,7 @@ async function Home() {
   }
 
   const [allocations, assets, { accountsToAssets: balances }] = await Promise.all([
-    prisma.account.findMany({ where: { user_id: user.id, type: 'allocation' } }),
+    prisma.accounting_head.findMany({ where: { user_id: user.id, type: 'allocation' } }),
     prisma.asset.findMany({ where: { user_id: user.id } }),
     get_or_compute_balances(),
   ])
@@ -33,7 +33,7 @@ async function Home() {
     childrenByParent.set(acc.parent_id, children)
   }
 
-  function get_subtree_account_ids(root: (typeof allocations)[0] | undefined) {
+  function get_subtree_accounting_head_ids(root: (typeof allocations)[0] | undefined) {
     if (!root) return new Set<string>()
     const ids = new Set<string>([root.id])
     const stack = [root.id]
@@ -73,7 +73,7 @@ async function Home() {
 
   function compute_subtree_total(root: (typeof allocations)[0] | undefined) {
     if (!root) return null
-    const subtree_ids = get_subtree_account_ids(root)
+    const subtree_ids = get_subtree_accounting_head_ids(root)
     let total = new Prisma.Decimal(0)
     for (const id of subtree_ids) {
       total = total.add(allocation_value_by_id.get(id) ?? new Prisma.Decimal(0))
@@ -89,7 +89,7 @@ async function Home() {
   // Investments XIRR is streamed in via Suspense so the rest of the dashboard
   // paints immediately — the XIRR query touches every transaction in the
   // Investments subtree, which can be slow for heavy users.
-  const investSubtreeIds = invest ? Array.from(get_subtree_account_ids(invest)) : []
+  const investSubtreeIds = invest ? Array.from(get_subtree_accounting_head_ids(invest)) : []
   const investXirrSlot =
     invest && invest_with_value && invest_with_value.total !== 0 ? (
       <Suspense fallback={<InvestXirrBadgeFallback />}>

@@ -18,30 +18,30 @@ model user {
   // transaction create/update pages. Plain ID columns (no Prisma
   // relation/FK) — ownership is validated in the server action and a
   // dangling reference falls back to the type-based default at render.
-  default_real_account_id       String?
-  default_allocation_account_id String?
-  default_nominal_account_id    String?
-  default_asset_id              String?
+  default_account_id        String?
+  default_allocation_id     String?
+  default_income_expense_id String?
+  default_asset_id          String?
 
-  accounts              account[]
+  accounting_heads      accounting_head[]
   assets                asset[]
   transactions          transaction[]
   transaction_templates transaction_template[]
 }
 
-model account {
-  id             String       @id @default(cuid())
+model accounting_head {
+  id             String               @id @default(cuid())
   user_id        String
   name           String
-  type           account_type
-  is_active      Boolean      @default(true)
-  is_placeholder Boolean      @default(false)
+  type           accounting_head_type
+  is_active      Boolean              @default(true)
+  is_placeholder Boolean              @default(false)
   order_index    Int?
 
   // --- Hierarchy Implementation ---
   parent_id String?
-  parent    account?  @relation("AccountHierarchy", fields: [parent_id], references: [id])
-  children  account[] @relation("AccountHierarchy")
+  parent    accounting_head?  @relation("AccountingHeadHierarchy", fields: [parent_id], references: [id])
+  children  accounting_head[] @relation("AccountingHeadHierarchy")
   // --------------------------------
 
   user           user                 @relation(fields: [user_id], references: [id])
@@ -99,8 +99,8 @@ model line_item_template {
   transaction_template_id String
   transaction_template    transaction_template @relation(fields: [transaction_template_id], references: [id], onDelete: Cascade)
 
-  account_id String
-  account    account @relation(fields: [account_id], references: [id])
+  accounting_head_id String
+  accounting_head    accounting_head @relation(fields: [accounting_head_id], references: [id])
 
   asset_id String
   asset    asset  @relation(fields: [asset_id], references: [id])
@@ -109,7 +109,7 @@ model line_item_template {
   txn_value Decimal? @db.Decimal(14, 4)
 
   @@index([transaction_template_id])
-  @@index([account_id])
+  @@index([accounting_head_id])
   @@index([asset_id])
 }
 
@@ -149,8 +149,8 @@ model line_item {
   transaction_id String
   transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
 
-  account_id String
-  account    account @relation(fields: [account_id], references: [id])
+  accounting_head_id String
+  accounting_head    accounting_head @relation(fields: [accounting_head_id], references: [id])
 
   asset_id String
   asset    asset  @relation(fields: [asset_id], references: [id])
@@ -159,13 +159,13 @@ model line_item {
   txn_value Decimal? @db.Decimal(14, 4)
 
   @@index([transaction_id])
-  @@index([account_id])
+  @@index([accounting_head_id])
   @@index([asset_id])
 }
 
-enum account_type {
-  real
-  nominal
+enum accounting_head_type {
+  account
+  income_expense
   allocation
 }
 

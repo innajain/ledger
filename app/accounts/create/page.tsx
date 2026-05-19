@@ -6,9 +6,9 @@ import { profile } from '@/lib/metrics/profile'
 
 async function Page() {
   const user = await get_current_user()
-  const parents: Prisma.accountGetPayload<Record<string, never>>[] = user
-    ? await prisma.account.findMany({
-        where: { user_id: user.id, type: 'real' },
+  const parents: Prisma.accounting_headGetPayload<Record<string, never>>[] = user
+    ? await prisma.accounting_head.findMany({
+        where: { user_id: user.id, type: 'account' },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       })
     : []

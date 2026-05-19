@@ -11,7 +11,7 @@ type TableQueryFn = (sql: NeonQueryFunction<false, false>) => Promise<Record<str
 
 const TABLE_QUERIES: Record<string, TableQueryFn> = {
   user: sql => sql`SELECT * FROM "user"`,
-  account: sql => sql`SELECT * FROM "account"`,
+  accounting_head: sql => sql`SELECT * FROM "accounting_head"`,
   asset: sql => sql`SELECT * FROM "asset"`,
   transaction: sql => sql`SELECT * FROM "transaction"`,
   line_item: sql => sql`SELECT * FROM "line_item"`,

@@ -2,7 +2,7 @@ import { Prisma } from '@/generated/prisma/client'
 
 export type FifoEntry = {
   id: string
-  group_key: string // e.g. account_id or asset_id — lots are tracked independently per group
+  group_key: string // e.g. accounting_head_id or asset_id — lots are tracked independently per group
   qty: Prisma.Decimal
   date: Date
 }

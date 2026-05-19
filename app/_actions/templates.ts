@@ -36,7 +36,7 @@ export async function create_transaction_template(
         description,
         line_items: {
           create: line_items.map(li => ({
-            account_id: li.account_id,
+            accounting_head_id: li.accounting_head_id,
             asset_id: li.asset_id,
             quantity: toDecimal(li.quantity),
             txn_value: toDecimal(li.txn_value),
@@ -64,7 +64,7 @@ export async function get_transaction_templates() {
     include: {
       line_items: {
         include: {
-          account: { select: { name: true, type: true } },
+          accounting_head: { select: { name: true, type: true } },
           asset: { select: { name: true, type: true } },
         },
       },
@@ -98,7 +98,7 @@ export async function update_transaction_template(
         line_items: {
           deleteMany: {}, // Cascade deletes existing items
           create: line_items.map(li => ({
-            account_id: li.account_id,
+            accounting_head_id: li.accounting_head_id,
             asset_id: li.asset_id,
             quantity: toDecimal(li.quantity),
             txn_value: toDecimal(li.txn_value),

@@ -4,7 +4,7 @@ import React from 'react'
 import { asset_type } from '@/generated/prisma/enums'
 
 export type LineItemData = {
-  account_id: string
+  accounting_head_id: string
   asset_id: string
   quantity: string | null
   txn_value: string | null
@@ -18,7 +18,7 @@ type Asset = { id: string; name: string; type: asset_type }
 type ItemGroup = { item: LineItemData; idx: number }
 
 const accountTypeConfig = {
-  real: {
+  account: {
     title: 'Real Accounts',
     color: 'green',
   },
@@ -26,7 +26,7 @@ const accountTypeConfig = {
     title: 'Allocation Accounts',
     color: 'orange',
   },
-  nominal: {
+  income_expense: {
     title: 'Nominal Accounts',
     color: 'purple',
   },
@@ -50,14 +50,14 @@ type TransactionLineItemsProps = {
 export function TransactionLineItems({ items, accounts, assets, onAddItem, onRemoveItem, onUpdateItem }: TransactionLineItemsProps) {
   // Group items by account type
   const groups: Record<string, ItemGroup[]> = {
-    real: [],
+    account: [],
     allocation: [],
-    nominal: [],
+    income_expense: [],
   }
   for (let idx = 0; idx < items.length; idx++) {
     const it = items[idx]
-    const acc = accounts.find(a => a.id === it.account_id)
-    const t = acc?.type ?? 'real'
+    const acc = accounts.find(a => a.id === it.accounting_head_id)
+    const t = acc?.type ?? 'account'
     groups[t] = groups[t] || []
     groups[t].push({ item: it, idx })
   }
@@ -68,7 +68,7 @@ export function TransactionLineItems({ items, accounts, assets, onAddItem, onRem
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line Items</h2>
       </div>
 
-      {(['real', 'allocation', 'nominal'] as const).map(typeKey => {
+      {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
         const list = groups[typeKey] || []
         const config = accountTypeConfig[typeKey]
 
@@ -139,8 +139,8 @@ function LineItemCard({ item, idx, typeKey, accounts, assets, asset, onUpdateIte
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Account</label>
           <select
-            value={item.account_id}
-            onChange={e => onUpdateItem(idx, 'account_id', e.target.value)}
+            value={item.accounting_head_id}
+            onChange={e => onUpdateItem(idx, 'accounting_head_id', e.target.value)}
             className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
           >
             {accounts

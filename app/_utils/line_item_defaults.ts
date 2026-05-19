@@ -3,12 +3,12 @@ import type { LineItemDefaults } from '@/app/_actions/preferences'
 type AccountLite = { id: string; name: string; type: string }
 type AssetLite = { id: string; name: string }
 
-export type AccountTypeKey = 'real' | 'allocation' | 'nominal'
+export type AccountTypeKey = 'account' | 'allocation' | 'income_expense'
 
 function preferredAccountId(defaults: LineItemDefaults, typeKey: AccountTypeKey): string | null {
-  if (typeKey === 'real') return defaults.default_real_account_id
-  if (typeKey === 'allocation') return defaults.default_allocation_account_id
-  return defaults.default_nominal_account_id
+  if (typeKey === 'account') return defaults.default_account_id
+  if (typeKey === 'allocation') return defaults.default_allocation_id
+  return defaults.default_income_expense_id
 }
 
 export function pickDefaultAccount<A extends AccountLite>(accounts: A[], defaults: LineItemDefaults, typeKey: AccountTypeKey): A | undefined {
