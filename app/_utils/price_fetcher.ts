@@ -1,3 +1,4 @@
+import 'server-only'
 import yahooFinance from 'yahoo-finance2'
 import { parse } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
