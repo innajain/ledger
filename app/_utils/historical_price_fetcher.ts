@@ -1,3 +1,4 @@
+import 'server-only'
 import yahooFinance from 'yahoo-finance2'
 import { formatInTimeZone } from 'date-fns-tz'
 import { redis } from '@/lib/redis'
@@ -164,25 +165,15 @@ async function get_full_etf_history(symbol: string, from: Date): Promise<Map<str
  */
 export type PriceLookup = (date: Date) => number | null
 
-export async function get_price_lookup_for_asset(type: asset_type, ticker: string | null, earliestDate: Date): Promise<PriceLookup> {
-  if (type === asset_type.rupees) return () => 1
-  if (!ticker) return () => null
-
-  let history: Map<string, number> | null = null
-  if (type === 'mf') {
-    history = await get_full_nav_history(ticker)
-  } else if (type === 'etf' || type === 'shares') {
-    history = await get_full_etf_history(ticker, earliestDate)
-  }
+function build_lookup_from_history(history: Map<string, number> | null): PriceLookup {
   if (!history || history.size === 0) return () => null
-
   // Build a sorted array of [dateKey, price] for fallback (last-known) lookups.
   const sortedKeys = Array.from(history.keys()).sort()
-  const prices = sortedKeys.map(k => history!.get(k)!)
+  const prices = sortedKeys.map(k => history.get(k)!)
 
   return (date: Date): number | null => {
     const dateKey = ist_date_key(date)
-    const exact = history!.get(dateKey)
+    const exact = history.get(dateKey)
     if (exact !== undefined) return exact
     // Binary search for the largest key ≤ dateKey.
     let lo = 0
@@ -201,9 +192,23 @@ export async function get_price_lookup_for_asset(type: asset_type, ticker: strin
   }
 }
 
+export async function get_price_lookup_for_asset(type: asset_type, ticker: string | null, earliestDate: Date): Promise<PriceLookup> {
+  if (type === asset_type.rupees) return () => 1
+  if (!ticker) return () => null
+
+  let history: Map<string, number> | null = null
+  if (type === 'mf') {
+    history = await get_full_nav_history(ticker)
+  } else if (type === 'etf' || type === 'shares') {
+    history = await get_full_etf_history(ticker, earliestDate)
+  }
+  return build_lookup_from_history(history)
+}
+
 /**
  * Batch convenience: build price lookups for many assets at once.
- * Dedups by (type, ticker).
+ * Dedups by (type, ticker) and uses a single MGET for the history blobs so
+ * an N-asset call costs one Redis round-trip on the happy path instead of N.
  */
 export async function get_price_lookups_for_assets(
   assets: { id: string; type: asset_type; ticker: string | null }[],
@@ -215,16 +220,66 @@ export async function get_price_lookups_for_assets(
     if (!uniqueKeys.has(key)) uniqueKeys.set(key, { type: a.type, ticker: a.ticker })
   }
 
-  const fetched = new Map<string, PriceLookup>()
-  await Promise.all(
-    Array.from(uniqueKeys.entries()).map(async ([key, { type, ticker }]) => {
-      fetched.set(key, await get_price_lookup_for_asset(type, ticker, earliestDate))
-    }),
-  )
+  const lookups = new Map<string, PriceLookup>()
+  type Cacheable = { dedupKey: string; type: asset_type; ticker: string; redisKey: string }
+  const cacheable: Cacheable[] = []
+
+  for (const [dedupKey, { type, ticker }] of uniqueKeys) {
+    if (type === asset_type.rupees) {
+      lookups.set(dedupKey, () => 1)
+    } else if (!ticker) {
+      lookups.set(dedupKey, () => null)
+    } else if (type === 'mf') {
+      cacheable.push({ dedupKey, type, ticker, redisKey: `price:nav_history:${ticker}` })
+    } else if (type === 'etf' || type === 'shares') {
+      cacheable.push({ dedupKey, type, ticker, redisKey: `price:etf_history:${ticker}:${ist_date_key(earliestDate)}` })
+    } else {
+      lookups.set(dedupKey, () => null)
+    }
+  }
+
+  if (cacheable.length > 0) {
+    let values: (string | null)[] = []
+    try {
+      values = await redis.mget(...cacheable.map(c => c.redisKey))
+    } catch (err) {
+      logger.error({ err }, 'redis.mget failed in get_price_lookups_for_assets; falling back per-key')
+      values = cacheable.map(() => null)
+    }
+
+    const misses: Cacheable[] = []
+    for (let i = 0; i < cacheable.length; i++) {
+      const c = cacheable[i]
+      const raw = values[i]
+      if (raw === null) {
+        misses.push(c)
+        continue
+      }
+      if (raw === 'null') {
+        // Cached "no data" sentinel (written by get_full_nav_history for unknown ISINs).
+        lookups.set(c.dedupKey, () => null)
+        continue
+      }
+      try {
+        const obj = JSON.parse(raw) as Record<string, number>
+        lookups.set(c.dedupKey, build_lookup_from_history(new Map(Object.entries(obj))))
+      } catch (err) {
+        logger.error({ err, redisKey: c.redisKey }, 'Failed to parse cached history; refetching')
+        misses.push(c)
+      }
+    }
+
+    // Misses fall through to the per-asset path, which repopulates the cache.
+    await Promise.all(
+      misses.map(async c => {
+        lookups.set(c.dedupKey, await get_price_lookup_for_asset(c.type, c.ticker, earliestDate))
+      }),
+    )
+  }
 
   const byAssetId = new Map<string, PriceLookup>()
   for (const a of assets) {
-    byAssetId.set(a.id, fetched.get(`${a.type}|${a.ticker ?? ''}`)!)
+    byAssetId.set(a.id, lookups.get(`${a.type}|${a.ticker ?? ''}`)!)
   }
   return byAssetId
 }

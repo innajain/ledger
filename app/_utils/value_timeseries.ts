@@ -1,3 +1,4 @@
+import 'server-only'
 import { Prisma, asset_type } from '@/generated/prisma/client'
 import { addDays, parseISO } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
@@ -10,7 +11,7 @@ import { get_price_lookups_for_assets, ist_date_key, type PriceLookup } from './
 import { calculate_xirr } from './xirr_calculator'
 
 const VERSION_KEY = (user_id: string) => `timeseries_version:${user_id}`
-const FROZEN_KEY = (user_id: string, version: number, kind: string, id: string) => `timeseries_frozen:${user_id}:v${version}:${kind}:${id}`
+const FROZEN_KEY = (user_id: string, kind: string, id: string) => `timeseries_frozen:${user_id}:${kind}:${id}`
 
 export async function invalidate_timeseries(user_id: string): Promise<void> {
   await redis.incr(VERSION_KEY(user_id))
@@ -248,16 +249,19 @@ async function compute_value_timeseries_uncached(
   return points
 }
 
-type FrozenCache = { upToDate: string; points: ValuePoint[] }
+type FrozenCache = { version: number; upToDate: string; points: ValuePoint[] }
 
 /**
  * Indefinite-cache wrapper. Strategy:
  *   - Frozen historical points (everything before today) are stored in Redis
- *     with no TTL. Past days are immutable given the cashflows, so they only
- *     need to be recomputed when transactions change (handled by version bump).
- *   - Today's point is recomputed each call (cheap: walks events once and
- *     calls XIRR exactly once). The chart's caller then overrides this with
- *     live values from the InfoCard, so true freshness is preserved.
+ *     at a stable (version-less) key, with the current user version embedded
+ *     in the cached value. A version bump on mutation causes the embedded
+ *     `version` to mismatch on the next read, forcing a recompute. This lets
+ *     us fetch the version *and* the cache in a single MGET instead of two
+ *     sequential GETs (the old per-version key required knowing the version
+ *     first).
+ *   - Today's point is recomputed each call (cheap). The chart's caller then
+ *     overrides this with live values from the InfoCard.
  *   - On a stale cache (user skipped days), discard and recompute fully.
  */
 export async function compute_value_timeseries(
@@ -269,22 +273,21 @@ export async function compute_value_timeseries(
   if (!user_id) return compute_value_timeseries_uncached(transactions, filter, assets, 'all')
 
   try {
-    const versionRaw = await redis.get(VERSION_KEY(user_id))
+    const cacheKey = FROZEN_KEY(user_id, filter.kind, entity_id_for_filter(filter))
+    const [versionRaw, cachedRaw] = await redis.mget(VERSION_KEY(user_id), cacheKey)
     const version = versionRaw ? parseInt(versionRaw, 10) : 0
-    const cacheKey = FROZEN_KEY(user_id, version, filter.kind, entity_id_for_filter(filter))
 
     const todayKey = ist_date_key(new Date())
     const yesterdayKey = ist_date_key(fromZonedTime(addDays(parseISO(todayKey), -1), USER_TIMEZONE))
 
-    const cachedRaw = await redis.get(cacheKey)
     if (cachedRaw) {
       const cached = JSON.parse(cachedRaw) as FrozenCache
-      if (cached.upToDate === yesterdayKey) {
+      if (cached.version === version && cached.upToDate === yesterdayKey) {
         // Hot path: only recompute today.
         const todayPoints = await compute_value_timeseries_uncached(transactions, filter, assets, 'today-only')
         return [...cached.points, ...todayPoints]
       }
-      // Cache is stale (user skipped days). Fall through to full recompute.
+      // Stale (either invalidated or user skipped days). Fall through.
     }
 
     const allPoints = await compute_value_timeseries_uncached(transactions, filter, assets, 'all')
@@ -292,10 +295,11 @@ export async function compute_value_timeseries(
       const last = allPoints[allPoints.length - 1]
       if (last.date === todayKey && allPoints.length > 1) {
         const frozen: FrozenCache = {
+          version,
           upToDate: allPoints[allPoints.length - 2].date,
           points: allPoints.slice(0, -1),
         }
-        // Indefinite cache: no TTL. Invalidated only by version bump.
+        // Indefinite cache: no TTL. Invalidated by version bump (mismatch on read).
         await redis.set(cacheKey, JSON.stringify(frozen))
       }
     }

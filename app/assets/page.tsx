@@ -1,7 +1,7 @@
 import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
-import { get_price_for_asset } from '@/app/_utils/price_fetcher'
+import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { get_or_compute_balances } from '../_actions/compute_balances'
@@ -38,25 +38,24 @@ async function Page() {
     get_or_compute_balances(),
   ])
 
+  const priceByAsset = await get_prices_for_assets(assets)
+
   const currValuesByAsset: Map<string, number> = new Map()
+  for (const ass of assets) {
+    const price_data = priceByAsset.get(ass.id) ?? null
+    const acc_qty_map = balances.get(ass.id) ?? new Map<string, { qty: number; txn_value: number }>()
 
-  await Promise.all(
-    assets.map(async ass => {
-      const price_data = await get_price_for_asset(ass.type, ass.ticker)
-      const acc_qty_map = balances.get(ass.id) ?? new Map<string, { qty: number; txn_value: number }>()
-
-      let total_value = new Prisma.Decimal(0)
-      for (const [, { qty, txn_value }] of acc_qty_map.entries()) {
-        if (price_data) {
-          total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
-        } else {
-          total_value = total_value.add(txn_value)
-        }
+    let total_value = new Prisma.Decimal(0)
+    for (const [, { qty, txn_value }] of acc_qty_map.entries()) {
+      if (price_data) {
+        total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
+      } else {
+        total_value = total_value.add(txn_value)
       }
+    }
 
-      currValuesByAsset.set(ass.id, total_value.toNumber())
-    }),
-  )
+    currValuesByAsset.set(ass.id, total_value.toNumber())
+  }
 
   const assetAccountQuantities: Map<string, Map<string, number>> = new Map()
   balances.forEach((acc_qty_map, asset_id) => {
