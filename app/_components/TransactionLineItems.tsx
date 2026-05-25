@@ -48,6 +48,8 @@ type TransactionLineItemsProps = {
 }
 
 export function TransactionLineItems({ items, accounts, assets, onAddItem, onRemoveItem, onUpdateItem }: TransactionLineItemsProps) {
+  const sortedAccounts = [...accounts].sort((a, b) => a.name.localeCompare(b.name))
+  const sortedAssets = [...assets].sort((a, b) => a.name.localeCompare(b.name))
   // Group items by account type
   const groups: Record<string, ItemGroup[]> = {
     account: [],
@@ -105,8 +107,8 @@ export function TransactionLineItems({ items, accounts, assets, onAddItem, onRem
                       item={it}
                       idx={idx}
                       typeKey={typeKey}
-                      accounts={accounts}
-                      assets={assets}
+                      accounts={sortedAccounts}
+                      assets={sortedAssets}
                       asset={asset}
                       onUpdateItem={onUpdateItem}
                       onRemoveItem={onRemoveItem}
