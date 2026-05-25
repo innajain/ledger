@@ -61,6 +61,10 @@ type UpdateAccountFormProps = {
 export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState<string | null>(null)
+  // UPI only makes sense for real accounts (payees you'd send money to).
+  // For allocations / income_expenses the field stays hidden and unsaved.
+  const supportsUpi = config.accountType === 'account'
+  const [upiId, setUpiId] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -69,7 +73,7 @@ export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
     setError(null)
     setBusy(true)
     try {
-      const result = await create_account(name, config.accountType, parentId ?? undefined)
+      const result = await create_account(name, config.accountType, parentId ?? undefined, supportsUpi ? upiId : undefined)
       if (!result.success) throw new Error(result.message)
       window.location.href = config.basePath
     } catch (err: unknown) {
@@ -99,6 +103,17 @@ export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
           />
 
           <ParentSelect label={config.parentLabel} value={parentId} onChange={setParentId} parents={parents} helpText={config.parentHelpText} />
+
+          {supportsUpi && (
+            <TextInput
+              label="UPI ID (Optional)"
+              value={upiId}
+              onChange={setUpiId}
+              placeholder="e.g. name@bank or 9876543210@upi"
+              helpText="When set, a Pay via UPI button appears on this account. Phone numbers need the @upi suffix."
+              autoComplete="off"
+            />
+          )}
         </FormCard>
 
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
@@ -114,6 +129,8 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
   const [parentId, setParentId] = useState<string | null>(account.parent_id ?? null)
   const [isActive, setIsActive] = useState(account.is_active)
   const [isPlaceholder, setIsPlaceholder] = useState(account.is_placeholder)
+  const supportsUpi = config.accountType === 'account'
+  const [upiId, setUpiId] = useState(account.upi_id ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -122,7 +139,7 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
     setError(null)
     setBusy(true)
     try {
-      const result = await update_account(account.id, name, config.accountType, parentId, isActive, isPlaceholder)
+      const result = await update_account(account.id, name, config.accountType, parentId, isActive, isPlaceholder, supportsUpi ? upiId : undefined)
       if (!result.success) throw new Error(result.message)
       window.location.href = config.basePath
     } catch (err: unknown) {
@@ -175,6 +192,17 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount }: U
             excludeId={account.id}
             helpText={config.parentHelpText}
           />
+
+          {supportsUpi && (
+            <TextInput
+              label="UPI ID (Optional)"
+              value={upiId}
+              onChange={setUpiId}
+              placeholder="e.g. name@bank or 9876543210@upi"
+              helpText="When set, a Pay via UPI button appears on this account. Phone numbers need the @upi suffix. Leave blank to clear."
+              autoComplete="off"
+            />
+          )}
 
           <ToggleSwitch label="Active" helpText="Inactive accounts are hidden from transaction selectors" value={isActive} onChange={setIsActive} />
           <ToggleSwitch

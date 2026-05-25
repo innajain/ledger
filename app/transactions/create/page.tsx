@@ -31,6 +31,7 @@ async function Page() {
     id: a.id,
     name: a.name,
     type: a.type,
+    upi_id: a.upi_id,
   }))
   const assetsForClient = assets.map(a => ({
     id: a.id,

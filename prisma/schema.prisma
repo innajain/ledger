@@ -44,6 +44,11 @@ model accounting_head {
   is_placeholder Boolean              @default(false)
   order_index    Int?
 
+  // UPI handle for the payee/account (e.g. "name@bank"). When set, the
+  // account/transaction pages render a "Pay via UPI" button that opens
+  // upi://pay?... deep links with this address pre-filled.
+  upi_id String?
+
   // --- Hierarchy Implementation ---
   parent_id String?
   parent    accounting_head?  @relation("AccountingHeadHierarchy", fields: [parent_id], references: [id])

@@ -10,6 +10,7 @@ import { TransactionLineItems, LineItemData } from '@/app/_components/Transactio
 import { AttachmentUpload } from '@/app/_components/AttachmentUpload'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
+import { UpiPayButton } from '@/app/_components/UpiPayButton'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
 import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app/_utils/line_item_defaults'
 
@@ -19,7 +20,7 @@ export default function ClientPage({
   defaults,
   attachmentsEnabled = false,
 }: {
-  accounts: { id: string; name: string; type: string }[]
+  accounts: { id: string; name: string; type: string; upi_id?: string | null }[]
   assets: { id: string; name: string; type: asset_type }[]
   defaults: LineItemDefaults
   attachmentsEnabled?: boolean
@@ -203,8 +204,7 @@ export default function ClientPage({
     }
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function submitTransaction() {
     setError(null)
     setBusy(true)
     try {
@@ -231,6 +231,26 @@ export default function ClientPage({
       setBusy(false)
     }
   }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await submitTransaction()
+  }
+
+  // Find the first line item whose account has a UPI ID and a non-zero amount.
+  // For rupees assets the amount lives in `quantity`; for everything else in `txn_value`.
+  const payable_line_item = (() => {
+    for (const it of items) {
+      const acc = accounts.find(a => a.id === it.accounting_head_id)
+      if (!acc?.upi_id) continue
+      const asset = assets.find(a => a.id === it.asset_id)
+      const raw = asset?.type === asset_type.rupees ? it.quantity : it.txn_value
+      const n = raw === null || raw === '' ? NaN : Number(raw)
+      if (!Number.isFinite(n) || n === 0) continue
+      return { account_name: acc.name, upi_id: acc.upi_id, amount: Math.abs(n) }
+    }
+    return null
+  })()
 
   return (
     <div className="space-y-6">
@@ -328,6 +348,19 @@ export default function ClientPage({
           </div>
 
           <div className="flex w-full sm:w-auto justify-end gap-3 pt-4 sm:pt-0 border-t sm:border-0 border-slate-200">
+            {payable_line_item && (
+              <UpiPayButton
+                upi_id={payable_line_item.upi_id}
+                payee_name={payable_line_item.account_name}
+                amount={payable_line_item.amount}
+                note={description || undefined}
+                on_mark_paid={() => submitTransaction()}
+                mark_paid_label={busy ? 'Saving…' : 'Save Transaction'}
+                button_label="Pay via UPI"
+                button_class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                confirm_title="Save this transaction?"
+              />
+            )}
             <Link
               href="/transactions"
               className="flex-1 sm:flex-none text-center px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"

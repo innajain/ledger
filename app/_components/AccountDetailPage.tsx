@@ -1,11 +1,15 @@
 'use client'
 
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ViewPageHeader, InfoCard, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents'
 import { HoldingsGrid, HoldingItem } from '@/app/_components/HoldingsGrid'
 import { Card } from '@/app/_components/Card'
 import { asset_type } from '@/generated/prisma/enums'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
+import { UpiPayButton } from '@/app/_components/UpiPayButton'
+import { create_upi_payment } from '@/app/_actions/transactions'
 
 export type LineItem = {
   id: string
@@ -27,6 +31,8 @@ export type AccountData = {
   name: string
   total: number
   xirr?: number | null
+  /** Optional UPI handle. When set, the page renders a "Pay via UPI" button. */
+  upi_id?: string | null
   breakdown: {
     asset_id: string
     asset_name: string
@@ -52,6 +58,9 @@ type AccountDetailPageProps = {
 }
 
 export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
+  const router = useRouter()
+  const [pay_status, set_pay_status] = useState<{ kind: 'ok'; txn_id: string } | { kind: 'err'; message: string } | null>(null)
+
   const holdingsItems: HoldingItem[] = account.breakdown.map(b => ({
     id: b.asset_id,
     name: b.asset_name,
@@ -61,6 +70,21 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
     txn_value: b.txn_value,
     current_value: b.current_value,
   }))
+
+  async function handle_mark_paid(amount: number, note: string) {
+    const result = await create_upi_payment({
+      payee_account_id: account.id,
+      amount,
+      description: note || null,
+    })
+    if (result.success) {
+      set_pay_status({ kind: 'ok', txn_id: result.data!.id })
+      // Refresh the server data so the new balance + line item show up.
+      router.refresh()
+    } else {
+      set_pay_status({ kind: 'err', message: result.message })
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -72,6 +96,65 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         editLink={`${config.backLink}/${account.id}/update`}
         editText={`Edit ${config.entityName}`}
       />
+
+      {account.upi_id && (
+        <div className="bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-green-900 dark:text-green-100">Send money via UPI</p>
+            <p className="text-xs font-mono text-green-700 dark:text-green-300 break-all">{account.upi_id}</p>
+            {account.total < 0 && (
+              <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                You owe{' '}
+                <span className="font-semibold">
+                  {(-account.total).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 })}
+                </span>{' '}
+                — pre-filled below
+              </p>
+            )}
+          </div>
+          <UpiPayButton
+            upi_id={account.upi_id}
+            payee_name={account.name}
+            mark_paid_label="Log Transaction"
+            initial_amount={account.total < 0 ? -account.total : undefined}
+            initial_note={account.total < 0 ? 'reimbursement. balance settled' : undefined}
+            on_mark_paid={handle_mark_paid}
+          />
+        </div>
+      )}
+
+      {pay_status?.kind === 'ok' && (
+        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 p-3 flex items-center justify-between gap-3">
+          <p className="text-sm text-green-900 dark:text-green-100">
+            Payment recorded.{' '}
+            <a href={`/transactions/${pay_status.txn_id}`} className="font-medium underline hover:no-underline">
+              View transaction
+            </a>
+          </p>
+          <button
+            type="button"
+            onClick={() => set_pay_status(null)}
+            className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 text-sm"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {pay_status?.kind === 'err' && (
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3 flex items-center justify-between gap-3">
+          <p className="text-sm text-red-900 dark:text-red-100">Couldn&apos;t record payment: {pay_status.message}</p>
+          <button
+            type="button"
+            onClick={() => set_pay_status(null)}
+            className="text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 text-sm"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <InfoCard
         title={`${config.entityName} Information`}

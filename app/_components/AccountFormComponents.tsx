@@ -51,9 +51,12 @@ interface TextInputProps {
   onChange: (value: string) => void
   placeholder?: string
   required?: boolean
+  helpText?: string
+  autoComplete?: string
+  inputMode?: 'text' | 'email' | 'tel' | 'url' | 'numeric' | 'decimal' | 'search'
 }
 
-export function TextInput({ label, value, onChange, placeholder, required }: TextInputProps) {
+export function TextInput({ label, value, onChange, placeholder, required, helpText, autoComplete, inputMode }: TextInputProps) {
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
@@ -63,8 +66,11 @@ export function TextInput({ label, value, onChange, placeholder, required }: Tex
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       />
+      {helpText && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{helpText}</p>}
     </div>
   )
 }

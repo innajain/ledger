@@ -165,6 +165,7 @@ async function Page({ params }: Props) {
         name: account.name,
         total: acc_total.toNumber(),
         xirr: xirr_value,
+        upi_id: account.upi_id,
         breakdown,
         line_items: sortedLineItems,
         value_timeseries,
