@@ -34,6 +34,9 @@ type TxForClient = {
   total_book: number
 }
 
+const SORT_KEYS = ['date_desc', 'date_asc', 'amount_desc', 'amount_asc'] as const
+type SortKey = (typeof SORT_KEYS)[number]
+
 async function Page({
   searchParams,
 }: {
@@ -47,6 +50,7 @@ async function Page({
     pageSize?: string
     accountId?: string
     assetId?: string
+    sort?: string
   }>
 }) {
   const user = await get_current_user()
@@ -68,6 +72,7 @@ async function Page({
   const maxAmount = params.maxAmount ? parseFloat(params.maxAmount) : undefined
   const accountId = params.accountId || undefined
   const assetId = params.assetId || undefined
+  const sort: SortKey = (SORT_KEYS as readonly string[]).includes(params.sort ?? '') ? (params.sort as SortKey) : 'date_desc'
 
   // Fetch accounts and assets for filter dropdowns
   const [accounts, assets, templates] = await Promise.all([
@@ -137,28 +142,29 @@ async function Page({
   const requestedPageSize = pageSizeParam === 'all' ? Infinity : parseInt(pageSizeParam || '20')
   const wantsAll = pageSizeParam === 'all'
 
-  const baseQuery = {
-    where,
-    include: { line_items: { include: { asset: true, accounting_head: true } } },
-    orderBy: { datetime: 'desc' as const },
-  }
-
   const txTotal = (t: { line_items: { accounting_head: { type: string }; txn_value: Prisma.Decimal | null }[] }) =>
     t.line_items
       .filter(li => li.accounting_head.type === 'account')
       .reduce((s, li) => s.add(li.txn_value!), new Prisma.Decimal(0))
       .toNumber()
 
+  // Amount sort can't be done in SQL (total_book is a sum across line_items),
+  // so it falls through to the same in-memory scan path that amount filtering uses.
+  const needsScan = minAmount !== undefined || maxAmount !== undefined || sort === 'amount_desc' || sort === 'amount_asc'
+
   let totalCount: number
   let txForClient: TxForClient[]
   let pageSize: number
 
-  if (minAmount === undefined && maxAmount === undefined) {
-    // Fast path: SQL-side pagination, count via prisma.count
+  if (!needsScan) {
+    // Fast path: SQL-side ordering + pagination, count via prisma.count
+    const orderBy = { datetime: sort === 'date_asc' ? ('asc' as const) : ('desc' as const) }
     totalCount = await prisma.transaction.count({ where })
     pageSize = wantsAll ? totalCount : requestedPageSize
     const rawTransactions = await prisma.transaction.findMany({
-      ...baseQuery,
+      where,
+      include: { line_items: { include: { asset: true, accounting_head: true } } },
+      orderBy,
       skip: wantsAll ? 0 : (page - 1) * pageSize,
       take: wantsAll ? undefined : pageSize,
     })
@@ -170,10 +176,14 @@ async function Page({
       total_book: txTotal(t),
     }))
   } else {
-    // Filter path: total depends on aggregation, can't paginate at SQL level.
-    // Fetch up to AMOUNT_FILTER_SCAN_CAP matching, normalize, filter on amount, then slice in memory.
+    // Scan path: fetch up to cap, normalize, filter on amount, sort, slice.
     const AMOUNT_FILTER_SCAN_CAP = 5000
-    const allRaw = await prisma.transaction.findMany({ ...baseQuery, take: AMOUNT_FILTER_SCAN_CAP })
+    const allRaw = await prisma.transaction.findMany({
+      where,
+      include: { line_items: { include: { asset: true, accounting_head: true } } },
+      orderBy: { datetime: 'desc' as const },
+      take: AMOUNT_FILTER_SCAN_CAP,
+    })
     const all = allRaw.map(normalize_txn)
     const allWithTotals: TxForClient[] = all.map(t => ({
       id: t.id,
@@ -185,6 +195,19 @@ async function Page({
       if (minAmount !== undefined && tx.total_book < minAmount) return false
       if (maxAmount !== undefined && tx.total_book > maxAmount) return false
       return true
+    })
+    filtered.sort((a, b) => {
+      switch (sort) {
+        case 'date_asc':
+          return a.date.getTime() - b.date.getTime()
+        case 'amount_asc':
+          return a.total_book - b.total_book
+        case 'amount_desc':
+          return b.total_book - a.total_book
+        case 'date_desc':
+        default:
+          return b.date.getTime() - a.date.getTime()
+      }
     })
     totalCount = filtered.length
     pageSize = wantsAll ? totalCount : requestedPageSize

@@ -95,6 +95,22 @@ export default function ClientPage({
     return () => document.removeEventListener('click', handleGlobalClick)
   }, [])
 
+  // Debounced search: after 300ms of inactivity, push searchInput to the URL.
+  // Skips the push when the input already matches the URL (initial mount,
+  // back/forward, chip removal) to avoid feedback loops with the sync effect above.
+  useEffect(() => {
+    const current = searchParams.search || ''
+    if (searchInput === current) return
+    const t = setTimeout(() => {
+      const query = new URLSearchParams(params.toString())
+      if (searchInput) query.set('search', searchInput)
+      else query.delete('search')
+      query.delete('page')
+      router.push(`/transactions?${query.toString()}`)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [searchInput, searchParams.search, params, router])
+
   const totalPages = Math.ceil(totalCount / pageSize)
   const isShowingAll = searchParams.pageSize === 'all'
 
@@ -102,6 +118,14 @@ export default function ClientPage({
     const query = new URLSearchParams(params.toString())
     query.set('pageSize', newSize)
     query.delete('page') // Reset to page 1 when changing page size
+    router.push(`/transactions?${query.toString()}`)
+  }
+
+  const changeSort = (sort: string) => {
+    const query = new URLSearchParams(params.toString())
+    if (sort === 'date_desc') query.delete('sort')
+    else query.set('sort', sort)
+    query.delete('page')
     router.push(`/transactions?${query.toString()}`)
   }
 
@@ -247,24 +271,15 @@ export default function ClientPage({
               placeholder="Search transactions..."
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && applyFilters()}
               className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
             />
           </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <button
-              onClick={applyFilters}
-              className="flex-1 md:flex-none px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all font-medium ripple hover-lift"
-            >
-              Search
-            </button>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex-1 md:flex-none px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-medium hover-lift"
-            >
-              Filters {hasFilters && <span className="ml-1 text-blue-600 dark:text-blue-400">●</span>}
-            </button>
-          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-medium hover-lift w-full md:w-auto"
+          >
+            Filters {hasFilters && <span className="ml-1 text-blue-600 dark:text-blue-400">●</span>}
+          </button>
         </div>
 
         {showFilters && (
@@ -388,7 +403,20 @@ export default function ClientPage({
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All Transactions</h2>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-slate-600 dark:text-slate-400">Sort:</label>
+                    <select
+                      value={searchParams.sort || 'date_desc'}
+                      onChange={e => changeSort(e.target.value)}
+                      className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="date_desc">Date (newest)</option>
+                      <option value="date_asc">Date (oldest)</option>
+                      <option value="amount_desc">Amount (high → low)</option>
+                      <option value="amount_asc">Amount (low → high)</option>
+                    </select>
+                  </div>
                   <div className="flex items-center gap-2">
                     <label className="text-sm text-slate-600 dark:text-slate-400">Show:</label>
                     <select
