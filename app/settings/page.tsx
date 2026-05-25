@@ -16,7 +16,7 @@ async function SettingsPage() {
     redirect('/login')
   }
 
-  const [accounts, assets, defaults, inactiveAccounts, inactiveAssets] = await Promise.all([
+  const [accounts, assets, defaults, inactiveAccounts, inactiveAssets, userRow] = await Promise.all([
     prisma.accounting_head.findMany({
       where: { user_id: user.id, is_active: true },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
@@ -38,11 +38,13 @@ async function SettingsPage() {
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true, type: true, is_placeholder: true },
     }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true } }),
   ])
 
   return (
     <ClientPage
       user={user}
+      isAdmin={userRow?.is_admin ?? false}
       accounts={accounts}
       assets={assets}
       defaults={defaults}

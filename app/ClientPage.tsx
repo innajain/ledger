@@ -3,9 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { MaskedAmount } from './_components/MaskedAmount'
-import { flush_redis } from './_actions/flush'
-import { log_out } from './_actions/auth'
-import { validate_all_txns } from './_actions/validate_all_txns'
 
 const WELCOME_MESSAGES = [
   "Welcome back! Your wallet misses you (but your bank doesn't). 🦘",
@@ -51,9 +48,6 @@ export default function ClientPage({
   savings: { id: string; name: string; total: number } | null
   networth: number | null
 }) {
-  const [busy, setBusy] = useState(false)
-  const [busyLogout, setBusyLogout] = useState(false)
-  const [validating, setValidating] = useState(false)
   const [welcomeMessage, setWelcomeMessage] = useState(WELCOME_MESSAGES[0])
 
   useEffect(() => {
@@ -215,82 +209,6 @@ export default function ClientPage({
             </div>
             <span className="font-medium text-slate-900 dark:text-slate-100">Transactions</span>
           </Link>
-        </div>
-      </div>
-
-      {/* Admin Actions */}
-      <div className="stagger-item bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Admin Actions</h2>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={async () => {
-              if (!confirm('Flush Redis cache? This clears all cached prices.')) return
-              setBusy(true)
-              try {
-                const res = await flush_redis()
-                alert(res.success ? (res.message ?? 'Redis flushed') : 'Flush failed: ' + res.message)
-              } catch (err: unknown) {
-                alert('Flush failed: ' + (err instanceof Error ? err.message : String(err)))
-              } finally {
-                setBusy(false)
-              }
-            }}
-            disabled={busy}
-            className="px-4 py-2 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded-lg hover:bg-violet-200 dark:hover:bg-violet-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-violet-200 dark:border-violet-800 ripple hover-lift"
-          >
-            {busy ? 'Flushing...' : 'Flush Redis Cache'}
-          </button>
-
-          <button
-            onClick={async () => {
-              if (!confirm('Validate all transactions? This will check every txn.')) return
-              setValidating(true)
-              try {
-                const res = await validate_all_txns()
-                if (!res || res.length === 0) {
-                  alert('All transactions are valid')
-                } else {
-                  const details = res.map(r => `id: ${r.id} — ${r.message}`).join('\n')
-                  alert(`Invalid transactions found (${res.length}):\n\n${details}`)
-                  console.error(`Invalid transactions found (${res.length}):\n\n${details}`)
-                }
-              } catch (err: unknown) {
-                alert('Validation failed: ' + (err instanceof Error ? err.message : String(err)))
-              } finally {
-                setValidating(false)
-              }
-            }}
-            disabled={validating}
-            className="px-4 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-amber-300 dark:border-amber-700 ripple hover-lift"
-          >
-            {validating ? 'Validating...' : 'Validate Transactions'}
-          </button>
-
-          <button
-            onClick={async () => {
-              if (!confirm('Log out?')) return
-              setBusyLogout(true)
-              try {
-                await log_out()
-                window.location.reload()
-              } catch (err: unknown) {
-                alert('Logout failed: ' + (err instanceof Error ? err.message : String(err)))
-              } finally {
-                setBusyLogout(false)
-              }
-            }}
-            disabled={busyLogout}
-            className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-red-200 dark:border-red-800 ripple hover-lift"
-          >
-            {busyLogout ? 'Logging out...' : 'Logout'}
-          </button>
-          <button
-            onClick={() => (window.location.href = '/api/dump')}
-            disabled={busyLogout}
-            className="px-4 py-2 bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded-lg hover:bg-teal-200 dark:hover:bg-teal-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium border border-teal-200 dark:border-teal-800 ripple hover-lift"
-          >
-            Download db dump
-          </button>
         </div>
       </div>
     </div>
