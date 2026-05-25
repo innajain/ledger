@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { currency_fmt } from '@/app/_utils/currency_formatter'
+import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { accounting_head_type, asset_type } from '@/generated/prisma/enums'
 import { delete_transaction } from '@/app/_actions/transactions'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
@@ -157,7 +157,7 @@ export default function ClientPage({
               transaction.total > 0 ? 'text-green-600' : transaction.total < 0 ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'
             }`}
           >
-            {currency_fmt.format(transaction.total)}
+            <MaskedAmount value={transaction.total} />
           </p>
         </div>
 
@@ -302,11 +302,11 @@ export default function ClientPage({
 
                         <div className="text-sm text-slate-600 dark:text-slate-400">
                           {li.asset_type === asset_type.rupees ? (
-                            <span className="font-medium">{li.quantity === null ? '—' : currency_fmt.format(li.quantity)}</span>
+                            <span className="font-medium">{li.quantity === null ? '—' : <MaskedAmount value={li.quantity} />}</span>
                           ) : (
                             <div className="flex items-center gap-4">
                               <span>{li.quantity} units</span>
-                              <span>Book: {li.txn_value === null ? '—' : currency_fmt.format(li.txn_value)}</span>
+                              <span>Book: {li.txn_value === null ? '—' : <MaskedAmount value={li.txn_value} />}</span>
                             </div>
                           )}
                         </div>

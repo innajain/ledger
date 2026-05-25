@@ -5,6 +5,7 @@ import { useTheme } from 'next-themes'
 import type { user } from '@/generated/prisma/client'
 import { change_password, change_username } from '@/app/_actions/auth'
 import { update_line_item_defaults, type LineItemDefaults } from '@/app/_actions/preferences'
+import { usePrivacy } from '@/app/_components/PrivacyProvider'
 
 type AccountOpt = { id: string; name: string; type: string }
 type AssetOpt = { id: string; name: string }
@@ -70,6 +71,15 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
+
+  // Privacy (amount masking) state
+  const { masking_enabled, mask_threshold, set_masking_enabled, set_mask_threshold } = usePrivacy()
+  const [thresholdInput, setThresholdInput] = useState<string>(String(mask_threshold))
+  useEffect(() => {
+    // Keep the input in sync after localStorage hydrates the context.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setThresholdInput(String(mask_threshold))
+  }, [mask_threshold])
 
   const realAccounts = accounts.filter(a => a.type === 'account')
   const allocationAccounts = accounts.filter(a => a.type === 'allocation')
@@ -643,6 +653,64 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Privacy */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors mt-6">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Privacy</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+          Hide amounts above a threshold. Masked amounts can be revealed individually by clicking them.
+        </p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Mask large amounts</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">When off, all amounts are shown in full.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => set_masking_enabled(!masking_enabled)}
+              role="switch"
+              aria-checked={masking_enabled}
+              aria-label="Toggle amount masking"
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                masking_enabled ? 'bg-blue-600 dark:bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                  masking_enabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div>
+            <label htmlFor="maskThreshold" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Masking threshold (₹)
+            </label>
+            <input
+              id="maskThreshold"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1000}
+              disabled={!masking_enabled}
+              value={thresholdInput}
+              onChange={e => setThresholdInput(e.target.value)}
+              onBlur={() => {
+                const parsed = Number(thresholdInput)
+                if (Number.isFinite(parsed) && parsed >= 0) {
+                  set_mask_threshold(parsed)
+                } else {
+                  setThresholdInput(String(mask_threshold))
+                }
+              }}
+              className="block w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Amounts strictly above this value will be hidden by default.</p>
+          </div>
+        </div>
       </div>
 
       {/* Appearance */}

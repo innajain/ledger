@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { update_hierarchy_order } from '@/app/_actions/resources'
 import { useToast } from './Toast'
-import { currency_fmt } from '../_utils/currency_formatter'
+import { MaskedAmount } from './MaskedAmount'
 
 type BaseItem = {
   id: string
@@ -254,7 +254,9 @@ export function HierarchyTree<T extends BaseItem>({
           <li key={item.id} className="mb-2">
             <div className={`${baseClasses} ${depthClasses} opacity-50`}>
               <span className="text-sm italic text-slate-600 dark:text-slate-400">{item.name} (inactive)</span>
-              <span className="ml-auto font-semibold text-sm text-slate-900 dark:text-slate-100">{currency_fmt.format(displayCurr)}</span>
+              <span className="ml-auto font-semibold text-sm text-slate-900 dark:text-slate-100">
+                <MaskedAmount value={displayCurr} />
+              </span>
             </div>
           </li>
         )
@@ -314,7 +316,9 @@ export function HierarchyTree<T extends BaseItem>({
               {renderExtraInfo && node.children.length === 0 && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
             </div>
             <div className="shrink-0 text-right">
-              <span className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100">{currency_fmt.format(displayCurr)}</span>
+              <span className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100">
+                <MaskedAmount value={displayCurr} />
+              </span>
             </div>
           </div>
         </div>
@@ -331,7 +335,9 @@ export function HierarchyTree<T extends BaseItem>({
                     {renderExtraInfo && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
                   </div>
                   <div className="shrink-0 text-right">
-                    <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">{currency_fmt.format(ownCurr)}</span>
+                    <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <MaskedAmount value={ownCurr} />
+                    </span>
                   </div>
                 </div>
               </div>

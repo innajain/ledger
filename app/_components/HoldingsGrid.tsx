@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { asset_type } from '@/generated/prisma/enums'
-import { currency_fmt } from '../_utils/currency_formatter'
+import { MaskedAmount } from './MaskedAmount'
 import { Card } from './Card'
 
 export type HoldingItem = {
@@ -73,7 +73,9 @@ export function HoldingsGrid({
                       {item.asset_type === asset_type.rupees ? (
                         <div>
                           <span className="text-slate-500 dark:text-slate-400">Value:</span>{' '}
-                          <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(item.current_value)}</span>
+                          <span className="font-medium text-slate-900 dark:text-slate-100">
+                            <MaskedAmount value={item.current_value} />
+                          </span>
                         </div>
                       ) : (
                         <>
@@ -84,12 +86,14 @@ export function HoldingsGrid({
                           <div>
                             <span className="text-slate-500 dark:text-slate-400">Txn:</span>{' '}
                             <span className="font-medium text-slate-900 dark:text-slate-100">
-                              {item.txn_value === null ? '—' : currency_fmt.format(item.txn_value)}
+                              {item.txn_value === null ? '—' : <MaskedAmount value={item.txn_value} />}
                             </span>
                           </div>
                           <div>
                             <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
-                            <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(item.current_value)}</span>
+                            <span className="font-medium text-slate-900 dark:text-slate-100">
+                              <MaskedAmount value={item.current_value} />
+                            </span>
                           </div>
                         </>
                       )}

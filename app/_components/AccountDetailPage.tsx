@@ -4,7 +4,7 @@ import { ViewPageHeader, InfoCard, EmptyState, LineItemRow } from '@/app/_compon
 import { HoldingsGrid, HoldingItem } from '@/app/_components/HoldingsGrid'
 import { Card } from '@/app/_components/Card'
 import { asset_type } from '@/generated/prisma/enums'
-import { currency_fmt } from '@/app/_utils/currency_formatter'
+import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 
 export type LineItem = {
@@ -78,7 +78,11 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         fields={[
           {
             label: 'Total Value',
-            value: <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(account.total)}</p>,
+            value: (
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <MaskedAmount value={account.total} />
+              </p>
+            ),
           },
           ...(account.xirr !== undefined && account.xirr !== null
             ? [

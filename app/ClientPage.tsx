@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { currency_fmt } from './_utils/currency_formatter'
+import { MaskedAmount } from './_components/MaskedAmount'
 import { flush_redis } from './_actions/flush'
 import { log_out } from './_actions/auth'
 import { validate_all_txns } from './_actions/validate_all_txns'
@@ -76,7 +76,9 @@ export default function ClientPage({
         <div className="animate-slide-in-up stagger-item bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex items-center justify-between transition-all hover-lift">
           <div>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total Net Worth</p>
-            <p className="text-2xl sm:text-4xl font-bold text-slate-900 dark:text-slate-100">{currency_fmt.format(networth)}</p>
+            <p className="text-2xl sm:text-4xl font-bold text-slate-900 dark:text-slate-100">
+              <MaskedAmount value={networth} />
+            </p>
           </div>
           <div className="shrink-0 w-10 h-10 sm:w-14 sm:h-14 bg-slate-700 dark:bg-slate-600 rounded-xl flex items-center justify-center">
             <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,7 +111,7 @@ export default function ClientPage({
               href={`/allocations/${invest.id}`}
               className="text-3xl font-bold text-blue-900 dark:text-blue-100 hover:text-blue-700 dark:hover:text-blue-200 transition-colors"
             >
-              {currency_fmt.format(invest.total)}
+              <MaskedAmount value={invest.total} />
             </Link>
           ) : (
             <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">—</p>
@@ -137,7 +139,7 @@ export default function ClientPage({
               href={`/allocations/${savings.id}`}
               className="text-3xl font-bold text-green-900 dark:text-green-100 hover:text-green-700 dark:hover:text-green-200 transition-colors"
             >
-              {currency_fmt.format(savings.total)}
+              <MaskedAmount value={savings.total} />
             </Link>
           ) : (
             <p className="text-3xl font-bold text-green-900 dark:text-green-100">—</p>

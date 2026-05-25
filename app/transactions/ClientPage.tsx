@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { currency_fmt } from '../_utils/currency_formatter'
+import { MaskedAmount } from '../_components/MaskedAmount'
 import { PageHeader } from '../_components/PageHeader'
 import { EmptyState } from '../_components/EmptyState'
 import { TransactionEmptyIcon } from '../_components/EmptyStateIcons'
@@ -451,7 +452,7 @@ export default function ClientPage({
                                 : 'text-gray-500 dark:text-gray-400'
                           }`}
                         >
-                          {currency_fmt.format(tx.total_book)}
+                          <MaskedAmount value={tx.total_book} />
                         </span>
                       </div>
                     </div>

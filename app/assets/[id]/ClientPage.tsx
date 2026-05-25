@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { asset_type } from '@/generated/prisma/enums'
-import { currency_fmt, precise_currency_fmt } from '@/app/_utils/currency_formatter'
+import { precise_currency_fmt } from '@/app/_utils/currency_formatter'
+import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 
 type BreakdownItem = {
@@ -113,18 +114,24 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
         <div className={`grid grid-cols-1 ${asset.txn_value_total !== null ? 'sm:grid-cols-3' : ''} gap-4`}>
           <div>
             <p className="text-sm text-slate-500 dark:text-slate-400">Total Across Real Accounts</p>
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.total)}</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+              <MaskedAmount value={asset.total} />
+            </p>
           </div>
           {asset.current_investment !== null && (
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400">Current Investment</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.current_investment)}</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                <MaskedAmount value={asset.current_investment} />
+              </p>
             </div>
           )}
           {asset.txn_value_total !== null && (
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400">Total Txn Value</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">{currency_fmt.format(asset.txn_value_total)}</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                <MaskedAmount value={asset.txn_value_total} />
+              </p>
             </div>
           )}
         </div>
@@ -171,7 +178,9 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                           {asset.type === asset_type.rupees ? (
                             <div>
                               <span className="text-slate-500 dark:text-slate-400">Value:</span>{' '}
-                              <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
+                              <span className="font-medium text-slate-900 dark:text-slate-100">
+                                <MaskedAmount value={b.current_value} />
+                              </span>
                             </div>
                           ) : (
                             <>
@@ -182,12 +191,14 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                               <div>
                                 <span className="text-slate-500 dark:text-slate-400">Txn:</span>{' '}
                                 <span className="font-medium text-slate-900 dark:text-slate-100">
-                                  {b.txn_value === null ? '—' : currency_fmt.format(b.txn_value)}
+                                  {b.txn_value === null ? '—' : <MaskedAmount value={b.txn_value} />}
                                 </span>
                               </div>
                               <div>
                                 <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
+                                <span className="font-medium text-slate-900 dark:text-slate-100">
+                                  <MaskedAmount value={b.current_value} />
+                                </span>
                               </div>
                             </>
                           )}
@@ -233,7 +244,9 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                           {asset.type === asset_type.rupees ? (
                             <div>
                               <span className="text-slate-500 dark:text-slate-400">Value:</span>{' '}
-                              <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
+                              <span className="font-medium text-slate-900 dark:text-slate-100">
+                                <MaskedAmount value={b.current_value} />
+                              </span>
                             </div>
                           ) : (
                             <>
@@ -244,12 +257,14 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                               <div>
                                 <span className="text-slate-500 dark:text-slate-400">Txn:</span>{' '}
                                 <span className="font-medium text-slate-900 dark:text-slate-100">
-                                  {b.txn_value === null ? '—' : currency_fmt.format(b.txn_value)}
+                                  {b.txn_value === null ? '—' : <MaskedAmount value={b.txn_value} />}
                                 </span>
                               </div>
                               <div>
                                 <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(b.current_value)}</span>
+                                <span className="font-medium text-slate-900 dark:text-slate-100">
+                                  <MaskedAmount value={b.current_value} />
+                                </span>
                               </div>
                             </>
                           )}
@@ -331,7 +346,9 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
                                   {remaining_txn_value !== null && (
                                     <>
                                       {' '}
-                                      <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_txn_value)} txn)</span>
+                                      <span className="text-slate-500 dark:text-slate-400">
+                                        (<MaskedAmount value={remaining_txn_value} /> txn)
+                                      </span>
                                     </>
                                   )}
                                 </div>
@@ -343,7 +360,7 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
 
                       <div className="text-right shrink-0">
                         <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                          {currency_fmt.format(li.txn_value !== null ? li.txn_value : li.quantity)}
+                          <MaskedAmount value={li.txn_value !== null ? li.txn_value : li.quantity} />
                         </div>
                         <Link
                           href={`/transactions/${li.transaction_id}`}

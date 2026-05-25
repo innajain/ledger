@@ -1,7 +1,7 @@
 // components/ViewPageComponents.tsx
 import { asset_type } from '@/generated/prisma/enums'
 import Link from 'next/link'
-import { currency_fmt } from '../_utils/currency_formatter'
+import { MaskedAmount } from './MaskedAmount'
 import { LocalDateTime } from './LocalDateTime'
 
 // View Page Header
@@ -184,7 +184,9 @@ export function LineItemRow({
                     {remaining_txn_value !== null && (
                       <>
                         {' '}
-                        <span className="text-slate-500 dark:text-slate-400">({currency_fmt.format(remaining_txn_value)} book)</span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          (<MaskedAmount value={remaining_txn_value} /> book)
+                        </span>
                       </>
                     )}
                   </div>
@@ -215,7 +217,7 @@ export function LineItemRow({
 
         <div className="text-right shrink-0">
           <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            {currency_fmt.format(bookValue !== null && bookValue !== undefined ? bookValue : quantity)}
+            <MaskedAmount value={bookValue !== null && bookValue !== undefined ? bookValue : quantity} />
           </div>
           <Link href={`/transactions/${transactionId}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1 inline-block">
             View Transaction →
