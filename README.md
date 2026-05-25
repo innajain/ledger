@@ -186,6 +186,20 @@ User-controlled UI preferences, stored on the `user` row and synced across devic
 
 Logged-out users get in-memory-only defaults; preference setters become no-ops without a session.
 
+### UPI Payments
+
+Each `account`-type accounting head can carry an optional **UPI ID** (set via the account create/update forms — accepts a standard VPA like `name@bank` or a phone-as-UPI-Number like `9876543210@upi`). When set:
+
+- A green **Pay via UPI** banner appears on the account detail page (`/accounts/[id]`)
+- On mobile, the button navigates to a `upi://pay?pa=…&pn=…&am=…&cu=INR&tn=…` deep link, letting the OS pick a UPI app (GPay / PhonePe / Paytm / BHIM / bank apps)
+- On desktop, the same payload is rendered as a scannable QR code via the [`qrcode`](https://www.npmjs.com/package/qrcode) package
+- A `visibilitychange` listener (2-second debounce to filter accidental tab switches) prompts **"Mark as paid?"** after the user returns to the browser
+- Confirming triggers [`create_upi_payment`](app/_actions/transactions.ts) — a server action that records a two-line rupees transaction (default account `-amount`, payee account `+amount`) with no allocation / income_expense lines, then refreshes the page and shows a banner linking to the new transaction
+
+When the payee's balance is negative (you owe them), the amount input and a `reimbursement. balance settled` note are pre-filled. Note that the URL is hand-built with `encodeURIComponent` (not `URLSearchParams.toString()`) so spaces encode as `%20` rather than `+` — UPI apps display `+` literally in the transaction note otherwise.
+
+The Pay button also shows up on the transaction-create page next to **Create Transaction** whenever any line item targets a UPI-tagged account with a non-zero amount; confirming there saves the transaction as well.
+
 ### Transaction List, Search & Filters
 
 The `/transactions` list supports:
