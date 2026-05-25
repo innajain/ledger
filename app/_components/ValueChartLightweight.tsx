@@ -14,7 +14,7 @@ import {
   type AreaData,
   type LineData,
 } from 'lightweight-charts'
-import { useTheme } from 'next-themes'
+import { useTheme } from './ThemeProvider'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 
 const compactFmt = new Intl.NumberFormat('en-IN', {
@@ -57,7 +57,7 @@ export function ValueChartLightweight({ points, title }: Props) {
   const currentSeriesRef = useRef<ISeriesApi<'Area'> | null>(null)
   const xirrSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const pointsRef = useRef<ValuePoint[]>(points)
-  const { resolvedTheme } = useTheme()
+  const { resolved_theme } = useTheme()
   const [hover, setHover] = useState<HoverInfo>(null)
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export function ValueChartLightweight({ points, title }: Props) {
   useEffect(() => {
     if (!containerRef.current) return
 
-    const isDark = resolvedTheme === 'dark'
+    const isDark = resolved_theme === 'dark'
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
@@ -235,7 +235,7 @@ export function ValueChartLightweight({ points, title }: Props) {
       investedSeriesRef.current = null
       currentSeriesRef.current = null
     }
-  }, [resolvedTheme])
+  }, [resolved_theme])
 
   useEffect(() => {
     if (!investedSeriesRef.current || !currentSeriesRef.current || !xirrSeriesRef.current) return

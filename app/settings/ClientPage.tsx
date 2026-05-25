@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/app/_components/ThemeProvider'
 import type { user } from '@/generated/prisma/client'
 import { change_password, change_username } from '@/app/_actions/auth'
 import { update_line_item_defaults, type LineItemDefaults } from '@/app/_actions/preferences'
@@ -63,14 +63,10 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
   const [defaultsError, setDefaultsError] = useState<string | null>(null)
   const [defaultsSuccess, setDefaultsSuccess] = useState<string | null>(null)
 
-  // Theme (dark mode) state
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    // Standard mounted-on-client guard for theme rendering (avoid hydration flash).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true)
-  }, [])
+  // Theme state (DB-backed via ThemeProvider). No mount guard needed — the
+  // server-rendered HTML already reflects the saved theme, so React state is
+  // accurate from the first render.
+  const { theme, set_theme } = useTheme()
 
   // Privacy (amount masking) state
   const { masking_enabled, mask_threshold, set_masking_enabled, set_mask_threshold } = usePrivacy()
@@ -716,42 +712,21 @@ export default function ClientPage({ user, accounts, assets, defaults, inactiveA
       {/* Appearance */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors mt-6">
         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Appearance</h2>
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-600 dark:text-slate-400">Dark mode</p>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all hover:scale-110"
-            aria-label="Toggle dark mode"
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Theme</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">System follows your operating system preference.</p>
+          </div>
+          <select
+            value={theme}
+            onChange={e => set_theme(e.target.value as 'light' | 'dark' | 'system')}
+            className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors"
+            aria-label="Theme"
           >
-            {!mounted ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-            ) : theme === 'dark' ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                />
-              </svg>
-            )}
-          </button>
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
         </div>
       </div>
     </div>

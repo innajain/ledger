@@ -23,6 +23,12 @@ model user {
   default_income_expense_id String?
   default_asset_id          String?
 
+  // UI preferences. Theme is 'light' | 'dark' | 'system' (validated in app code).
+  theme           String  @default("system")
+  masking_enabled Boolean @default(true)
+  mask_threshold  Int     @default(50000)
+  graphs_visible  Boolean @default(false)
+
   accounting_heads      accounting_head[]
   assets                asset[]
   transactions          transaction[]

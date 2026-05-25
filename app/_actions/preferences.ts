@@ -13,6 +13,31 @@ export type LineItemDefaults = {
   default_asset_id: string | null
 }
 
+export type ThemeChoice = 'light' | 'dark' | 'system'
+
+export type UserPreferences = {
+  theme: ThemeChoice
+  masking_enabled: boolean
+  mask_threshold: number
+  graphs_visible: boolean
+}
+
+const DEFAULT_USER_PREFERENCES: UserPreferences = {
+  theme: 'system',
+  masking_enabled: true,
+  mask_threshold: 50_000,
+  graphs_visible: false,
+}
+
+const userPrefsUpdateSchema = z
+  .object({
+    theme: z.enum(['light', 'dark', 'system']),
+    masking_enabled: z.boolean(),
+    mask_threshold: z.number().int().nonnegative(),
+    graphs_visible: z.boolean(),
+  })
+  .partial()
+
 const updateSchema = z.object({
   default_account_id: z.string().min(1).nullable(),
   default_allocation_id: z.string().min(1).nullable(),
@@ -98,6 +123,62 @@ export async function update_line_item_defaults(input: LineItemDefaults): Promis
     revalidatePath('/settings')
 
     return ok(updated, 'Defaults saved')
+  } catch (error) {
+    return fromError(error)
+  }
+}
+
+export async function get_user_preferences(): Promise<UserPreferences> {
+  const user_id = await get_current_user_id()
+  if (!user_id) return DEFAULT_USER_PREFERENCES
+  const u = await prisma.user.findUnique({
+    where: { id: user_id },
+    select: {
+      theme: true,
+      masking_enabled: true,
+      mask_threshold: true,
+      graphs_visible: true,
+    },
+  })
+  if (!u) return DEFAULT_USER_PREFERENCES
+  // Theme is stored as plain text; defend against unexpected values from older rows.
+  const theme: ThemeChoice = u.theme === 'light' || u.theme === 'dark' ? u.theme : 'system'
+  return {
+    theme,
+    masking_enabled: u.masking_enabled,
+    mask_threshold: u.mask_threshold,
+    graphs_visible: u.graphs_visible,
+  }
+}
+
+export async function update_user_preferences(input: Partial<UserPreferences>): Promise<ActionResult<UserPreferences>> {
+  try {
+    const user_id = await get_current_user_id()
+    if (!user_id) return err('UNAUTHORIZED', 'Not authenticated')
+
+    const parsed = userPrefsUpdateSchema.parse(input)
+
+    const updated = await prisma.user.update({
+      where: { id: user_id },
+      data: parsed,
+      select: {
+        theme: true,
+        masking_enabled: true,
+        mask_threshold: true,
+        graphs_visible: true,
+      },
+    })
+
+    const theme: ThemeChoice = updated.theme === 'light' || updated.theme === 'dark' ? updated.theme : 'system'
+    return ok(
+      {
+        theme,
+        masking_enabled: updated.masking_enabled,
+        mask_threshold: updated.mask_threshold,
+        graphs_visible: updated.graphs_visible,
+      },
+      'Preferences saved',
+    )
   } catch (error) {
     return fromError(error)
   }
