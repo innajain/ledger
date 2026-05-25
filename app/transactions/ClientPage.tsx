@@ -203,7 +203,7 @@ export default function ClientPage({
       />
 
       {templates && templates.length > 0 && (
-        <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">
           {templates.map(t => (
             <div
               key={t.id}
@@ -284,6 +284,33 @@ export default function ClientPage({
 
         {showFilters && (
           <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-in-up">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sort</label>
+              <select
+                value={searchParams.sort || 'date_desc'}
+                onChange={e => changeSort(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="date_desc">Date (newest)</option>
+                <option value="date_asc">Date (oldest)</option>
+                <option value="amount_desc">Amount (high → low)</option>
+                <option value="amount_asc">Amount (low → high)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Show</label>
+              <select
+                value={isShowingAll ? 'all' : selectedPageSize}
+                onChange={e => changePageSize(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="all">All</option>
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">From Date</label>
               <input
@@ -404,33 +431,6 @@ export default function ClientPage({
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All Transactions</h2>
                 <div className="flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-600 dark:text-slate-400">Sort:</label>
-                    <select
-                      value={searchParams.sort || 'date_desc'}
-                      onChange={e => changeSort(e.target.value)}
-                      className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="date_desc">Date (newest)</option>
-                      <option value="date_asc">Date (oldest)</option>
-                      <option value="amount_desc">Amount (high → low)</option>
-                      <option value="amount_asc">Amount (low → high)</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-600 dark:text-slate-400">Show:</label>
-                    <select
-                      value={isShowingAll ? 'all' : selectedPageSize}
-                      onChange={e => changePageSize(e.target.value)}
-                      className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="10">10</option>
-                      <option value="20">20</option>
-                      <option value="50">50</option>
-                      <option value="100">100</option>
-                      <option value="all">All</option>
-                    </select>
-                  </div>
                   <span className="text-sm text-slate-500 dark:text-slate-400">
                     {isShowingAll
                       ? `All ${totalCount}`
