@@ -176,6 +176,25 @@ Reusable transaction shapes for recurring entries (rent, SIPs, payday splits):
 
 Per-user default accounting heads (one per type) and asset pre-selected when creating a new line item on the transaction create/update pages. Configured from the Settings page with dropdowns filtered by head type. Falls back to the first available head of each type when no default is set or the saved head has been deactivated.
 
+### Privacy & Display
+
+User-controlled UI preferences, stored on the `user` row and synced across devices via a server action ([`update_user_preferences`](app/_actions/preferences.ts)):
+
+- **Amount masking** — Every rendered amount is click-toggleable. Values above a configurable threshold (default **₹50,000**) start hidden as `₹•••••` with the currency symbol and sign preserved. Clicking flips that one instance; the toggle and the threshold are both editable from Settings.
+- **Graph visibility** — Value timeseries charts (dashboard, asset / account / allocation detail) render behind a **Show graph** button. The flag is global and sticky — click Show on any chart and graphs reveal everywhere until you click Hide again. Heavy chart libraries (`lightweight-charts`, `recharts`) are not mounted while hidden.
+- **Theme** — **System / Light / Dark** stored on the `user` row. The server already injects the right class on `<html>` for explicit light/dark and a tiny inline `<head>` script handles `system` mode before first paint, so there's no FOUC. Replaces the earlier `next-themes` + localStorage setup.
+
+Logged-out users get in-memory-only defaults; preference setters become no-ops without a session.
+
+### Transaction List, Search & Filters
+
+The `/transactions` list supports:
+
+- **Debounced search-as-you-type** — Substring match across transaction descriptions and line-item descriptions; URL updates 300 ms after typing stops, with browser history preserved.
+- **Sort** — Date (newest / oldest) or Amount (high → low / low → high). Date sorts use SQL `orderBy`; amount sorts route through the in-memory scan path because `total_book` is a sum across line items (capped at 5000 matching rows — the same ceiling as the amount filter).
+- **Filters** — Date range, min / max amount, account, asset. Active filters render as removable chips above the list; clicking a chip drops just that filter.
+- **Page size** — 10 / 20 / 50 / 100 / All.
+
 ### Transaction Attachments
 
 Upload images, PDFs, and text files (≤ 10 MB each) against any transaction. Files are stored in a **private** Vercel Blob store and served through an authenticated proxy route, so URLs aren't shareable.
@@ -311,7 +330,7 @@ ledger/
 │   │   ├── auth.ts                  # Sign up / log in / JWT / change credentials
 │   │   ├── compute_balances.ts      # Balance aggregation + Redis cache
 │   │   ├── flush.ts                 # Redis FLUSHALL (admin)
-│   │   ├── preferences.ts           # Per-user line-item defaults (read/write)
+│   │   ├── preferences.ts           # Per-user line-item defaults + UI preferences (theme / privacy)
 │   │   ├── resources.ts             # Accounting head / Asset CRUD with hierarchy + cycle detection
 │   │   ├── templates.ts             # Transaction template CRUD
 │   │   ├── transactions.ts          # Create transaction (validation + write)
@@ -346,7 +365,7 @@ ledger/
 │   ├── assets/                      # Asset pages (list / detail with XIRR + FIFO / create / update)
 │   ├── income_expenses/             # `income_expense`-type head pages
 │   ├── login/                       # Auth UI
-│   ├── settings/                    # Username / password / theme / line-item defaults
+│   ├── settings/                    # Username / password / theme / privacy / line-item defaults
 │   ├── transactions/                # Transaction list / detail / create / update
 │   ├── ClientPage.tsx               # Dashboard (net worth, investments XIRR, admin actions)
 │   ├── layout.tsx
@@ -394,6 +413,12 @@ model user {
   default_allocation_id     String?
   default_income_expense_id String?
   default_asset_id          String?
+
+  // UI preferences — synced across devices via update_user_preferences
+  theme           String  @default("system") // light | dark | system
+  masking_enabled Boolean @default(true)
+  mask_threshold  Int     @default(50000)
+  graphs_visible  Boolean @default(false)
 }
 
 model accounting_head {
