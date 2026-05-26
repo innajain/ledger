@@ -213,7 +213,7 @@ Upload images, PDFs, and text files (≤ 10 MB each) against any transaction. Fi
 
 - **Direct upload** — Browser uses `@vercel/blob/client` `upload()` with a server-issued client token; file bytes go straight to Blob storage (bypasses Vercel's ~4.5 MB serverless function body limit)
 - **Server-issued client tokens** — `/api/upload` validates auth, content type, and size via `handleUpload({ onBeforeGenerateToken })` before signing a short-lived client token
-- **Proxy display** — `/api/attachments/[id]` fetches the private blob with the read/write token, scopes it to the transaction owner, and streams it back with `Cache-Control: private, max-age=3600`
+- **Proxy display** — `/api/attachments/[id]` fetches the private blob with the read/write token, scopes it to the transaction owner, and streams it back with `Cache-Control: private, max-age=3600`. In dev, the proxy ignores the stored `url` (which is the prod `.private.blob.vercel-storage.com` URL after a `sync-db` run) and reconstructs the fetch URL as `<NEXT_PUBLIC_VERCEL_BLOB_API_URL origin>/<pathname>` so it resolves to the local emulator
 - **Local dev** — `docker compose up -d blob` runs the [payloadcms/vercel-blob-emulator](https://github.com/payloadcms/vercel-blob-emulator) so uploads stay on your laptop; the SDK respects `VERCEL_BLOB_API_URL`
 - **Orphan cleanup cron** — `/api/cron/cleanup-orphan-blobs` runs weekly, listing every blob in the store and deleting any whose `pathname` isn't referenced in `transaction_attachment`. A 1-hour grace period protects in-flight uploads
 
