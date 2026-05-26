@@ -1,17 +1,12 @@
 # Ledger — Triple-Entry Personal Finance System
 
-A personal finance management application built with Next.js, implementing a **Triple-Entry Bookkeeping** system that enforces mathematical invariants to guarantee data integrity across every transaction.
-
-[![Next.js](https://img.shields.io/badge/Next.js-16.1.6-black?style=flat&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-7.6-2D3748?style=flat&logo=prisma)](https://www.prisma.io/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-316192?style=flat&logo=postgresql)](https://www.postgresql.org/)
+A personal finance application built with Next.js, implementing a **Triple-Entry Bookkeeping** model that enforces mathematical invariants on every transaction to guarantee data integrity.
 
 ---
 
 ## The Philosophy: Triple-Entry Bookkeeping
 
-Traditional double-entry bookkeeping tracks _where money came from_ and _where it went_. This system goes further — every transaction line item is tagged with one **accounting head**, and each head has one of three types, balancing across all three **dimensions**:
+Traditional double-entry bookkeeping tracks _where money came from_ and _where it went_. This system goes further — every line item is tagged with one **accounting head**, and each head has one of three types, balancing across all three **dimensions**:
 
 | `accounting_head.type` | Purpose                                 | Examples                                  | UI Label           |
 | ---------------------- | --------------------------------------- | ----------------------------------------- | ------------------ |
@@ -25,7 +20,7 @@ This answers three questions simultaneously:
 2. **What income/expense head is it?** (`income_expense`)
 3. **Which budget category does it affect?** (`allocation`)
 
-The single underlying table is `accounting_head`; each row is one head with one of the three `type` values. The earlier names — `real` / `nominal` — were renamed to `account` / `income_expense` so each value self-describes; see [migration 20260519120000](prisma/migrations/20260519120000_rename_account_to_accounting_head/migration.sql).
+The single underlying table is `accounting_head`; each row is one head with one of the three `type` values.
 
 ---
 
@@ -50,7 +45,7 @@ At read time, `normalize_txn` fills every `null` with:
 null_qty = ∑ qty(account) − ∑ non-null qty(same head type)
 ```
 
-After normalization the classic invariant is always satisfied:
+After normalization the classic invariant always holds:
 
 ```
 ∑ quantity(account) = ∑ quantity(allocation) = ∑ quantity(income_expense)
@@ -110,20 +105,18 @@ After normalization: account (−35) = allocation (−35) = income_expense (−3
 }
 ```
 
-When there are no `allocation` or `income_expense` entries the `account` quantities must sum to zero.
+When there are no `allocation` or `income_expense` entries, the `account` quantities must sum to zero.
 
 ---
 
-## Features
+## System Notes
 
 ### Hierarchical Accounting Heads & Assets
 
-- **Three head types** — `account`, `income_expense`, `allocation` with distinct purposes
-- **Parent-child relationships** — Organize into a tree; cycle detection prevents circular references
-- **Drag-to-reorder** — Child order is persisted to the database, so the hierarchy view is stable across sessions
-- **`is_active`** — Deactivate accounting heads / assets without losing history; inactive entries are hidden from transaction selectors; a dedicated Inactive list on the Settings page shows all deactivated heads with their type badges and edit links
-- **`is_placeholder`** — Mark a head as a grouping-only parent; placeholder heads are hidden from transaction selectors while still appearing in the hierarchy view
-- **`is_placeholder` on assets** — Same concept for assets: placeholder assets act as grouping parents and are hidden from transaction selectors
+Every accounting head and asset can have a `parent_id`, forming a tree. Cycle detection runs at the application layer on every parent change. Two flags shape visibility:
+
+- **`is_active`** — Soft-delete; inactive entries are hidden from transaction selectors but retained for historical balance computation
+- **`is_placeholder`** — Grouping-only parent; still appears in the hierarchy view but hidden from selectors
 
 ### Multi-Asset Portfolio Tracking
 
@@ -135,102 +128,68 @@ When there are no `allocation` or `income_expense` entries the `account` quantit
 | Shares            | Yes             | Yahoo Finance            |
 | Other             | No              | Cost basis only          |
 
-- **Ticker validation** — Asset creation rejects invalid tickers by hitting the price source upfront
-- **Txn value tracking** — `quantity` (units) and `txn_value` (cash flow amount) stored separately for non-rupees assets
-- **FIFO remaining units** — Asset detail pages show the remaining quantity per buy lot using a FIFO match against sell entries
-- **Live valuation** — Per-asset and per-allocation pages price holdings using the latest cached price; falls back to txn value when unavailable
-
-### Interactive Charts
-
-Every asset, account, and allocation detail page (and the dashboard) includes a timeseries chart showing **Invested vs Current Value** over time, with an optional **XIRR %** overlay series.
-
-**Two interchangeable view modes:**
-
-| Mode            | Library              | Controls                                                                          |
-| --------------- | -------------------- | --------------------------------------------------------------------------------- |
-| **Interactive** | `lightweight-charts` | Scroll to zoom, drag to pan, pinch-to-zoom (mobile), drag-to-zoom range selection |
-| **Slider**      | `recharts` + Brush   | Drag handles to select a time window                                              |
-
-Chart interactions:
-
-- Scroll wheel zooms in/out on the time axis
-- Click-and-drag pans the visible window
-- Pinch gesture zooms on touch devices
-- Browser-level zoom is suppressed to prevent accidental page scaling
+Asset creation validates tickers by hitting the price source upfront. Non-rupees line items store `quantity` (units) and `txn_value` (cash flow) separately; asset detail pages compute FIFO remaining units by matching sells against buys in date order.
 
 ### XIRR Returns
 
-- **Per-asset XIRR** — Asset detail pages compute XIRR from all cashflows implied by line items, with current market value as the closing flow
-- **Portfolio XIRR** — Dashboard computes XIRR across the entire Investments allocation subtree
-- **XIRR timeseries** — Charts include an XIRR % series computed at each historical date point, reconciled against the live InfoCard value at the most recent point
-
-### Transaction Templates
-
-Reusable transaction shapes for recurring entries (rent, SIPs, payday splits):
-
-- Create / update / delete templates from the transaction-create screen
-- Quick-load a template into a new transaction (carried via `sessionStorage`) to prefill all line items
-- Stored as `transaction_template` + `line_item_template` rows; cascade-deleted with the user
-
-### Configurable Line-Item Defaults
-
-Per-user default accounting heads (one per type) and asset pre-selected when creating a new line item on the transaction create/update pages. Configured from the Settings page with dropdowns filtered by head type. Falls back to the first available head of each type when no default is set or the saved head has been deactivated.
+- **Per-asset XIRR** — Computed from all cashflows implied by line items, with current market value as the closing flow
+- **Portfolio XIRR** — Computed across the entire Investments allocation subtree
+- **XIRR timeseries** — Charts include an XIRR % series computed at each historical date, reconciled against the live InfoCard value at the most recent point
 
 ### Privacy & Display
 
-User-controlled UI preferences, stored on the `user` row and synced across devices via a server action ([`update_user_preferences`](app/_actions/preferences.ts)):
+UI preferences live on the `user` row and sync across devices via [`update_user_preferences`](app/_actions/preferences.ts):
 
-- **Amount masking** — Every rendered amount is click-toggleable. Values above a configurable threshold (default **₹50,000**) start hidden as `₹•••••` with the currency symbol and sign preserved. Clicking flips that one instance; the toggle and the threshold are both editable from Settings.
-- **Graph visibility** — Value timeseries charts (dashboard, asset / account / allocation detail) render behind a **Show graph** button. The flag is global and sticky — click Show on any chart and graphs reveal everywhere until you click Hide again. Heavy chart libraries (`lightweight-charts`, `recharts`) are not mounted while hidden.
-- **Theme** — **System / Light / Dark** stored on the `user` row. The server already injects the right class on `<html>` for explicit light/dark and a tiny inline `<head>` script handles `system` mode before first paint, so there's no FOUC. Replaces the earlier `next-themes` + localStorage setup.
+- **Amount masking** — Every rendered amount is click-toggleable. Values above a configurable threshold (default **₹50,000**) start hidden as `₹•••••` with currency symbol and sign preserved.
+- **Graph visibility** — Value timeseries charts render behind a **Show graph** button; heavy chart libraries (`lightweight-charts`, `recharts`) aren't mounted while hidden. Flag is global and sticky.
+- **Theme** — System / Light / Dark stored on the `user` row. The server injects the right class on `<html>` for explicit modes; an inline `<head>` script handles `system` mode before first paint to avoid FOUC.
 
-Logged-out users get in-memory-only defaults; preference setters become no-ops without a session.
+Logged-out users get in-memory defaults; setters are no-ops without a session.
 
 ### UPI Payments
 
-Each `account`-type accounting head can carry an optional **UPI ID** (set via the account create/update forms — accepts a standard VPA like `name@bank` or a phone-as-UPI-Number like `9876543210@upi`). When set:
+Each `account`-type head can carry an optional **UPI ID** (a standard VPA like `name@bank` or a phone-as-UPI-Number like `9876543210@upi`). When set, the account detail page renders a Pay banner. The button builds a `upi://pay?pa=…&pn=…&am=…&cu=INR&tn=…` deep link — used directly on mobile (OS picks the UPI app) or rendered as a scannable QR on desktop via [`qrcode`](https://www.npmjs.com/package/qrcode).
 
-- A green **Pay via UPI** banner appears on the account detail page (`/accounts/[id]`)
-- On mobile, the button navigates to a `upi://pay?pa=…&pn=…&am=…&cu=INR&tn=…` deep link, letting the OS pick a UPI app (GPay / PhonePe / Paytm / BHIM / bank apps)
-- On desktop, the same payload is rendered as a scannable QR code via the [`qrcode`](https://www.npmjs.com/package/qrcode) package
-- A `visibilitychange` listener (2-second debounce to filter accidental tab switches) prompts **"Mark as paid?"** after the user returns to the browser
-- Confirming triggers [`create_upi_payment`](app/_actions/transactions.ts) — a server action that records a two-line rupees transaction (default account `-amount`, payee account `+amount`) with no allocation / income_expense lines, then refreshes the page and shows a banner linking to the new transaction
+A `visibilitychange` listener (2-second debounce) prompts **"Mark as paid?"** after the user returns to the browser. Confirming triggers [`create_upi_payment`](app/_actions/transactions.ts), which records a two-line rupees transaction (default account `-amount`, payee account `+amount`) — no allocation / income_expense lines, by design.
 
-When the payee's balance is negative (you owe them), the amount input and a `reimbursement. balance settled` note are pre-filled. Note that the URL is hand-built with `encodeURIComponent` (not `URLSearchParams.toString()`) so spaces encode as `%20` rather than `+` — UPI apps display `+` literally in the transaction note otherwise.
+When the payee balance is negative (you owe them), the amount and `reimbursement. balance settled` note are pre-filled. The URL is hand-built with `encodeURIComponent` instead of `URLSearchParams.toString()` so spaces encode as `%20` rather than `+` (UPI apps display `+` literally in the note otherwise).
 
-### Transaction List, Search & Filters
+### Transaction Templates
 
-The `/transactions` list supports:
+Reusable transaction shapes (rent, SIPs, payday splits). Stored as `transaction_template` + `line_item_template` rows; cascade-deleted with the user. Quick-load passes a chosen template into a fresh transaction via `sessionStorage` to prefill line items.
 
-- **Debounced search-as-you-type** — Substring match across transaction descriptions and line-item descriptions; URL updates 300 ms after typing stops, with browser history preserved.
-- **Sort** — Date (newest / oldest) or Amount (high → low / low → high). Date sorts use SQL `orderBy`; amount sorts route through the in-memory scan path because `total_book` is a sum across line items (capped at 5000 matching rows — the same ceiling as the amount filter).
-- **Filters** — Date range, min / max amount, account, asset. Active filters render as removable chips above the list; clicking a chip drops just that filter.
-- **Page size** — 10 / 20 / 50 / 100 / All.
+### Line-Item Defaults
+
+Per-user defaults — one head per type plus a default asset — are pre-selected on new line items. Falls back to the first available head of each type when the saved one is deactivated.
+
+### Transaction List
+
+Search uses substring match across transaction + line-item descriptions, debounced 300 ms before the URL updates. Date sorts use SQL `orderBy`; amount sorts (and the amount filter) route through an in-memory scan capped at 5000 rows.
 
 ### Transaction Attachments
 
-Upload images, PDFs, and text files (≤ 10 MB each) against any transaction. Files are stored in a **private** Vercel Blob store and served through an authenticated proxy route, so URLs aren't shareable.
+Files are stored in a **private** Vercel Blob store and served through an authenticated proxy so URLs aren't shareable.
 
-- **Direct upload** — Browser uses `@vercel/blob/client` `upload()` with a server-issued client token; file bytes go straight to Blob storage (bypasses Vercel's ~4.5 MB serverless function body limit)
-- **Server-issued client tokens** — `/api/upload` validates auth, content type, and size via `handleUpload({ onBeforeGenerateToken })` before signing a short-lived client token
-- **Proxy display** — `/api/attachments/[id]` fetches the private blob with the read/write token, scopes it to the transaction owner, and streams it back with `Cache-Control: private, max-age=3600`. In dev, the proxy ignores the stored `url` (which is the prod `.private.blob.vercel-storage.com` URL after a `sync-db` run) and reconstructs the fetch URL as `<NEXT_PUBLIC_VERCEL_BLOB_API_URL origin>/<pathname>` so it resolves to the local emulator
-- **Local dev** — `docker compose up -d blob` runs the [payloadcms/vercel-blob-emulator](https://github.com/payloadcms/vercel-blob-emulator) so uploads stay on your laptop; the SDK respects `VERCEL_BLOB_API_URL`
-- **Orphan cleanup cron** — `/api/cron/cleanup-orphan-blobs` runs weekly, listing every blob in the store and deleting any whose `pathname` isn't referenced in `transaction_attachment`. A 1-hour grace period protects in-flight uploads
+- **Direct upload** — Browser uses `@vercel/blob/client` `upload()` with a server-issued client token; bytes go straight to Blob, bypassing Vercel's ~4.5 MB serverless body limit
+- **Server-issued client tokens** — `/api/upload` validates auth, content type, and size via `handleUpload({ onBeforeGenerateToken })` before signing
+- **Proxy display** — `/api/attachments/[id]` fetches the private blob with the store's read/write token, scopes the response to the transaction owner, streams it back with `Cache-Control: private, max-age=3600`. In dev, the proxy ignores the stored `url` (which still points at the prod `.private.blob.vercel-storage.com` host after a `sync-db` run) and reconstructs the fetch URL as `<NEXT_PUBLIC_VERCEL_BLOB_API_URL origin>/<pathname>` so it resolves to the local emulator
+- **Local dev** — `docker compose up -d blob` runs the [payloadcms/vercel-blob-emulator](https://github.com/payloadcms/vercel-blob-emulator); the server SDK respects `VERCEL_BLOB_API_URL`
+- **Orphan cleanup** — `/api/cron/cleanup-orphan-blobs` runs weekly, deleting any blob whose `pathname` isn't referenced in `transaction_attachment`. 1-hour grace period covers in-flight uploads
 
-### Data Integrity Tools
+### Data Integrity
 
-- **Integrity checker** — `validate_all_txns` loads every transaction, runs each through `validate_line_items`, and surfaces any that violate the invariants; wired to a button on the dashboard
+- **Integrity checker** — `validate_all_txns` runs every transaction through `validate_line_items` and reports invariant violations; wired to a dashboard button
 - **Atomic writes** — All create/update flows run inside a Prisma `$transaction`
-- **Balance cache** — `get_or_compute_balances` aggregates `accounting_head → asset` and `asset → accounting_head` balance maps via `normalize_txn` and caches them in Redis (5-day TTL); overwritten after every transaction write
+- **Balance cache** — `get_or_compute_balances` aggregates `accounting_head → asset` and `asset → accounting_head` maps via `normalize_txn`, caches in Redis (5-day TTL), and overwrites after every transaction write
 
 ### Database Dump
 
-`GET /api/dump` streams a `.sql` file containing `INSERT` statements for every user-data table (auth-gated; table names are allowlisted to prevent injection).
+`GET /api/dump` streams a `.sql` file of `INSERT` statements for every user-data table. Auth-gated; table names are allowlisted to prevent injection.
 
 ### Security
 
 - **JWT in HTTP-only cookies** — 7-day expiry, signed with `JWT_SECRET`
-- **Edge proxy gate** — `proxy.ts` verifies the JWT on every non-public route, redirects to `/login` on failure, and stamps `x-user-id` on the request header
+- **Edge proxy gate** — `proxy.ts` verifies the JWT on every non-public route, redirects to `/login` on failure, stamps `x-user-id` on the request header
 - **bcryptjs** — 10 rounds
 - **User isolation** — Every query scoped to `user_id`; updates use composite `where: { id, user_id }`
 - **Cron auth** — All `/api/cron/*` routes require `Bearer ${CRON_SECRET}` in production
@@ -254,158 +213,7 @@ Upload images, PDFs, and text files (≤ 10 MB each) against any transaction. Fi
 
 ---
 
-## Prerequisites
-
-- **Node.js** 20.x+
-- **pnpm** 10.30+
-- **PostgreSQL** 14+
-- **Redis**
-
-## Getting Started
-
-### 1. Clone
-
-```bash
-git clone https://github.com/innajain/ledger.git
-cd ledger
-```
-
-### 2. Install
-
-```bash
-pnpm install
-```
-
-### 3. Local infrastructure (optional)
-
-`docker-compose.yml` spins up PostgreSQL 17, Redis, and the Vercel Blob emulator locally. An optional `sync-db` service can copy a Neon snapshot — plus an optional prod Redis snapshot and an optional prod Vercel Blob snapshot — into the local stack for testing.
-
-```bash
-docker compose up -d postgres redis blob
-
-# One-shot: pull prod data into local Postgres + Redis + Blob
-docker compose run --rm sync-db
-```
-
-The sync logic lives in [`scripts/sync/sync.mjs`](scripts/sync/sync.mjs) (mounted read-only into a `node:22-bookworm-slim` container). It always rebuilds local Postgres via `pg_dump | pg_restore`; the optional Redis and Blob copies are gated on `PROD_REDIS_URL` and `PROD_BLOB_READ_WRITE_TOKEN` respectively — when unset, that phase is skipped with a one-line note.
-
-For Blob, the script first drains prod into memory (path + bytes + content-type), then clears the local emulator and re-uploads. The `@vercel/blob` SDK reads `VERCEL_BLOB_API_URL` lazily on each call, so the script unsets it during the prod read and sets it to the emulator URL (`http://blob:3000/api/blob` inside the docker network) for the local writes.
-
-### 4. Environment
-
-Create `.env` in the project root (see `example.env` for the full list):
-
-```env
-DATABASE_URL="postgresql://postgres@localhost:5432/appdb"
-REDIS_URL="redis://localhost:6379"
-JWT_SECRET="your-secure-jwt-secret-key"
-CRON_SECRET="your-cron-secret"
-
-# Production Neon DB (used by sync-db and prod migrations)
-PROD_DATABASE_URL="postgresql://..."
-
-# Optional: prod Redis snapshot source for sync-db
-# PROD_REDIS_URL="redis://..."
-
-# Optional: prod Vercel Blob snapshot source for sync-db
-# PROD_BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
-
-# Vercel Blob — local emulator
-BLOB_READ_WRITE_TOKEN="vercel_blob_rw_local_dev"
-VERCEL_BLOB_API_URL="http://localhost:3100/api/blob"
-NEXT_PUBLIC_VERCEL_BLOB_API_URL="http://localhost:3100/api/blob"
-# In production set BLOB_READ_WRITE_TOKEN to a real (private) store token
-# and omit the *_VERCEL_BLOB_API_URL variables.
-
-# Optional: disable performance profiling (default: on)
-# PROFILING=off
-```
-
-### 5. Database setup
-
-```bash
-pnpm exec prisma generate
-pnpm exec prisma migrate dev
-```
-
-### 6. Start
-
-```bash
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) and sign up.
-
----
-
-## Project Structure
-
-```
-ledger/
-├── app/
-│   ├── _actions/
-│   │   ├── _result.ts               # Discriminated ActionResult type
-│   │   ├── attachments.ts           # save_attachments / delete_attachment
-│   │   ├── auth.ts                  # Sign up / log in / JWT / change credentials
-│   │   ├── compute_balances.ts      # Balance aggregation + Redis cache
-│   │   ├── flush.ts                 # Redis FLUSHALL (admin)
-│   │   ├── preferences.ts           # Per-user line-item defaults + UI preferences (theme / privacy)
-│   │   ├── resources.ts             # Accounting head / Asset CRUD with hierarchy + cycle detection
-│   │   ├── templates.ts             # Transaction template CRUD
-│   │   ├── transactions.ts          # Create transaction (validation + write)
-│   │   ├── transactions_update.ts   # Update transaction (same validation pipeline)
-│   │   └── validate_all_txns.ts     # Bulk integrity checker
-│   ├── _components/                 # Shared React components
-│   │   ├── AccountForm.tsx          # Create/Update forms for all accounting head types
-│   │   ├── AccountFormComponents.tsx# Reusable form primitives (inputs, selects, actions)
-│   │   ├── AttachmentUpload.tsx     # Drag-and-drop attachment uploader (private Blob)
-│   │   ├── HierarchyTree.tsx        # Recursive tree display
-│   │   ├── HoldingsGrid.tsx         # Asset holdings grid
-│   │   ├── TransactionLineItems.tsx # Line-item editor (grouped by head type)
-│   │   └── ...                      # Toast, Navbar, LocalDateTime, etc.
-│   ├── _utils/
-│   │   ├── currency_formatter.ts    # ₹ formatters
-│   │   ├── date.ts                  # IST ↔ UTC helpers
-│   │   ├── decimal.ts               # Prisma Decimal helpers
-│   │   ├── line_item_defaults.ts    # pickDefaultAccount / pickDefaultAsset helpers
-│   │   ├── normalize_txn.ts         # Fills null quantities at read time
-│   │   ├── orderStorage.ts          # Per-page sort persistence (localStorage)
-│   │   ├── price_fetcher.ts         # Yahoo Finance / AMFI NAV sync + Redis cache
-│   │   └── validate_line_items.ts   # Invariant checks on line items
-│   ├── accounts/                    # `account`-type head pages (list / detail / create / update)
-│   ├── allocations/                 # `allocation`-type head pages
-│   ├── api/
-│   │   ├── attachments/[id]/route.ts          # Authenticated proxy that streams private blobs
-│   │   ├── cron/sync-nav/route.ts             # Daily AMFI NAV bulk pull (Vercel cron)
-│   │   ├── cron/cleanup-orphan-blobs/route.ts # Weekly orphan-blob sweep (Vercel cron)
-│   │   ├── dump/route.ts                      # Authenticated SQL dump download
-│   │   ├── metrics/web-vital/route.ts         # Web Vitals ingestion (sendBeacon target)
-│   │   └── upload/route.ts                    # handleUpload() — issues client tokens for Blob
-│   ├── assets/                      # Asset pages (list / detail with XIRR + FIFO / create / update)
-│   ├── income_expenses/             # `income_expense`-type head pages
-│   ├── login/                       # Auth UI
-│   ├── settings/                    # Username / password / theme / privacy / line-item defaults
-│   ├── transactions/                # Transaction list / detail / create / update
-│   ├── ClientPage.tsx               # Dashboard (net worth, investments XIRR, admin actions)
-│   ├── layout.tsx
-│   └── page.tsx
-├── lib/
-│   ├── prisma.ts                    # Prisma singleton (PrismaPg adapter) + profiling $extends
-│   ├── redis.ts                     # ioredis singleton + per-request hit/miss counters
-│   ├── env.ts                       # Typed env var access
-│   ├── logger.ts                    # Pino logger
-│   └── metrics/                     # AsyncLocalStorage request context + profile() HOC + persist
-├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
-├── generated/prisma/                # Generated Prisma client (engineType=client)
-├── proxy.ts                         # JWT gate + x-user-id header injection
-├── docker-compose.yml               # Local Postgres, Redis, Vercel Blob emulator (+ optional sync-db)
-├── vercel.json                      # Cron schedules (sync-nav + cleanup-orphan-blobs)
-└── package.json
-```
-
-### Frontend Architecture: Server-Wrapper Pattern
+## Frontend Architecture: Server-Wrapper Pattern
 
 Every route is a thin server component that fetches data, then delegates all rendering and interactivity to a client component:
 
@@ -448,6 +256,7 @@ model accounting_head {
   is_active      Boolean              @default(true)
   is_placeholder Boolean              @default(false)
   parent_id      String?
+  upi_id         String?              // VPA or phone-as-UPI-Number for the Pay button
 }
 
 model asset {
@@ -508,7 +317,7 @@ enum accounting_head_type { account  income_expense  allocation }
 enum asset_type            { rupees   mf              etf         shares  other }
 ```
 
-Profiling tables (`server_metric`, `slow_query`, `web_vital`) live alongside the domain tables — see the [Performance Profiling](#performance-profiling) section.
+Profiling tables (`server_metric`, `slow_query`, `web_vital`) live alongside the domain tables — see [Performance Profiling](#performance-profiling).
 
 **Key design points:**
 
@@ -519,26 +328,22 @@ Profiling tables (`server_metric`, `slow_query`, `web_vital`) live alongside the
 
 ---
 
-## Available Scripts
+## Local Stack & Prod Sync
+
+`docker-compose.yml` spins up PostgreSQL 17, Redis, and the Vercel Blob emulator locally. An optional `sync-db` service copies a Neon snapshot — plus an optional prod Redis snapshot and an optional prod Vercel Blob snapshot — into the local stack.
 
 ```bash
-pnpm dev                              # Development server
-pnpm build                            # prisma generate + next build
-pnpm start                            # Production server
-pnpm typecheck                        # tsc --noEmit
-pnpm test                             # vitest run
-pnpm lint                             # ESLint
-pnpm analyze                          # Bundle analysis (ANALYZE=true next build)
-
-pnpm exec prisma generate             # Regenerate Prisma client after schema changes
-pnpm exec prisma migrate dev --name X # Create + apply migration to dev DB
-pnpm exec prisma migrate deploy       # Apply pending migrations to prod
-pnpm exec prisma studio               # Prisma Studio GUI
+docker compose up -d postgres redis blob
+docker compose run --rm sync-db   # pulls prod Postgres + Redis + Blob into local
 ```
+
+The sync logic lives in [`scripts/sync/sync.mjs`](scripts/sync/sync.mjs), mounted read-only into a `node:22-bookworm-slim` container. It always rebuilds local Postgres via `pg_dump | pg_restore` (PGDG `postgresql-client-17` because Bookworm only ships 15 and Neon is on 17). The Redis and Blob phases are gated on `PROD_REDIS_URL` and `PROD_BLOB_READ_WRITE_TOKEN` — when unset, that phase is skipped with a one-line note.
+
+For Blob, the script drains prod into memory (path + bytes + content-type), then clears the local emulator and re-uploads. The `@vercel/blob` SDK reads `VERCEL_BLOB_API_URL` lazily on each call, so the script unsets it during the prod read and sets it to the emulator URL (`http://blob:3000/api/blob` inside the docker network) for the local writes. Prod URLs require an Authorization header (the store is private), and the script refuses to wipe local if prod listed blobs but none could be fetched.
 
 ### Migrating prod (Neon)
 
-The stored `PROD_DATABASE_URL` uses pgbouncer's pooled endpoint which doesn't support Prisma's migration engine. Strip `-pooler` from the hostname and add a connect timeout to handle Neon's auto-suspend:
+`PROD_DATABASE_URL` uses pgbouncer's pooled endpoint, which doesn't support Prisma's migration engine. Strip `-pooler` from the hostname and add a connect timeout to handle Neon's auto-suspend:
 
 ```bash
 DIRECT_URL="$(grep '^PROD_DATABASE_URL=' .env | sed -E 's/^PROD_DATABASE_URL=//; s/^"(.*)"$/\1/; s/-pooler\././')" \
@@ -570,7 +375,7 @@ Two scheduled routes wired into Vercel cron via `vercel.json`. Both require `Bea
 
 | Route                            | Schedule (UTC) | Purpose                                                                                                                                                             |
 | -------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/cron/sync-nav`             | `0 2 * * *`    | Streams the AMFI bulk NAV file, filters ISINs matching known `mf` assets, and pipelines them into Redis with a 2-day TTL.                                           |
+| `/api/cron/sync-nav`             | `0 2 * * *`    | Streams the AMFI bulk NAV file, filters ISINs matching known `mf` assets, pipelines them into Redis with a 2-day TTL.                                               |
 | `/api/cron/cleanup-orphan-blobs` | `0 3 * * 0`    | Lists every blob in the Vercel Blob store, deletes any whose `pathname` isn't referenced in `transaction_attachment`. 1-hour grace period covers in-flight uploads. |
 
 In development (or on cache miss) `get_nav` also triggers an in-process `sync_nav()` — deduplicated via a module-level promise — so the first request on a fresh boot still resolves.
@@ -602,10 +407,4 @@ Three tables collect the data:
 | `slow_query`    | Prisma query above 100 ms    | `model`, `action`, `duration_ms` (linked to `server_metric`)                                                                 |
 | `web_vital`     | LCP / INP / CLS / FCP / TTFB | `route`, `value`, `rating` — collected client-side via `next/web-vitals` and `sendBeacon`                                    |
 
-Writes are fire-and-forget so profiling never blocks the response. Set `PROFILING=off` in the environment to disable the wrapper entirely (the page function runs untouched).
-
----
-
-## License
-
-Private and proprietary. All rights reserved.
+Writes are fire-and-forget so profiling never blocks the response. Set `PROFILING=off` to disable the wrapper entirely (the page function runs untouched).
