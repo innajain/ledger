@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   keywords: ['ledger', 'asset management', 'portfolio', 'finance', 'investments', 'accounting'],
   authors: [{ name: 'Shreyansh Jain', url: 'https://github.com/innajain' }],
   creator: 'Shreyansh Jain',
-  metadataBase: new URL('https://ledger.shreyansh.space'), // Update with your actual domain
+  metadataBase: new URL('https://ledger4-woad.vercel.app/'), // Update with your actual domain
   openGraph: {
     type: 'website',
     locale: 'en_US',
