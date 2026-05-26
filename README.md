@@ -198,8 +198,6 @@ Each `account`-type accounting head can carry an optional **UPI ID** (set via th
 
 When the payee's balance is negative (you owe them), the amount input and a `reimbursement. balance settled` note are pre-filled. Note that the URL is hand-built with `encodeURIComponent` (not `URLSearchParams.toString()`) so spaces encode as `%20` rather than `+` — UPI apps display `+` literally in the transaction note otherwise.
 
-The Pay button also shows up on the transaction-create page next to **Create Transaction** whenever any line item targets a UPI-tagged account with a non-zero amount; confirming there saves the transaction as well.
-
 ### Transaction List, Search & Filters
 
 The `/transactions` list supports:
