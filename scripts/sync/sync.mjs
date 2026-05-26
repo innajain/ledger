@@ -82,16 +82,26 @@ if (!env.PROD_BLOB_TOKEN) {
   // Phase 1: drain prod into memory (path + bytes + content-type). For large
   // stores this would want streaming-to-disk, but our prod blob is tiny
   // (attachments only) so in-memory is fine.
+  //
+  // Prod blob is a private store — direct fetches of the `.private.` URLs
+  // return 403 without an Authorization header. The token doubles as the
+  // bearer credential (same pattern the app's attachments proxy uses).
   /** @type {{pathname: string, body: Buffer, content_type: string | null}[]} */
   const prod_blobs = []
+  let prod_listed = 0
+  let prod_failed = 0
   {
     let cursor
     do {
       const page = await list({ token: env.PROD_BLOB_TOKEN, cursor, limit: 1000 })
       for (const b of page.blobs) {
-        const r = await fetch(b.url)
+        prod_listed++
+        const r = await fetch(b.url, {
+          headers: { authorization: `Bearer ${env.PROD_BLOB_TOKEN}` },
+        })
         if (!r.ok) {
           console.warn(`  skip ${b.pathname}: HTTP ${r.status}`)
+          prod_failed++
           continue
         }
         prod_blobs.push({
@@ -103,7 +113,13 @@ if (!env.PROD_BLOB_TOKEN) {
       cursor = page.cursor
     } while (cursor)
   }
-  console.log(`Pulled ${prod_blobs.length} blobs from prod`)
+  console.log(`Pulled ${prod_blobs.length} blobs from prod (listed ${prod_listed}, ${prod_failed} failed)`)
+
+  // Refuse to wipe local if prod listed blobs but we couldn't fetch any of
+  // them — that'd silently empty the local emulator on a transient auth issue.
+  if (prod_listed > 0 && prod_blobs.length === 0) {
+    throw new Error(`Refusing to clear local: prod listed ${prod_listed} blobs but pulled zero (all failed)`)
+  }
 
   // Phase 2: clear local + upload prod blobs into it.
   env.VERCEL_BLOB_API_URL = env.DEST_BLOB_API_URL
