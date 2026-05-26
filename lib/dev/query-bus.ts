@@ -2,6 +2,11 @@ import 'server-only'
 import { EventEmitter } from 'node:events'
 import { isDev } from '../env'
 
+// Off-switch for the dev query toaster — useful when you want a quiet
+// transcript or are reviewing a slow page without the toast noise.
+// Mirrors the PROFILING=off convention used by the metrics wrapper.
+export const DEV_QUERY_TOASTS_ENABLED = isDev() && process.env.DEV_QUERY_TOASTS !== 'off'
+
 export type QueryEvent =
   | { kind: 'db'; model?: string; action?: string; duration_ms: number; error?: boolean; ts?: number; replayed?: boolean }
   | { kind: 'redis'; op: string; duration_ms: number; hit?: boolean; error?: boolean; ts?: number; replayed?: boolean }
@@ -28,7 +33,9 @@ const BUFFER_MAX = 500
 export const queryBus = bus
 
 export function publishQueryEvent(ev: QueryEvent): void {
-  if (!isDev()) return
+  // Same gate as the route + layout: skip the buffer maintenance entirely
+  // when toasts are off, since this bus has no other consumers.
+  if (!DEV_QUERY_TOASTS_ENABLED) return
 
   const stamped: QueryEvent = { ...ev, ts: Date.now() }
   buffer.push(stamped)

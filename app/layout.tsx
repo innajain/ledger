@@ -10,7 +10,7 @@ import { ToastProvider } from './_components/Toast'
 import { WebVitalsReporter } from './_components/WebVitalsReporter'
 import { DevQueryToaster } from './_components/DevQueryToaster'
 import { PROFILING_ENABLED } from '@/lib/metrics/profile'
-import { isDev } from '@/lib/env'
+import { DEV_QUERY_TOASTS_ENABLED } from '@/lib/dev/query-bus'
 import './globals.css'
 import Link from 'next/link'
 
@@ -86,7 +86,7 @@ export default async function RootLayout({
             persist={persist}
           >
             <ToastProvider>
-              {isDev() && <DevQueryToaster />}
+              {DEV_QUERY_TOASTS_ENABLED && <DevQueryToaster />}
               <div className="min-h-screen flex flex-col">
                 {/* Header */}
                 <Navbar isLoggedIn={!!user} />

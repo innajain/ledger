@@ -408,3 +408,5 @@ Three tables collect the data:
 | `web_vital`     | LCP / INP / CLS / FCP / TTFB | `route`, `value`, `rating` — collected client-side via `next/web-vitals` and `sendBeacon`                                    |
 
 Writes are fire-and-forget so profiling never blocks the response. Set `PROFILING=off` to disable the wrapper entirely (the page function runs untouched).
+
+In dev only, a separate **query toaster** ([`DevQueryToaster`](app/_components/DevQueryToaster.tsx)) subscribes to an SSE stream at `/api/dev/queries` and fires a toast per DB query / Redis op as it happens — useful for spotting N+1s and cache misses inline. Set `DEV_QUERY_TOASTS=off` to silence it; the gate also short-circuits `publishQueryEvent` so the per-event ring buffer is skipped entirely.

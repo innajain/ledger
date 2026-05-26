@@ -1,11 +1,12 @@
-import { isDev } from '@/lib/env'
-import { queryBus, getRecentEvents, type QueryEvent } from '@/lib/dev/query-bus'
+import { DEV_QUERY_TOASTS_ENABLED, queryBus, getRecentEvents, type QueryEvent } from '@/lib/dev/query-bus'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  if (!isDev()) return new Response('not found', { status: 404 })
+  // 404 in prod and when explicitly disabled via DEV_QUERY_TOASTS=off, so
+  // a stale tab from before the flip can't keep streaming events forever.
+  if (!DEV_QUERY_TOASTS_ENABLED) return new Response('not found', { status: 404 })
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
