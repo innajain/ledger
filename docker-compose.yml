@@ -21,50 +21,50 @@ services:
       - redis_data:/data
 
   sync-db:
-    image: python:3.12-slim
+    image: node:22-bookworm-slim
     environment:
       - PG_SRC=${PROD_DATABASE_URL}
       - PG_DEST=postgresql://postgres@postgres:5432/appdb
       - REDIS_SRC=${PROD_REDIS_URL:-}
       - REDIS_DEST=redis://redis:6379
+      - PROD_BLOB_TOKEN=${PROD_BLOB_READ_WRITE_TOKEN:-}
+      - DEST_BLOB_TOKEN=${BLOB_READ_WRITE_TOKEN:-vercel_blob_rw_local_dev}
+      # Container-internal URL for the blob emulator. The host-facing URL is
+      # http://localhost:3100/api/blob; inside the docker network it's
+      # http://blob:3000/api/blob.
+      - DEST_BLOB_API_URL=http://blob:3000/api/blob
+    volumes:
+      - ./scripts/sync:/sync:ro
     entrypoint:
       - bash
       - -c
       - |
         set -e
-        apt-get update -qq && apt-get install -y -qq postgresql-client ca-certificates
-        pip install --quiet redis
-        python3 - <<'PYEOF'
-        import os
-        import redis
-        dest = redis.from_url(os.environ['REDIS_DEST'])
-        dest.flushall()
-        print('Flushed local Redis')
-        src_url = os.environ.get('REDIS_SRC')
-        if src_url:
-            src = redis.from_url(src_url)
-            n = 0
-            for key in src.scan_iter():
-                ttl = src.pttl(key)
-                if ttl < 0:
-                    ttl = 0
-                dump = src.dump(key)
-                if dump:
-                    dest.restore(key, ttl, dump, replace=True)
-                    n += 1
-            print(f'Synced {n} keys from prod Redis')
-        else:
-            print('PROD_REDIS_URL not set; skipped Redis copy')
-        PYEOF
-        echo 'Syncing Postgres from prod...'
-        # PGSSLROOTCERT=system tells libpq to verify Neon's cert via the system trust
-        # store (needed because channel_binding=require triggers verify-full on libpq 17).
-        # Applied only to pg_dump; the local pg_restore connection doesn't use SSL.
-        PGSSLROOTCERT=system pg_dump "$$PG_SRC" --format=custom --no-owner --no-privileges | \
-          pg_restore -d "$$PG_DEST" --clean --if-exists --no-owner --no-privileges
+        # Pull postgresql-client-17 from PGDG (Debian Bookworm only ships
+        # postgresql-client-15, and pg_dump must be >= server version — Neon
+        # is on 17).
+        apt-get update -qq
+        apt-get install -y -qq --no-install-recommends ca-certificates curl gnupg lsb-release >/dev/null
+        curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+        echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+        apt-get update -qq
+        apt-get install -y -qq postgresql-client-17 >/dev/null
+        # Copy the script to a writable dir before installing deps. Can't
+        # install in /sync (mounted read-only from the host, on purpose so
+        # the host's working tree stays clean), and NODE_PATH doesn't apply
+        # to ESM resolution — Node walks up from the script's directory
+        # looking for node_modules, so the script + node_modules must live
+        # in the same writable location.
+        mkdir -p /work
+        cp /sync/sync.mjs /work/
+        cd /work
+        # Pin to the same versions as the app to avoid SDK drift surprises.
+        npm install --silent --no-save --no-package-lock @vercel/blob@2.3.3 ioredis@5.10.1
+        node sync.mjs
     depends_on:
       - postgres
       - redis
+      - blob
 
   blob:
     image: ghcr.io/payloadcms/vercel-blob-emulator:latest

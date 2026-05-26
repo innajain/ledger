@@ -278,14 +278,18 @@ pnpm install
 
 ### 3. Local infrastructure (optional)
 
-`docker-compose.yml` spins up PostgreSQL 17, Redis, and the Vercel Blob emulator locally. An optional `sync-db` service can copy a Neon snapshot (and optionally a prod Redis snapshot) into the local stack for testing.
+`docker-compose.yml` spins up PostgreSQL 17, Redis, and the Vercel Blob emulator locally. An optional `sync-db` service can copy a Neon snapshot — plus an optional prod Redis snapshot and an optional prod Vercel Blob snapshot — into the local stack for testing.
 
 ```bash
 docker compose up -d postgres redis blob
 
-# One-shot: pull prod data into local Postgres (and Redis if PROD_REDIS_URL is set)
+# One-shot: pull prod data into local Postgres + Redis + Blob
 docker compose run --rm sync-db
 ```
+
+The sync logic lives in [`scripts/sync/sync.mjs`](scripts/sync/sync.mjs) (mounted read-only into a `node:22-bookworm-slim` container). It always rebuilds local Postgres via `pg_dump | pg_restore`; the optional Redis and Blob copies are gated on `PROD_REDIS_URL` and `PROD_BLOB_READ_WRITE_TOKEN` respectively — when unset, that phase is skipped with a one-line note.
+
+For Blob, the script first drains prod into memory (path + bytes + content-type), then clears the local emulator and re-uploads. The `@vercel/blob` SDK reads `VERCEL_BLOB_API_URL` lazily on each call, so the script unsets it during the prod read and sets it to the emulator URL (`http://blob:3000/api/blob` inside the docker network) for the local writes.
 
 ### 4. Environment
 
@@ -302,6 +306,9 @@ PROD_DATABASE_URL="postgresql://..."
 
 # Optional: prod Redis snapshot source for sync-db
 # PROD_REDIS_URL="redis://..."
+
+# Optional: prod Vercel Blob snapshot source for sync-db
+# PROD_BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
 
 # Vercel Blob — local emulator
 BLOB_READ_WRITE_TOKEN="vercel_blob_rw_local_dev"
