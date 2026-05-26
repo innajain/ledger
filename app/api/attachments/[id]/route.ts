@@ -13,7 +13,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   })
   if (!att || att.transaction.user_id !== user_id) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const response = await fetch(att.url, {
+  // The DB stores the URL the blob was put() against. In dev, sync-db copies
+  // the DB rows verbatim from prod, so `att.url` points at the prod blob's
+  // `.private.blob.vercel-storage.com` host even though the bytes now live
+  // on the local emulator. Rewrite to the emulator's origin + pathname when
+  // VERCEL_BLOB_API_URL is set; in prod this var is unset and we fetch the
+  // original URL.
+  const fetch_url = process.env.VERCEL_BLOB_API_URL ? `${new URL(process.env.VERCEL_BLOB_API_URL).origin}/${att.pathname}` : att.url
+  const response = await fetch(fetch_url, {
     headers: { authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
   })
   if (!response.ok || !response.body) return NextResponse.json({ error: 'Blob fetch failed', status: response.status }, { status: 502 })
