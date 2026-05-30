@@ -192,6 +192,11 @@ export async function build_actor_copy(
       ...(isA ? { txn_a_id: actor_txn_id } : { txn_b_id: actor_txn_id }),
     },
   })
+
+  // Rebuilding my copy may have changed shared fields that OTHER counterparties
+  // on this transaction also mirror — re-open their links if so (the link just
+  // approved matches and is left alone).
+  await sync_links_after_update(tx, actor_id, actor_txn_id)
 }
 
 // On create: open one pending request per linked counterparty (awaiting them).
@@ -413,21 +418,23 @@ export async function get_transaction_status(user_id: string, transaction_id: st
   const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
   const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
   const name = (id: string) => users.find(u => u.id === id)?.username ?? 'user'
+  const tag = (l: (typeof links)[number]) => '@' + name(other_user(l, user_id))
 
-  const rejected = links.find(l => l.pending_status === 'rejected')
-  if (rejected) {
-    return rejected.pending_by === user_id
-      ? `Your change was rejected — resolve it in Requests`
-      : `Awaiting @${name(other_user(rejected, user_id))} to resolve a rejected change`
-  }
-  const pending = links.find(l => l.pending_status === 'pending')
-  if (pending) {
-    const kind = pending.pending_kind === 'deletion' ? 'Deletion' : 'Change'
-    return pending.pending_by === user_id
-      ? `${kind} awaiting your approval — see Requests`
-      : `${kind} awaiting @${name(other_user(pending, user_id))}'s approval`
-  }
-  return `Shared with ${otherIds.map(id => '@' + name(id)).join(', ')} (approved)`
+  // Aggregate across all counterparties — a transaction can be shared with more
+  // than one user, each in its own state.
+  const awaitingMe = links.filter(l => l.pending_status === 'pending' && l.pending_by === user_id)
+  const awaitingThem = links.filter(l => l.pending_status === 'pending' && l.pending_by !== user_id)
+  const rejectedMine = links.filter(l => l.pending_status === 'rejected' && l.pending_by === user_id)
+  const rejectedTheirs = links.filter(l => l.pending_status === 'rejected' && l.pending_by !== user_id)
+
+  const parts: string[] = []
+  if (awaitingMe.length) parts.push(`awaiting your approval (${awaitingMe.map(tag).join(', ')}) — see Requests`)
+  if (awaitingThem.length) parts.push(`awaiting approval from ${awaitingThem.map(tag).join(', ')}`)
+  if (rejectedMine.length) parts.push(`your change was rejected by ${rejectedMine.map(tag).join(', ')} — resolve in Requests`)
+  if (rejectedTheirs.length) parts.push(`awaiting ${rejectedTheirs.map(tag).join(', ')} to resolve a rejected change`)
+
+  if (parts.length === 0) return `Shared with ${otherIds.map(id => '@' + name(id)).join(', ')} (approved)`
+  return `Shared transaction — ${parts.join('; ')}`
 }
 
 export type EditorContext = {
