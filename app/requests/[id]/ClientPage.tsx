@@ -84,6 +84,17 @@ export default function ClientPage({
     }
   }
 
+  const lockedItems: LineItemData[] = ctx.reciprocal_head
+    ? ctx.mirrored_lines.map(m => ({
+        accounting_head_id: ctx.reciprocal_head!.id,
+        asset_id: m.asset_id,
+        quantity: m.quantity === null ? null : String(m.quantity),
+        txn_value: m.txn_value === null ? null : String(m.txn_value),
+        description: '',
+        datetime: '',
+      }))
+    : []
+
   return (
     <div className="space-y-6">
       <div>
@@ -104,34 +115,18 @@ export default function ClientPage({
         </p>
       </div>
 
-      {/* Locked mirrored lines */}
-      <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-200 dark:border-slate-700 p-5">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Mirrored lines (locked)</h2>
-          {ctx.datetime && (
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              <LocalDateTime value={ctx.datetime} />
-            </span>
-          )}
-        </div>
-        {ctx.description && <p className="text-sm italic text-slate-600 dark:text-slate-400 mb-2">{ctx.description}</p>}
-        <ul className="space-y-1 text-sm">
-          {ctx.mirrored_lines.map((m, i) => (
-            <li key={i} className="flex justify-between gap-4">
-              <span className="text-slate-600 dark:text-slate-400">
-                {ctx.reciprocal_head?.name ?? 'Your account'} · {m.asset_name}
-              </span>
-              <span className="font-medium text-slate-900 dark:text-slate-100">
-                {m.txn_value !== null ? `${m.quantity ?? '—'} units (₹${m.txn_value})` : `₹${m.quantity ?? '—'}`}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {(ctx.datetime || ctx.description) && (
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {ctx.datetime && <LocalDateTime value={ctx.datetime} />}
+          {ctx.datetime && ctx.description && ' · '}
+          {ctx.description && <span className="italic">{ctx.description}</span>}
+        </p>
+      )}
 
       <form onSubmit={onSubmit} className="space-y-6">
         <TransactionLineItems
           items={items}
+          lockedItems={lockedItems}
           accounts={accounts}
           assets={assets}
           onAddItem={addItem}
