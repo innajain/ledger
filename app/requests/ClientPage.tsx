@@ -111,15 +111,19 @@ export default function ClientPage({ items, accounts }: { items: InboxItem[]; ac
         <div className="mt-4 flex flex-wrap gap-2">
           {isRejected ? (
             <>
-              {item.has_reciprocal && (
+              {item.can_revert && item.has_reciprocal && (
                 <Link
                   href={`/requests/${item.link_id}`}
                   className="px-4 py-1.5 text-sm bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 font-medium"
                 >
-                  Revert to approved
+                  {item.kind === 'deletion' ? 'Restore (undo deletion)' : 'Revert to approved'}
                 </Link>
               )}
-              <span className="text-sm text-slate-500 dark:text-slate-400 self-center">or edit / delete your own transaction.</span>
+              {item.kind !== 'deletion' && (
+                <span className="text-sm text-slate-500 dark:text-slate-400 self-center">
+                  {item.can_revert ? 'or edit / delete your own transaction.' : 'Edit or delete your transaction to resolve.'}
+                </span>
+              )}
             </>
           ) : item.kind === 'deletion' ? (
             <>

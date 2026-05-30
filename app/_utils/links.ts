@@ -334,6 +334,9 @@ export type InboxItem = {
   // The lines I'd be approving (the counterpart's linked lines, mirrored).
   preview: { asset_name: string; quantity: number | null; txn_value: number | null }[]
   has_reciprocal: boolean
+  // A rejected round can only be reverted if there's an anchor to revert to
+  // (the other side has an approved copy). Rejected initial creates have none.
+  can_revert: boolean
   datetime: string | null
   description: string | null
 }
@@ -385,6 +388,7 @@ export async function get_inbox(user_id: string): Promise<InboxItem[]> {
       other_username: nameById.get(other) ?? 'unknown',
       preview,
       has_reciprocal: hasRecip.has(other),
+      can_revert: link.pending_status === 'rejected' && sourceTxnId !== null,
       datetime,
       description,
     })
@@ -476,7 +480,10 @@ export type EditorContext = {
 export async function get_editor_context(user_id: string, link_id: string): Promise<EditorContext | null> {
   const link = await prisma.transaction_link.findUnique({ where: { id: link_id } })
   if (!link || link.pending_by !== user_id) return null
-  if (link.pending_kind === 'deletion') return null
+  // Pending deletions are handled inline (approve/reject) with no editor; a
+  // *rejected* deletion, however, is reverted here (the proposer rebuilds their
+  // deleted copy from the anchor).
+  if (link.pending_status === 'pending' && link.pending_kind === 'deletion') return null
 
   const other = other_user(link, user_id)
   const otherUser = await prisma.user.findUnique({ where: { id: other }, select: { username: true } })
