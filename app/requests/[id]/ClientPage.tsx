@@ -18,6 +18,9 @@ function toLocalInput(iso: string | null): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+const lockedFieldCls =
+  'w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800'
+
 export default function ClientPage({
   ctx,
   accounts,
@@ -124,13 +127,38 @@ export default function ClientPage({
         </p>
       </div>
 
-      {(ctx.datetime || ctx.description) && (
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {ctx.datetime && <LocalDateTime value={ctx.datetime} />}
-          {ctx.datetime && ctx.description && ' · '}
-          {ctx.description && <span className="italic">{ctx.description}</span>}
-        </p>
-      )}
+      {/* Transaction-level details — mirrored from the request, locked */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Details</h2>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            Locked
+          </span>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date &amp; Time</label>
+            <input type="datetime-local" value={toLocalInput(ctx.datetime)} disabled className={lockedFieldCls} />
+            {ctx.datetime && (
+              <div className="text-sm text-slate-600 dark:text-slate-400 mt-2 italic">
+                <LocalDateTime value={ctx.datetime} />
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description</label>
+            <input type="text" value={ctx.description ?? ''} disabled placeholder="No description" className={lockedFieldCls} />
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
         <TransactionLineItems
