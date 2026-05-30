@@ -96,6 +96,7 @@ export async function cancel_request(link_id: string): Promise<ActionResult> {
     const { other_id, reverted } = await prisma.$transaction(async tx => {
       const link = await tx.transaction_link.findUnique({ where: { id: link_id } })
       if (!link) throw new Error('Request not found')
+      if (link.user_a_id !== me && link.user_b_id !== me) throw new Error('This is not your request')
       if (link.pending_status !== 'pending') throw new Error('Only a pending request can be cancelled')
       if (link.pending_by === me) throw new Error('This request is awaiting your approval — approve or reject it instead')
 

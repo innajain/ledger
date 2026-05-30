@@ -195,8 +195,8 @@ export async function build_actor_copy(
 
   // Rebuilding my copy may have changed shared fields that OTHER counterparties
   // on this transaction also mirror — re-open their links if so (the link just
-  // approved matches and is left alone).
-  await sync_links_after_update(tx, actor_id, actor_txn_id)
+  // approved matches and is left alone; propagation never blocks).
+  await sync_links_after_update(tx, actor_id, actor_txn_id, { propagate: true })
 }
 
 // On create: open one pending request per linked counterparty (awaiting them).
@@ -265,18 +265,26 @@ async function links_owned_by(tx: Tx, user_id: string, transaction_id: string): 
   })
 }
 
-// On update: reconcile this user's links after their transaction's line items
-// changed. Returns the set of counterparties whose copies need balance
-// invalidation (none here — their copies only change on re-approval).
-export async function sync_links_after_update(tx: Tx, user_id: string, transaction_id: string): Promise<void> {
+// Reconcile this user's links after their copy of a transaction changed.
+//
+// `propagate` distinguishes the two callers:
+//  - false (a user edit, from update_transaction): enforces the anchor
+//    hard-block and forbids removing a shared portion.
+//  - true (propagation, from build_actor_copy after an approval/revert): never
+//    throws and only re-opens already-approved siblings that diverged — pending
+//    or rejected siblings (and the link just approved) are left untouched, so
+//    approving one counterparty can't deadlock on another's open request.
+export async function sync_links_after_update(tx: Tx, user_id: string, transaction_id: string, opts: { propagate?: boolean } = {}): Promise<void> {
   const current = await linked_counterparties(tx, transaction_id)
   const existing = await links_owned_by(tx, user_id, transaction_id)
 
   // Block removing the shared portion for an already-linked counterparty.
-  for (const link of existing) {
-    const cp = other_user(link, user_id)
-    if (!current.includes(cp)) {
-      throw new Error('Removing the shared portion of a linked transaction isn’t supported — delete the transaction instead')
+  if (!opts.propagate) {
+    for (const link of existing) {
+      const cp = other_user(link, user_id)
+      if (!current.includes(cp)) {
+        throw new Error('Removing the shared portion of a linked transaction isn’t supported — delete the transaction instead')
+      }
     }
   }
 
@@ -290,9 +298,14 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
       continue
     }
 
-    // Anchor hard-block: can't edit linked lines while their request awaits me.
-    if (link.pending_status === 'pending' && link.pending_by === user_id) {
-      throw new Error('Resolve the pending request from this counterparty before editing the shared lines')
+    if (opts.propagate) {
+      // Only touch already-approved siblings; leave open/rejected rounds alone.
+      if (link.pending_status !== 'approved') continue
+    } else {
+      // Anchor hard-block: can't edit linked lines while their request awaits me.
+      if (link.pending_status === 'pending' && link.pending_by === user_id) {
+        throw new Error('Resolve the pending request from this counterparty before editing the shared lines')
+      }
     }
 
     const counterpart_txn = their_txn_id(link, user_id)
