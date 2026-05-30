@@ -25,8 +25,10 @@ async function Page() {
   }
   const [items, accounts] = await Promise.all([
     get_inbox(user_id),
+    // Only the user's own (non-linked) accounts can absorb the balancing —
+    // never a linked/person account (that would net to zero).
     prisma.accounting_head.findMany({
-      where: { user_id, type: 'account', is_active: true, is_placeholder: false },
+      where: { user_id, type: 'account', is_active: true, is_placeholder: false, linked_user_id: null },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true },
     }),

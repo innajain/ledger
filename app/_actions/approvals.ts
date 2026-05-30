@@ -51,8 +51,12 @@ export async function accept_all_from(counterparty_id: string, balancing_account
 
     const { approved } = await prisma.$transaction(
       async tx => {
-        const acc = await tx.accounting_head.findFirst({ where: { id: balancing_account_id, user_id: me, type: 'account' }, select: { id: true } })
+        const acc = await tx.accounting_head.findFirst({
+          where: { id: balancing_account_id, user_id: me, type: 'account' },
+          select: { id: true, linked_user_id: true },
+        })
         if (!acc) throw new Error('Balancing account not found')
+        if (acc.linked_user_id) throw new Error('Pick one of your own accounts (not a linked one) to balance with')
 
         const links = await tx.transaction_link.findMany({
           where: {
