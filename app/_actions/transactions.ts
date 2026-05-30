@@ -7,6 +7,7 @@ import { asset_type } from '@/generated/prisma/enums'
 import { validate_line_items } from '../_utils/validate_line_items'
 import { toDecimal } from '../_utils/decimal'
 import { invalidate_balances } from './compute_balances'
+import { create_links_for_transaction, prepare_links_for_delete } from '../_utils/links'
 import { logger } from '@/lib/logger'
 import { ActionResult, ok, err, fromError } from './_result'
 
@@ -69,9 +70,9 @@ export async function create_transaction(
       if (accounts.length !== accounting_head_ids.length) throw new Error('One or more accounts not found or do not belong to your user')
 
       const assets = await prisma.asset.findMany({
-        where: { id: { in: asset_ids }, user_id },
+        where: { id: { in: asset_ids } },
       })
-      if (assets.length !== asset_ids.length) throw new Error('One or more assets not found or do not belong to your user')
+      if (assets.length !== asset_ids.length) throw new Error('One or more assets not found')
 
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
@@ -85,7 +86,7 @@ export async function create_transaction(
       if (!is_valid) throw new Error(message)
 
       // All checks passed — create the transaction with nested line_items
-      return await prisma.transaction.create({
+      const created = await prisma.transaction.create({
         data: {
           datetime,
           description,
@@ -102,6 +103,9 @@ export async function create_transaction(
           },
         },
       })
+      // Open an approval request per linked-account counterparty (if any).
+      await create_links_for_transaction(prisma, user_id, created.id)
+      return created
     })
 
     await invalidate_balances(user_id)
@@ -125,7 +129,11 @@ export async function delete_transaction(id: string): Promise<ActionResult> {
     const user_id = await get_current_user_id()
     if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
 
-    await prisma.transaction.delete({ where: { id, user_id } })
+    await prisma.$transaction(async tx => {
+      // Approved shared copies become deletion requests; never-approved links drop.
+      await prepare_links_for_delete(tx, user_id, id)
+      await tx.transaction.delete({ where: { id, user_id } })
+    })
     await invalidate_balances(user_id)
     return ok()
   } catch (error) {
@@ -170,7 +178,7 @@ export async function create_upi_payment(input: {
         select: { id: true },
       }),
       prisma.asset.findMany({
-        where: { user_id, type: asset_type.rupees, is_active: true },
+        where: { type: asset_type.rupees, is_active: true },
         select: { id: true },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       }),
@@ -215,7 +223,7 @@ export async function create_upi_payment(input: {
       const accounts = await prisma.accounting_head.findMany({
         where: { id: { in: [user_row.default_account_id!, parsed.data.payee_account_id] }, user_id },
       })
-      const assets = await prisma.asset.findMany({ where: { id: rupees_asset_id, user_id } })
+      const assets = await prisma.asset.findMany({ where: { id: rupees_asset_id } })
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
           quantity: li.quantity,

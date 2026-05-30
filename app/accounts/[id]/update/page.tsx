@@ -28,6 +28,10 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     )
   }
 
+  const linkedUsername = account.linked_user_id
+    ? ((await prisma.user.findUnique({ where: { id: account.linked_user_id }, select: { username: true } }))?.username ?? null)
+    : null
+
   const parents: Prisma.accounting_headGetPayload<Record<string, never>>[] = user
     ? await prisma.accounting_head.findMany({
         where: { user_id: user.id, type: 'account' },
@@ -35,7 +39,14 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       })
     : []
 
-  return <ClientPage account={account as Prisma.accounting_headGetPayload<Record<string, never>>} parents={parents} deleteAccount={delete_account} />
+  return (
+    <ClientPage
+      account={account as Prisma.accounting_headGetPayload<Record<string, never>>}
+      parents={parents}
+      deleteAccount={delete_account}
+      linkedUsername={linkedUsername}
+    />
+  )
 }
 
 export default profile('/accounts/[id]/update', Page)

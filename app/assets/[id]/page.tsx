@@ -23,9 +23,11 @@ async function Page({ params }: Props) {
       </div>
     )
   }
+  const me = await prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true } })
+  const isAdmin = me?.is_admin ?? false
 
   const asset = await prisma.asset.findUnique({
-    where: { id, user_id: user.id },
+    where: { id },
     include: {
       line_items: { include: { accounting_head: true, transaction: true } },
       parent: true,
@@ -203,6 +205,7 @@ async function Page({ params }: Props) {
         line_items,
         value_timeseries,
       }}
+      isAdmin={isAdmin}
     />
   )
 }

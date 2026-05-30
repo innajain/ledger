@@ -29,10 +29,12 @@ model user {
   mask_threshold  Int     @default(50000)
   graphs_visible  Boolean @default(false)
 
-  accounting_heads      accounting_head[]
-  assets                asset[]
+  accounting_heads      accounting_head[]      @relation("HeadOwner")
+  linked_from_heads     accounting_head[]      @relation("HeadLinkedUser")
   transactions          transaction[]
   transaction_templates transaction_template[]
+  links_as_a            transaction_link[]     @relation("LinkUserA")
+  links_as_b            transaction_link[]     @relation("LinkUserB")
 }
 
 model accounting_head {
@@ -55,7 +57,13 @@ model accounting_head {
   children  accounting_head[] @relation("AccountingHeadHierarchy")
   // --------------------------------
 
-  user           user                 @relation(fields: [user_id], references: [id])
+  // Optional cross-user link: when set, this account head "represents" another
+  // user, so transactions touching it become approval-gated (see transaction_link).
+  // Real FK (not a soft pointer) — it is load-bearing for approval routing.
+  linked_user_id String?
+
+  user           user                 @relation("HeadOwner", fields: [user_id], references: [id])
+  linked_user    user?                @relation("HeadLinkedUser", fields: [linked_user_id], references: [id], onDelete: Restrict)
   line_items     line_item[]
   template_items line_item_template[]
 
@@ -63,12 +71,15 @@ model accounting_head {
   @@index([user_id, type])
   @@index([parent_id])
   @@index([user_id, parent_id, order_index])
+  @@index([user_id, linked_user_id])
 }
 
 model asset {
+  // Assets are global (admin-managed), not user-scoped — so a transaction and
+  // its cross-user mirror can reference the same asset_id. CRUD is gated on
+  // require_admin in the server actions.
   id             String     @id @default(cuid())
-  user_id        String
-  name           String
+  name           String     @unique
   type           asset_type
   ticker         String?
   is_active      Boolean    @default(true)
@@ -81,14 +92,11 @@ model asset {
   children  asset[] @relation("AssetHierarchy")
   // --------------------------------
 
-  user           user                 @relation(fields: [user_id], references: [id])
   line_items     line_item[]
   template_items line_item_template[]
 
-  @@unique([name, user_id])
-  @@index([user_id])
   @@index([parent_id])
-  @@index([user_id, parent_id, order_index])
+  @@index([parent_id, order_index])
 }
 
 model transaction_template {
@@ -133,6 +141,8 @@ model transaction {
   user        user                     @relation(fields: [user_id], references: [id])
   line_items  line_item[]
   attachments transaction_attachment[]
+  txn_a_links transaction_link[]       @relation("txn_a_links")
+  txn_b_links transaction_link[]       @relation("txn_b_links")
 
   @@index([user_id, datetime])
 }
@@ -186,6 +196,46 @@ enum asset_type {
   etf
   shares
   other
+}
+
+enum pending_status {
+  pending
+  approved
+  rejected
+}
+
+enum pending_kind {
+  change
+  deletion
+}
+
+// Cross-user approval link between two users' copies of a shared transaction.
+// See docs/linked-accounts-plan.md. a/b are stable identity (a = original
+// creator); `pending_by` always names whoever must take the next action.
+model transaction_link {
+  id String @id @default(cuid())
+
+  user_a_id String // original creator (stable identity)
+  user_b_id String // linked counterparty (stable identity)
+  txn_a_id  String? // creator's copy; nullable — a side may delete its copy while the link lives on
+  txn_b_id  String? // counterparty's copy; null until first approval
+
+  pending_status pending_status @default(pending)
+  pending_kind   pending_kind?
+  pending_by     String? // user who must respond/resolve while not approved; null iff approved
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user_a user         @relation("LinkUserA", fields: [user_a_id], references: [id], onDelete: Restrict)
+  user_b user         @relation("LinkUserB", fields: [user_b_id], references: [id], onDelete: Restrict)
+  txn_a  transaction? @relation("txn_a_links", fields: [txn_a_id], references: [id], onDelete: SetNull)
+  txn_b  transaction? @relation("txn_b_links", fields: [txn_b_id], references: [id], onDelete: SetNull)
+
+  @@unique([txn_a_id, user_b_id])
+  @@index([pending_by, pending_status])
+  @@index([user_a_id])
+  @@index([user_b_id])
 }
 
 // One row per server-side page render. Acts as the parent for slow_query

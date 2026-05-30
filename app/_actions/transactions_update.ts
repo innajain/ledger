@@ -6,6 +6,7 @@ import { CreateLineItemInput } from './transactions'
 import { validate_line_items } from '../_utils/validate_line_items'
 import { toDecimal } from '../_utils/decimal'
 import { invalidate_balances } from './compute_balances'
+import { sync_links_after_update } from '../_utils/links'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
 import { ActionResult, ok, err, fromError } from './_result'
@@ -67,9 +68,9 @@ export async function update_transaction(
       if (accounts.length !== accounting_head_ids.length) throw new Error('One or more accounts not found or do not belong to your user')
 
       const assets = await prisma.asset.findMany({
-        where: { id: { in: asset_ids }, user_id },
+        where: { id: { in: asset_ids } },
       })
-      if (assets.length !== asset_ids.length) throw new Error('One or more assets not found or do not belong to your user')
+      if (assets.length !== asset_ids.length) throw new Error('One or more assets not found')
 
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
@@ -101,6 +102,11 @@ export async function update_transaction(
           },
         },
       })
+
+      // Reconcile cross-user approval links: re-open requests for counterparties
+      // whose linked lines changed, add links for new ones (throws on the anchor
+      // hard-block or on removing a shared portion).
+      await sync_links_after_update(prisma, user_id, id)
     })
 
     await invalidate_balances(user_id)

@@ -5,8 +5,9 @@ type EmptyStateProps = {
   icon: React.ReactNode
   title: string
   description: string
-  actionUrl: string
-  actionLabel: string
+  // Optional — omit to render the empty state without a call-to-action button.
+  actionUrl?: string
+  actionLabel?: string
 }
 
 export function EmptyState({ icon, title, description, actionUrl, actionLabel }: EmptyStateProps) {
@@ -17,12 +18,14 @@ export function EmptyState({ icon, title, description, actionUrl, actionLabel }:
       </div>
       <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">{title}</h3>
       <p className="text-slate-600 dark:text-slate-400 mb-6">{description}</p>
-      <Link
-        href={actionUrl}
-        className="inline-flex items-center px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all font-medium ripple hover-lift fun-button sparkle-on-hover"
-      >
-        {actionLabel}
-      </Link>
+      {actionUrl && (
+        <Link
+          href={actionUrl}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all font-medium ripple hover-lift fun-button sparkle-on-hover"
+        >
+          {actionLabel}
+        </Link>
+      )}
     </Card>
   )
 }

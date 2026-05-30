@@ -29,14 +29,15 @@ async function Page() {
     )
   }
 
-  const [assets, { assetsToAccounts: balances }] = await Promise.all([
+  const [assets, { assetsToAccounts: balances }, me] = await Promise.all([
     prisma.asset.findMany({
-      where: { user_id: user.id },
       include: { parent: true },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_or_compute_balances(),
+    prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true } }),
   ])
+  const isAdmin = me?.is_admin ?? false
 
   const priceByAsset = await get_prices_for_assets(assets)
 
@@ -101,7 +102,15 @@ async function Page() {
     xirrByAsset.set(asset.id, calculate_xirr(cashflows))
   }
 
-  return <ClientPage assets={assets} assetAccountQuantities={assetAccountQuantities} totals={currValuesByAsset} xirrByAsset={xirrByAsset} />
+  return (
+    <ClientPage
+      assets={assets}
+      assetAccountQuantities={assetAccountQuantities}
+      totals={currValuesByAsset}
+      xirrByAsset={xirrByAsset}
+      isAdmin={isAdmin}
+    />
+  )
 }
 
 export default profile('/assets', Page)

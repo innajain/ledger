@@ -33,7 +33,7 @@ async function Page() {
         include: { parent: true },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       }),
-      prisma.asset.findMany({ where: { user_id: user.id } }),
+      prisma.asset.findMany(),
     ]),
     get_or_compute_balances(),
   ])

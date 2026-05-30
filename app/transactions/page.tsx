@@ -81,7 +81,6 @@ async function Page({
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     prisma.asset.findMany({
-      where: { user_id: user.id },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_transaction_templates(),

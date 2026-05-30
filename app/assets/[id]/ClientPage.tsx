@@ -55,7 +55,7 @@ type AssetForClient = {
   value_timeseries?: ValuePoint[]
 }
 
-export default function ClientPage({ asset }: { asset: AssetForClient }) {
+export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; isAdmin: boolean }) {
   return (
     <div className="space-y-6">
       <ViewPageHeader
@@ -63,8 +63,8 @@ export default function ClientPage({ asset }: { asset: AssetForClient }) {
         backText="Assets"
         title={asset.name}
         description="Asset details and holdings breakdown"
-        editLink={`/assets/${asset.id}/update`}
-        editText="Edit Asset"
+        editLink={isAdmin ? `/assets/${asset.id}/update` : undefined}
+        editText={isAdmin ? 'Edit Asset' : undefined}
       />
 
       <InfoCard

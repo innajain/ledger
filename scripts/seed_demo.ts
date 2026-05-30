@@ -328,7 +328,6 @@ async function main() {
     await prisma.transaction.deleteMany({ where: { user_id: existing.id } })
     await prisma.transaction_template.deleteMany({ where: { user_id: existing.id } })
     await prisma.accounting_head.deleteMany({ where: { user_id: existing.id } })
-    await prisma.asset.deleteMany({ where: { user_id: existing.id } })
     await prisma.user.delete({ where: { id: existing.id } })
   }
 
@@ -361,10 +360,14 @@ async function main() {
   console.log(`Created ${accIdByName.size} accounts`)
 
   // 4. Create assets
+  // Assets are global (admin-managed) — reuse an existing asset with the same
+  // name, otherwise create it.
   const assetIdByName = new Map<string, string>()
   for (const a of ASSETS) {
-    const row = await prisma.asset.create({
-      data: { user_id: user.id, name: a.name, type: a.type, ticker: a.ticker ?? null, order_index: assetIdByName.size },
+    const row = await prisma.asset.upsert({
+      where: { name: a.name },
+      update: {},
+      create: { name: a.name, type: a.type, ticker: a.ticker ?? null, order_index: assetIdByName.size },
     })
     assetIdByName.set(a.name, row.id)
   }

@@ -16,7 +16,7 @@ async function Home() {
 
   const [allocations, assets, { accountsToAssets: balances }] = await Promise.all([
     prisma.accounting_head.findMany({ where: { user_id: user.id, type: 'allocation' } }),
-    prisma.asset.findMany({ where: { user_id: user.id } }),
+    prisma.asset.findMany(),
     get_or_compute_balances(),
   ])
 

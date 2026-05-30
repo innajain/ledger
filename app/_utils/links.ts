@@ -1,0 +1,246 @@
+import 'server-only'
+import { Prisma } from '@/generated/prisma/client'
+import type { transaction_link } from '@/generated/prisma/client'
+import { prisma } from '@/lib/prisma'
+import { validate_line_items } from './validate_line_items'
+import { toDecimal } from './decimal'
+import type { CreateLineItemInput } from '@/app/_actions/transactions'
+
+// Helpers for the cross-user transaction approval workflow. Pure server logic
+// operating on a passed Prisma transaction client — see docs/linked-accounts-plan.md.
+// `pending_by` always names whoever must take the next action.
+
+// The interactive-transaction client type produced by our $extends-instrumented
+// client (Prisma.TransactionClient doesn't match the extended client).
+type Tx = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
+
+export function other_user(link: transaction_link, user_id: string): string {
+  return link.user_a_id === user_id ? link.user_b_id : link.user_a_id
+}
+export function my_txn_id(link: transaction_link, user_id: string): string | null {
+  return link.user_a_id === user_id ? link.txn_a_id : link.txn_b_id
+}
+export function their_txn_id(link: transaction_link, user_id: string): string | null {
+  return link.user_a_id === user_id ? link.txn_b_id : link.txn_a_id
+}
+
+// The caller's `account` head that represents `other_user_id` (the reciprocal link).
+async function reciprocal_head(tx: Tx, owner_id: string, other_user_id: string): Promise<{ id: string } | null> {
+  return tx.accounting_head.findFirst({
+    where: { user_id: owner_id, linked_user_id: other_user_id, type: 'account' },
+    select: { id: true },
+  })
+}
+
+// Distinct linked counterparties among a transaction's line items.
+export async function linked_counterparties(tx: Tx, transaction_id: string): Promise<string[]> {
+  const lines = await tx.line_item.findMany({
+    where: { transaction_id },
+    select: { accounting_head: { select: { linked_user_id: true } } },
+  })
+  return Array.from(new Set(lines.map(l => l.accounting_head.linked_user_id).filter((x): x is string => !!x)))
+}
+
+// Order-independent fingerprint of a transaction's line items on the head linked
+// to `linked_user_id` (optionally sign-flipped), used to detect linked-line changes.
+async function linked_signature(tx: Tx, transaction_id: string, linked_user_id: string, negate: boolean): Promise<string> {
+  const lines = await tx.line_item.findMany({
+    where: { transaction_id, accounting_head: { linked_user_id } },
+    select: { asset_id: true, quantity: true, txn_value: true },
+  })
+  const flip = (d: Prisma.Decimal | null) => (d === null ? 'x' : (negate ? d.neg() : d).toString())
+  return lines
+    .map(l => `${l.asset_id}:${flip(l.quantity)}:${flip(l.txn_value)}`)
+    .sort()
+    .join('|')
+}
+
+// Build (or replace) the caller's own copy of a shared transaction from the OTHER
+// side's current linked lines (reversed onto the caller's reciprocal head) plus
+// the caller's own balancing lines, then mark the link approved. Used by both
+// approve (responder builds from the proposer) and revert (proposer rebuilds from
+// the anchor) — in both cases the actor is `pending_by` and the source is the
+// other side.
+export async function build_actor_copy(tx: Tx, link: transaction_link, actor_id: string, balancing: CreateLineItemInput[]): Promise<void> {
+  const other_id = other_user(link, actor_id)
+  const recip = await reciprocal_head(tx, actor_id, other_id)
+  if (!recip) throw new Error('Link an account back to that user before approving')
+
+  const source_txn_id = their_txn_id(link, actor_id)
+  if (!source_txn_id) throw new Error('No counterpart transaction to mirror')
+
+  const source = await tx.transaction.findUnique({
+    where: { id: source_txn_id },
+    include: { line_items: { include: { accounting_head: true } } },
+  })
+  if (!source) throw new Error('Counterpart transaction not found')
+
+  // Seeded (locked) lines: the source's lines on the head linked to the actor,
+  // mirrored onto the actor's reciprocal head with negated amounts.
+  const seed: CreateLineItemInput[] = source.line_items
+    .filter(li => li.accounting_head.linked_user_id === actor_id)
+    .map(li => ({
+      accounting_head_id: recip.id,
+      asset_id: li.asset_id,
+      quantity: li.quantity === null ? undefined : li.quantity.neg().toNumber(),
+      txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
+      description: li.description ?? null,
+    }))
+  if (seed.length === 0) throw new Error('The counterpart transaction has no linked line items to mirror')
+
+  const all_lines = [...seed, ...balancing]
+
+  const head_ids = Array.from(new Set(all_lines.map(l => l.accounting_head_id)))
+  const asset_ids = Array.from(new Set(all_lines.map(l => l.asset_id)))
+  const heads = await tx.accounting_head.findMany({ where: { id: { in: head_ids }, user_id: actor_id } })
+  if (heads.length !== head_ids.length) throw new Error('One or more of your accounts were not found')
+  const assets = await tx.asset.findMany({ where: { id: { in: asset_ids } } })
+  if (assets.length !== asset_ids.length) throw new Error('One or more assets were not found')
+
+  const { is_valid, message } = validate_line_items(
+    all_lines.map(li => ({
+      quantity: toDecimal(li.quantity),
+      txn_value: toDecimal(li.txn_value),
+      asset: assets.find(a => a.id === li.asset_id)!,
+      accounting_head: heads.find(a => a.id === li.accounting_head_id)!,
+    })),
+  )
+  if (!is_valid) throw new Error(message)
+
+  const data_lines = all_lines.map(li => ({
+    quantity: toDecimal(li.quantity),
+    txn_value: toDecimal(li.txn_value),
+    accounting_head_id: li.accounting_head_id,
+    asset_id: li.asset_id,
+    description: li.description ?? null,
+    datetime: li.datetime ?? null,
+  }))
+
+  const existing_my = my_txn_id(link, actor_id)
+  let actor_txn_id: string
+  if (existing_my) {
+    await tx.line_item.deleteMany({ where: { transaction_id: existing_my } })
+    await tx.transaction.update({
+      where: { id: existing_my },
+      data: { datetime: source.datetime, description: source.description, line_items: { create: data_lines } },
+    })
+    actor_txn_id = existing_my
+  } else {
+    const created = await tx.transaction.create({
+      data: { user_id: actor_id, datetime: source.datetime, description: source.description, line_items: { create: data_lines } },
+    })
+    actor_txn_id = created.id
+  }
+
+  const isA = link.user_a_id === actor_id
+  await tx.transaction_link.update({
+    where: { id: link.id },
+    data: {
+      pending_status: 'approved',
+      pending_by: null,
+      pending_kind: null,
+      ...(isA ? { txn_a_id: actor_txn_id } : { txn_b_id: actor_txn_id }),
+    },
+  })
+}
+
+// On create: open one pending request per linked counterparty (awaiting them).
+export async function create_links_for_transaction(tx: Tx, user_id: string, transaction_id: string): Promise<string[]> {
+  const counterparties = await linked_counterparties(tx, transaction_id)
+  for (const cp of counterparties) {
+    await tx.transaction_link.create({
+      data: {
+        user_a_id: user_id,
+        user_b_id: cp,
+        txn_a_id: transaction_id,
+        pending_status: 'pending',
+        pending_kind: 'change',
+        pending_by: cp,
+      },
+    })
+  }
+  return counterparties
+}
+
+// Links where `user_id` owns `transaction_id` (it's their side of the pair).
+async function links_owned_by(tx: Tx, user_id: string, transaction_id: string): Promise<transaction_link[]> {
+  return tx.transaction_link.findMany({
+    where: {
+      OR: [
+        { user_a_id: user_id, txn_a_id: transaction_id },
+        { user_b_id: user_id, txn_b_id: transaction_id },
+      ],
+    },
+  })
+}
+
+// On update: reconcile this user's links after their transaction's line items
+// changed. Returns the set of counterparties whose copies need balance
+// invalidation (none here — their copies only change on re-approval).
+export async function sync_links_after_update(tx: Tx, user_id: string, transaction_id: string): Promise<void> {
+  const current = await linked_counterparties(tx, transaction_id)
+  const existing = await links_owned_by(tx, user_id, transaction_id)
+
+  // Block removing the shared portion for an already-linked counterparty.
+  for (const link of existing) {
+    const cp = other_user(link, user_id)
+    if (!current.includes(cp)) {
+      throw new Error('Removing the shared portion of a linked transaction isn’t supported — delete the transaction instead')
+    }
+  }
+
+  for (const cp of current) {
+    const link = existing.find(l => other_user(l, user_id) === cp)
+    if (!link) {
+      // A newly added counterparty → fresh pending request awaiting them.
+      await tx.transaction_link.create({
+        data: { user_a_id: user_id, user_b_id: cp, txn_a_id: transaction_id, pending_status: 'pending', pending_kind: 'change', pending_by: cp },
+      })
+      continue
+    }
+
+    // Anchor hard-block: can't edit linked lines while their request awaits me.
+    if (link.pending_status === 'pending' && link.pending_by === user_id) {
+      throw new Error('Resolve the pending request from this counterparty before editing the shared lines')
+    }
+
+    const counterpart_txn = their_txn_id(link, user_id)
+    if (counterpart_txn) {
+      // Did my linked lines actually change vs the counterpart's approved copy?
+      const mine = await linked_signature(tx, transaction_id, cp, false)
+      const theirs = await linked_signature(tx, counterpart_txn, user_id, true)
+      if (mine === theirs && link.pending_status === 'approved') continue // unchanged → leave anchor
+    }
+    // Re-open (or refresh) the request toward the counterparty.
+    await tx.transaction_link.update({
+      where: { id: link.id },
+      data: { pending_status: 'pending', pending_kind: 'change', pending_by: cp },
+    })
+  }
+}
+
+// On delete: returns true if the transaction row should actually be deleted.
+// Never-approved links are dropped outright; approved links become deletion
+// requests (my copy is removed, the counterpart keeps theirs as the anchor).
+export async function prepare_links_for_delete(tx: Tx, user_id: string, transaction_id: string): Promise<void> {
+  const links = await links_owned_by(tx, user_id, transaction_id)
+  for (const link of links) {
+    const counterpart_txn = their_txn_id(link, user_id)
+    const isA = link.user_a_id === user_id
+    if (!counterpart_txn) {
+      // No counterpart copy ever existed → just drop the link.
+      await tx.transaction_link.delete({ where: { id: link.id } })
+    } else {
+      // Propose deletion: null my pointer, hand the ball to the counterpart.
+      await tx.transaction_link.update({
+        where: { id: link.id },
+        data: {
+          pending_status: 'pending',
+          pending_kind: 'deletion',
+          pending_by: other_user(link, user_id),
+          ...(isA ? { txn_a_id: null } : { txn_b_id: null }),
+        },
+      })
+    }
+  }
+}

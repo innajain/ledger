@@ -101,7 +101,7 @@ export async function update_line_item_defaults(input: LineItemDefaults): Promis
     }
     if (parsed.default_asset_id) {
       const asset = await prisma.asset.findFirst({
-        where: { id: parsed.default_asset_id, user_id },
+        where: { id: parsed.default_asset_id },
         select: { id: true },
       })
       if (!asset) return err('NOT_FOUND', 'Default asset not found')

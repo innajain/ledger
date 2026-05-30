@@ -12,15 +12,21 @@ type Props = {
   totals: Map<string, number>
   assetAccountQuantities: Map<string, Map<string, number>>
   xirrByAsset: Map<string, number | null>
+  isAdmin: boolean
 }
 
-export default function ClientPage({ assets, totals, assetAccountQuantities, xirrByAsset }: Props) {
+export default function ClientPage({ assets, totals, assetAccountQuantities, xirrByAsset, isAdmin }: Props) {
   const [expandAll, setExpandAll] = useState(true)
   const [reorderEnabled, setReorderEnabled] = useState(false)
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Assets" description="Manage your assets and view their hierarchy" createUrl="/assets/create" createLabel="+ New Asset" />
+      <PageHeader
+        title="Assets"
+        description={isAdmin ? 'Manage your assets and view their hierarchy' : 'View the asset hierarchy'}
+        createUrl={isAdmin ? '/assets/create' : undefined}
+        createLabel={isAdmin ? '+ New Asset' : undefined}
+      />
       {assets.length > 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">
@@ -40,7 +46,7 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
             scope="asset"
             accentBorderClass="border-l-purple-500"
             reorderEnabled={reorderEnabled}
-            onReorderToggle={setReorderEnabled}
+            onReorderToggle={isAdmin ? setReorderEnabled : undefined}
             renderExtraInfo={asset => {
               if (asset.type === 'rupees') return null
               const accQty = assetAccountQuantities.get(asset.id) ?? new Map<string, number>()
@@ -63,9 +69,9 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
         <EmptyState
           icon={<AssetEmptyIcon />}
           title="No assets yet"
-          description="Get started by creating your first asset"
-          actionUrl="/assets/create"
-          actionLabel="Create Asset"
+          description={isAdmin ? 'Get started by creating your first asset' : 'No assets have been set up yet'}
+          actionUrl={isAdmin ? '/assets/create' : undefined}
+          actionLabel={isAdmin ? 'Create Asset' : undefined}
         />
       )}
     </div>

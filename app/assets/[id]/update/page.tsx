@@ -16,8 +16,17 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       </div>
     )
   }
+  const me = await prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true } })
+  if (!me?.is_admin) {
+    return (
+      <div>
+        <h1>Update Asset</h1>
+        <p>Assets are managed by admins only.</p>
+      </div>
+    )
+  }
   const asset = await prisma.asset.findUnique({
-    where: { id, user_id: user.id },
+    where: { id },
   })
   if (!asset) {
     return (
@@ -28,12 +37,9 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     )
   }
 
-  const parents: Prisma.assetGetPayload<Record<string, never>>[] = user
-    ? await prisma.asset.findMany({
-        where: { user_id: user.id },
-        orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-      })
-    : []
+  const parents = await prisma.asset.findMany({
+    orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+  })
 
   return <ClientPage asset={asset as Prisma.assetGetPayload<Record<string, never>>} parents={parents} deleteAsset={delete_asset} />
 }

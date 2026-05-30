@@ -43,7 +43,7 @@ async function Page({ params }: Props) {
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     prisma.asset.findMany({
-      where: { user_id: user.id, is_active: true, is_placeholder: false },
+      where: { is_active: true, is_placeholder: false },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_line_item_defaults(),
