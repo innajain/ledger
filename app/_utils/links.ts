@@ -378,6 +378,26 @@ export async function inbox_count(user_id: string): Promise<number> {
   return prisma.transaction_link.count({ where: { pending_by: user_id } })
 }
 
+// Pending requests I sent for this transaction that are awaiting the other side
+// — i.e. ones I can cancel (and revert).
+export async function get_cancellable_links(user_id: string, transaction_id: string): Promise<{ link_id: string; other_username: string }[]> {
+  const links = await prisma.transaction_link.findMany({
+    where: {
+      pending_status: 'pending',
+      pending_by: { not: user_id },
+      OR: [
+        { user_a_id: user_id, txn_a_id: transaction_id },
+        { user_b_id: user_id, txn_b_id: transaction_id },
+      ],
+    },
+  })
+  if (links.length === 0) return []
+  const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
+  const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
+  const name = (id: string) => users.find(u => u.id === id)?.username ?? 'user'
+  return links.map(l => ({ link_id: l.id, other_username: name(other_user(l, user_id)) }))
+}
+
 // A one-line approval status for a transaction, from `user_id`'s perspective,
 // or null if it isn't a shared transaction.
 export async function get_transaction_status(user_id: string, transaction_id: string): Promise<string | null> {

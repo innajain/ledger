@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { accounting_head_type, asset_type } from '@/generated/prisma/enums'
 import { delete_transaction } from '@/app/_actions/transactions'
+import { cancel_request } from '@/app/_actions/approvals'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 
 type Attachment = { id: string; url: string; filename: string; content_type: string | null; size: number | null }
@@ -19,8 +20,10 @@ function fmt_size(bytes: number | null) {
 export default function ClientPage({
   transaction,
   linkStatus,
+  cancellable = [],
 }: {
   linkStatus?: string | null
+  cancellable?: { link_id: string; other_username: string }[]
   transaction: {
     id: string
     date: string
@@ -43,6 +46,7 @@ export default function ClientPage({
   }
 }) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
@@ -56,6 +60,22 @@ export default function ClientPage({
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
       setIsDeleting(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!confirm('Cancel the pending request and revert this transaction to the last approved version?')) return
+    setCancelling(true)
+    setError(null)
+    try {
+      for (const c of cancellable) {
+        const result = await cancel_request(c.link_id)
+        if (!result.success) throw new Error(result.message)
+      }
+      window.location.reload()
+    } catch (err: unknown) {
+      setError('Cancel failed: ' + (err instanceof Error ? err.message : String(err)))
+      setCancelling(false)
     }
   }
 
@@ -116,11 +136,23 @@ export default function ClientPage({
   return (
     <div className="space-y-6">
       {linkStatus && (
-        <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 px-4 py-3 text-sm text-blue-800 dark:text-blue-200 flex items-center justify-between gap-3">
+        <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 px-4 py-3 text-sm text-blue-800 dark:text-blue-200 flex flex-wrap items-center justify-between gap-3">
           <span>{linkStatus}</span>
-          <Link href="/requests" className="font-medium underline shrink-0">
-            Requests
-          </Link>
+          <div className="flex items-center gap-4 shrink-0">
+            {cancellable.length > 0 && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="font-medium text-red-700 dark:text-red-300 underline disabled:opacity-50"
+              >
+                {cancelling ? 'Cancelling…' : 'Cancel request'}
+              </button>
+            )}
+            <Link href="/requests" className="font-medium underline">
+              Requests
+            </Link>
+          </div>
         </div>
       )}
       <Link

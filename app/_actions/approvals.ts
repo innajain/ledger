@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
-import { build_actor_copy, other_user, my_txn_id } from '@/app/_utils/links'
+import { build_actor_copy, other_user, my_txn_id, their_txn_id } from '@/app/_utils/links'
 import { invalidate_balances } from './compute_balances'
 import { logger } from '@/lib/logger'
 import { ActionResult, ok, err, fromError } from './_result'
@@ -81,6 +81,60 @@ export async function accept_all_from(counterparty_id: string, balancing_account
     return ok({ approved }, `Approved ${approved} request${approved === 1 ? '' : 's'}`)
   } catch (error) {
     logger.error({ err: error, action: 'accept_all_from' }, 'accept_all_from failed')
+    return fromError(error)
+  }
+}
+
+// Cancel a request I sent that's still awaiting the other side. If there's a
+// prior approved copy on their side, revert my copy back to it (keeping my own
+// non-linked lines); otherwise (never approved) just withdraw the request.
+export async function cancel_request(link_id: string): Promise<ActionResult> {
+  try {
+    const me = await get_current_user_id()
+    if (!me) return err('UNAUTHORIZED', 'unauthorized')
+
+    const { other_id, reverted } = await prisma.$transaction(async tx => {
+      const link = await tx.transaction_link.findUnique({ where: { id: link_id } })
+      if (!link) throw new Error('Request not found')
+      if (link.pending_status !== 'pending') throw new Error('Only a pending request can be cancelled')
+      if (link.pending_by === me) throw new Error('This request is awaiting your approval — approve or reject it instead')
+
+      const other_id = other_user(link, me)
+      const anchor = their_txn_id(link, me) // the other side's approved copy, if any
+      if (!anchor) {
+        await tx.transaction_link.delete({ where: { id: link.id } })
+        return { other_id, reverted: false }
+      }
+
+      // Revert my copy to the anchor: keep my own non-linked lines, rebuild the
+      // mirrored lines from the anchor (build_actor_copy uses the anchor as source).
+      const recip = await tx.accounting_head.findFirst({
+        where: { user_id: me, linked_user_id: other_id, type: 'account' },
+        select: { id: true },
+      })
+      let balancing: CreateLineItemInput[] = []
+      const myTxnId = my_txn_id(link, me)
+      if (myTxnId && recip) {
+        const mine = await tx.transaction.findUnique({ where: { id: myTxnId }, include: { line_items: true } })
+        balancing = (mine?.line_items ?? [])
+          .filter(li => li.accounting_head_id !== recip.id)
+          .map(li => ({
+            accounting_head_id: li.accounting_head_id,
+            asset_id: li.asset_id,
+            quantity: li.quantity === null ? undefined : li.quantity.toNumber(),
+            txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
+            description: li.description ?? null,
+            datetime: li.datetime ?? null,
+          }))
+      }
+      await build_actor_copy(tx, link, me, balancing)
+      return { other_id, reverted: true }
+    })
+
+    if (reverted) await Promise.all([invalidate_balances(me), invalidate_balances(other_id)])
+    return ok(undefined, reverted ? 'Cancelled — reverted to the approved version' : 'Request cancelled')
+  } catch (error) {
+    logger.error({ err: error, action: 'cancel_request' }, 'cancel_request failed')
     return fromError(error)
   }
 }
