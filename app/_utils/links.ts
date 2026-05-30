@@ -95,22 +95,32 @@ export async function build_actor_copy(
   if (seed.length === 0) throw new Error('The counterpart transaction has no linked line items to mirror')
 
   // Bulk "accept all" path: auto-balance onto one chosen account so the copy is
-  // an account-only transfer (per-asset account quantities sum to zero).
+  // an account-only transfer (per-asset account quantities sum to zero). Sum the
+  // source's linked lines per asset in Decimal — summing the float quantities
+  // would leave a residual the invariant checker rejects. The balancing line
+  // equals that sum (= −Σ seed). Assets whose linked lines already net to zero
+  // need no balancing line (the mirrored lines cancel themselves; a zero line
+  // would be rejected).
   if (auto_balance_account_id) {
-    const sums = new Map<string, { q: number; tv: number | null }>()
-    for (const s of seed) {
-      const cur = sums.get(s.asset_id) ?? { q: 0, tv: null }
-      cur.q += s.quantity ?? 0
-      if (s.txn_value != null) cur.tv = (cur.tv ?? 0) + s.txn_value
-      sums.set(s.asset_id, cur)
+    const sums = new Map<string, { q: Prisma.Decimal; tv: Prisma.Decimal | null }>()
+    for (const li of source.line_items) {
+      if (li.accounting_head.linked_user_id !== actor_id) continue
+      const cur = sums.get(li.asset_id) ?? { q: new Prisma.Decimal(0), tv: null }
+      cur.q = cur.q.add(li.quantity ?? 0)
+      if (li.txn_value !== null) cur.tv = (cur.tv ?? new Prisma.Decimal(0)).add(li.txn_value)
+      sums.set(li.asset_id, cur)
     }
-    balancing = Array.from(sums.entries()).map(([asset_id, { q, tv }]) => ({
-      accounting_head_id: auto_balance_account_id,
-      asset_id,
-      quantity: -q,
-      txn_value: tv == null ? null : -tv,
-      description: null,
-    }))
+    balancing = []
+    for (const [asset_id, { q, tv }] of sums) {
+      if (q.isZero() && (tv === null || tv.isZero())) continue
+      balancing.push({
+        accounting_head_id: auto_balance_account_id,
+        asset_id,
+        quantity: q.toNumber(),
+        txn_value: tv === null ? null : tv.toNumber(),
+        description: null,
+      })
+    }
   }
 
   const all_lines = [...seed, ...balancing]
