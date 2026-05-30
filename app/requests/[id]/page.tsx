@@ -27,11 +27,11 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     )
   }
 
-  const [accounts, assets] = await Promise.all([
+  const [rawAccounts, assets] = await Promise.all([
     prisma.accounting_head.findMany({
       where: { user_id, is_active: true, is_placeholder: false },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-      select: { id: true, name: true, type: true },
+      select: { id: true, name: true, type: true, linked_user_id: true },
     }),
     prisma.asset.findMany({
       where: { is_active: true, is_placeholder: false },
@@ -39,6 +39,9 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       select: { id: true, name: true, type: true },
     }),
   ])
+  // Tag linked (person) accounts so the editor only offers your own non-linked
+  // accounts for balancing, while still rendering the locked linked rows.
+  const accounts = rawAccounts.map(a => ({ id: a.id, name: a.name, type: a.type, linked: a.linked_user_id !== null }))
 
   return <ClientPage ctx={ctx} accounts={accounts} assets={assets} />
 }

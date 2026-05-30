@@ -12,7 +12,10 @@ export type LineItemData = {
   datetime: string
 }
 
-type Account = { id: string; name: string; type: string }
+// `linked` accounts (those tied to another user) are shown for locked/display
+// rows but not offered as choices for editable rows — set only where that
+// matters (the approval editor), left undefined elsewhere so all stay selectable.
+type Account = { id: string; name: string; type: string; linked?: boolean }
 type Asset = { id: string; name: string; type: asset_type }
 
 type ItemGroup = { item: LineItemData; idx: number }
@@ -198,7 +201,7 @@ function LineItemCard({ item, idx, typeKey, accounts, assets, asset, onUpdateIte
             className={fieldCls}
           >
             {accounts
-              .filter(a => a.type === typeKey)
+              .filter(a => a.type === typeKey && (locked || !a.linked))
               .map(a => (
                 <option key={a.id} value={a.id}>
                   {a.name}

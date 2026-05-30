@@ -138,7 +138,27 @@ export async function build_actor_copy(
     }
   }
 
-  const all_lines = [...seed, ...balancing]
+  // Preserve my existing lines on OTHER linked heads — they're shared with a
+  // different counterparty and must survive a rebuild for THIS one. (Skipped on
+  // the bulk auto-balance path, which only builds fresh single-party copies.)
+  const my_txn = my_txn_id(link, actor_id)
+  let preserved: CreateLineItemInput[] = []
+  if (!auto_balance_account_id && my_txn) {
+    const others = await tx.line_item.findMany({
+      where: { transaction_id: my_txn, accounting_head: { linked_user_id: { not: null } }, NOT: { accounting_head_id: recip.id } },
+      select: { accounting_head_id: true, asset_id: true, quantity: true, txn_value: true, description: true, datetime: true },
+    })
+    preserved = others.map(li => ({
+      accounting_head_id: li.accounting_head_id,
+      asset_id: li.asset_id,
+      quantity: li.quantity === null ? undefined : li.quantity.toNumber(),
+      txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
+      description: li.description ?? null,
+      datetime: li.datetime ?? null,
+    }))
+  }
+
+  const all_lines = [...seed, ...balancing, ...preserved]
 
   const head_ids = Array.from(new Set(all_lines.map(l => l.accounting_head_id)))
   const asset_ids = Array.from(new Set(all_lines.map(l => l.asset_id)))
@@ -166,7 +186,7 @@ export async function build_actor_copy(
     datetime: li.datetime ?? null,
   }))
 
-  const existing_my = my_txn_id(link, actor_id)
+  const existing_my = my_txn
   let actor_txn_id: string
   if (existing_my) {
     await tx.line_item.deleteMany({ where: { transaction_id: existing_my } })
@@ -469,8 +489,18 @@ export type EditorContext = {
     description: string | null
     datetime: string | null
   }[]
-  // My existing balancing lines (for re-approving an edit), or [].
+  // My existing NON-linked balancing lines (for re-approving an edit), or [].
   prefill_balancing: { accounting_head_id: string; asset_id: string; quantity: string | null; txn_value: string | null; description: string }[]
+  // Lines on my OTHER linked heads (shared with a different counterparty) — shown
+  // locked; preserved server-side on submit, not editable here.
+  other_locked_lines: {
+    accounting_head_id: string
+    asset_id: string
+    quantity: string | null
+    txn_value: string | null
+    description: string
+    datetime: string | null
+  }[]
   datetime: string | null
   description: string | null
 }
@@ -518,20 +548,30 @@ export async function get_editor_context(user_id: string, link_id: string): Prom
     }
   }
 
-  let prefill: EditorContext['prefill_balancing'] = []
+  const prefill: EditorContext['prefill_balancing'] = []
+  const otherLocked: EditorContext['other_locked_lines'] = []
   const myTxnId = my_txn_id(link, user_id)
   if (myTxnId && recip) {
-    const mine = await prisma.transaction.findUnique({ where: { id: myTxnId }, include: { line_items: true } })
+    const mine = await prisma.transaction.findUnique({
+      where: { id: myTxnId },
+      include: { line_items: { include: { accounting_head: true } } },
+    })
     if (mine) {
-      prefill = mine.line_items
-        .filter(li => li.accounting_head_id !== recip.id)
-        .map(li => ({
+      for (const li of mine.line_items) {
+        if (li.accounting_head_id === recip.id) continue // re-derived as the mirrored lines
+        const row = {
           accounting_head_id: li.accounting_head_id,
           asset_id: li.asset_id,
           quantity: li.quantity === null ? null : li.quantity.toString(),
           txn_value: li.txn_value === null ? null : li.txn_value.toString(),
           description: li.description ?? '',
-        }))
+        }
+        if (li.accounting_head.linked_user_id !== null) {
+          otherLocked.push({ ...row, datetime: li.datetime ? li.datetime.toISOString() : null })
+        } else {
+          prefill.push(row)
+        }
+      }
     }
   }
 
@@ -542,6 +582,7 @@ export async function get_editor_context(user_id: string, link_id: string): Prom
     reciprocal_head: recip,
     mirrored_lines: mirrored,
     prefill_balancing: prefill,
+    other_locked_lines: otherLocked,
     datetime,
     description,
   }

@@ -27,7 +27,7 @@ export default function ClientPage({
   assets,
 }: {
   ctx: EditorContext
-  accounts: { id: string; name: string; type: string }[]
+  accounts: { id: string; name: string; type: string; linked?: boolean }[]
   assets: { id: string; name: string; type: asset_type }[]
 }) {
   const [items, setItems] = useState<LineItemData[]>(
@@ -35,7 +35,7 @@ export default function ClientPage({
       ? ctx.prefill_balancing.map(b => ({ ...b, datetime: '' }))
       : [
           {
-            accounting_head_id: accounts[0]?.id ?? '',
+            accounting_head_id: accounts.find(a => !a.linked)?.id ?? '',
             asset_id: assets[0]?.id ?? '',
             quantity: null,
             txn_value: null,
@@ -48,7 +48,7 @@ export default function ClientPage({
   const [error, setError] = useState<string | null>(null)
 
   function addItem(typeKey: string) {
-    const acc = accounts.find(a => a.type === typeKey)
+    const acc = accounts.find(a => a.type === typeKey && !a.linked)
     setItems(prev => [
       { accounting_head_id: acc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: null, txn_value: null, description: '', datetime: '' },
       ...prev,
@@ -96,16 +96,28 @@ export default function ClientPage({
     }
   }
 
-  const lockedItems: LineItemData[] = ctx.reciprocal_head
-    ? ctx.mirrored_lines.map(m => ({
-        accounting_head_id: ctx.reciprocal_head!.id,
-        asset_id: m.asset_id,
-        quantity: m.quantity === null ? null : String(m.quantity),
-        txn_value: m.txn_value === null ? null : String(m.txn_value),
-        description: m.description ?? '',
-        datetime: toLocalInput(m.datetime),
-      }))
-    : []
+  const lockedItems: LineItemData[] = [
+    ...(ctx.reciprocal_head
+      ? ctx.mirrored_lines.map(m => ({
+          accounting_head_id: ctx.reciprocal_head!.id,
+          asset_id: m.asset_id,
+          quantity: m.quantity === null ? null : String(m.quantity),
+          txn_value: m.txn_value === null ? null : String(m.txn_value),
+          description: m.description ?? '',
+          datetime: toLocalInput(m.datetime),
+        }))
+      : []),
+    // Lines shared with a different counterparty — locked here; the server
+    // preserves them on submit (editing them would need that counterparty's approval).
+    ...ctx.other_locked_lines.map(o => ({
+      accounting_head_id: o.accounting_head_id,
+      asset_id: o.asset_id,
+      quantity: o.quantity,
+      txn_value: o.txn_value,
+      description: o.description,
+      datetime: toLocalInput(o.datetime),
+    })),
+  ]
 
   return (
     <div className="space-y-6">
