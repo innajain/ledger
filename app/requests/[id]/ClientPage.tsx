@@ -9,6 +9,15 @@ import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { EditorContext } from '@/app/_utils/links'
 
+// ISO → local `datetime-local` input value (YYYY-MM-DDTHH:mm).
+function toLocalInput(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 export default function ClientPage({
   ctx,
   accounts,
@@ -90,8 +99,8 @@ export default function ClientPage({
         asset_id: m.asset_id,
         quantity: m.quantity === null ? null : String(m.quantity),
         txn_value: m.txn_value === null ? null : String(m.txn_value),
-        description: '',
-        datetime: '',
+        description: m.description ?? '',
+        datetime: toLocalInput(m.datetime),
       }))
     : []
 

@@ -244,30 +244,28 @@ function LineItemCard({ item, idx, typeKey, accounts, assets, asset, onUpdateIte
             />
           </div>
         )}
-        {!locked && (
-          <>
-            <div>
-              <label className={labelCls}>Line Item Description</label>
-              <input
-                type="text"
-                value={item.description}
-                onChange={e => onUpdateItem(idx, 'description', e.target.value)}
-                placeholder="Optional description for this line item"
-                className={fieldCls}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Line Item Date & Time</label>
-              <input
-                type="datetime-local"
-                value={item.datetime}
-                onChange={e => onUpdateItem(idx, 'datetime', e.target.value)}
-                placeholder="Optional datetime for this line item"
-                className={fieldCls}
-              />
-            </div>
-          </>
-        )}
+        <div>
+          <label className={labelCls}>Line Item Description</label>
+          <input
+            type="text"
+            value={item.description}
+            onChange={e => onUpdateItem(idx, 'description', e.target.value)}
+            placeholder="Optional description for this line item"
+            disabled={locked}
+            className={fieldCls}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Line Item Date & Time</label>
+          <input
+            type="datetime-local"
+            value={item.datetime}
+            onChange={e => onUpdateItem(idx, 'datetime', e.target.value)}
+            placeholder="Optional datetime for this line item"
+            disabled={locked}
+            className={fieldCls}
+          />
+        </div>
       </div>
 
       {!locked && (

@@ -41,18 +41,31 @@ export async function linked_counterparties(tx: Tx, transaction_id: string): Pro
   return Array.from(new Set(lines.map(l => l.accounting_head.linked_user_id).filter((x): x is string => !!x)))
 }
 
-// Order-independent fingerprint of a transaction's line items on the head linked
-// to `linked_user_id` (optionally sign-flipped), used to detect linked-line changes.
+// Fingerprint of the SHARED part of a transaction: its transaction-level
+// description/datetime, plus the line items on the head linked to
+// `linked_user_id` (quantity/txn_value sign-flipped when comparing the
+// counterpart's copy; description/datetime mirrored verbatim). Any change here —
+// amounts, a line's description or datetime, or the transaction's own
+// description/datetime — re-opens the approval request.
 async function linked_signature(tx: Tx, transaction_id: string, linked_user_id: string, negate: boolean): Promise<string> {
-  const lines = await tx.line_item.findMany({
-    where: { transaction_id, accounting_head: { linked_user_id } },
-    select: { asset_id: true, quantity: true, txn_value: true },
+  const txn = await tx.transaction.findUnique({
+    where: { id: transaction_id },
+    select: {
+      description: true,
+      datetime: true,
+      line_items: {
+        where: { accounting_head: { linked_user_id } },
+        select: { asset_id: true, quantity: true, txn_value: true, description: true, datetime: true },
+      },
+    },
   })
+  if (!txn) return ''
   const flip = (d: Prisma.Decimal | null) => (d === null ? 'x' : (negate ? d.neg() : d).toString())
-  return lines
-    .map(l => `${l.asset_id}:${flip(l.quantity)}:${flip(l.txn_value)}`)
+  const lineSig = txn.line_items
+    .map(l => `${l.asset_id}:${flip(l.quantity)}:${flip(l.txn_value)}:${l.description ?? ''}:${l.datetime ? l.datetime.toISOString() : ''}`)
     .sort()
     .join('|')
+  return `T:${txn.description ?? ''}:${txn.datetime.toISOString()}||${lineSig}`
 }
 
 // Build (or replace) the caller's own copy of a shared transaction from the OTHER
@@ -90,7 +103,9 @@ export async function build_actor_copy(
       asset_id: li.asset_id,
       quantity: li.quantity === null ? undefined : li.quantity.neg().toNumber(),
       txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
+      // Description and datetime are mirrored verbatim (not flipped).
       description: li.description ?? null,
+      datetime: li.datetime ?? null,
     }))
   if (seed.length === 0) throw new Error('The counterpart transaction has no linked line items to mirror')
 
@@ -401,7 +416,15 @@ export type EditorContext = {
   other_username: string
   reciprocal_head: { id: string; name: string } | null
   // Locked, server-derived mirrored lines (booked to my reciprocal head).
-  mirrored_lines: { asset_id: string; asset_name: string; asset_type: string; quantity: number | null; txn_value: number | null }[]
+  mirrored_lines: {
+    asset_id: string
+    asset_name: string
+    asset_type: string
+    quantity: number | null
+    txn_value: number | null
+    description: string | null
+    datetime: string | null
+  }[]
   // My existing balancing lines (for re-approving an edit), or [].
   prefill_balancing: { accounting_head_id: string; asset_id: string; quantity: string | null; txn_value: string | null; description: string }[]
   datetime: string | null
@@ -442,6 +465,8 @@ export async function get_editor_context(user_id: string, link_id: string): Prom
           asset_type: li.asset.type,
           quantity: li.quantity === null ? null : li.quantity.neg().toNumber(),
           txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
+          description: li.description ?? null,
+          datetime: li.datetime ? li.datetime.toISOString() : null,
         }))
     }
   }
