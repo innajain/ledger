@@ -6,6 +6,7 @@ import { get_current_user_id, require_admin } from '@/app/_actions/auth'
 import type { accounting_head_type, asset_type } from '@/generated/prisma/client'
 import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher'
 import { invalidate_balances } from './compute_balances'
+import { backfill_links_for_account } from '../_utils/links'
 import { ActionResult, ok, err, fromError } from './_result'
 
 // Validate and normalize a cross-user account link. Returns the linked user id
@@ -170,18 +171,28 @@ export async function update_account(
       }
     }
 
-    await prisma.accounting_head.update({
-      where: { id, user_id },
-      data: {
-        name,
-        type,
-        parent_id,
-        ...(is_active !== undefined ? { is_active } : {}),
-        ...(is_placeholder !== undefined ? { is_placeholder } : {}),
-        ...(upi_update !== undefined ? { upi_id: upi_update } : {}),
-        ...(linked_update !== undefined ? { linked_user_id: linked_update } : {}),
+    // Newly linking an existing account retroactively turns its transactions
+    // into pending requests for the counterparty.
+    const newly_linked = linked_update != null && linked_update !== existing.linked_user_id
+
+    await prisma.$transaction(
+      async tx => {
+        await tx.accounting_head.update({
+          where: { id, user_id },
+          data: {
+            name,
+            type,
+            parent_id,
+            ...(is_active !== undefined ? { is_active } : {}),
+            ...(is_placeholder !== undefined ? { is_placeholder } : {}),
+            ...(upi_update !== undefined ? { upi_id: upi_update } : {}),
+            ...(linked_update !== undefined ? { linked_user_id: linked_update } : {}),
+          },
+        })
+        if (newly_linked) await backfill_links_for_account(tx, user_id, id, linked_update!)
       },
-    })
+      { timeout: 30_000 },
+    )
     await invalidate_balances(user_id)
     return ok()
   } catch (error) {

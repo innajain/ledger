@@ -1,4 +1,5 @@
 import ClientPage from './ClientPage'
+import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { get_inbox } from '@/app/_utils/links'
 import { profile } from '@/lib/metrics/profile'
@@ -22,8 +23,15 @@ async function Page() {
       </div>
     )
   }
-  const items = await get_inbox(user_id)
-  return <ClientPage items={items} />
+  const [items, accounts] = await Promise.all([
+    get_inbox(user_id),
+    prisma.accounting_head.findMany({
+      where: { user_id, type: 'account', is_active: true, is_placeholder: false },
+      orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+      select: { id: true, name: true },
+    }),
+  ])
+  return <ClientPage items={items} accounts={accounts} />
 }
 
 export default profile('/requests', Page)

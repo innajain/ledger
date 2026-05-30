@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { approve_request, reject_request } from '@/app/_actions/approvals'
+import { approve_request, reject_request, accept_all_from } from '@/app/_actions/approvals'
 import type { InboxItem } from '@/app/_utils/links'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
@@ -24,9 +24,30 @@ function PreviewLines({ preview }: { preview: InboxItem['preview'] }) {
   )
 }
 
-export default function ClientPage({ items }: { items: InboxItem[] }) {
+export default function ClientPage({ items, accounts }: { items: InboxItem[]; accounts: { id: string; name: string }[] }) {
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null)
+  const [balancingByOther, setBalancingByOther] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
+
+  async function bulkAccept(otherId: string) {
+    const acct = balancingByOther[otherId] ?? accounts[0]?.id
+    if (!acct) {
+      setError('Add a real account first to balance with')
+      return
+    }
+    setBulkBusy(otherId)
+    setError(null)
+    try {
+      const r = await accept_all_from(otherId, acct)
+      if (!r.success) setError(r.message ?? 'Action failed')
+      else window.location.reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBulkBusy(null)
+    }
+  }
 
   async function run(id: string, fn: () => Promise<{ success: boolean; message?: string }>) {
     setBusyId(id)
@@ -44,6 +65,18 @@ export default function ClientPage({ items }: { items: InboxItem[] }) {
 
   const pending = items.filter(i => i.status === 'pending')
   const rejected = items.filter(i => i.status === 'rejected')
+
+  // Pending change requests grouped by counterparty (for "Accept all").
+  const changeGroups = Array.from(
+    pending
+      .filter(i => i.kind === 'change' && i.has_reciprocal)
+      .reduce((m, i) => {
+        const g = m.get(i.other_id) ?? { username: i.other_username, count: 0 }
+        g.count++
+        m.set(i.other_id, g)
+        return m
+      }, new Map<string, { username: string; count: number }>()),
+  )
 
   function Card({ item }: { item: InboxItem }) {
     const busy = busyId === item.link_id
@@ -146,6 +179,44 @@ export default function ClientPage({ items }: { items: InboxItem[] }) {
         />
       ) : (
         <>
+          {changeGroups.length > 0 && accounts.length > 0 && (
+            <section className="space-y-2">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Accept all</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Bulk-approve every pending request from someone, auto-balanced onto one account (creates an account-to-account transfer you can
+                reclassify later).
+              </p>
+              {changeGroups.map(([otherId, g]) => (
+                <div
+                  key={otherId}
+                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 flex flex-wrap items-center gap-3"
+                >
+                  <span className="text-sm text-slate-700 dark:text-slate-300">
+                    <strong>@{g.username}</strong> — {g.count} request{g.count === 1 ? '' : 's'}
+                  </span>
+                  <label className="text-sm text-slate-500 dark:text-slate-400">balance with</label>
+                  <select
+                    value={balancingByOther[otherId] ?? accounts[0].id}
+                    onChange={e => setBalancingByOther(prev => ({ ...prev, [otherId]: e.target.value }))}
+                    className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                  >
+                    {accounts.map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => bulkAccept(otherId)}
+                    disabled={bulkBusy === otherId}
+                    className="px-4 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 font-medium disabled:opacity-50 ml-auto"
+                  >
+                    {bulkBusy === otherId ? 'Approving…' : `Accept all ${g.count}`}
+                  </button>
+                </div>
+              ))}
+            </section>
+          )}
           {pending.length > 0 && (
             <section className="space-y-3">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">To approve</h2>

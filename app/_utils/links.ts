@@ -61,7 +61,13 @@ async function linked_signature(tx: Tx, transaction_id: string, linked_user_id: 
 // approve (responder builds from the proposer) and revert (proposer rebuilds from
 // the anchor) — in both cases the actor is `pending_by` and the source is the
 // other side.
-export async function build_actor_copy(tx: Tx, link: transaction_link, actor_id: string, balancing: CreateLineItemInput[]): Promise<void> {
+export async function build_actor_copy(
+  tx: Tx,
+  link: transaction_link,
+  actor_id: string,
+  balancing: CreateLineItemInput[],
+  auto_balance_account_id?: string,
+): Promise<void> {
   const other_id = other_user(link, actor_id)
   const recip = await reciprocal_head(tx, actor_id, other_id)
   if (!recip) throw new Error('Link an account back to that user before approving')
@@ -87,6 +93,25 @@ export async function build_actor_copy(tx: Tx, link: transaction_link, actor_id:
       description: li.description ?? null,
     }))
   if (seed.length === 0) throw new Error('The counterpart transaction has no linked line items to mirror')
+
+  // Bulk "accept all" path: auto-balance onto one chosen account so the copy is
+  // an account-only transfer (per-asset account quantities sum to zero).
+  if (auto_balance_account_id) {
+    const sums = new Map<string, { q: number; tv: number | null }>()
+    for (const s of seed) {
+      const cur = sums.get(s.asset_id) ?? { q: 0, tv: null }
+      cur.q += s.quantity ?? 0
+      if (s.txn_value != null) cur.tv = (cur.tv ?? 0) + s.txn_value
+      sums.set(s.asset_id, cur)
+    }
+    balancing = Array.from(sums.entries()).map(([asset_id, { q, tv }]) => ({
+      accounting_head_id: auto_balance_account_id,
+      asset_id,
+      quantity: -q,
+      txn_value: tv == null ? null : -tv,
+      description: null,
+    }))
+  }
 
   const all_lines = [...seed, ...balancing]
 
@@ -162,6 +187,42 @@ export async function create_links_for_transaction(tx: Tx, user_id: string, tran
   return counterparties
 }
 
+// When an account is freshly linked to a counterparty, retroactively open a
+// pending request for every existing transaction of mine that touches it.
+// Skips transactions that already have a link with that counterparty.
+export async function backfill_links_for_account(tx: Tx, user_id: string, head_id: string, counterparty_id: string): Promise<number> {
+  const rows = await tx.line_item.findMany({
+    where: { accounting_head_id: head_id, transaction: { user_id } },
+    select: { transaction_id: true },
+    distinct: ['transaction_id'],
+  })
+  const txnIds = rows.map(r => r.transaction_id)
+  if (txnIds.length === 0) return 0
+
+  const existing = await tx.transaction_link.findMany({
+    where: { txn_a_id: { in: txnIds }, user_b_id: counterparty_id },
+    select: { txn_a_id: true },
+  })
+  const already = new Set(existing.map(e => e.txn_a_id))
+
+  let created = 0
+  for (const tid of txnIds) {
+    if (already.has(tid)) continue
+    await tx.transaction_link.create({
+      data: {
+        user_a_id: user_id,
+        user_b_id: counterparty_id,
+        txn_a_id: tid,
+        pending_status: 'pending',
+        pending_kind: 'change',
+        pending_by: counterparty_id,
+      },
+    })
+    created++
+  }
+  return created
+}
+
 // Links where `user_id` owns `transaction_id` (it's their side of the pair).
 async function links_owned_by(tx: Tx, user_id: string, transaction_id: string): Promise<transaction_link[]> {
   return tx.transaction_link.findMany({
@@ -225,6 +286,7 @@ export type InboxItem = {
   link_id: string
   status: 'pending' | 'rejected'
   kind: 'change' | 'deletion'
+  other_id: string
   other_username: string
   // The lines I'd be approving (the counterpart's linked lines, mirrored).
   preview: { asset_name: string; quantity: number | null; txn_value: number | null }[]
@@ -276,6 +338,7 @@ export async function get_inbox(user_id: string): Promise<InboxItem[]> {
       link_id: link.id,
       status: link.pending_status as 'pending' | 'rejected',
       kind: (link.pending_kind ?? 'change') as 'change' | 'deletion',
+      other_id: other,
       other_username: nameById.get(other) ?? 'unknown',
       preview,
       has_reciprocal: hasRecip.has(other),

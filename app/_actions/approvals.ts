@@ -40,6 +40,47 @@ export async function approve_request(link_id: string, balancing_lines: CreateLi
   }
 }
 
+// Bulk-approve every pending `change` request from one counterparty, auto-balancing
+// each onto a single chosen personal account (an account-only transfer). Used after
+// linking an account retroactively backfills many requests.
+export async function accept_all_from(counterparty_id: string, balancing_account_id: string): Promise<ActionResult<{ approved: number }>> {
+  try {
+    const me = await get_current_user_id()
+    if (!me) return err('UNAUTHORIZED', 'unauthorized')
+    if (!balancing_account_id) return err('VALIDATION', 'Pick an account to balance with')
+
+    const { approved } = await prisma.$transaction(
+      async tx => {
+        const acc = await tx.accounting_head.findFirst({ where: { id: balancing_account_id, user_id: me, type: 'account' }, select: { id: true } })
+        if (!acc) throw new Error('Balancing account not found')
+
+        const links = await tx.transaction_link.findMany({
+          where: {
+            pending_by: me,
+            pending_status: 'pending',
+            pending_kind: 'change',
+            OR: [{ user_a_id: counterparty_id }, { user_b_id: counterparty_id }],
+          },
+        })
+        let approved = 0
+        for (const link of links) {
+          if (other_user(link, me) !== counterparty_id) continue
+          await build_actor_copy(tx, link, me, [], balancing_account_id)
+          approved++
+        }
+        return { approved }
+      },
+      { timeout: 30_000 },
+    )
+
+    await Promise.all([invalidate_balances(me), invalidate_balances(counterparty_id)])
+    return ok({ approved }, `Approved ${approved} request${approved === 1 ? '' : 's'}`)
+  } catch (error) {
+    logger.error({ err: error, action: 'accept_all_from' }, 'accept_all_from failed')
+    return fromError(error)
+  }
+}
+
 // Reject the request awaiting me. The ball passes back to the proposer, whose
 // copy is now poisoned/absent; they resolve it (resubmit, revert, or delete).
 export async function reject_request(link_id: string): Promise<ActionResult> {
