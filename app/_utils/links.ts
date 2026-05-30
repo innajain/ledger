@@ -219,6 +219,189 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
   }
 }
 
+// ---- read helpers for the requests UI ----
+
+export type InboxItem = {
+  link_id: string
+  status: 'pending' | 'rejected'
+  kind: 'change' | 'deletion'
+  other_username: string
+  // The lines I'd be approving (the counterpart's linked lines, mirrored).
+  preview: { asset_name: string; quantity: number | null; txn_value: number | null }[]
+  has_reciprocal: boolean
+  datetime: string | null
+  description: string | null
+}
+
+// Everything awaiting my action: pending requests (to approve/reject) and
+// rejected rounds where I'm the proposer (to revert / resolve).
+export async function get_inbox(user_id: string): Promise<InboxItem[]> {
+  const links = await prisma.transaction_link.findMany({ where: { pending_by: user_id }, orderBy: { updated_at: 'desc' } })
+  if (links.length === 0) return []
+
+  const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
+  const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
+  const nameById = new Map(users.map(u => [u.id, u.username]))
+  const recips = await prisma.accounting_head.findMany({
+    where: { user_id, linked_user_id: { in: otherIds }, type: 'account' },
+    select: { linked_user_id: true },
+  })
+  const hasRecip = new Set(recips.map(r => r.linked_user_id))
+
+  const items: InboxItem[] = []
+  for (const link of links) {
+    const other = other_user(link, user_id)
+    const sourceTxnId = their_txn_id(link, user_id)
+    let preview: InboxItem['preview'] = []
+    let datetime: string | null = null
+    let description: string | null = null
+    if (sourceTxnId) {
+      const src = await prisma.transaction.findUnique({
+        where: { id: sourceTxnId },
+        include: { line_items: { include: { accounting_head: true, asset: true } } },
+      })
+      if (src) {
+        datetime = src.datetime.toISOString()
+        description = src.description
+        preview = src.line_items
+          .filter(li => li.accounting_head.linked_user_id === user_id)
+          .map(li => ({
+            asset_name: li.asset.name,
+            quantity: li.quantity === null ? null : li.quantity.neg().toNumber(),
+            txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
+          }))
+      }
+    }
+    items.push({
+      link_id: link.id,
+      status: link.pending_status as 'pending' | 'rejected',
+      kind: (link.pending_kind ?? 'change') as 'change' | 'deletion',
+      other_username: nameById.get(other) ?? 'unknown',
+      preview,
+      has_reciprocal: hasRecip.has(other),
+      datetime,
+      description,
+    })
+  }
+  return items
+}
+
+export async function inbox_count(user_id: string): Promise<number> {
+  return prisma.transaction_link.count({ where: { pending_by: user_id } })
+}
+
+// A one-line approval status for a transaction, from `user_id`'s perspective,
+// or null if it isn't a shared transaction.
+export async function get_transaction_status(user_id: string, transaction_id: string): Promise<string | null> {
+  const links = await prisma.transaction_link.findMany({
+    where: {
+      OR: [
+        { user_a_id: user_id, txn_a_id: transaction_id },
+        { user_b_id: user_id, txn_b_id: transaction_id },
+      ],
+    },
+  })
+  if (links.length === 0) return null
+  const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
+  const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
+  const name = (id: string) => users.find(u => u.id === id)?.username ?? 'user'
+
+  const rejected = links.find(l => l.pending_status === 'rejected')
+  if (rejected) {
+    return rejected.pending_by === user_id
+      ? `Your change was rejected — resolve it in Requests`
+      : `Awaiting @${name(other_user(rejected, user_id))} to resolve a rejected change`
+  }
+  const pending = links.find(l => l.pending_status === 'pending')
+  if (pending) {
+    const kind = pending.pending_kind === 'deletion' ? 'Deletion' : 'Change'
+    return pending.pending_by === user_id
+      ? `${kind} awaiting your approval — see Requests`
+      : `${kind} awaiting @${name(other_user(pending, user_id))}'s approval`
+  }
+  return `Shared with ${otherIds.map(id => '@' + name(id)).join(', ')} (approved)`
+}
+
+export type EditorContext = {
+  link_id: string
+  mode: 'approve' | 'revert'
+  other_username: string
+  reciprocal_head: { id: string; name: string } | null
+  // Locked, server-derived mirrored lines (booked to my reciprocal head).
+  mirrored_lines: { asset_id: string; asset_name: string; asset_type: string; quantity: number | null; txn_value: number | null }[]
+  // My existing balancing lines (for re-approving an edit), or [].
+  prefill_balancing: { accounting_head_id: string; asset_id: string; quantity: string | null; txn_value: string | null; description: string }[]
+  datetime: string | null
+  description: string | null
+}
+
+// Context for the approve/revert editor. Returns null if the link isn't
+// awaiting me, or it's a deletion request (handled inline, no editor).
+export async function get_editor_context(user_id: string, link_id: string): Promise<EditorContext | null> {
+  const link = await prisma.transaction_link.findUnique({ where: { id: link_id } })
+  if (!link || link.pending_by !== user_id) return null
+  if (link.pending_kind === 'deletion') return null
+
+  const other = other_user(link, user_id)
+  const otherUser = await prisma.user.findUnique({ where: { id: other }, select: { username: true } })
+  const recip = await prisma.accounting_head.findFirst({
+    where: { user_id, linked_user_id: other, type: 'account' },
+    select: { id: true, name: true },
+  })
+
+  const sourceTxnId = their_txn_id(link, user_id)
+  let mirrored: EditorContext['mirrored_lines'] = []
+  let datetime: string | null = null
+  let description: string | null = null
+  if (sourceTxnId) {
+    const src = await prisma.transaction.findUnique({
+      where: { id: sourceTxnId },
+      include: { line_items: { include: { accounting_head: true, asset: true } } },
+    })
+    if (src) {
+      datetime = src.datetime.toISOString()
+      description = src.description
+      mirrored = src.line_items
+        .filter(li => li.accounting_head.linked_user_id === user_id)
+        .map(li => ({
+          asset_id: li.asset_id,
+          asset_name: li.asset.name,
+          asset_type: li.asset.type,
+          quantity: li.quantity === null ? null : li.quantity.neg().toNumber(),
+          txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
+        }))
+    }
+  }
+
+  let prefill: EditorContext['prefill_balancing'] = []
+  const myTxnId = my_txn_id(link, user_id)
+  if (myTxnId && recip) {
+    const mine = await prisma.transaction.findUnique({ where: { id: myTxnId }, include: { line_items: true } })
+    if (mine) {
+      prefill = mine.line_items
+        .filter(li => li.accounting_head_id !== recip.id)
+        .map(li => ({
+          accounting_head_id: li.accounting_head_id,
+          asset_id: li.asset_id,
+          quantity: li.quantity === null ? null : li.quantity.toString(),
+          txn_value: li.txn_value === null ? null : li.txn_value.toString(),
+          description: li.description ?? '',
+        }))
+    }
+  }
+
+  return {
+    link_id: link.id,
+    mode: link.pending_status === 'rejected' ? 'revert' : 'approve',
+    other_username: otherUser?.username ?? 'unknown',
+    reciprocal_head: recip,
+    mirrored_lines: mirrored,
+    prefill_balancing: prefill,
+    datetime,
+    description,
+  }
+}
+
 // On delete: returns true if the transaction row should actually be deleted.
 // Never-approved links are dropped outright; approved links become deletion
 // requests (my copy is removed, the counterpart keeps theirs as the anchor).

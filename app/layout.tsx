@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import Navbar from './_components/Navbar'
 import { get_current_user } from './_actions/auth'
 import { get_user_preferences } from './_actions/preferences'
+import { inbox_count } from './_utils/links'
 import { ThemeProvider } from './_components/ThemeProvider'
 import { PrivacyProvider } from './_components/PrivacyProvider'
 import { ToastProvider } from './_components/Toast'
@@ -67,6 +68,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const [user, prefs] = await Promise.all([get_current_user(), get_user_preferences()])
+  const requestCount = user ? await inbox_count(user.id) : 0
   const persist = !!user
   const htmlClassName = prefs.theme === 'dark' ? 'dark' : ''
   return (
@@ -89,7 +91,7 @@ export default async function RootLayout({
               {DEV_QUERY_TOASTS_ENABLED && <DevQueryToaster />}
               <div className="min-h-screen flex flex-col">
                 {/* Header */}
-                <Navbar isLoggedIn={!!user} />
+                <Navbar isLoggedIn={!!user} requestCount={requestCount} />
                 {/* Main Content */}
                 <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">{children}</main>
 

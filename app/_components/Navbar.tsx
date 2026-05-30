@@ -12,6 +12,7 @@ const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/allocations', label: 'Allocations' },
   { href: '/income_expenses', label: 'Income / Expenses' },
   { href: '/transactions', label: 'Transactions' },
+  { href: '/requests', label: 'Requests' },
   { href: '/settings', label: 'Settings' },
 ]
 
@@ -28,21 +29,28 @@ function NavLink({
   active,
   block = false,
   onClick,
+  badge = 0,
 }: {
   href: string
   label: string
   active: boolean
   block?: boolean
   onClick?: () => void
+  badge?: number
 }) {
   return (
-    <Link href={href} className={navLinkClasses(active, block)} onClick={onClick}>
+    <Link href={href} className={`${navLinkClasses(active, block)} inline-flex items-center gap-2`} onClick={onClick}>
       {label}
+      {badge > 0 && (
+        <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-semibold rounded-full bg-red-600 text-white">
+          {badge}
+        </span>
+      )}
     </Link>
   )
 }
 
-export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
+export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: boolean; requestCount?: number }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
 
@@ -79,7 +87,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
             <ul className="hidden lg:flex gap-2 list-none p-0 m-0 ml-auto">
               {NAV_ITEMS.map(item => (
                 <li key={item.href}>
-                  <NavLink href={item.href} label={item.label} active={isActive(item.href)} />
+                  <NavLink href={item.href} label={item.label} active={isActive(item.href)} badge={item.href === '/requests' ? requestCount : 0} />
                 </li>
               ))}
             </ul>
@@ -114,7 +122,14 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
             <ul className="flex flex-col gap-1 list-none p-0 m-0">
               {NAV_ITEMS.map(item => (
                 <li key={item.href}>
-                  <NavLink href={item.href} label={item.label} active={isActive(item.href)} block onClick={closeMenu} />
+                  <NavLink
+                    href={item.href}
+                    label={item.label}
+                    active={isActive(item.href)}
+                    block
+                    onClick={closeMenu}
+                    badge={item.href === '/requests' ? requestCount : 0}
+                  />
                 </li>
               ))}
             </ul>

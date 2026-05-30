@@ -1,0 +1,162 @@
+'use client'
+
+import React, { useState } from 'react'
+import Link from 'next/link'
+import { asset_type } from '@/generated/prisma/enums'
+import { approve_request, revert_request } from '@/app/_actions/approvals'
+import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
+import { ErrorAlert } from '@/app/_components/AccountFormComponents'
+import { LocalDateTime } from '@/app/_components/LocalDateTime'
+import type { EditorContext } from '@/app/_utils/links'
+
+export default function ClientPage({
+  ctx,
+  accounts,
+  assets,
+}: {
+  ctx: EditorContext
+  accounts: { id: string; name: string; type: string }[]
+  assets: { id: string; name: string; type: asset_type }[]
+}) {
+  const [items, setItems] = useState<LineItemData[]>(
+    ctx.prefill_balancing.length > 0
+      ? ctx.prefill_balancing.map(b => ({ ...b, datetime: '' }))
+      : [
+          {
+            accounting_head_id: accounts[0]?.id ?? '',
+            asset_id: assets[0]?.id ?? '',
+            quantity: null,
+            txn_value: null,
+            description: '',
+            datetime: '',
+          },
+        ],
+  )
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function addItem(typeKey: string) {
+    const acc = accounts.find(a => a.type === typeKey)
+    setItems(prev => [
+      { accounting_head_id: acc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: null, txn_value: null, description: '', datetime: '' },
+      ...prev,
+    ])
+  }
+  function removeItem(i: number) {
+    setItems(prev => prev.filter((_, idx) => idx !== i))
+  }
+  function updateItem(idx: number, field: keyof LineItemData, value: string | null) {
+    setItems(prev => {
+      const copy = [...prev]
+      const v: string = field === 'quantity' || field === 'txn_value' ? (value === null ? '' : value) : (value ?? '')
+      copy[idx] = { ...copy[idx], [field]: v }
+      if (field === 'asset_id') {
+        const sel = assets.find(a => a.id === v)
+        if (sel?.type === asset_type.rupees) copy[idx].txn_value = null
+      }
+      if (field === 'quantity' && value === null) (copy[idx] as LineItemData).quantity = null
+      if (field === 'txn_value' && value === null) (copy[idx] as LineItemData).txn_value = null
+      return copy
+    })
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      const balancing = items
+        .filter(it => it.accounting_head_id && it.asset_id)
+        .map(it => ({
+          accounting_head_id: it.accounting_head_id,
+          asset_id: it.asset_id,
+          quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
+          txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),
+          description: it.description === '' ? null : it.description,
+        }))
+      const result = ctx.mode === 'revert' ? await revert_request(ctx.link_id, balancing) : await approve_request(ctx.link_id, balancing)
+      if (result.success) window.location.href = '/requests'
+      else setError(result.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Link
+          href="/requests"
+          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Requests
+        </Link>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
+          {ctx.mode === 'revert' ? 'Revert to approved' : `Approve request from @${ctx.other_username}`}
+        </h1>
+        <p className="text-slate-600 dark:text-slate-400 mt-1">
+          The mirrored lines below are fixed. Add your own balancing lines so the transaction balances in your ledger.
+        </p>
+      </div>
+
+      {/* Locked mirrored lines */}
+      <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-200 dark:border-slate-700 p-5">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Mirrored lines (locked)</h2>
+          {ctx.datetime && (
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              <LocalDateTime value={ctx.datetime} />
+            </span>
+          )}
+        </div>
+        {ctx.description && <p className="text-sm italic text-slate-600 dark:text-slate-400 mb-2">{ctx.description}</p>}
+        <ul className="space-y-1 text-sm">
+          {ctx.mirrored_lines.map((m, i) => (
+            <li key={i} className="flex justify-between gap-4">
+              <span className="text-slate-600 dark:text-slate-400">
+                {ctx.reciprocal_head?.name ?? 'Your account'} · {m.asset_name}
+              </span>
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {m.txn_value !== null ? `${m.quantity ?? '—'} units (₹${m.txn_value})` : `₹${m.quantity ?? '—'}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <form onSubmit={onSubmit} className="space-y-6">
+        <TransactionLineItems
+          items={items}
+          accounts={accounts}
+          assets={assets}
+          onAddItem={addItem}
+          onRemoveItem={removeItem}
+          onUpdateItem={updateItem}
+        />
+
+        {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
+
+        <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
+          <Link
+            href="/requests"
+            className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
+          >
+            Cancel
+          </Link>
+          <button
+            type="submit"
+            disabled={busy}
+            className="px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 transition-colors font-medium"
+          >
+            {busy ? 'Saving…' : ctx.mode === 'revert' ? 'Revert' : 'Approve'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}

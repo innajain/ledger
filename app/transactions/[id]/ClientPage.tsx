@@ -18,7 +18,9 @@ function fmt_size(bytes: number | null) {
 
 export default function ClientPage({
   transaction,
+  linkStatus,
 }: {
+  linkStatus?: string | null
   transaction: {
     id: string
     date: string
@@ -113,6 +115,14 @@ export default function ClientPage({
 
   return (
     <div className="space-y-6">
+      {linkStatus && (
+        <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 px-4 py-3 text-sm text-blue-800 dark:text-blue-200 flex items-center justify-between gap-3">
+          <span>{linkStatus}</span>
+          <Link href="/requests" className="font-medium underline shrink-0">
+            Requests
+          </Link>
+        </div>
+      )}
       <Link
         href="/transactions"
         className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium"

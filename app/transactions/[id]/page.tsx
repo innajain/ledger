@@ -3,6 +3,7 @@ import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
 import { Prisma } from '@/generated/prisma/client'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
+import { get_transaction_status } from '@/app/_utils/links'
 import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ id: string }> }
@@ -19,6 +20,7 @@ async function Page({ params }: Props) {
   if (!rawTx) return <div>Transaction not found.</div>
 
   const tx = normalize_txn(rawTx)
+  const linkStatus = await get_transaction_status(user.id, id)
 
   const txForClient = {
     id: tx.id,
@@ -50,7 +52,7 @@ async function Page({ params }: Props) {
     })),
   }
 
-  return <ClientPage transaction={txForClient} />
+  return <ClientPage transaction={txForClient} linkStatus={linkStatus} />
 }
 
 export default profile('/transactions/[id]', Page)
