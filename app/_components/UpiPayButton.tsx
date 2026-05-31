@@ -47,11 +47,13 @@ const UPI_ICON = (
 
 function build_upi_url(upi_id: string, payee_name: string, amount: number, note?: string) {
   // UPI deep link spec: pa=address, pn=payee name, am=amount, cu=currency, tn=note.
-  // We hand-build the query string with encodeURIComponent because
-  // URLSearchParams uses form-encoding (spaces → `+`), and UPI apps don't
-  // decode `+` — they show it literally in the note. encodeURIComponent uses
-  // `%20`, which every UPI app handles correctly.
-  const parts = [`pa=${encodeURIComponent(upi_id)}`, `pn=${encodeURIComponent(payee_name)}`, `am=${amount.toFixed(2)}`, 'cu=INR']
+  // IMPORTANT: `pa` (the VPA) must be passed LITERAL — its `@` must NOT be
+  // percent-encoded. Many UPI apps don't decode `%40` (BHIM shows the address as
+  // "name%40bank" → "request type not supported"; GPay mishandles it too). VPAs
+  // contain no URL-reserved characters, so the raw value is safe.
+  // pn/tn still use encodeURIComponent so spaces become `%20` (UPI apps don't
+  // decode `+`), which every app handles for display fields.
+  const parts = [`pa=${upi_id}`, `pn=${encodeURIComponent(payee_name)}`, `am=${amount.toFixed(2)}`, 'cu=INR']
   if (note) parts.push(`tn=${encodeURIComponent(note)}`)
   return `upi://pay?${parts.join('&')}`
 }
