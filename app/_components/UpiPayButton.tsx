@@ -58,6 +58,17 @@ function build_upi_url(upi_id: string, payee_name: string, amount: number, note?
   return `upi://pay?${parts.join('&')}`
 }
 
+// Android Chrome's `intent:` scheme is the supported way to launch a UPI app
+// from a mobile web browser. A bare `upi://` navigation is restricted/untrusted
+// on Android Chrome (banks then reject it with misleading "limit" errors),
+// whereas the intent: form — triggered by a real user gesture — hands the UPI
+// app a proper VIEW intent. No `package` → the OS shows the UPI app chooser.
+function build_upi_intent_url(upi_id: string, payee_name: string, amount: number, note?: string) {
+  const parts = [`pa=${upi_id}`, `pn=${encodeURIComponent(payee_name)}`, `am=${amount.toFixed(2)}`, 'cu=INR']
+  if (note) parts.push(`tn=${encodeURIComponent(note)}`)
+  return `intent://pay?${parts.join('&')}#Intent;scheme=upi;end`
+}
+
 // Coarse mobile sniff — good enough to decide deep-link vs QR fallback.
 // Tablets get QR too, which is fine since they can scan from a phone.
 function is_mobile() {
@@ -174,11 +185,11 @@ export function UpiPayButton({
   }
 
   function launch() {
-    if (!url) return
+    if (!url || active_amount === null) return
     if (is_mobile()) {
       launched_at.current = Date.now()
       set_modal(null)
-      window.location.href = url
+      window.location.href = build_upi_intent_url(upi_id, payee_name, active_amount, active_note || undefined)
     } else {
       set_modal('qr')
     }
@@ -190,17 +201,17 @@ export function UpiPayButton({
     const trimmed_note = note_input.trim()
     set_prompted_amount(n)
     set_prompted_note(trimmed_note)
-    // Defer the launch so state updates flush before downstream reads.
-    setTimeout(() => {
-      const url_now = build_upi_url(upi_id, payee_name, n, trimmed_note || undefined)
-      if (is_mobile()) {
-        launched_at.current = Date.now()
-        set_modal(null)
-        window.location.href = url_now
-      } else {
-        set_modal('qr')
-      }
-    }, 0)
+    if (is_mobile()) {
+      // Navigate synchronously within the click — deferring (setTimeout) loses
+      // the user gesture, which Android Chrome requires to launch the intent.
+      launched_at.current = Date.now()
+      set_modal(null)
+      window.location.href = build_upi_intent_url(upi_id, payee_name, n, trimmed_note || undefined)
+    } else {
+      // Desktop: the prompted_* state is async, so defer the QR modal one tick
+      // so it renders with the amount the user just entered.
+      setTimeout(() => set_modal('qr'), 0)
+    }
   }
 
   function close_modal() {
