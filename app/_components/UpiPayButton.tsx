@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import QRCode from 'qrcode'
 import { currency_fmt } from '../_utils/currency_formatter'
 
@@ -58,8 +58,9 @@ function build_upi_url(upi_id: string, payee_name: string, amount: number, note?
   return `upi://pay?${parts.join('&')}`
 }
 
-// Coarse mobile sniff — good enough to decide deep-link vs QR fallback.
-// Tablets get QR too, which is fine since they can scan from a phone.
+// Coarse mobile sniff. UPI apps reject browser-launched deep-link payments (the
+// app opens but the bank rejects the "method"), so on phones we hide the pay
+// button entirely — the QR is a desktop affordance (you scan it with a phone).
 function is_mobile() {
   if (typeof navigator === 'undefined') return false
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -108,15 +109,15 @@ export function UpiPayButton({
 }: Props) {
   const prompt_for_amount = amount_prop === undefined
 
-  // State machine: idle → (amount?) → qr (tap-to-open link + scannable QR) → confirm
+  // State machine: idle → (amount?) → qr → confirm
   const [modal, set_modal] = useState<'amount' | 'qr' | 'confirm' | null>(null)
   const [qr_data_url, set_qr_data_url] = useState<string | null>(null)
-  // Resolved after mount (navigator isn't available during SSR) so we can show
-  // the tap-to-open link on phones without risking a hydration mismatch.
-  const [mobile, set_mobile] = useState(false)
+  // Resolved after mount (navigator isn't available during SSR) so the button
+  // can hide on phones without risking a hydration mismatch.
+  const [mounted, set_mounted] = useState(false)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    set_mobile(is_mobile())
+    set_mounted(true)
   }, [])
 
   // Form drafts for the amount modal (used only in prompt-for-amount mode).
@@ -131,10 +132,6 @@ export function UpiPayButton({
   // fixed-amount mode; in prompt mode we use the values the user just typed.
   const active_amount = prompt_for_amount ? prompted_amount : (amount_prop ?? null)
   const active_note = prompt_for_amount ? prompted_note : (note_prop ?? '')
-
-  // Tracks when we just kicked the user out to the UPI app, so visibilitychange
-  // can decide whether returning warrants showing the confirm dialog.
-  const launched_at = useRef<number | null>(null)
 
   const url = active_amount && active_amount > 0 ? build_upi_url(upi_id, payee_name, active_amount, active_note || undefined) : ''
 
@@ -153,21 +150,6 @@ export function UpiPayButton({
       cancelled = true
     }
   }, [modal, url])
-
-  // After a mobile launch, the page is hidden while the UPI app is foregrounded.
-  // When we become visible again (and at least 2s have elapsed to filter tab
-  // switches), prompt the user to confirm whether the payment succeeded.
-  useEffect(() => {
-    const on_vis = () => {
-      if (document.visibilityState !== 'visible') return
-      if (launched_at.current === null) return
-      if (Date.now() - launched_at.current < 2000) return
-      launched_at.current = null
-      set_modal('confirm')
-    }
-    document.addEventListener('visibilitychange', on_vis)
-    return () => document.removeEventListener('visibilitychange', on_vis)
-  }, [])
 
   function handle_trigger_click() {
     if (disabled) return
@@ -188,9 +170,8 @@ export function UpiPayButton({
   function submit_amount() {
     const n = parseFloat(amount_input)
     if (!Number.isFinite(n) || n <= 0) return
-    const trimmed_note = note_input.trim()
     set_prompted_amount(n)
-    set_prompted_note(trimmed_note)
+    set_prompted_note(note_input.trim())
     // prompted_* state is async, so defer the QR modal one tick so it renders
     // with the amount the user just entered.
     setTimeout(() => set_modal('qr'), 0)
@@ -206,6 +187,10 @@ export function UpiPayButton({
   }
 
   const amount_valid = parseFloat(amount_input) > 0
+
+  // Phones can't use this — UPI apps reject browser-launched payments and you
+  // can't scan your own QR. Hide it there; the QR stays for desktop.
+  if (mounted && is_mobile()) return null
 
   return (
     <>
@@ -281,28 +266,10 @@ export function UpiPayButton({
 
       {modal === 'qr' && active_amount !== null && (
         <ModalShell on_close={close_modal}>
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">{mobile ? `Pay ${payee_name}` : 'Scan to pay'}</h3>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Scan to pay</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             {payee_name} · <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(active_amount)}</span>
           </p>
-
-          {/* On a phone, a real anchor tap is a trusted navigation — unlike a
-              programmatic window.location, which Android/Chrome taints so the
-              UPI app rejects the payment. Uses the exact bare upi:// string the
-              QR carries (which is known to work). */}
-          {mobile && (
-            <a
-              href={url}
-              onClick={() => {
-                launched_at.current = Date.now()
-              }}
-              className="flex items-center justify-center gap-2 w-full mb-4 px-4 py-3 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors font-medium"
-            >
-              {UPI_ICON}
-              Open UPI app
-            </a>
-          )}
-
           <div className="rounded-lg bg-white p-3 flex items-center justify-center min-h-70">
             {qr_data_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -311,10 +278,7 @@ export function UpiPayButton({
               <div className="w-full h-64 bg-slate-100 rounded animate-pulse" />
             )}
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
-            {mobile ? 'or scan with another device' : 'Scan with any UPI app'}
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 break-all font-mono text-center">{upi_id}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 break-all font-mono text-center">{upi_id}</p>
           <div className="flex gap-2 mt-4">
             <button
               type="button"
