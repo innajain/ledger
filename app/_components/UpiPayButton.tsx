@@ -58,14 +58,6 @@ function build_upi_url(upi_id: string, payee_name: string, amount: number, note?
   return `upi://pay?${parts.join('&')}`
 }
 
-// Coarse mobile sniff. UPI apps reject browser-launched deep-link payments (the
-// app opens but the bank rejects the "method"), so on phones we hide the pay
-// button entirely — the QR is a desktop affordance (you scan it with a phone).
-function is_mobile() {
-  if (typeof navigator === 'undefined') return false
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-}
-
 function ModalShell({ children, on_close }: { children: ReactNode; on_close: () => void }) {
   // Close on escape; lock body scroll while open.
   useEffect(() => {
@@ -112,13 +104,6 @@ export function UpiPayButton({
   // State machine: idle → (amount?) → qr → confirm
   const [modal, set_modal] = useState<'amount' | 'qr' | 'confirm' | null>(null)
   const [qr_data_url, set_qr_data_url] = useState<string | null>(null)
-  // Resolved after mount (navigator isn't available during SSR) so the button
-  // can hide on phones without risking a hydration mismatch.
-  const [mounted, set_mounted] = useState(false)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    set_mounted(true)
-  }, [])
 
   // Form drafts for the amount modal (used only in prompt-for-amount mode).
   const [amount_input, set_amount_input] = useState('')
@@ -188,24 +173,25 @@ export function UpiPayButton({
 
   const amount_valid = parseFloat(amount_input) > 0
 
-  // Phones can't use this — UPI apps reject browser-launched payments and you
-  // can't scan your own QR. Hide it there; the QR stays for desktop.
-  if (mounted && is_mobile()) return null
-
   return (
     <>
-      <button
-        type="button"
-        onClick={handle_trigger_click}
-        disabled={disabled || (!prompt_for_amount && !url)}
-        className={
-          button_class ??
-          'inline-flex items-center gap-2 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium hover-lift'
-        }
-      >
-        {UPI_ICON}
-        {button_label}
-      </button>
+      {/* Phones can't use this — UPI apps reject browser-launched payments and
+          you can't scan your own QR. Hide below the `sm` breakpoint (≈phones);
+          CSS so there's no first-paint flicker. The QR stays for desktop. */}
+      <span className="hidden sm:inline-flex">
+        <button
+          type="button"
+          onClick={handle_trigger_click}
+          disabled={disabled || (!prompt_for_amount && !url)}
+          className={
+            button_class ??
+            'inline-flex items-center gap-2 px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium hover-lift'
+          }
+        >
+          {UPI_ICON}
+          {button_label}
+        </button>
+      </span>
 
       {modal === 'amount' && (
         <ModalShell on_close={close_modal}>
