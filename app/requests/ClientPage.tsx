@@ -3,12 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { approve_request, reject_request, accept_all_from } from '@/app/_actions/approvals'
-import type { InboxItem } from '@/app/_utils/links'
+import type { InboxItem, OutboxItem } from '@/app/_utils/links'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { ErrorAlert } from '@/app/_components/AccountFormComponents'
 import { EmptyState } from '@/app/_components/EmptyState'
 
-function PreviewLines({ preview }: { preview: InboxItem['preview'] }) {
+function PreviewLines({ preview }: { preview: { asset_name: string; quantity: number | null; txn_value: number | null }[] }) {
   if (preview.length === 0) return null
   return (
     <ul className="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-400">
@@ -24,7 +24,15 @@ function PreviewLines({ preview }: { preview: InboxItem['preview'] }) {
   )
 }
 
-export default function ClientPage({ items, accounts }: { items: InboxItem[]; accounts: { id: string; name: string }[] }) {
+export default function ClientPage({
+  items,
+  outbox = [],
+  accounts,
+}: {
+  items: InboxItem[]
+  outbox?: OutboxItem[]
+  accounts: { id: string; name: string }[]
+}) {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [bulkBusy, setBulkBusy] = useState<string | null>(null)
   const [balancingByOther, setBalancingByOther] = useState<Record<string, string>>({})
@@ -166,6 +174,44 @@ export default function ClientPage({ items, accounts }: { items: InboxItem[]; ac
     )
   }
 
+  function OutboxCard({ item }: { item: OutboxItem }) {
+    const headline =
+      item.kind === 'deletion'
+        ? `You asked @${item.other_username} to approve a deletion`
+        : `Awaiting @${item.other_username}’s approval of your change`
+
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
+            {item.description && <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 italic">{item.description}</p>}
+            {item.datetime && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <LocalDateTime value={item.datetime} />
+              </p>
+            )}
+            <PreviewLines preview={item.preview} />
+          </div>
+          <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+            Pending
+          </span>
+        </div>
+
+        {item.my_txn_id && (
+          <div className="mt-4">
+            <Link
+              href={`/transactions/${item.my_txn_id}`}
+              className="px-4 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 font-medium inline-block"
+            >
+              View transaction
+            </Link>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -175,7 +221,7 @@ export default function ClientPage({ items, accounts }: { items: InboxItem[]; ac
 
       {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
-      {items.length === 0 ? (
+      {items.length === 0 && outbox.length === 0 ? (
         <EmptyState
           icon={<span className="text-2xl">✅</span>}
           title="Nothing awaiting you"
@@ -241,6 +287,15 @@ export default function ClientPage({ items, accounts }: { items: InboxItem[]; ac
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Needs your action</h2>
               {rejected.map(item => (
                 <Card key={item.link_id} item={item} />
+              ))}
+            </section>
+          )}
+          {outbox.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Awaiting others</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Requests you sent that the other person hasn’t acted on yet.</p>
+              {outbox.map(item => (
+                <OutboxCard key={item.link_id} item={item} />
               ))}
             </section>
           )}

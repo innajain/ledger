@@ -1,7 +1,7 @@
 import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
-import { get_inbox } from '@/app/_utils/links'
+import { get_inbox, get_outbox } from '@/app/_utils/links'
 import { profile } from '@/lib/metrics/profile'
 import type { Metadata } from 'next'
 
@@ -23,8 +23,9 @@ async function Page() {
       </div>
     )
   }
-  const [items, accounts] = await Promise.all([
+  const [items, outbox, accounts] = await Promise.all([
     get_inbox(user_id),
+    get_outbox(user_id),
     // Only the user's own (non-linked) accounts can absorb the balancing —
     // never a linked/person account (that would net to zero).
     prisma.accounting_head.findMany({
@@ -33,7 +34,7 @@ async function Page() {
       select: { id: true, name: true },
     }),
   ])
-  return <ClientPage items={items} accounts={accounts} />
+  return <ClientPage items={items} outbox={outbox} accounts={accounts} />
 }
 
 export default profile('/requests', Page)

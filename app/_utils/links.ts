@@ -420,6 +420,75 @@ export async function inbox_count(user_id: string): Promise<number> {
   return prisma.transaction_link.count({ where: { pending_by: user_id } })
 }
 
+export type OutboxItem = {
+  link_id: string
+  kind: 'change' | 'deletion'
+  other_id: string
+  other_username: string
+  // The shared lines I sent over (my linked lines, as I entered them).
+  preview: { asset_name: string; quantity: number | null; txn_value: number | null }[]
+  // My copy of the shared transaction, so the UI can link to it (null for an
+  // outgoing deletion — my copy is already gone).
+  my_txn_id: string | null
+  datetime: string | null
+  description: string | null
+}
+
+// My requests awaiting the other party: pending links where the next action is
+// theirs (I'm the proposer). The mirror of `get_inbox`.
+export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
+  const links = await prisma.transaction_link.findMany({
+    where: {
+      pending_status: 'pending',
+      pending_by: { not: user_id },
+      OR: [{ user_a_id: user_id }, { user_b_id: user_id }],
+    },
+    orderBy: { updated_at: 'desc' },
+  })
+  if (links.length === 0) return []
+
+  const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
+  const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
+  const nameById = new Map(users.map(u => [u.id, u.username]))
+
+  const items: OutboxItem[] = []
+  for (const link of links) {
+    const other = other_user(link, user_id)
+    const myTxnId = my_txn_id(link, user_id)
+    let preview: OutboxItem['preview'] = []
+    let datetime: string | null = null
+    let description: string | null = null
+    if (myTxnId) {
+      const mine = await prisma.transaction.findUnique({
+        where: { id: myTxnId },
+        include: { line_items: { include: { accounting_head: true, asset: true } } },
+      })
+      if (mine) {
+        datetime = mine.datetime.toISOString()
+        description = mine.description
+        preview = mine.line_items
+          .filter(li => li.accounting_head.linked_user_id === other)
+          .map(li => ({
+            asset_name: li.asset.name,
+            quantity: li.quantity === null ? null : li.quantity.toNumber(),
+            txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
+          }))
+      }
+    }
+    items.push({
+      link_id: link.id,
+      kind: (link.pending_kind ?? 'change') as 'change' | 'deletion',
+      other_id: other,
+      other_username: nameById.get(other) ?? 'unknown',
+      preview,
+      my_txn_id: myTxnId,
+      datetime,
+      description,
+    })
+  }
+  return items
+}
+
 // Pending requests I sent for this transaction that are awaiting the other side
 // — i.e. ones I can cancel (and revert).
 export async function get_cancellable_links(user_id: string, transaction_id: string): Promise<{ link_id: string; other_username: string }[]> {
