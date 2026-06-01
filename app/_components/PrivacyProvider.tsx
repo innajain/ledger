@@ -37,14 +37,12 @@ export function PrivacyProvider({
 
   const update = useCallback(
     (patch: Partial<PrivacySettings>) => {
-      setSettings(prev => {
-        const next = { ...prev, ...patch }
-        if (persist) {
-          // Fire-and-forget: optimistic in-memory update, persist in background.
-          void update_user_preferences(patch).catch(() => {})
-        }
-        return next
-      })
+      // Optimistic in-memory update. The updater stays pure — no side effects.
+      setSettings(prev => ({ ...prev, ...patch }))
+      if (persist) {
+        // Fire-and-forget: persist in the background, outside the state updater.
+        void update_user_preferences(patch).catch(() => {})
+      }
     },
     [persist],
   )
