@@ -169,6 +169,16 @@ export const get_current_user = cache(async (): Promise<Pick<user, 'id' | 'usern
   return userRec
 })
 
+// Whether the current user is an admin. Costs one indexed-PK lookup; cached for
+// the request. Use for UI affordances — server actions must still call
+// `require_admin` to enforce access.
+export const is_current_user_admin = cache(async (): Promise<boolean> => {
+  const uid = await get_current_user_id()
+  if (!uid) return false
+  const rec = await prisma.user.findUnique({ where: { id: uid }, select: { is_admin: true } })
+  return !!rec?.is_admin
+})
+
 /**
  * Throw unless the current user has `is_admin = true`. Returns the user id
  * on success so callers can use it for downstream queries.

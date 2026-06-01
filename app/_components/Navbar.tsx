@@ -50,7 +50,7 @@ function NavLink({
   )
 }
 
-export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: boolean; requestCount?: number }) {
+export default function Navbar({ isLoggedIn, requestCount = 0, isAdmin = false }: { isLoggedIn: boolean; requestCount?: number; isAdmin?: boolean }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
 
@@ -75,6 +75,11 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
               <Image src="/favicon.ico" alt="Ledger" width={24} height={24} />
             </div>
             <span className="font-semibold text-lg">Ledger</span>
+            {isAdmin && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
+                admin
+              </span>
+            )}
             {process.env.NODE_ENV === 'development' && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-300 dark:border-amber-700">
                 dev
