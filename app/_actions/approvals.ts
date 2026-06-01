@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { build_actor_copy, other_user, my_txn_id, their_txn_id } from '@/app/_utils/links'
+import { notify_request_rejected } from '@/app/_utils/notify_events'
 import { invalidate_balances } from './compute_balances'
 import { logger } from '@/lib/logger'
 import { ActionResult, ok, err, fromError } from './_result'
@@ -147,16 +148,25 @@ export async function reject_request(link_id: string): Promise<ActionResult> {
     const me = await get_current_user_id()
     if (!me) return err('UNAUTHORIZED', 'unauthorized')
 
-    await prisma.$transaction(async tx => {
+    const { proposer_id, description } = await prisma.$transaction(async tx => {
       const link = await tx.transaction_link.findUnique({ where: { id: link_id } })
       if (!link) throw new Error('Request not found')
       if (link.pending_status !== 'pending' || link.pending_by !== me) throw new Error('This request is not awaiting your action')
 
+      const proposer_id = other_user(link, me)
       await tx.transaction_link.update({
         where: { id: link.id },
-        data: { pending_status: 'rejected', pending_by: other_user(link, me) },
+        data: { pending_status: 'rejected', pending_by: proposer_id },
       })
+
+      // The proposer's copy is the one that diverged; grab its description for
+      // the notification (their txn from my perspective).
+      const their_txn = their_txn_id(link, me)
+      const txn = their_txn ? await tx.transaction.findUnique({ where: { id: their_txn }, select: { description: true } }) : null
+      return { proposer_id, description: txn?.description ?? null }
     })
+
+    void notify_request_rejected(proposer_id, me, description)
     return ok(undefined, 'Request rejected')
   } catch (error) {
     return fromError(error)

@@ -8,6 +8,7 @@ import { validate_line_items } from '../_utils/validate_line_items'
 import { toDecimal } from '../_utils/decimal'
 import { invalidate_balances } from './compute_balances'
 import { create_links_for_transaction, prepare_links_for_delete } from '../_utils/links'
+import { notify_request_pending } from '../_utils/notify_events'
 import { logger } from '@/lib/logger'
 import { ActionResult, ok, err, fromError } from './_result'
 
@@ -60,7 +61,7 @@ export async function create_transaction(
     const user_id = await get_current_user_id()
     if (!user_id) return err('UNAUTHORIZED', 'You must be logged in to create transactions')
 
-    const { id } = await prisma.$transaction(async prisma => {
+    const { id, counterparties } = await prisma.$transaction(async prisma => {
       const accounting_head_ids = Array.from(new Set(line_items.map(li => li.accounting_head_id)))
       const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
 
@@ -104,11 +105,13 @@ export async function create_transaction(
         },
       })
       // Open an approval request per linked-account counterparty (if any).
-      await create_links_for_transaction(prisma, user_id, created.id)
-      return created
+      const counterparties = await create_links_for_transaction(prisma, user_id, created.id)
+      return { id: created.id, counterparties }
     })
 
     await invalidate_balances(user_id)
+    // Ping each counterparty whose approval the new transaction now awaits.
+    for (const cp of counterparties) void notify_request_pending(cp, user_id, { description })
     return ok({ id }, 'Transaction created successfully')
   } catch (error) {
     logger.error({ err: error, action: 'create_transaction' }, 'Error creating transaction')

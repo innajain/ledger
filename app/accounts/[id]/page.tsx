@@ -151,6 +151,11 @@ async function Page({ params }: Props) {
   // navigation. Both are empty/null when the account is a leaf.
   const { subtree_total, children } = await compute_head_rollup(account.id, user.id)
 
+  // Cross-user linked account → enable notifications/reminders to that user.
+  const linked_user = account.linked_user_id
+    ? await prisma.user.findUnique({ where: { id: account.linked_user_id }, select: { id: true, username: true } })
+    : null
+
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
   const value_timeseries =
     account.type === 'account' && has_priced_asset
@@ -172,6 +177,7 @@ async function Page({ params }: Props) {
         subtree_total,
         children,
         parent: account.parent ? { name: account.parent.name, link: head_detail_link(account.parent.type, account.parent.id) } : null,
+        linked_user,
         xirr: xirr_value,
         upi_id: account.upi_id,
         breakdown,

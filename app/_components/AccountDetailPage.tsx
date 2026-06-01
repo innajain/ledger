@@ -10,6 +10,7 @@ import { asset_type } from '@/generated/prisma/enums'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 import { UpiPayButton } from '@/app/_components/UpiPayButton'
+import { LinkedUserNotify } from '@/app/_components/LinkedUserNotify'
 import { create_upi_payment } from '@/app/_actions/transactions'
 
 export type LineItem = {
@@ -37,6 +38,8 @@ export type AccountData = {
   children?: { id: string; name: string; link: string; total: number }[]
   /** Parent head, when this head is nested under another. */
   parent?: { name: string; link: string } | null
+  /** The user this account is linked to (cross-user), enabling notifications. */
+  linked_user?: { id: string; username: string } | null
   xirr?: number | null
   /** Optional UPI handle. When set, the page renders a "Pay via UPI" button. */
   upi_id?: string | null
@@ -220,6 +223,10 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
             : []),
         ]}
       />
+
+      {account.linked_user && (
+        <LinkedUserNotify targetUserId={account.linked_user.id} username={account.linked_user.username} owedAmount={account.total} />
+      )}
 
       {account.children && account.children.length > 0 && (
         <Card>

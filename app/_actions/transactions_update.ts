@@ -7,6 +7,7 @@ import { validate_line_items } from '../_utils/validate_line_items'
 import { toDecimal } from '../_utils/decimal'
 import { invalidate_balances } from './compute_balances'
 import { sync_links_after_update } from '../_utils/links'
+import { notify_request_pending } from '../_utils/notify_events'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
 import { ActionResult, ok, err, fromError } from './_result'
@@ -110,6 +111,25 @@ export async function update_transaction(
     })
 
     await invalidate_balances(user_id)
+
+    // Notify counterparties whose approval this edit now awaits (re-opened links).
+    const pending_links = await prisma.transaction_link.findMany({
+      where: {
+        pending_status: 'pending',
+        pending_by: { not: user_id },
+        OR: [
+          { user_a_id: user_id, txn_a_id: id },
+          { user_b_id: user_id, txn_b_id: id },
+        ],
+      },
+    })
+    if (pending_links.length > 0) {
+      const txn = await prisma.transaction.findUnique({ where: { id }, select: { description: true } })
+      for (const link of pending_links) {
+        const cp = link.user_a_id === user_id ? link.user_b_id : link.user_a_id
+        void notify_request_pending(cp, user_id, { changed: true, description: txn?.description ?? null })
+      }
+    }
     return ok(undefined, 'Transaction updated successfully')
   } catch (error) {
     logger.error({ err: error, action: 'update_transaction' }, 'Error updating transaction')
