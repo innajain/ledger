@@ -6,6 +6,7 @@ import type { user } from '@/generated/prisma/client'
 import { change_password, change_username, log_out } from '@/app/_actions/auth'
 import { update_line_item_defaults, type LineItemDefaults } from '@/app/_actions/preferences'
 import { usePrivacy } from '@/app/_components/PrivacyProvider'
+import { NotificationToggle } from '@/app/_components/NotificationToggle'
 import { useToast } from '@/app/_components/Toast'
 import { flush_redis } from '@/app/_actions/flush'
 import { validate_all_txns } from '@/app/_actions/validate_all_txns'
@@ -638,6 +639,9 @@ export default function ClientPage({ user, isAdmin, accounts, assets, defaults, 
             <section>
               <SectionHeading id="preferences">Preferences</SectionHeading>
               <div className="space-y-6">
+                {/* Notifications */}
+                <NotificationToggle />
+
                 {/* Appearance */}
                 <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
                   <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Appearance</h3>

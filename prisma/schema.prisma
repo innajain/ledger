@@ -35,6 +35,23 @@ model user {
   transaction_templates transaction_template[]
   links_as_a            transaction_link[]     @relation("LinkUserA")
   links_as_b            transaction_link[]     @relation("LinkUserB")
+  push_subscriptions    push_subscription[]
+}
+
+// A browser Web Push subscription for a user. One row per device/browser; a
+// user may have several. `endpoint` is globally unique (it's the push service
+// URL). Pruned when the push service reports it expired (404/410).
+model push_subscription {
+  id         String   @id @default(cuid())
+  user_id    String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  created_at DateTime @default(now())
+
+  user user @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
 }
 
 model accounting_head {

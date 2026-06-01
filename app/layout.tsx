@@ -9,6 +9,7 @@ import { ThemeProvider } from './_components/ThemeProvider'
 import { PrivacyProvider } from './_components/PrivacyProvider'
 import { ToastProvider } from './_components/Toast'
 import { WebVitalsReporter } from './_components/WebVitalsReporter'
+import { ServiceWorkerRegistrar } from './_components/ServiceWorkerRegistrar'
 import { DevQueryToaster } from './_components/DevQueryToaster'
 import { PROFILING_ENABLED } from '@/lib/metrics/profile'
 import { DEV_QUERY_TOASTS_ENABLED } from '@/lib/dev/query-bus'
@@ -78,6 +79,7 @@ export default async function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-900 transition-colors`}>
         {PROFILING_ENABLED && <WebVitalsReporter />}
+        <ServiceWorkerRegistrar />
         <ThemeProvider initial={prefs.theme} persist={persist}>
           <PrivacyProvider
             initial={{

@@ -46,6 +46,7 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "recharts": "^3.8.1",
+    "web-push": "^3.6.7",
     "xirr": "^1.1.0",
     "yahoo-finance2": "^3.14.0",
     "zod": "^4.4.3"
@@ -57,6 +58,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/web-push": "^3.6.4",
     "@vitest/coverage-v8": "^4.1.6",
     "dotenv": "^17.4.2",
     "eslint": "^9.39.4",
