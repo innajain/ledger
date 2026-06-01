@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { save_push_subscription, delete_push_subscription } from '@/app/_actions/notifications'
+import { save_push_subscription, delete_push_subscription, send_test_notification } from '@/app/_actions/notifications'
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
@@ -72,6 +72,19 @@ export function NotificationToggle() {
     }
   }
 
+  async function sendTest() {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const r = await send_test_notification()
+      setMsg(r.success ? (r.message ?? 'Test sent.') : (r.message ?? 'Could not send test.'))
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not send test.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function disable() {
     setBusy(true)
     setMsg(null)
@@ -102,18 +115,30 @@ export function NotificationToggle() {
           </p>
         </div>
         {supported && (
-          <button
-            type="button"
-            onClick={enabled ? disable : enable}
-            disabled={busy || denied}
-            className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              enabled
-                ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600'
-                : 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600'
-            }`}
-          >
-            {busy ? '…' : enabled ? 'Disable' : 'Enable'}
-          </button>
+          <div className="shrink-0 flex items-center gap-2">
+            {enabled && (
+              <button
+                type="button"
+                onClick={sendTest}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+              >
+                Send test
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={enabled ? disable : enable}
+              disabled={busy || denied}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                enabled
+                  ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  : 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600'
+              }`}
+            >
+              {busy ? '…' : enabled ? 'Disable' : 'Enable'}
+            </button>
+          </div>
         )}
       </div>
 

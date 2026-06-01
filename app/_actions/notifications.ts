@@ -43,6 +43,22 @@ export async function delete_push_subscription(endpoint: string): Promise<Action
   }
 }
 
+// Send a notification to yourself — for verifying the pipeline end-to-end.
+export async function send_test_notification(): Promise<ActionResult<{ delivered: number }>> {
+  try {
+    const me = await get_current_user_id()
+    if (!me) return err('UNAUTHORIZED', 'unauthorized')
+    const delivered = await send_push_to_user(me, {
+      title: 'Ledger',
+      body: 'Test notification ✓ — push is working.',
+      url: '/',
+    })
+    return ok({ delivered }, delivered > 0 ? 'Test notification sent' : 'No active subscription on any device yet')
+  } catch (error) {
+    return fromError(error)
+  }
+}
+
 // True when `me` has an account head linked to `target` — i.e. they're a known
 // counterparty. Gate for sending notifications/reminders to another user.
 async function is_linked_to(me: string, target: string): Promise<boolean> {
