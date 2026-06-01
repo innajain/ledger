@@ -7,6 +7,7 @@ import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
+import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_value'
 import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ id: string }> }
@@ -133,6 +134,10 @@ async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
+  // Roll up value across this allocation's descendants and list its children
+  // for navigation. Both are empty/null when the allocation is a leaf.
+  const { subtree_total, children } = await compute_head_rollup(allocation.id, user.id)
+
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
   const value_timeseries = has_priced_asset
     ? await compute_value_timeseries(
@@ -150,6 +155,9 @@ async function Page({ params }: Props) {
         id: allocation.id,
         name: allocation.name,
         total: acc_total.toNumber(),
+        subtree_total,
+        children,
+        parent: allocation.parent ? { name: allocation.parent.name, link: head_detail_link(allocation.parent.type, allocation.parent.id) } : null,
         xirr: xirr_value,
         line_items: sortedLineItems,
         breakdown,

@@ -8,6 +8,7 @@ import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_util
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
+import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_value'
 import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ id: string }> }
@@ -146,6 +147,10 @@ async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
+  // Roll up value across this account's descendants and list its children for
+  // navigation. Both are empty/null when the account is a leaf.
+  const { subtree_total, children } = await compute_head_rollup(account.id, user.id)
+
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
   const value_timeseries =
     account.type === 'account' && has_priced_asset
@@ -164,6 +169,9 @@ async function Page({ params }: Props) {
         id: account.id,
         name: account.name,
         total: acc_total.toNumber(),
+        subtree_total,
+        children,
+        parent: account.parent ? { name: account.parent.name, link: head_detail_link(account.parent.type, account.parent.id) } : null,
         xirr: xirr_value,
         upi_id: account.upi_id,
         breakdown,

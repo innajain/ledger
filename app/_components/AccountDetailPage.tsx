@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ViewPageHeader, InfoCard, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents'
 import { HoldingsGrid, HoldingItem } from '@/app/_components/HoldingsGrid'
@@ -30,6 +31,12 @@ export type AccountData = {
   id: string
   name: string
   total: number
+  /** Total value rolled up across descendants. Null when there are no children. */
+  subtree_total?: number | null
+  /** Direct child heads, each with its own rolled-up value and detail-page link. */
+  children?: { id: string; name: string; link: string; total: number }[]
+  /** Parent head, when this head is nested under another. */
+  parent?: { name: string; link: string } | null
   xirr?: number | null
   /** Optional UPI handle. When set, the page renders a "Pay via UPI" button. */
   upi_id?: string | null
@@ -97,6 +104,18 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         editText={`Edit ${config.entityName}`}
       />
 
+      {account.parent && (
+        <Link
+          href={account.parent.link}
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+        >
+          <span aria-hidden>↑</span>
+          <span>
+            Part of <span className="font-medium">{account.parent.name}</span>
+          </span>
+        </Link>
+      )}
+
       {account.upi_id && (
         <div className="bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -160,13 +179,25 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         title={`${config.entityName} Information`}
         fields={[
           {
-            label: 'Total Value',
+            label: account.subtree_total != null ? 'Total Value (this head only)' : 'Total Value',
             value: (
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                 <MaskedAmount value={account.total} />
               </p>
             ),
           },
+          ...(account.subtree_total != null
+            ? [
+                {
+                  label: 'Total Value (incl. sub-accounts)',
+                  value: (
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                      <MaskedAmount value={account.subtree_total} />
+                    </p>
+                  ),
+                },
+              ]
+            : []),
           ...(account.xirr !== undefined && account.xirr !== null
             ? [
                 {
@@ -189,6 +220,36 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
             : []),
         ]}
       />
+
+      {account.children && account.children.length > 0 && (
+        <Card>
+          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sub-{config.entityName.toLowerCase()}s</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              {account.children.length} child {account.children.length !== 1 ? 'heads' : 'head'} — values include their own descendants
+            </p>
+          </div>
+          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+            {account.children.map(child => (
+              <Link
+                key={child.id}
+                href={child.link}
+                className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors group"
+              >
+                <span className="font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  {child.name}
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    <MaskedAmount value={child.total} />
+                  </span>
+                  <span className="text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">→</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <HoldingsGrid title={config.holdingsTitle || 'Holdings (aggregated by asset)'} items={holdingsItems} linkLabel="View Asset →" />
 
