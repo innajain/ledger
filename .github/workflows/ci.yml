@@ -9,6 +9,11 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      # prisma.config.ts resolves env('DATABASE_URL') at load time. No DB is
+      # reached in CI (generate only reads the schema; tests are pure units),
+      # so a syntactically valid placeholder is enough to satisfy the loader.
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
     steps:
       - uses: actions/checkout@v4
 
