@@ -90,56 +90,64 @@ export default function ClientPage({
       {/* Key Allocations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Investment Allocation Card */}
-        <div className="stagger-item bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800 p-6 transition-all hover-lift">
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center transition-transform hover:scale-110">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-            {investXirrSlot}
-          </div>
-          <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Investment Allocation</h3>
-          {invest ? (
-            <Link
-              href={`/allocations/${invest.id}`}
-              className="text-3xl font-bold text-blue-900 dark:text-blue-100 hover:text-blue-700 dark:hover:text-blue-200 transition-colors"
-            >
-              <MaskedAmount value={invest.total} />
+        {(() => {
+          const cardClass =
+            'block stagger-item bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800 p-6 transition-all hover-lift'
+          const inner = (
+            <>
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center transition-transform hover:scale-110">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                {investXirrSlot}
+              </div>
+              <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Investment Allocation</h3>
+              <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">{invest ? <MaskedAmount value={invest.total} /> : '—'}</p>
+              {invest && <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">{invest.name}</p>}
+            </>
+          )
+          return invest ? (
+            <Link href={`/allocations/${invest.id}`} className={cardClass}>
+              {inner}
             </Link>
           ) : (
-            <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">—</p>
-          )}
-          {invest && <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">{invest.name}</p>}
-        </div>
+            <div className={cardClass}>{inner}</div>
+          )
+        })()}
 
         {/* Savings Allocation Card */}
-        <div className="stagger-item bg-linear-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-xl shadow-sm border border-green-200 dark:border-green-800 p-6 transition-all hover-lift">
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-12 h-12 bg-green-600 dark:bg-green-500 rounded-lg flex items-center justify-center transition-transform hover:scale-110">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">Savings Allocation</h3>
-          {savings ? (
-            <Link
-              href={`/allocations/${savings.id}`}
-              className="text-3xl font-bold text-green-900 dark:text-green-100 hover:text-green-700 dark:hover:text-green-200 transition-colors"
-            >
-              <MaskedAmount value={savings.total} />
+        {(() => {
+          const cardClass =
+            'block stagger-item bg-linear-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-xl shadow-sm border border-green-200 dark:border-green-800 p-6 transition-all hover-lift'
+          const inner = (
+            <>
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 bg-green-600 dark:bg-green-500 rounded-lg flex items-center justify-center transition-transform hover:scale-110">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">Savings Allocation</h3>
+              <p className="text-3xl font-bold text-green-900 dark:text-green-100">{savings ? <MaskedAmount value={savings.total} /> : '—'}</p>
+              {savings && <p className="text-sm text-green-700 dark:text-green-300 mt-2">{savings.name}</p>}
+            </>
+          )
+          return savings ? (
+            <Link href={`/allocations/${savings.id}`} className={cardClass}>
+              {inner}
             </Link>
           ) : (
-            <p className="text-3xl font-bold text-green-900 dark:text-green-100">—</p>
-          )}
-          {savings && <p className="text-sm text-green-700 dark:text-green-300 mt-2">{savings.name}</p>}
-        </div>
+            <div className={cardClass}>{inner}</div>
+          )
+        })()}
       </div>
 
       {/* Quick Actions */}
