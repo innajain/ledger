@@ -3,7 +3,10 @@ import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 import { env } from '@/lib/env'
 
-const PUBLIC_PATHS = ['/login', '/favicon.ico', '/robots.txt', '/sitemap.xml']
+// `/sw.js` and the manifest must be reachable without auth — the service worker
+// registers from any page (incl. /login) and the browser fetches the manifest
+// pre-auth; redirecting them to /login serves HTML and breaks both.
+const PUBLIC_PATHS = ['/login', '/favicon.ico', '/robots.txt', '/sitemap.xml', '/sw.js', '/manifest.webmanifest']
 
 const secret = new TextEncoder().encode(env.JWT_SECRET)
 
