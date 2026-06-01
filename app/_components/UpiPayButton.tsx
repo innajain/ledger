@@ -58,17 +58,6 @@ function build_upi_url(upi_id: string, payee_name: string, amount: number, note?
   return `upi://pay?${parts.join('&')}`
 }
 
-// Android Chrome's `intent:` scheme is the supported way to launch a UPI app
-// from a mobile web browser. A bare `upi://` navigation is restricted/untrusted
-// on Android Chrome (banks then reject it with misleading "limit" errors),
-// whereas the intent: form — triggered by a real user gesture — hands the UPI
-// app a proper VIEW intent. No `package` → the OS shows the UPI app chooser.
-function build_upi_intent_url(upi_id: string, payee_name: string, amount: number, note?: string) {
-  const parts = [`pa=${upi_id}`, `pn=${encodeURIComponent(payee_name)}`, `am=${amount.toFixed(2)}`, 'cu=INR']
-  if (note) parts.push(`tn=${encodeURIComponent(note)}`)
-  return `intent://pay?${parts.join('&')}#Intent;scheme=upi;end`
-}
-
 // Coarse mobile sniff — good enough to decide deep-link vs QR fallback.
 // Tablets get QR too, which is fine since they can scan from a phone.
 function is_mobile() {
@@ -119,9 +108,16 @@ export function UpiPayButton({
 }: Props) {
   const prompt_for_amount = amount_prop === undefined
 
-  // State machine: idle → (amount?) → qr (desktop) | launching (mobile) → confirm
+  // State machine: idle → (amount?) → qr (tap-to-open link + scannable QR) → confirm
   const [modal, set_modal] = useState<'amount' | 'qr' | 'confirm' | null>(null)
   const [qr_data_url, set_qr_data_url] = useState<string | null>(null)
+  // Resolved after mount (navigator isn't available during SSR) so we can show
+  // the tap-to-open link on phones without risking a hydration mismatch.
+  const [mobile, set_mobile] = useState(false)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    set_mobile(is_mobile())
+  }, [])
 
   // Form drafts for the amount modal (used only in prompt-for-amount mode).
   const [amount_input, set_amount_input] = useState('')
@@ -186,13 +182,7 @@ export function UpiPayButton({
 
   function launch() {
     if (!url || active_amount === null) return
-    if (is_mobile()) {
-      launched_at.current = Date.now()
-      set_modal(null)
-      window.location.href = build_upi_intent_url(upi_id, payee_name, active_amount, active_note || undefined)
-    } else {
-      set_modal('qr')
-    }
+    set_modal('qr')
   }
 
   function submit_amount() {
@@ -201,17 +191,9 @@ export function UpiPayButton({
     const trimmed_note = note_input.trim()
     set_prompted_amount(n)
     set_prompted_note(trimmed_note)
-    if (is_mobile()) {
-      // Navigate synchronously within the click — deferring (setTimeout) loses
-      // the user gesture, which Android Chrome requires to launch the intent.
-      launched_at.current = Date.now()
-      set_modal(null)
-      window.location.href = build_upi_intent_url(upi_id, payee_name, n, trimmed_note || undefined)
-    } else {
-      // Desktop: the prompted_* state is async, so defer the QR modal one tick
-      // so it renders with the amount the user just entered.
-      setTimeout(() => set_modal('qr'), 0)
-    }
+    // prompted_* state is async, so defer the QR modal one tick so it renders
+    // with the amount the user just entered.
+    setTimeout(() => set_modal('qr'), 0)
   }
 
   function close_modal() {
@@ -299,10 +281,28 @@ export function UpiPayButton({
 
       {modal === 'qr' && active_amount !== null && (
         <ModalShell on_close={close_modal}>
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Scan to pay</h3>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">{mobile ? `Pay ${payee_name}` : 'Scan to pay'}</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             {payee_name} · <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(active_amount)}</span>
           </p>
+
+          {/* On a phone, a real anchor tap is a trusted navigation — unlike a
+              programmatic window.location, which Android/Chrome taints so the
+              UPI app rejects the payment. Uses the exact bare upi:// string the
+              QR carries (which is known to work). */}
+          {mobile && (
+            <a
+              href={url}
+              onClick={() => {
+                launched_at.current = Date.now()
+              }}
+              className="flex items-center justify-center gap-2 w-full mb-4 px-4 py-3 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors font-medium"
+            >
+              {UPI_ICON}
+              Open UPI app
+            </a>
+          )}
+
           <div className="rounded-lg bg-white p-3 flex items-center justify-center min-h-70">
             {qr_data_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -311,7 +311,10 @@ export function UpiPayButton({
               <div className="w-full h-64 bg-slate-100 rounded animate-pulse" />
             )}
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 break-all font-mono text-center">{upi_id}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
+            {mobile ? 'or scan with another device' : 'Scan with any UPI app'}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 break-all font-mono text-center">{upi_id}</p>
           <div className="flex gap-2 mt-4">
             <button
               type="button"
