@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { asset_type } from '@/generated/prisma/enums'
 import { create_transaction } from '@/app/_actions/transactions'
 import { save_attachments, type AttachmentInput } from '@/app/_actions/attachments'
@@ -35,6 +36,7 @@ export default function ClientPage({
     return `${yyyy}-${mm}-${dd}T${hh}:${min}`
   }
 
+  const router = useRouter()
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()))
   const [description, setDescription] = useState('')
   const defaultAccount = pickDefaultAccount(accounts, defaults, 'account')
@@ -221,7 +223,8 @@ export default function ClientPage({
         if (pendingAttachments.length > 0) {
           await save_attachments(result.data!.id, pendingAttachments)
         }
-        window.location.href = `/transactions/${result.data!.id}`
+        router.push(`/transactions/${result.data!.id}`)
+        router.refresh()
       } else {
         setError(result.message)
       }

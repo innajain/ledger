@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { create_account, update_account, find_user_by_username } from '@/app/_actions/resources'
 import type { Prisma, accounting_head_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
@@ -138,6 +139,7 @@ type UpdateHeadFormProps = {
 }
 
 export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
+  const router = useRouter()
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState<string | null>(null)
   // UPI only makes sense for accounts (payees you'd send money to).
@@ -162,7 +164,8 @@ export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
         supportsUpi ? (linkedUserId ?? undefined) : undefined,
       )
       if (!result.success) throw new Error(result.message)
-      window.location.href = config.basePath
+      router.push(config.basePath)
+      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -223,6 +226,7 @@ export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
 }
 
 export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUsername: initialLinkedUsername }: UpdateHeadFormProps) {
+  const router = useRouter()
   const [name, setName] = useState(head.name)
   const [parentId, setParentId] = useState<string | null>(head.parent_id ?? null)
   const [isActive, setIsActive] = useState(head.is_active)
@@ -250,7 +254,8 @@ export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUserna
         supportsUpi ? linkedUserId : undefined,
       )
       if (!result.success) throw new Error(result.message)
-      window.location.href = config.basePath
+      router.push(config.basePath)
+      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -268,7 +273,8 @@ export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUserna
     try {
       const result = await deleteHead(head.id)
       if (!result.success) throw new Error(result.message)
-      window.location.href = config.basePath
+      router.push(config.basePath)
+      router.refresh()
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
     }

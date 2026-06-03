@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { asset_type } from '@/generated/prisma/enums'
 import { approve_request, revert_request } from '@/app/_actions/approvals'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
@@ -30,6 +31,7 @@ export default function ClientPage({
   accounts: { id: string; name: string; type: string; linked?: boolean }[]
   assets: { id: string; name: string; type: asset_type }[]
 }) {
+  const router = useRouter()
   const [items, setItems] = useState<LineItemData[]>(
     ctx.prefill_balancing.length > 0
       ? ctx.prefill_balancing.map(b => ({ ...b, datetime: '' }))
@@ -87,8 +89,10 @@ export default function ClientPage({
           description: it.description === '' ? null : it.description,
         }))
       const result = ctx.mode === 'revert' ? await revert_request(ctx.link_id, balancing) : await approve_request(ctx.link_id, balancing)
-      if (result.success) window.location.href = '/requests'
-      else setError(result.message)
+      if (result.success) {
+        router.push('/requests')
+        router.refresh()
+      } else setError(result.message)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { asset_type } from '@/generated/prisma/enums'
 import { delete_transaction } from '@/app/_actions/transactions'
@@ -45,6 +46,7 @@ export default function ClientPage({
     }[]
   }
 }) {
+  const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,7 +58,8 @@ export default function ClientPage({
     try {
       const result = await delete_transaction(transaction.id)
       if (!result.success) throw new Error(result.message)
-      window.location.href = '/transactions'
+      router.push('/transactions')
+      router.refresh()
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
       setIsDeleting(false)
@@ -72,7 +75,7 @@ export default function ClientPage({
         const result = await cancel_request(c.link_id)
         if (!result.success) throw new Error(result.message)
       }
-      window.location.reload()
+      router.refresh()
     } catch (err: unknown) {
       setError('Cancel failed: ' + (err instanceof Error ? err.message : String(err)))
       setCancelling(false)

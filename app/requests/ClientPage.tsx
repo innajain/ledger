@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { approve_request, reject_request, accept_all_from } from '@/app/_actions/approvals'
 import type { InboxItem, OutboxItem } from '@/app/_utils/links'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
@@ -33,6 +34,7 @@ export default function ClientPage({
   outbox?: OutboxItem[]
   accounts: { id: string; name: string }[]
 }) {
+  const router = useRouter()
   const [busyId, setBusyId] = useState<string | null>(null)
   const [bulkBusy, setBulkBusy] = useState<string | null>(null)
   const [balancingByOther, setBalancingByOther] = useState<Record<string, string>>({})
@@ -49,7 +51,7 @@ export default function ClientPage({
     try {
       const r = await accept_all_from(otherId, acct)
       if (!r.success) setError(r.message ?? 'Action failed')
-      else window.location.reload()
+      else router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -63,7 +65,7 @@ export default function ClientPage({
     try {
       const r = await fn()
       if (!r.success) setError(r.message ?? 'Action failed')
-      else window.location.reload()
+      else router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {

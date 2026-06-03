@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { update_asset } from '@/app/_actions/resources'
 import type { Prisma, asset_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
@@ -24,6 +25,7 @@ export default function ClientPage({
   parents: Prisma.assetGetPayload<Record<string, never>>[]
   deleteAsset?: (id: string) => Promise<ActionResult>
 }) {
+  const router = useRouter()
   const [name, setName] = useState(asset.name)
   const [type, setType] = useState<asset_type>(asset.type)
   const [ticker, setTicker] = useState(asset.ticker ?? '')
@@ -40,7 +42,8 @@ export default function ClientPage({
     try {
       const result = await update_asset(asset.id, name, type, ticker || undefined, parentId, isActive, isPlaceholder)
       if (!result.success) throw new Error(result.message)
-      window.location.href = '/assets'
+      router.push('/assets')
+      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -58,7 +61,8 @@ export default function ClientPage({
     try {
       const result = await deleteAsset(asset.id)
       if (!result.success) throw new Error(result.message)
-      window.location.href = '/assets'
+      router.push('/assets')
+      router.refresh()
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
     }
