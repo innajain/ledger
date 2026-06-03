@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { profile } from '@/lib/metrics/profile'
+import { env } from '@/lib/env'
 
 async function Page() {
   const user = await get_current_user()
@@ -38,9 +39,7 @@ async function Page() {
     type: a.type,
   }))
 
-  return (
-    <ClientPage accounts={accountsForClient} assets={assetsForClient} defaults={defaults} attachmentsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN} />
-  )
+  return <ClientPage accounts={accountsForClient} assets={assetsForClient} defaults={defaults} attachmentsEnabled={!!env.BLOB_READ_WRITE_TOKEN} />
 }
 
 export default profile('/transactions/create', Page)

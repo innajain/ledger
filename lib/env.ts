@@ -13,6 +13,10 @@ const schema = z.object({
   VAPID_PUBLIC_KEY: z.string().min(1).optional(),
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
   VAPID_SUBJECT: z.string().min(1).default('mailto:admin@ledger.local'),
+  // Vercel Blob. The token is optional — when unset, attachment upload/serving
+  // is disabled. The API URL points the SDK at the local Blob emulator in dev.
+  BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  NEXT_PUBLIC_VERCEL_BLOB_API_URL: z.string().url().optional(),
 })
 
 const parsed = schema.safeParse(process.env)

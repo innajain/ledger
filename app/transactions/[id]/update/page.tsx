@@ -4,6 +4,7 @@ import ClientPage from './ClientPage'
 import { update_transaction } from '@/app/_actions/transactions_update'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { profile } from '@/lib/metrics/profile'
+import { env } from '@/lib/env'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -76,7 +77,7 @@ async function Page({ params }: Props) {
       defaults={defaults}
       updateTransaction={update_transaction}
       existingAttachments={attachmentsForClient}
-      attachmentsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN}
+      attachmentsEnabled={!!env.BLOB_READ_WRITE_TOKEN}
     />
   )
 }

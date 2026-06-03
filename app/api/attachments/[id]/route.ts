@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
+import { env } from '@/lib/env'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -19,11 +20,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // on the local emulator. Rewrite to the emulator's origin + pathname when
   // VERCEL_BLOB_API_URL is set; in prod this var is unset and we fetch the
   // original URL.
-  const fetch_url = process.env.NEXT_PUBLIC_VERCEL_BLOB_API_URL
-    ? `${new URL(process.env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin}/${att.pathname}`
-    : att.url
+  const fetch_url = env.NEXT_PUBLIC_VERCEL_BLOB_API_URL ? `${new URL(env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin}/${att.pathname}` : att.url
   const response = await fetch(fetch_url, {
-    headers: { authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` },
+    headers: { authorization: `Bearer ${env.BLOB_READ_WRITE_TOKEN}` },
   })
   if (!response.ok || !response.body) return NextResponse.json({ error: 'Blob fetch failed', status: response.status }, { status: 502 })
 
