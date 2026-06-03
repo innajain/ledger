@@ -13,10 +13,12 @@ import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_valu
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { profile } from '@/lib/metrics/profile'
 
-// Per-type feature matrix (preserves the behaviour of the old per-type pages):
-//   account         — FIFO remaining units, linked-user + UPI, value timeseries, XIRR, rollup
-//   allocation      — value timeseries, XIRR, rollup
-//   income_expense  — flat: totals + holdings + line items only
+// All three head types share the same detail view (XIRR, value timeseries,
+// subtree rollup, parent nav). Two extras are genuinely account-specific:
+//   - FIFO remaining units: accounts hold asset lots; the other types tag flows
+//   - linked-user + UPI: only accounts can be linked / paid to
+// The timeseries valuation walk uses FIFO-lot mode for accounts and net
+// accumulation mode for the others (allocations and income/expense heads).
 
 type Props = { params: Promise<{ type: string; id: string }> }
 
@@ -50,8 +52,6 @@ async function Page({ params }: Props) {
   }
 
   const isAccount = type === 'account'
-  // income/expense heads render a flat view (no XIRR, timeseries, or rollup).
-  const isFlat = type === 'income_expense'
 
   const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(head.line_items)
   const uniqueAssets = Array.from(new Map(head.line_items.map(li => [li.asset.id, li.asset])).values())
@@ -134,21 +134,14 @@ async function Page({ params }: Props) {
   }
 
   let xirr_value: number | null = null
-  if (!isFlat && cashflows.length > 0) {
+  if (cashflows.length > 0) {
     if (!acc_total.equals(0)) cashflows.push({ amount: acc_total.toNumber(), when: new Date() })
     xirr_value = calculate_xirr(cashflows)
   }
 
   // Roll up value across descendants and list children/parent for navigation.
-  let subtree_total: number | null = null
-  let children: AccountData['children'] = []
-  let parent: AccountData['parent'] = null
-  if (!isFlat) {
-    const rollup = await compute_head_rollup(head.id, user.id)
-    subtree_total = rollup.subtree_total
-    children = rollup.children
-    parent = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
-  }
+  const { subtree_total, children } = await compute_head_rollup(head.id, user.id)
+  const parent: AccountData['parent'] = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
 
   const linked_user =
     isAccount && head.linked_user_id
@@ -157,7 +150,7 @@ async function Page({ params }: Props) {
 
   let value_timeseries: AccountData['value_timeseries'] = []
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
-  if (!isFlat && has_priced_asset) {
+  if (has_priced_asset) {
     value_timeseries = await compute_value_timeseries(
       rawTransactions,
       isAccount ? { kind: 'account', accounting_head_id: head.id } : { kind: 'allocation', allocation_id: head.id },
