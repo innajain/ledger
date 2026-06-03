@@ -168,7 +168,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                     <div className="flex flex-col h-full justify-between">
                       <div>
                         <Link
-                          href={`/accounts/${b.accounting_head_id}`}
+                          href={`/heads/account/${b.accounting_head_id}`}
                           className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         >
                           {b.account_name}
@@ -206,7 +206,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                       </div>
 
                       <div className="mt-4 text-right">
-                        <Link href={`/accounts/${b.accounting_head_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                        <Link href={`/heads/account/${b.accounting_head_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
                           View Account →
                         </Link>
                       </div>
@@ -235,7 +235,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                     <div className="flex flex-col h-full justify-between">
                       <div>
                         <Link
-                          href={`/allocations/${b.allocation_id}`}
+                          href={`/heads/allocation/${b.allocation_id}`}
                           className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         >
                           {b.allocation_name}
@@ -271,7 +271,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                         </div>
                       </div>
                       <div className="mt-4 text-right">
-                        <Link href={`/allocations/${b.allocation_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                        <Link href={`/heads/allocation/${b.allocation_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
                           View Allocation →
                         </Link>
                       </div>
@@ -311,7 +311,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                           <Link
-                            href={`/accounts/${li.accounting_head_id}`}
+                            href={`/heads/account/${li.accounting_head_id}`}
                             className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >
                             {li.account_name}

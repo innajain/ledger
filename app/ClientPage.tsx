@@ -109,7 +109,7 @@ export default function ClientPage({
             </>
           )
           return invest ? (
-            <Link href={`/allocations/${invest.id}`} className={cardClass}>
+            <Link href={`/heads/allocation/${invest.id}`} className={cardClass}>
               {inner}
             </Link>
           ) : (
@@ -141,7 +141,7 @@ export default function ClientPage({
             </>
           )
           return savings ? (
-            <Link href={`/allocations/${savings.id}`} className={cardClass}>
+            <Link href={`/heads/allocation/${savings.id}`} className={cardClass}>
               {inner}
             </Link>
           ) : (
@@ -172,7 +172,7 @@ export default function ClientPage({
           </Link>
 
           <Link
-            href="/accounts"
+            href="/heads/account"
             className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all hover-lift fun-button group"
           >
             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:rotate-12 transition-all">
@@ -189,7 +189,7 @@ export default function ClientPage({
           </Link>
 
           <Link
-            href="/allocations"
+            href="/heads/allocation"
             className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all hover-lift fun-button group"
           >
             <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:rotate-12 transition-all">

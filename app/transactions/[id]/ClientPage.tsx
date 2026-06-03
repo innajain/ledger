@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
-import { accounting_head_type, asset_type } from '@/generated/prisma/enums'
+import { asset_type } from '@/generated/prisma/enums'
 import { delete_transaction } from '@/app/_actions/transactions'
 import { cancel_request } from '@/app/_actions/approvals'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
@@ -322,13 +322,7 @@ export default function ClientPage({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <Link
-                            href={
-                              li.accounting_head_type === accounting_head_type.account
-                                ? `/accounts/${li.accounting_head_id}`
-                                : li.accounting_head_type === accounting_head_type.allocation
-                                  ? `/allocations/${li.accounting_head_id}`
-                                  : `/income_expenses/${li.accounting_head_id}`
-                            }
+                            href={`/heads/${li.accounting_head_type}/${li.accounting_head_id}`}
                             className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >
                             {li.account_name}

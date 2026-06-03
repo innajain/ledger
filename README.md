@@ -218,10 +218,14 @@ Files are stored in a **private** Vercel Blob store and served through an authen
 Every route is a thin server component that fetches data, then delegates all rendering and interactivity to a client component:
 
 ```
-app/accounts/
+app/transactions/
 ├── page.tsx        # Server component — data fetching
 └── ClientPage.tsx  # Client component — all UI, state, effects
 ```
+
+The three accounting-head types share one parametrized route, `app/heads/[type]/`
+(`type` ∈ `account` | `allocation` | `income_expense`), with per-type copy and
+behaviour driven by `head_config.tsx`.
 
 ---
 

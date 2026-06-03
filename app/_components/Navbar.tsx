@@ -8,9 +8,9 @@ import { useState } from 'react'
 const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/', label: 'Home' },
   { href: '/assets', label: 'Assets' },
-  { href: '/accounts', label: 'Accounts' },
-  { href: '/allocations', label: 'Allocations' },
-  { href: '/income_expenses', label: 'Income / Expenses' },
+  { href: '/heads/account', label: 'Accounts' },
+  { href: '/heads/allocation', label: 'Allocations' },
+  { href: '/heads/income_expense', label: 'Income / Expenses' },
   { href: '/transactions', label: 'Transactions' },
   { href: '/requests', label: 'Requests' },
   { href: '/settings', label: 'Settings' },

@@ -59,9 +59,9 @@ export function compute_subtree_total(
 }
 
 const HEAD_ROUTE: Record<accounting_head_type, string> = {
-  account: '/accounts',
-  income_expense: '/income_expenses',
-  allocation: '/allocations',
+  account: '/heads/account',
+  income_expense: '/heads/income_expense',
+  allocation: '/heads/allocation',
 }
 
 /** Detail-page path for an accounting head, by its type. */

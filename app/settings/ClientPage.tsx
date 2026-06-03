@@ -27,9 +27,8 @@ type Props = {
 }
 
 function accountUrl(a: InactiveAccount) {
-  if (a.type === 'allocation') return `/allocations/${a.id}`
-  if (a.type === 'income_expense') return `/income_expenses/${a.id}`
-  return `/accounts/${a.id}`
+  // The path segment is the head type verbatim: /heads/{account|allocation|income_expense}
+  return `/heads/${a.type}/${a.id}`
 }
 
 const TYPE_LABELS: Record<string, string> = {

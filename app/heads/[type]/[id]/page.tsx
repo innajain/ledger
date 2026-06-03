@@ -1,70 +1,69 @@
+import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
-import ClientPage from './ClientPage'
+import { AccountDetailPage, type AccountData, type LineItem } from '@/app/_components/AccountDetailPage'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
+import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
 import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_value'
+import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { profile } from '@/lib/metrics/profile'
 
-type Props = { params: Promise<{ id: string }> }
+// Per-type feature matrix (preserves the behaviour of the old per-type pages):
+//   account         — FIFO remaining units, linked-user + UPI, value timeseries, XIRR, rollup
+//   allocation      — value timeseries, XIRR, rollup
+//   income_expense  — flat: totals + holdings + line items only
+
+type Props = { params: Promise<{ type: string; id: string }> }
 
 async function Page({ params }: Props) {
-  const id = (await params).id
+  const { type, id } = await params
+  if (!isHeadType(type)) notFound()
+  const cfg = HEAD_CONFIG[type]
+
   const user = await get_current_user()
   if (!user) {
     return (
       <div>
-        <h1>Allocation</h1>
-        <p>Please log in to view this allocation.</p>
+        <h1>{cfg.entityName}</h1>
+        <p>Please log in to view this {cfg.entityName.toLowerCase()}.</p>
       </div>
     )
   }
 
-  const allocation = await prisma.accounting_head.findUnique({
-    where: { id, user_id: user.id, type: 'allocation' },
-    include: {
-      line_items: { include: { asset: true, transaction: true } },
-      parent: true,
-    },
+  const head = await prisma.accounting_head.findUnique({
+    where: { id, user_id: user.id, type },
+    include: { line_items: { include: { asset: true, transaction: true } }, parent: true },
   })
 
-  if (!allocation) {
+  if (!head) {
     return (
       <div>
-        <h1>Allocation</h1>
-        <p>Allocation not found.</p>
+        <h1>{cfg.entityName}</h1>
+        <p>{cfg.entityName} not found.</p>
       </div>
     )
   }
 
-  const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(allocation.line_items)
-  const uniqueAssets = Array.from(new Map(allocation.line_items.map(li => [li.asset.id, li.asset])).values())
+  const isAccount = type === 'account'
+  // income/expense heads render a flat view (no XIRR, timeseries, or rollup).
+  const isFlat = type === 'income_expense'
+
+  const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(head.line_items)
+  const uniqueAssets = Array.from(new Map(head.line_items.map(li => [li.asset.id, li.asset])).values())
   const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
   let acc_total = new Prisma.Decimal(0)
   const cashflows: { amount: number; when: Date }[] = []
   const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
     {}
-  const lineItemsWithValues: {
-    id: string
-    asset_id?: string
-    asset_name: string
-    quantity: number
-    txn_value: number | null
-    current_value: number
-    transaction_id: string
-    transaction_date: string
-    transaction_description: string | null
-    line_item_description: string | null
-    asset_type: asset_type
-    _sortDate: Date
-  }[] = []
+  const lineItemsWithValues: (LineItem & { _sortDate: Date })[] = []
 
-  for (const li of allocation.line_items) {
+  for (const li of head.line_items) {
     const n = normalizedById.get(li.id)!
     const qty = n.quantity!
     const txn_value = n.txn_value!
@@ -98,22 +97,28 @@ async function Page({ params }: Props) {
       transaction_description: li.transaction.description,
       line_item_description: li.description,
       asset_type: asset.type,
+      remaining_quantity: null,
       _sortDate: li.datetime ?? li.transaction.datetime,
     })
   }
 
+  // FIFO remaining units per asset (non-rupees) — accounts only.
+  if (isAccount) {
+    const remaining_by_id = compute_fifo_remaining(
+      lineItemsWithValues
+        .filter(li => li.asset_type !== asset_type.rupees)
+        .map(li => ({ id: li.id, group_key: li.asset_id!, qty: new Prisma.Decimal(li.quantity), date: li._sortDate })),
+    )
+    for (const li of lineItemsWithValues) {
+      li.remaining_quantity = remaining_by_id.has(li.id) ? remaining_by_id.get(li.id)!.toNumber() : null
+    }
+  }
+
   lineItemsWithValues.sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime())
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const sortedLineItems = lineItemsWithValues.map(({ _sortDate, ...rest }) => rest)
+  const line_items: LineItem[] = lineItemsWithValues.map(({ _sortDate, ...rest }) => rest)
 
-  const breakdown: {
-    asset_id: string
-    asset_name: string
-    quantity: number
-    txn_value: number | null
-    current_value: number
-    asset_type: asset_type
-  }[] = []
+  const breakdown: AccountData['breakdown'] = []
   for (const e of Object.values(map)) {
     if (e.total_qty.equals(0)) continue
     const priceData = priceByAsset.get(e.asset_id) ?? null
@@ -129,42 +134,58 @@ async function Page({ params }: Props) {
   }
 
   let xirr_value: number | null = null
-  if (cashflows.length > 0) {
+  if (!isFlat && cashflows.length > 0) {
     if (!acc_total.equals(0)) cashflows.push({ amount: acc_total.toNumber(), when: new Date() })
     xirr_value = calculate_xirr(cashflows)
   }
 
-  // Roll up value across this allocation's descendants and list its children
-  // for navigation. Both are empty/null when the allocation is a leaf.
-  const { subtree_total, children } = await compute_head_rollup(allocation.id, user.id)
+  // Roll up value across descendants and list children/parent for navigation.
+  let subtree_total: number | null = null
+  let children: AccountData['children'] = []
+  let parent: AccountData['parent'] = null
+  if (!isFlat) {
+    const rollup = await compute_head_rollup(head.id, user.id)
+    subtree_total = rollup.subtree_total
+    children = rollup.children
+    parent = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
+  }
 
+  const linked_user =
+    isAccount && head.linked_user_id
+      ? await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { id: true, username: true } })
+      : null
+
+  let value_timeseries: AccountData['value_timeseries'] = []
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
-  const value_timeseries = has_priced_asset
-    ? await compute_value_timeseries(
-        rawTransactions,
-        { kind: 'allocation', allocation_id: allocation.id },
-        uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
-      )
-    : []
+  if (!isFlat && has_priced_asset) {
+    value_timeseries = await compute_value_timeseries(
+      rawTransactions,
+      isAccount ? { kind: 'account', accounting_head_id: head.id } : { kind: 'allocation', allocation_id: head.id },
+      uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
+    )
+  }
 
   reconcile_timeseries_tail(value_timeseries, acc_total.toNumber(), xirr_value)
 
   return (
-    <ClientPage
-      allocation={{
-        id: allocation.id,
-        name: allocation.name,
+    <AccountDetailPage
+      account={{
+        id: head.id,
+        name: head.name,
         total: acc_total.toNumber(),
         subtree_total,
         children,
-        parent: allocation.parent ? { name: allocation.parent.name, link: head_detail_link(allocation.parent.type, allocation.parent.id) } : null,
+        parent,
+        linked_user,
         xirr: xirr_value,
-        line_items: sortedLineItems,
+        upi_id: isAccount ? head.upi_id : undefined,
         breakdown,
+        line_items,
         value_timeseries,
       }}
+      config={{ backLink: headBasePath(type), backText: cfg.backText, entityName: cfg.entityName }}
     />
   )
 }
 
-export default profile('/allocations/[id]', Page)
+export default profile('/heads/[type]/[id]', Page)

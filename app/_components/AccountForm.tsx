@@ -9,7 +9,7 @@ import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert,
 type AccountFormConfig = {
   headType: accounting_head_type
   entityName: string // "Account", "Allocation", "Income / Expense"
-  basePath: string // "/accounts", "/allocations", "/income_expenses"
+  basePath: string // "/heads/account", "/heads/allocation", "/heads/income_expense"
   backText: string
   parentLabel: string
   parentHelpText: string
@@ -19,7 +19,7 @@ const ACCOUNT_FORM_CONFIGS: Record<accounting_head_type, AccountFormConfig> = {
   account: {
     headType: 'account',
     entityName: 'Account',
-    basePath: '/accounts',
+    basePath: '/heads/account',
     backText: 'Accounts',
     parentLabel: 'Parent Account (Optional)',
     parentHelpText: 'Select a parent to create a sub-account',
@@ -27,7 +27,7 @@ const ACCOUNT_FORM_CONFIGS: Record<accounting_head_type, AccountFormConfig> = {
   allocation: {
     headType: 'allocation',
     entityName: 'Allocation',
-    basePath: '/allocations',
+    basePath: '/heads/allocation',
     backText: 'Allocations',
     parentLabel: 'Parent Allocation (Optional)',
     parentHelpText: 'Select a parent to create a sub-allocation',
@@ -35,7 +35,7 @@ const ACCOUNT_FORM_CONFIGS: Record<accounting_head_type, AccountFormConfig> = {
   income_expense: {
     headType: 'income_expense',
     entityName: 'Income / Expense',
-    basePath: '/income_expenses',
+    basePath: '/heads/income_expense',
     backText: 'Income & Expenses',
     parentLabel: 'Parent Account (Optional)',
     parentHelpText: 'Select a parent to create a sub-account',
