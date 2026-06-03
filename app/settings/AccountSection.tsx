@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { change_password, change_username } from '@/app/_actions/auth'
+import { update_own_upi } from '@/app/_actions/preferences'
 import { SectionHeading } from './SectionHeading'
 
 const REDIRECT_DELAY_MS = 1500
@@ -65,8 +66,13 @@ const submitCls =
   'w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium shadow-sm flex items-center justify-center gap-2'
 const eyeBtnCls = 'absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors'
 
-export function AccountSection({ username }: { username: string }) {
+export function AccountSection({ username, upiId }: { username: string; upiId: string | null }) {
   const router = useRouter()
+
+  const [upi, setUpi] = useState(upiId ?? '')
+  const [upiLoading, setUpiLoading] = useState(false)
+  const [upiError, setUpiError] = useState<string | null>(null)
+  const [upiSuccess, setUpiSuccess] = useState<string | null>(null)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -130,6 +136,23 @@ export function AccountSection({ username }: { username: string }) {
       setUsernameError(err instanceof Error ? err.message : String(err))
     } finally {
       setUsernameLoading(false)
+    }
+  }
+
+  async function handleUpiSave(e: React.FormEvent) {
+    e.preventDefault()
+    setUpiError(null)
+    setUpiSuccess(null)
+    setUpiLoading(true)
+    try {
+      const result = await update_own_upi(upi.trim() === '' ? null : upi.trim())
+      if (!result.success) throw new Error(result.message)
+      setUpi(result.data?.upi_id ?? '')
+      setUpiSuccess(result.data?.upi_id ? 'UPI ID saved!' : 'UPI ID cleared.')
+    } catch (err: unknown) {
+      setUpiError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setUpiLoading(false)
     }
   }
 
@@ -286,6 +309,47 @@ export function AccountSection({ username }: { username: string }) {
                 </>
               ) : (
                 <span>Change Username</span>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* UPI ID Card */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-1">Your UPI ID</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+            Set your UPI handle once. Anyone who links an account to you sees a &ldquo;Pay via UPI&rdquo; button using this address &mdash; they no
+            longer enter it themselves.
+          </p>
+          <form onSubmit={handleUpiSave} className="space-y-4">
+            <div>
+              <label htmlFor="upiId" className={labelCls}>
+                UPI ID
+              </label>
+              <input
+                id="upiId"
+                type="text"
+                autoComplete="off"
+                inputMode="email"
+                placeholder="e.g. name@oksbi or 9876543210@upi"
+                value={upi}
+                onChange={e => setUpi(e.target.value)}
+                className={inputCls.replace(' pr-12', '')}
+              />
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Leave blank and save to clear it.</p>
+            </div>
+
+            {upiError && <ErrorBanner message={upiError} />}
+            {upiSuccess && <SuccessBanner message={upiSuccess} />}
+
+            <button type="submit" disabled={upiLoading} className={submitCls}>
+              {upiLoading ? (
+                <>
+                  <Spinner />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <span>Save UPI ID</span>
               )}
             </button>
           </form>

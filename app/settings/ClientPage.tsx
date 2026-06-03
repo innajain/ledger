@@ -12,6 +12,7 @@ import { SessionSection } from './SessionSection'
 type Props = {
   user: Pick<user, 'id' | 'username'>
   isAdmin: boolean
+  upiId: string | null
   accounts: AccountOpt[]
   assets: AssetOpt[]
   defaults: LineItemDefaults
@@ -19,7 +20,7 @@ type Props = {
   inactiveAssets: InactiveAsset[]
 }
 
-export default function ClientPage({ user, isAdmin, accounts, assets, defaults, inactiveAccounts, inactiveAssets }: Props) {
+export default function ClientPage({ user, isAdmin, upiId, accounts, assets, defaults, inactiveAccounts, inactiveAssets }: Props) {
   // Side-nav drives which section is rendered. Only one section is mounted at a
   // time; the URL hash is kept in sync so reloads and back/forward work.
   const sectionLinks: { id: string; label: string }[] = [
@@ -112,7 +113,7 @@ export default function ClientPage({ user, isAdmin, accounts, assets, defaults, 
             </svg>
           </div>
 
-          {activeSection === 'account' && <AccountSection username={user.username} />}
+          {activeSection === 'account' && <AccountSection username={user.username} upiId={upiId} />}
           {activeSection === 'preferences' && <PreferencesSection accounts={accounts} assets={assets} defaults={defaults} />}
           {activeSection === 'data' && <DataSection inactiveAccounts={inactiveAccounts} inactiveAssets={inactiveAssets} />}
           {isAdmin && activeSection === 'admin' && <AdminSection />}

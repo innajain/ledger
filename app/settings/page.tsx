@@ -38,13 +38,14 @@ async function SettingsPage() {
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true, type: true, is_placeholder: true },
     }),
-    prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true } }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true, upi_id: true } }),
   ])
 
   return (
     <ClientPage
       user={user}
       isAdmin={userRow?.is_admin ?? false}
+      upiId={userRow?.upi_id ?? null}
       accounts={accounts}
       assets={assets}
       defaults={defaults}

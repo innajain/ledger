@@ -53,27 +53,18 @@ export async function find_user_by_username(username: string): Promise<ActionRes
 
 const createAccountSchema = z.object({
   name: z.string().trim().min(1, 'name cannot be empty string'),
-  // Empty / whitespace-only treated as null so the column stays NULL rather
-  // than an empty string (clearer downstream "is the UPI ID set?" checks).
-  upi_id: z
-    .string()
-    .trim()
-    .transform(v => (v === '' ? null : v))
-    .nullish(),
 })
 
 export async function create_account(
   name: string,
   type: accounting_head_type,
   parent_id?: string | null,
-  upi_id?: string | null,
   linked_user_id?: string | null,
 ): Promise<ActionResult> {
   try {
-    const parsed = createAccountSchema.safeParse({ name, upi_id })
+    const parsed = createAccountSchema.safeParse({ name })
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     name = parsed.data.name
-    const normalized_upi_id = parsed.data.upi_id ?? null
 
     const user_id = await get_current_user_id()
     if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
@@ -81,7 +72,7 @@ export async function create_account(
     const linked = await resolve_linked_user(user_id, type, linked_user_id ?? null, null)
 
     await prisma.accounting_head.create({
-      data: { name, type, user_id, parent_id, upi_id: normalized_upi_id, linked_user_id: linked },
+      data: { name, type, user_id, parent_id, linked_user_id: linked },
     })
     await invalidate_balances(user_id)
     return ok()
@@ -93,12 +84,6 @@ export async function create_account(
 const updateAccountSchema = z.object({
   id: z.string().min(1, 'id is required'),
   name: z.string().trim().min(1, 'name cannot be empty string').optional(),
-  // Same empty-to-null handling as create.
-  upi_id: z
-    .string()
-    .trim()
-    .transform(v => (v === '' ? null : v))
-    .nullish(),
 })
 
 export async function update_account(
@@ -108,18 +93,13 @@ export async function update_account(
   parent_id?: string | null | undefined,
   is_active?: boolean | undefined,
   is_placeholder?: boolean | undefined,
-  upi_id?: string | null | undefined,
   linked_user_id?: string | null | undefined,
 ): Promise<ActionResult> {
   try {
-    const parsed = updateAccountSchema.safeParse({ id, name, upi_id })
+    const parsed = updateAccountSchema.safeParse({ id, name })
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
     name = parsed.data.name
-    // Treat `undefined` (caller didn't pass the arg) as "don't change", but
-    // an explicit empty string from the form clears the field via the
-    // schema's transform → null.
-    const upi_update = upi_id === undefined ? undefined : (parsed.data.upi_id ?? null)
 
     const user_id = await get_current_user_id()
     if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
@@ -186,7 +166,6 @@ export async function update_account(
             parent_id,
             ...(is_active !== undefined ? { is_active } : {}),
             ...(is_placeholder !== undefined ? { is_placeholder } : {}),
-            ...(upi_update !== undefined ? { upi_id: upi_update } : {}),
             ...(linked_update !== undefined ? { linked_user_id: linked_update } : {}),
           },
         })

@@ -148,7 +148,7 @@ Logged-out users get in-memory defaults; setters are no-ops without a session.
 
 ### UPI Payments
 
-Each `account`-type head can carry an optional **UPI ID** (a standard VPA like `name@bank` or a phone-as-UPI-Number like `9876543210@upi`). When set, the account detail page renders a Pay banner. The button builds a `upi://pay?pa=…&pn=…&am=…&cu=INR&tn=…` deep link — used directly on mobile (OS picks the UPI app) or rendered as a scannable QR on desktop via [`qrcode`](https://www.npmjs.com/package/qrcode).
+Each user sets their own **UPI ID** once (a standard VPA like `name@bank` or a phone-as-UPI-Number like `9876543210@upi`) in Settings → Account. Any `account`-type head in **another** user's ledger that is linked to them (via `linked_user_id`) derives its Pay banner from that user's profile UPI — so friends never re-enter each other's VPAs. When the linked user has a UPI set, the account detail page renders a Pay banner. The button builds a `upi://pay?pa=…&pn=…&am=…&cu=INR&tn=…` deep link — used directly on mobile (OS picks the UPI app) or rendered as a scannable QR on desktop via [`qrcode`](https://www.npmjs.com/package/qrcode).
 
 A `visibilitychange` listener (2-second debounce) prompts **"Mark as paid?"** after the user returns to the browser. Confirming triggers [`create_upi_payment`](app/_actions/transactions.ts), which records a two-line rupees transaction (default account `-amount`, payee account `+amount`) — no allocation / income_expense lines, by design.
 
@@ -260,7 +260,7 @@ model accounting_head {
   is_active      Boolean              @default(true)
   is_placeholder Boolean              @default(false)
   parent_id      String?
-  upi_id         String?              // VPA or phone-as-UPI-Number for the Pay button
+  linked_user_id String?              // cross-user link; Pay button uses the linked user's profile UPI
 }
 
 model asset {

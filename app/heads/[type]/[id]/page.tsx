@@ -143,9 +143,11 @@ async function Page({ params }: Props) {
   const { subtree_total, children } = await compute_head_rollup(head.id, user.id)
   const parent: HeadData['parent'] = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
 
+  // A linked account derives both its notify target and its "Pay via UPI"
+  // address from the linked user's own profile (set once in their settings).
   const linked_user =
     isAccount && head.linked_user_id
-      ? await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { id: true, username: true } })
+      ? await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { id: true, username: true, upi_id: true } })
       : null
 
   let value_timeseries: HeadData['value_timeseries'] = []
@@ -171,7 +173,7 @@ async function Page({ params }: Props) {
         parent,
         linked_user,
         xirr: xirr_value,
-        upi_id: isAccount ? head.upi_id : undefined,
+        upi_id: linked_user?.upi_id ?? null,
         breakdown,
         line_items,
         value_timeseries,

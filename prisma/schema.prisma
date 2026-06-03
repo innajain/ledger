@@ -23,6 +23,11 @@ model user {
   default_income_expense_id String?
   default_asset_id          String?
 
+  // The user's own UPI handle (e.g. "name@bank"). Set once by the user; any
+  // account in another user's ledger that is linked to this user derives its
+  // "Pay via UPI" target from here, so friends don't re-enter each other's VPAs.
+  upi_id String?
+
   // UI preferences. Theme is 'light' | 'dark' | 'system' (validated in app code).
   theme           String  @default("system")
   masking_enabled Boolean @default(true)
@@ -62,11 +67,6 @@ model accounting_head {
   is_active      Boolean              @default(true)
   is_placeholder Boolean              @default(false)
   order_index    Int?
-
-  // UPI handle for the payee/account (e.g. "name@bank"). When set, the
-  // account/transaction pages render a "Pay via UPI" button that opens
-  // upi://pay?... deep links with this address pre-filled.
-  upi_id String?
 
   // --- Hierarchy Implementation ---
   parent_id String?

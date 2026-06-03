@@ -41,7 +41,8 @@ export type HeadData = {
   /** The user this head is linked to (cross-user), enabling notifications. */
   linked_user?: { id: string; username: string } | null
   xirr?: number | null
-  /** Optional UPI handle. When set, the page renders a "Pay via UPI" button. */
+  /** The linked user's own UPI handle (resolved server-side). When set, the
+   * page renders a "Pay via UPI" button targeting it. */
   upi_id?: string | null
   breakdown: {
     asset_id: string
@@ -122,7 +123,9 @@ export function HeadDetailPage({ head, config }: HeadDetailPageProps) {
       {head.upi_id && (
         <div className="bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-green-900 dark:text-green-100">Send money via UPI</p>
+            <p className="text-sm font-medium text-green-900 dark:text-green-100">
+              Send money via UPI{head.linked_user ? ` to @${head.linked_user.username}` : ''}
+            </p>
             <p className="text-xs font-mono text-green-700 dark:text-green-300 break-all">{head.upi_id}</p>
             {head.total < 0 && (
               <p className="text-xs text-green-700 dark:text-green-300 mt-1">

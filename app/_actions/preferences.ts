@@ -45,6 +45,38 @@ const updateSchema = z.object({
   default_asset_id: z.string().min(1).nullable(),
 })
 
+// Basic VPA shape: handle@psp (e.g. name@oksbi, 9876543210@upi).
+const upiSchema = z
+  .string()
+  .trim()
+  .max(100)
+  .regex(/^[a-zA-Z0-9.\-_]{2,}@[a-zA-Z0-9.\-]{2,}$/, 'Enter a valid UPI ID like name@bank')
+
+/**
+ * Set (or clear, with null/empty) the caller's own UPI handle. Accounts in
+ * other users' ledgers that are linked to this user read their "Pay via UPI"
+ * target from here, so a change is revalidated across the head routes.
+ */
+export async function update_own_upi(upi_id: string | null): Promise<ActionResult<{ upi_id: string | null }>> {
+  try {
+    const user_id = await get_current_user_id()
+    if (!user_id) return err('UNAUTHORIZED', 'Not authenticated')
+
+    let value: string | null = null
+    if (upi_id && upi_id.trim() !== '') {
+      const parsed = upiSchema.safeParse(upi_id)
+      if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
+      value = parsed.data
+    }
+
+    const updated = await prisma.user.update({ where: { id: user_id }, data: { upi_id: value }, select: { upi_id: true } })
+    revalidatePath('/heads', 'layout')
+    return ok({ upi_id: updated.upi_id }, 'UPI ID saved')
+  } catch (error) {
+    return fromError(error)
+  }
+}
+
 export async function get_line_item_defaults(): Promise<LineItemDefaults> {
   const user_id = await get_current_user_id()
   if (!user_id) {

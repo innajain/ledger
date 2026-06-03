@@ -142,10 +142,9 @@ export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState<string | null>(null)
-  // UPI only makes sense for accounts (payees you'd send money to).
-  // For allocations / income_expenses the field stays hidden and unsaved.
-  const supportsUpi = config.headType === 'account'
-  const [upiId, setUpiId] = useState('')
+  // Only account-type heads can be linked to another user (and thereby derive
+  // that user's UPI). Allocations / income_expenses can't.
+  const isLinkable = config.headType === 'account'
   const [linkedUserId, setLinkedUserId] = useState<string | null>(null)
   const [linkedUsername, setLinkedUsername] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -156,13 +155,7 @@ export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
     setError(null)
     setBusy(true)
     try {
-      const result = await create_account(
-        name,
-        config.headType,
-        parentId ?? undefined,
-        supportsUpi ? upiId : undefined,
-        supportsUpi ? (linkedUserId ?? undefined) : undefined,
-      )
+      const result = await create_account(name, config.headType, parentId ?? undefined, isLinkable ? (linkedUserId ?? undefined) : undefined)
       if (!result.success) throw new Error(result.message)
       router.push(config.basePath)
     } catch (err: unknown) {
@@ -193,18 +186,7 @@ export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
 
           <ParentSelect label={config.parentLabel} value={parentId} onChange={setParentId} parents={parents} helpText={config.parentHelpText} />
 
-          {supportsUpi && (
-            <TextInput
-              label="UPI ID (Optional)"
-              value={upiId}
-              onChange={setUpiId}
-              placeholder="e.g. name@bank or 9876543210@upi"
-              helpText="When set, a Pay via UPI button appears on this account. Phone numbers need the @upi suffix."
-              autoComplete="off"
-            />
-          )}
-
-          {supportsUpi && (
+          {isLinkable && (
             <LinkedUserField
               linkedUserId={linkedUserId}
               linkedUsername={linkedUsername}
@@ -230,8 +212,7 @@ export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUserna
   const [parentId, setParentId] = useState<string | null>(head.parent_id ?? null)
   const [isActive, setIsActive] = useState(head.is_active)
   const [isPlaceholder, setIsPlaceholder] = useState(head.is_placeholder)
-  const supportsUpi = config.headType === 'account'
-  const [upiId, setUpiId] = useState(head.upi_id ?? '')
+  const isLinkable = config.headType === 'account'
   const [linkedUserId, setLinkedUserId] = useState<string | null>(head.linked_user_id ?? null)
   const [linkedUsername, setLinkedUsername] = useState<string | null>(initialLinkedUsername ?? null)
   const [busy, setBusy] = useState(false)
@@ -242,16 +223,7 @@ export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUserna
     setError(null)
     setBusy(true)
     try {
-      const result = await update_account(
-        head.id,
-        name,
-        config.headType,
-        parentId,
-        isActive,
-        isPlaceholder,
-        supportsUpi ? upiId : undefined,
-        supportsUpi ? linkedUserId : undefined,
-      )
+      const result = await update_account(head.id, name, config.headType, parentId, isActive, isPlaceholder, isLinkable ? linkedUserId : undefined)
       if (!result.success) throw new Error(result.message)
       router.push(config.basePath)
     } catch (err: unknown) {
@@ -305,18 +277,7 @@ export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUserna
             helpText={config.parentHelpText}
           />
 
-          {supportsUpi && (
-            <TextInput
-              label="UPI ID (Optional)"
-              value={upiId}
-              onChange={setUpiId}
-              placeholder="e.g. name@bank or 9876543210@upi"
-              helpText="When set, a Pay via UPI button appears on this account. Phone numbers need the @upi suffix. Leave blank to clear."
-              autoComplete="off"
-            />
-          )}
-
-          {supportsUpi && (
+          {isLinkable && (
             <LinkedUserField
               linkedUserId={linkedUserId}
               linkedUsername={linkedUsername}
