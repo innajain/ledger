@@ -45,7 +45,7 @@ function makeDate(year: number, month: number, day: number, hour = 12, minute = 
 type AccountSpec = { type: 'account' | 'income_expense' | 'allocation'; name: string; parent?: string; is_placeholder?: boolean }
 
 const ACCOUNTS: AccountSpec[] = [
-  // --- Real ---
+  // --- Accounts ---
   { type: 'account', name: 'Bank', is_placeholder: true },
   { type: 'account', name: 'HDFC Salary', parent: 'Bank' },
   { type: 'account', name: 'SBI Savings', parent: 'Bank' },
@@ -59,7 +59,7 @@ const ACCOUNTS: AccountSpec[] = [
   { type: 'account', name: 'Rohan', parent: 'Friends' },
   { type: 'account', name: 'Priya', parent: 'Friends' },
 
-  // --- Nominal ---
+  // --- Income / Expense ---
   { type: 'income_expense', name: 'Income', is_placeholder: true },
   { type: 'income_expense', name: 'Salary', parent: 'Income' },
   { type: 'income_expense', name: 'Cashbacks', parent: 'Income' },
@@ -99,7 +99,7 @@ const ASSETS: AssetSpec[] = [
 type Line = { account: string; asset?: string; quantity: number | null; txn_value?: number | null; description?: string }
 type Txn = { datetime: Date; description?: string; lines: Line[] }
 
-// Real-only expense: real(-amt) → Expenses → allocation
+// Account-only expense: account(-amt) → Expenses → allocation
 function expense(date: Date, account: string, alloc: string, amount: number, description: string): Txn {
   return {
     datetime: date,
@@ -112,20 +112,20 @@ function expense(date: Date, account: string, alloc: string, amount: number, des
   }
 }
 
-// Income: real(+amt) → income-nominal → allocation
-function income(date: Date, account: string, nominal: string, alloc: string, amount: number, description: string): Txn {
+// Income: account(+amt) → income head → allocation
+function income(date: Date, account: string, incomeHead: string, alloc: string, amount: number, description: string): Txn {
   return {
     datetime: date,
     description,
     lines: [
       { account, asset: 'Money', quantity: amount },
-      { account: nominal, asset: 'Money', quantity: null },
+      { account: incomeHead, asset: 'Money', quantity: null },
       { account: alloc, asset: 'Money', quantity: null },
     ],
   }
 }
 
-// Bank → wallet transfer (real-only, sums to zero)
+// Bank → wallet transfer (accounts only, sums to zero)
 function transfer(date: Date, from: string, to: string, amount: number, description: string): Txn {
   return {
     datetime: date,
@@ -399,7 +399,7 @@ async function main() {
 
 main()
   .catch(e => {
-    console.error(e)
+    console.error('error:', e)
     process.exit(1)
   })
   .finally(() => prisma.$disconnect())

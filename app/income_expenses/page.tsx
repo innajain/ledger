@@ -22,7 +22,7 @@ async function Page() {
     return (
       <div>
         <h1>Income / Expense</h1>
-        <p>Please log in to view nominal accounts.</p>
+        <p>Please log in to view income & expenses.</p>
       </div>
     )
   }

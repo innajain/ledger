@@ -70,9 +70,9 @@ export default function ClientPage({ user, isAdmin, accounts, assets, defaults, 
   const [usernameSuccess, setUsernameSuccess] = useState<string | null>(null)
 
   // Line-item defaults state
-  const [defaultReal, setDefaultReal] = useState<string>(defaults.default_account_id ?? '')
+  const [defaultAccount, setDefaultAccount] = useState<string>(defaults.default_account_id ?? '')
   const [defaultAllocation, setDefaultAllocation] = useState<string>(defaults.default_allocation_id ?? '')
-  const [defaultNominal, setDefaultNominal] = useState<string>(defaults.default_income_expense_id ?? '')
+  const [defaultIncomeExpense, setDefaultIncomeExpense] = useState<string>(defaults.default_income_expense_id ?? '')
   const [defaultAsset, setDefaultAsset] = useState<string>(defaults.default_asset_id ?? '')
   const [defaultsLoading, setDefaultsLoading] = useState(false)
   const [defaultsError, setDefaultsError] = useState<string | null>(null)
@@ -129,9 +129,9 @@ export default function ClientPage({ user, isAdmin, accounts, assets, defaults, 
     }
   }
 
-  const realAccounts = accounts.filter(a => a.type === 'account')
+  const accountHeads = accounts.filter(a => a.type === 'account')
   const allocationAccounts = accounts.filter(a => a.type === 'allocation')
-  const nominalAccounts = accounts.filter(a => a.type === 'income_expense')
+  const incomeExpenseHeads = accounts.filter(a => a.type === 'income_expense')
 
   async function handleDefaultsSave(e: React.FormEvent) {
     e.preventDefault()
@@ -140,9 +140,9 @@ export default function ClientPage({ user, isAdmin, accounts, assets, defaults, 
     setDefaultsLoading(true)
     try {
       const result = await update_line_item_defaults({
-        default_account_id: defaultReal === '' ? null : defaultReal,
+        default_account_id: defaultAccount === '' ? null : defaultAccount,
         default_allocation_id: defaultAllocation === '' ? null : defaultAllocation,
-        default_income_expense_id: defaultNominal === '' ? null : defaultNominal,
+        default_income_expense_id: defaultIncomeExpense === '' ? null : defaultIncomeExpense,
         default_asset_id: defaultAsset === '' ? null : defaultAsset,
       })
       if (!result.success) throw new Error(result.message)
@@ -730,14 +730,14 @@ export default function ClientPage({ user, isAdmin, accounts, assets, defaults, 
                   </p>
                   <form onSubmit={handleDefaultsSave} className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Default Real Account</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Default Account</label>
                       <select
-                        value={defaultReal}
-                        onChange={e => setDefaultReal(e.target.value)}
+                        value={defaultAccount}
+                        onChange={e => setDefaultAccount(e.target.value)}
                         className="block w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors"
                       >
                         <option value="">— Use first available —</option>
-                        {realAccounts.map(a => (
+                        {accountHeads.map(a => (
                           <option key={a.id} value={a.id}>
                             {a.name}
                           </option>
@@ -762,14 +762,14 @@ export default function ClientPage({ user, isAdmin, accounts, assets, defaults, 
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Default Nominal Account</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Default Income / Expense</label>
                       <select
-                        value={defaultNominal}
-                        onChange={e => setDefaultNominal(e.target.value)}
+                        value={defaultIncomeExpense}
+                        onChange={e => setDefaultIncomeExpense(e.target.value)}
                         className="block w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors"
                       >
                         <option value="">— Use first available —</option>
-                        {nominalAccounts.map(a => (
+                        {incomeExpenseHeads.map(a => (
                           <option key={a.id} value={a.id}>
                             {a.name}
                           </option>

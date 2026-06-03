@@ -8,11 +8,11 @@ A personal finance application built with Next.js, implementing a **Triple-Entry
 
 Traditional double-entry bookkeeping tracks _where money came from_ and _where it went_. This system goes further — every line item is tagged with one **accounting head**, and each head has one of three types, balancing across all three **dimensions**:
 
-| `accounting_head.type` | Purpose                                 | Examples                                  | UI Label           |
-| ---------------------- | --------------------------------------- | ----------------------------------------- | ------------------ |
-| **`account`**          | Where money physically exists           | Bank Account, Wallet, Google Pay, BHIM    | "Real Accounts"    |
-| **`income_expense`**   | Income / expense classification (taxes) | Salary, Business Income, Groceries, Rent  | "Nominal Accounts" |
-| **`allocation`**       | Budget / allocation category            | Office Food, Commute, Discretionary, Rent | "Allocations"      |
+| `accounting_head.type` | Purpose                                 | Examples                                  | UI Label            |
+| ---------------------- | --------------------------------------- | ----------------------------------------- | ------------------- |
+| **`account`**          | Where money physically exists           | Bank Account, Wallet, Google Pay, BHIM    | "Accounts"          |
+| **`income_expense`**   | Income / expense classification (taxes) | Salary, Business Income, Groceries, Rent  | "Income & Expenses" |
+| **`allocation`**       | Budget / allocation category            | Office Food, Commute, Discretionary, Rent | "Allocations"       |
 
 This answers three questions simultaneously:
 

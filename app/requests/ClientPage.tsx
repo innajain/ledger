@@ -41,7 +41,7 @@ export default function ClientPage({
   async function bulkAccept(otherId: string) {
     const acct = balancingByOther[otherId] ?? accounts[0]?.id
     if (!acct) {
-      setError('Add a real account first to balance with')
+      setError('Add an account first to balance with')
       return
     }
     setBulkBusy(otherId)

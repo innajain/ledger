@@ -96,9 +96,9 @@ export function AccountTypeSelect({ label, value, onChange, disabled, restricted
         disabled={disabled}
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {allowedTypes.includes('account') && <option value="account">Real</option>}
+        {allowedTypes.includes('account') && <option value="account">Account</option>}
         {allowedTypes.includes('allocation') && <option value="allocation">Allocation</option>}
-        {allowedTypes.includes('income_expense') && <option value="income_expense">Nominal</option>}
+        {allowedTypes.includes('income_expense') && <option value="income_expense">Income / Expense</option>}
       </select>
     </div>
   )

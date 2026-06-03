@@ -92,9 +92,9 @@ export default function ClientPage({
     groups[t].push(li)
   }
 
-  const accountTypeConfig = {
+  const headTypeConfig = {
     account: {
-      title: 'Real Accounts',
+      title: 'Accounts',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -118,7 +118,7 @@ export default function ClientPage({
       color: 'orange',
     },
     income_expense: {
-      title: 'Nominal Accounts',
+      title: 'Income & Expenses',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -297,7 +297,7 @@ export default function ClientPage({
           const items = groups[typeKey] || []
           if (!items || items.length === 0) return null
 
-          const config = accountTypeConfig[typeKey]
+          const config = headTypeConfig[typeKey]
           const colorClasses = {
             green: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
             orange: 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100',

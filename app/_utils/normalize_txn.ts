@@ -3,7 +3,7 @@ import { asset_type, accounting_head_type } from '@/generated/prisma/enums'
 
 /**
  * Raw transaction shape as fetched from Prisma — quantity and txn_value
- * may be null on the allocation/nominal sides (and on txn_value for rupees).
+ * may be null on the allocation/income-expense sides (and on txn_value for rupees).
  */
 export type TransactionFull = Prisma.transactionGetPayload<{
   include: { line_items: { include: { accounting_head: true; asset: true } } }

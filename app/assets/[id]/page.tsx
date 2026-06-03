@@ -51,7 +51,7 @@ async function Page({ params }: Props) {
   const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
   const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
 
-  // Aggregate per real account
+  // Aggregate per account
   let asset_total = new Prisma.Decimal(0)
   let book_total = new Prisma.Decimal(0)
   const acc_map: Record<string, { accounting_head_id: string; account_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}

@@ -15,7 +15,7 @@ async function Page({ params }: Props) {
   if (!user) {
     return (
       <div>
-        <h1>Nominal Account</h1>
+        <h1>Income / Expense</h1>
         <p>Please log in to view this account.</p>
       </div>
     )
@@ -32,7 +32,7 @@ async function Page({ params }: Props) {
   if (!account || account.type !== 'income_expense') {
     return (
       <div>
-        <h1>Nominal Account</h1>
+        <h1>Income / Expense</h1>
         <p>Account not found.</p>
       </div>
     )

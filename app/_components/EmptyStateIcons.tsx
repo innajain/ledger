@@ -11,7 +11,7 @@ export const AccountEmptyIcon = () => (
   </svg>
 )
 
-export const NominalAccountEmptyIcon = AccountEmptyIcon
+export const IncomeExpenseEmptyIcon = AccountEmptyIcon
 
 export const TransactionEmptyIcon = () => (
   <svg className={baseClasses} {...baseProps}>

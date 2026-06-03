@@ -113,7 +113,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
         <div className={`grid grid-cols-1 ${asset.txn_value_total !== null ? 'sm:grid-cols-3' : ''} gap-4`}>
           <div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Total Across Real Accounts</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Total Across Accounts</p>
             <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">
               <MaskedAmount value={asset.total} />
             </p>

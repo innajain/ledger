@@ -20,7 +20,7 @@ async function resolve_linked_user(
   current_head_id: string | null,
 ): Promise<string | null> {
   if (!linked_user_id) return null
-  if (type !== 'account') throw new Error('Only real-account heads can be linked to another user')
+  if (type !== 'account') throw new Error('Only account-type heads can be linked to another user')
   if (linked_user_id === user_id) throw new Error('You cannot link an account to yourself')
   const target = await prisma.user.findUnique({ where: { id: linked_user_id }, select: { id: true } })
   if (!target) throw new Error('Linked user not found')

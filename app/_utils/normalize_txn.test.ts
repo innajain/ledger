@@ -33,7 +33,7 @@ function n(t: ReturnType<typeof makeTxn>) {
 }
 
 describe('normalize_txn — rupees', () => {
-  it('fills the null allocation and nominal qty as -sum(real)', () => {
+  it('fills the null allocation and income/expense qty as -sum(account)', () => {
     const t = n(
       makeTxn([
         { accounting_head_type: 'account', asset: RUPEES, quantity: -35 },
@@ -60,7 +60,7 @@ describe('normalize_txn — rupees', () => {
     }
   })
 
-  it('throws when a real item has null quantity', () => {
+  it('throws when an account item has null quantity', () => {
     expect(() =>
       n(
         makeTxn([
@@ -101,7 +101,7 @@ describe('normalize_txn — purity', () => {
 })
 
 describe('normalize_txn — non-rupees (MF)', () => {
-  it('fills both qty AND txn_value nulls on allocation and nominal sides', () => {
+  it('fills both qty AND txn_value nulls on allocation and income/expense sides', () => {
     const t = n(
       makeTxn([
         { accounting_head_type: 'account', asset: MF, quantity: 10, txn_value: 1500 },
@@ -117,7 +117,7 @@ describe('normalize_txn — non-rupees (MF)', () => {
     expect(nom.txn_value!.toNumber()).toBe(1500)
   })
 
-  it('throws when nominal has no null txn_value for non-rupees', () => {
+  it('throws when income/expense has no null txn_value for non-rupees', () => {
     expect(() =>
       n(
         makeTxn([

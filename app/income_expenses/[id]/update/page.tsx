@@ -11,7 +11,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
   if (!user) {
     return (
       <div>
-        <h1>Update Nominal Account</h1>
+        <h1>Update Income / Expense</h1>
         <p>User not authenticated.</p>
       </div>
     )
@@ -22,7 +22,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
   if (!account || account.type !== 'income_expense') {
     return (
       <div>
-        <h1>Update Nominal Account</h1>
+        <h1>Update Income / Expense</h1>
         <p>Account not found.</p>
       </div>
     )

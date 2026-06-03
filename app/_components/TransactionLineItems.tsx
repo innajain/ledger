@@ -20,9 +20,9 @@ type Asset = { id: string; name: string; type: asset_type }
 
 type ItemGroup = { item: LineItemData; idx: number }
 
-const accountTypeConfig = {
+const headTypeConfig = {
   account: {
-    title: 'Real Accounts',
+    title: 'Accounts',
     color: 'green',
   },
   allocation: {
@@ -30,7 +30,7 @@ const accountTypeConfig = {
     color: 'orange',
   },
   income_expense: {
-    title: 'Nominal Accounts',
+    title: 'Income & Expenses',
     color: 'purple',
   },
 }
@@ -93,7 +93,7 @@ export function TransactionLineItems({
 
       {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
         const list = groups[typeKey] || []
-        const config = accountTypeConfig[typeKey]
+        const config = headTypeConfig[typeKey]
 
         return (
           <div

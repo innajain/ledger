@@ -37,14 +37,14 @@ export default function ClientPage({
 
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()))
   const [description, setDescription] = useState('')
-  const defaultReal = pickDefaultAccount(accounts, defaults, 'account')
+  const defaultAccount = pickDefaultAccount(accounts, defaults, 'account')
   const defaultAllocation = pickDefaultAccount(accounts, defaults, 'allocation')
-  const defaultNominal = pickDefaultAccount(accounts, defaults, 'income_expense')
+  const defaultIncomeExpense = pickDefaultAccount(accounts, defaults, 'income_expense')
   const defaultAsset = pickDefaultAsset(assets, defaults)
 
   const [items, setItems] = useState<LineItemData[]>([
     {
-      accounting_head_id: defaultReal?.id ?? '',
+      accounting_head_id: defaultAccount?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
       txn_value: null,
@@ -52,7 +52,7 @@ export default function ClientPage({
       datetime: '',
     },
     {
-      accounting_head_id: defaultNominal?.id ?? '',
+      accounting_head_id: defaultIncomeExpense?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
       txn_value: null,

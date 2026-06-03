@@ -33,12 +33,12 @@ function check(items: LineItemShape[]) {
 }
 
 describe('validate_line_items — rupees', () => {
-  it('accepts a simple expense with one null in allocation and nominal', () => {
+  it('accepts a simple expense with one null in allocation and income/expense', () => {
     const result = check([li('account', RUPEES, -35), li('allocation', RUPEES, null), li('income_expense', RUPEES, null)])
     expect(result.is_valid).toBe(true)
   })
 
-  it('rejects a real line item with null quantity', () => {
+  it('rejects an account line item with null quantity', () => {
     const result = check([li('account', RUPEES, null), li('allocation', RUPEES, null), li('income_expense', RUPEES, null)])
     expect(result.is_valid).toBe(false)
     expect(result.message).toContain('null quantity')
@@ -66,25 +66,25 @@ describe('validate_line_items — rupees', () => {
     expect(result.message).toContain('rupees asset should not have txn value')
   })
 
-  it('requires real qty sum = 0 when no allocation/nominal', () => {
+  it('requires account qty sum = 0 when no allocation/income-expense', () => {
     const result = check([li('account', RUPEES, -35), li('account', RUPEES, 30)])
     expect(result.is_valid).toBe(false)
     expect(result.message).toContain('should be zero')
   })
 
-  it('accepts real-only when sum is zero', () => {
+  it('accepts account-only when sum is zero', () => {
     const result = check([li('account', RUPEES, -35), li('account', RUPEES, 35)])
     expect(result.is_valid).toBe(true)
   })
 })
 
 describe('validate_line_items — non-rupees (MF)', () => {
-  it('accepts a simple buy with explicit txn_value on real and one null in each side', () => {
+  it('accepts a simple buy with explicit txn_value on account and one null in each side', () => {
     const result = check([li('account', MF, 10, 1500), li('allocation', MF, null, null), li('income_expense', MF, null, null)])
     expect(result.is_valid).toBe(true)
   })
 
-  it('rejects a non-rupees real item with null txn_value', () => {
+  it('rejects a non-rupees account item with null txn_value', () => {
     const result = check([li('account', MF, 10, null), li('allocation', MF, null, null), li('income_expense', MF, null, null)])
     expect(result.is_valid).toBe(false)
     expect(result.message).toContain('null txn value')

@@ -7,8 +7,8 @@ import type { ActionResult } from '@/app/_actions/_result'
 import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert, ToggleSwitch } from '@/app/_components/AccountFormComponents'
 
 type AccountFormConfig = {
-  accountType: accounting_head_type
-  entityName: string // "Account", "Allocation", "Nominal Account"
+  headType: accounting_head_type
+  entityName: string // "Account", "Allocation", "Income / Expense"
   basePath: string // "/accounts", "/allocations", "/income_expenses"
   backText: string
   parentLabel: string
@@ -17,7 +17,7 @@ type AccountFormConfig = {
 
 const ACCOUNT_FORM_CONFIGS: Record<accounting_head_type, AccountFormConfig> = {
   account: {
-    accountType: 'account',
+    headType: 'account',
     entityName: 'Account',
     basePath: '/accounts',
     backText: 'Accounts',
@@ -25,7 +25,7 @@ const ACCOUNT_FORM_CONFIGS: Record<accounting_head_type, AccountFormConfig> = {
     parentHelpText: 'Select a parent to create a sub-account',
   },
   allocation: {
-    accountType: 'allocation',
+    headType: 'allocation',
     entityName: 'Allocation',
     basePath: '/allocations',
     backText: 'Allocations',
@@ -33,10 +33,10 @@ const ACCOUNT_FORM_CONFIGS: Record<accounting_head_type, AccountFormConfig> = {
     parentHelpText: 'Select a parent to create a sub-allocation',
   },
   income_expense: {
-    accountType: 'income_expense',
-    entityName: 'Nominal Account',
+    headType: 'income_expense',
+    entityName: 'Income / Expense',
     basePath: '/income_expenses',
-    backText: 'Nominal Accounts',
+    backText: 'Income & Expenses',
     parentLabel: 'Parent Account (Optional)',
     parentHelpText: 'Select a parent to create a sub-account',
   },
@@ -140,9 +140,9 @@ type UpdateAccountFormProps = {
 export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState<string | null>(null)
-  // UPI only makes sense for real accounts (payees you'd send money to).
+  // UPI only makes sense for accounts (payees you'd send money to).
   // For allocations / income_expenses the field stays hidden and unsaved.
-  const supportsUpi = config.accountType === 'account'
+  const supportsUpi = config.headType === 'account'
   const [upiId, setUpiId] = useState('')
   const [linkedUserId, setLinkedUserId] = useState<string | null>(null)
   const [linkedUsername, setLinkedUsername] = useState<string | null>(null)
@@ -156,7 +156,7 @@ export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
     try {
       const result = await create_account(
         name,
-        config.accountType,
+        config.headType,
         parentId ?? undefined,
         supportsUpi ? upiId : undefined,
         supportsUpi ? (linkedUserId ?? undefined) : undefined,
@@ -227,7 +227,7 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount, lin
   const [parentId, setParentId] = useState<string | null>(account.parent_id ?? null)
   const [isActive, setIsActive] = useState(account.is_active)
   const [isPlaceholder, setIsPlaceholder] = useState(account.is_placeholder)
-  const supportsUpi = config.accountType === 'account'
+  const supportsUpi = config.headType === 'account'
   const [upiId, setUpiId] = useState(account.upi_id ?? '')
   const [linkedUserId, setLinkedUserId] = useState<string | null>(account.linked_user_id ?? null)
   const [linkedUsername, setLinkedUsername] = useState<string | null>(initialLinkedUsername ?? null)
@@ -242,7 +242,7 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount, lin
       const result = await update_account(
         account.id,
         name,
-        config.accountType,
+        config.headType,
         parentId,
         isActive,
         isPlaceholder,
