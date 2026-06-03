@@ -2,9 +2,10 @@ import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
-import { accounting_head_type, Prisma } from '@/generated/prisma/client'
+import { accounting_head_type } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { get_or_compute_balances } from '../_actions/compute_balances'
+import { compute_head_value } from '../_utils/head_value'
 import { profile } from '@/lib/metrics/profile'
 
 // Route segment config for performance
@@ -39,25 +40,10 @@ async function Page() {
     get_or_compute_balances(),
   ])
 
-  const currValuesByAccount: Map<string, Prisma.Decimal> = new Map()
   const assetMap = new Map(assets.map(a => [a.id, a]))
   const priceByAsset = await get_prices_for_assets(assets)
 
-  for (const acc of accounts) {
-    const asset_qty_map = balances.get(acc.id) ?? new Map<string, { qty: number; txn_value: number }>()
-
-    let total_value = new Prisma.Decimal(0)
-    for (const [asset_id, { qty, txn_value }] of asset_qty_map.entries()) {
-      const price_data = priceByAsset.get(asset_id) ?? null
-      if (price_data) {
-        total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
-      } else {
-        total_value = total_value.add(txn_value)
-      }
-    }
-
-    currValuesByAccount.set(acc.id, total_value)
-  }
+  const totals = new Map(accounts.map(acc => [acc.id, compute_head_value(balances.get(acc.id) ?? new Map(), priceByAsset).toNumber()]))
 
   const assetQuantitiesByAccount: Map<string, Map<string, number>> = new Map()
   balances.forEach((asset_qty_map, accId) => {
@@ -71,13 +57,7 @@ async function Page() {
     assetQuantitiesByAccount.set(accId, assetQuantities)
   })
 
-  return (
-    <ClientPage
-      accounts={accounts}
-      totals={new Map(currValuesByAccount.entries().map(([accId, total]) => [accId, total.toNumber()]))}
-      accountAssetQuantities={assetQuantitiesByAccount}
-    />
-  )
+  return <ClientPage accounts={accounts} totals={totals} accountAssetQuantities={assetQuantitiesByAccount} />
 }
 
 export default profile('/accounts', Page)

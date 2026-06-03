@@ -5,6 +5,7 @@ import { get_current_user } from '@/app/_actions/auth'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { Prisma } from '@/generated/prisma/client'
 import { get_or_compute_balances } from './_actions/compute_balances'
+import { compute_head_value } from '@/app/_utils/head_value'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
 import { profile } from '@/lib/metrics/profile'
 
@@ -53,18 +54,7 @@ async function Home() {
 
   function compute_allocation_value(acc: (typeof allocations)[0] | undefined) {
     if (!acc) return null
-    const asset_qty_map = balances.get(acc.id) ?? new Map<string, { qty: number; txn_value: number }>()
-
-    let total_value = new Prisma.Decimal(0)
-    for (const [asset_id, { qty, txn_value }] of asset_qty_map.entries()) {
-      const price_data = priceByAsset.get(asset_id) ?? null
-      if (price_data) {
-        total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
-      } else {
-        total_value = total_value.add(txn_value)
-      }
-    }
-
+    const total_value = compute_head_value(balances.get(acc.id) ?? new Map(), priceByAsset)
     return { id: acc.id, name: acc.name, total: total_value }
   }
 

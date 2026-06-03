@@ -5,6 +5,7 @@ import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { get_or_compute_balances } from '../_actions/compute_balances'
+import { value_balance_entry } from '../_utils/head_value'
 import { normalize_txn } from '../_utils/normalize_txn'
 import { calculate_xirr } from '../_utils/xirr_calculator'
 import { profile } from '@/lib/metrics/profile'
@@ -43,16 +44,13 @@ async function Page() {
 
   const currValuesByAsset: Map<string, number> = new Map()
   for (const ass of assets) {
-    const price_data = priceByAsset.get(ass.id) ?? null
+    // One asset has a single price; sum its qty across all accounts holding it.
+    const price = priceByAsset.get(ass.id)?.price ?? null
     const acc_qty_map = balances.get(ass.id) ?? new Map<string, { qty: number; txn_value: number }>()
 
     let total_value = new Prisma.Decimal(0)
-    for (const [, { qty, txn_value }] of acc_qty_map.entries()) {
-      if (price_data) {
-        total_value = total_value.add(new Prisma.Decimal(price_data.price).mul(qty))
-      } else {
-        total_value = total_value.add(txn_value)
-      }
+    for (const [, { qty, txn_value }] of acc_qty_map) {
+      total_value = total_value.add(value_balance_entry(qty, txn_value, price))
     }
 
     currValuesByAsset.set(ass.id, total_value.toNumber())
