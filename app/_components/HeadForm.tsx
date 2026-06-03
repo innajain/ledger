@@ -165,7 +165,6 @@ export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
       )
       if (!result.success) throw new Error(result.message)
       router.push(config.basePath)
-      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -255,7 +254,6 @@ export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUserna
       )
       if (!result.success) throw new Error(result.message)
       router.push(config.basePath)
-      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -274,7 +272,6 @@ export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUserna
       const result = await deleteHead(head.id)
       if (!result.success) throw new Error(result.message)
       router.push(config.basePath)
-      router.refresh()
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
     }

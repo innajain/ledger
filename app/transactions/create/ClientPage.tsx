@@ -224,7 +224,6 @@ export default function ClientPage({
           await save_attachments(result.data!.id, pendingAttachments)
         }
         router.push(`/transactions/${result.data!.id}`)
-        router.refresh()
       } else {
         setError(result.message)
       }

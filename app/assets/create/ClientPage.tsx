@@ -23,7 +23,6 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
       const result = await create_asset(name, type, ticker || undefined, parentId)
       if (!result.success) throw new Error(result.message)
       router.push('/assets')
-      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {

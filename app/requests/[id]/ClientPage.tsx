@@ -91,7 +91,6 @@ export default function ClientPage({
       const result = ctx.mode === 'revert' ? await revert_request(ctx.link_id, balancing) : await approve_request(ctx.link_id, balancing)
       if (result.success) {
         router.push('/requests')
-        router.refresh()
       } else setError(result.message)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

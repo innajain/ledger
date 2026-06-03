@@ -43,7 +43,6 @@ export default function ClientPage({
       const result = await update_asset(asset.id, name, type, ticker || undefined, parentId, isActive, isPlaceholder)
       if (!result.success) throw new Error(result.message)
       router.push('/assets')
-      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -62,7 +61,6 @@ export default function ClientPage({
       const result = await deleteAsset(asset.id)
       if (!result.success) throw new Error(result.message)
       router.push('/assets')
-      router.refresh()
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
     }

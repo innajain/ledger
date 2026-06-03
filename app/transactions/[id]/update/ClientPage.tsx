@@ -144,7 +144,6 @@ export default function ClientPage({
           await save_attachments(transaction.id, pendingAttachments)
         }
         router.push(`/transactions/${transaction.id}`)
-        router.refresh()
       } else {
         setError(result.message)
       }

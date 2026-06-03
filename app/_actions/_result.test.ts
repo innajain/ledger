@@ -25,7 +25,7 @@ describe('fromError', () => {
   })
 
   it('maps Prisma P2025 (not found) to NOT_FOUND', () => {
-    expect(fromError({ code: 'P2025' }).code).toBe('NOT_FOUND')
+    expect(fromError({ code: 'P2025' })).toEqual({ success: false, code: 'NOT_FOUND', message: 'Record not found' })
   })
 
   it('defaults an unknown Error to SERVER, preserving the message', () => {
@@ -33,6 +33,6 @@ describe('fromError', () => {
   })
 
   it('honors the fallback code for plain errors', () => {
-    expect(fromError(new Error('boom'), 'VALIDATION').code).toBe('VALIDATION')
+    expect(fromError(new Error('boom'), 'VALIDATION')).toEqual({ success: false, code: 'VALIDATION', message: 'boom' })
   })
 })
