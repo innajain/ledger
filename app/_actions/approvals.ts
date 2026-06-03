@@ -6,7 +6,7 @@ import { build_actor_copy, other_user, my_txn_id, their_txn_id } from '@/app/_ut
 import { notify_request_rejected } from '@/app/_utils/notify_events'
 import { invalidate_balances } from './compute_balances'
 import { logger } from '@/lib/logger'
-import { ActionResult, ok, err, fromError } from './_result'
+import { ActionResult, ok, err, fromError, ActionError } from './_result'
 import type { CreateLineItemInput } from './transactions'
 
 // Approve the request currently awaiting me. For a `change` request I author my
@@ -19,8 +19,9 @@ export async function approve_request(link_id: string, balancing_lines: CreateLi
 
     const { other_id } = await prisma.$transaction(async tx => {
       const link = await tx.transaction_link.findUnique({ where: { id: link_id } })
-      if (!link) throw new Error('Request not found')
-      if (link.pending_status !== 'pending' || link.pending_by !== me) throw new Error('This request is not awaiting your approval')
+      if (!link) throw new ActionError('NOT_FOUND', 'Request not found')
+      if (link.pending_status !== 'pending' || link.pending_by !== me)
+        throw new ActionError('VALIDATION', 'This request is not awaiting your approval')
 
       const other_id = other_user(link, me)
       if (link.pending_kind === 'deletion') {
@@ -56,8 +57,8 @@ export async function accept_all_from(counterparty_id: string, balancing_account
           where: { id: balancing_account_id, user_id: me, type: 'account' },
           select: { id: true, linked_user_id: true },
         })
-        if (!acc) throw new Error('Balancing account not found')
-        if (acc.linked_user_id) throw new Error('Pick one of your own accounts (not a linked one) to balance with')
+        if (!acc) throw new ActionError('NOT_FOUND', 'Balancing account not found')
+        if (acc.linked_user_id) throw new ActionError('VALIDATION', 'Pick one of your own accounts (not a linked one) to balance with')
 
         const links = await tx.transaction_link.findMany({
           where: {
@@ -96,10 +97,10 @@ export async function cancel_request(link_id: string): Promise<ActionResult> {
 
     const { other_id, reverted } = await prisma.$transaction(async tx => {
       const link = await tx.transaction_link.findUnique({ where: { id: link_id } })
-      if (!link) throw new Error('Request not found')
-      if (link.user_a_id !== me && link.user_b_id !== me) throw new Error('This is not your request')
-      if (link.pending_status !== 'pending') throw new Error('Only a pending request can be cancelled')
-      if (link.pending_by === me) throw new Error('This request is awaiting your approval — approve or reject it instead')
+      if (!link) throw new ActionError('NOT_FOUND', 'Request not found')
+      if (link.user_a_id !== me && link.user_b_id !== me) throw new ActionError('VALIDATION', 'This is not your request')
+      if (link.pending_status !== 'pending') throw new ActionError('VALIDATION', 'Only a pending request can be cancelled')
+      if (link.pending_by === me) throw new ActionError('VALIDATION', 'This request is awaiting your approval — approve or reject it instead')
 
       const other_id = other_user(link, me)
       const anchor = their_txn_id(link, me) // the other side's approved copy, if any
@@ -150,8 +151,8 @@ export async function reject_request(link_id: string): Promise<ActionResult> {
 
     const { proposer_id, description } = await prisma.$transaction(async tx => {
       const link = await tx.transaction_link.findUnique({ where: { id: link_id } })
-      if (!link) throw new Error('Request not found')
-      if (link.pending_status !== 'pending' || link.pending_by !== me) throw new Error('This request is not awaiting your action')
+      if (!link) throw new ActionError('NOT_FOUND', 'Request not found')
+      if (link.pending_status !== 'pending' || link.pending_by !== me) throw new ActionError('VALIDATION', 'This request is not awaiting your action')
 
       const proposer_id = other_user(link, me)
       await tx.transaction_link.update({
@@ -183,8 +184,9 @@ export async function revert_request(link_id: string, balancing_lines: CreateLin
 
     const { other_id } = await prisma.$transaction(async tx => {
       const link = await tx.transaction_link.findUnique({ where: { id: link_id } })
-      if (!link) throw new Error('Request not found')
-      if (link.pending_status !== 'rejected' || link.pending_by !== me) throw new Error('There is no rejected request for you to revert')
+      if (!link) throw new ActionError('NOT_FOUND', 'Request not found')
+      if (link.pending_status !== 'rejected' || link.pending_by !== me)
+        throw new ActionError('VALIDATION', 'There is no rejected request for you to revert')
 
       await build_actor_copy(tx, link, me, balancing_lines)
       return { other_id: other_user(link, me) }

@@ -10,7 +10,7 @@ import { invalidate_balances } from './compute_balances'
 import { create_links_for_transaction, prepare_links_for_delete } from '../_utils/links'
 import { notify_request_pending } from '../_utils/notify_events'
 import { logger } from '@/lib/logger'
-import { ActionResult, ok, err, fromError } from './_result'
+import { ActionResult, ok, err, fromError, ActionError } from './_result'
 
 export type CreateLineItemInput = {
   accounting_head_id: string
@@ -68,12 +68,13 @@ export async function create_transaction(
       const accounts = await prisma.accounting_head.findMany({
         where: { id: { in: accounting_head_ids }, user_id },
       })
-      if (accounts.length !== accounting_head_ids.length) throw new Error('One or more accounts not found or do not belong to your user')
+      if (accounts.length !== accounting_head_ids.length)
+        throw new ActionError('VALIDATION', 'One or more accounts not found or do not belong to your user')
 
       const assets = await prisma.asset.findMany({
         where: { id: { in: asset_ids } },
       })
-      if (assets.length !== asset_ids.length) throw new Error('One or more assets not found')
+      if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets not found')
 
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
@@ -84,7 +85,7 @@ export async function create_transaction(
         })),
       )
 
-      if (!is_valid) throw new Error(message)
+      if (!is_valid) throw new ActionError('VALIDATION', message)
 
       // All checks passed — create the transaction with nested line_items
       const created = await prisma.transaction.create({
@@ -235,7 +236,7 @@ export async function create_upi_payment(input: {
           accounting_head: accounts.find(a => a.id === li.accounting_head_id)!,
         })),
       )
-      if (!is_valid) throw new Error(message)
+      if (!is_valid) throw new ActionError('VALIDATION', message)
 
       return await prisma.transaction.create({
         data: {

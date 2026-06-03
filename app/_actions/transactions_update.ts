@@ -10,7 +10,7 @@ import { sync_links_after_update } from '../_utils/links'
 import { notify_request_pending } from '../_utils/notify_events'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
-import { ActionResult, ok, err, fromError } from './_result'
+import { ActionResult, ok, err, fromError, ActionError } from './_result'
 
 const updateTransactionSchema = z.object({
   id: z.string().min(1, 'Transaction ID is required'),
@@ -58,7 +58,7 @@ export async function update_transaction(
       const existing = await prisma.transaction.findUnique({
         where: { id, user_id },
       })
-      if (!existing) throw new Error('Transaction not found or does not belong to your user')
+      if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found or does not belong to your user')
 
       const accounting_head_ids = Array.from(new Set(line_items.map(li => li.accounting_head_id)))
       const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
@@ -66,12 +66,13 @@ export async function update_transaction(
       const accounts = await prisma.accounting_head.findMany({
         where: { id: { in: accounting_head_ids }, user_id },
       })
-      if (accounts.length !== accounting_head_ids.length) throw new Error('One or more accounts not found or do not belong to your user')
+      if (accounts.length !== accounting_head_ids.length)
+        throw new ActionError('VALIDATION', 'One or more accounts not found or do not belong to your user')
 
       const assets = await prisma.asset.findMany({
         where: { id: { in: asset_ids } },
       })
-      if (assets.length !== asset_ids.length) throw new Error('One or more assets not found')
+      if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets not found')
 
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
@@ -82,7 +83,7 @@ export async function update_transaction(
         })),
       )
 
-      if (!is_valid) throw new Error(message)
+      if (!is_valid) throw new ActionError('VALIDATION', message)
       // Replace line items: delete existing then add new ones, and update transaction
       await prisma.line_item.deleteMany({ where: { transaction_id: id } })
 

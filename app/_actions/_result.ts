@@ -18,6 +18,22 @@ export function err(code: ActionErrorCode, message: string): ActionResult<never>
 }
 
 /**
+ * A thrown error that carries an ActionErrorCode. Use it for validation /
+ * not-found cases raised deep inside an action (e.g. inside a Prisma
+ * transaction callback or a shared helper) where returning `err(...)` directly
+ * is awkward. `fromError` maps it back to a typed ActionResult, so the code
+ * survives the throw instead of collapsing to SERVER.
+ */
+export class ActionError extends Error {
+  code: ActionErrorCode
+  constructor(code: ActionErrorCode, message: string) {
+    super(message)
+    this.name = 'ActionError'
+    this.code = code
+  }
+}
+
+/**
  * Map an unknown thrown value to an ActionResult error. Defaults to SERVER
  * unless a code is supplied. Use in catch blocks.
  *
@@ -25,6 +41,7 @@ export function err(code: ActionErrorCode, message: string): ActionResult<never>
  * property so we don't need to import the Prisma client here.
  */
 export function fromError(error: unknown, fallback: ActionErrorCode = 'SERVER'): ActionResult<never> {
+  if (error instanceof ActionError) return err(error.code, error.message)
   if (error && typeof error === 'object' && 'code' in error) {
     const prismaCode = (error as { code: unknown }).code
     if (prismaCode === 'P2002') return err('VALIDATION', 'A record with this name already exists')

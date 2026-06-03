@@ -8,7 +8,7 @@ import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher
 import { invalidate_balances } from './compute_balances'
 import { backfill_links_for_account } from '../_utils/links'
 import { notify_request_pending } from '../_utils/notify_events'
-import { ActionResult, ok, err, fromError } from './_result'
+import { ActionResult, ok, err, fromError, ActionError } from './_result'
 
 // Validate and normalize a cross-user account link. Returns the linked user id
 // to store (or null to clear), or throws with a user-facing message.
@@ -20,15 +20,15 @@ async function resolve_linked_user(
   current_head_id: string | null,
 ): Promise<string | null> {
   if (!linked_user_id) return null
-  if (type !== 'account') throw new Error('Only account-type heads can be linked to another user')
-  if (linked_user_id === user_id) throw new Error('You cannot link an account to yourself')
+  if (type !== 'account') throw new ActionError('VALIDATION', 'Only account-type heads can be linked to another user')
+  if (linked_user_id === user_id) throw new ActionError('VALIDATION', 'You cannot link an account to yourself')
   const target = await prisma.user.findUnique({ where: { id: linked_user_id }, select: { id: true } })
-  if (!target) throw new Error('Linked user not found')
+  if (!target) throw new ActionError('NOT_FOUND', 'Linked user not found')
   const dupe = await prisma.accounting_head.findFirst({
     where: { user_id, linked_user_id, ...(current_head_id ? { id: { not: current_head_id } } : {}) },
     select: { id: true },
   })
-  if (dupe) throw new Error('You already have an account linked to this user')
+  if (dupe) throw new ActionError('VALIDATION', 'You already have an account linked to this user')
   return linked_user_id
 }
 
@@ -127,17 +127,17 @@ export async function update_account(
     const existing = await prisma.accounting_head.findUnique({
       where: { id, user_id },
     })
-    if (!existing) throw new Error('account not found')
+    if (!existing) throw new ActionError('NOT_FOUND', 'account not found')
 
     // If parent_id provided, validate
     if (parent_id) {
-      if (parent_id === id) throw new Error('parent cannot be the account itself')
+      if (parent_id === id) throw new ActionError('VALIDATION', 'parent cannot be the account itself')
       // ensure parent exists and belongs to user
       const p = await prisma.accounting_head.findUnique({
         where: { id: parent_id, user_id },
         select: { id: true, user_id: true, parent_id: true },
       })
-      if (!p) throw new Error('invalid parent account')
+      if (!p) throw new ActionError('VALIDATION', 'invalid parent account')
 
       const all_accounts = await prisma.accounting_head.findMany({
         where: { user_id },
@@ -148,7 +148,7 @@ export async function update_account(
       // prevent cycles: walk up the parent chain
       let curr_parent_id: string | null = p.parent_id
       while (curr_parent_id) {
-        if (curr_parent_id === id) throw new Error('invalid parent: would create cycle')
+        if (curr_parent_id === id) throw new ActionError('VALIDATION', 'invalid parent: would create cycle')
         curr_parent_id = parentMap.get(curr_parent_id) ?? null
       }
     }
@@ -168,7 +168,7 @@ export async function update_account(
           },
           select: { id: true },
         })
-        if (inUse) throw new Error('Cannot change this account’s linked user while it has shared transactions')
+        if (inUse) throw new ActionError('VALIDATION', 'Cannot change this account’s linked user while it has shared transactions')
       }
     }
 
@@ -243,14 +243,14 @@ export async function create_asset(
     ticker = parsed.data.ticker
 
     if (type === 'etf' || type === 'mf' || type === 'shares') {
-      if (!ticker || ticker.length === 0) throw new Error('ticker is required for asset type ' + type)
+      if (!ticker || ticker.length === 0) throw new ActionError('VALIDATION', 'ticker is required for asset type ' + type)
       if (type === 'mf') {
-        if ((await get_nav({ code: ticker })) === null) throw new Error('invalid ticker for mutual fund: ' + ticker)
+        if ((await get_nav({ code: ticker })) === null) throw new ActionError('VALIDATION', 'invalid ticker for mutual fund: ' + ticker)
       } else if (type === 'etf' || type === 'shares') {
-        if ((await get_latest_etf_or_shares_price(ticker)) === null) throw new Error('invalid ticker for etf/shares: ' + ticker)
+        if ((await get_latest_etf_or_shares_price(ticker)) === null) throw new ActionError('VALIDATION', 'invalid ticker for etf/shares: ' + ticker)
       }
     } else if (ticker !== undefined && ticker !== null) {
-      throw new Error('ticker cannot be non-null for asset type ' + type)
+      throw new ActionError('VALIDATION', 'ticker cannot be non-null for asset type ' + type)
     }
 
     await require_admin()
@@ -291,15 +291,15 @@ export async function update_asset(
     const existing = await prisma.asset.findUnique({
       where: { id },
     })
-    if (!existing) throw new Error('asset not found')
+    if (!existing) throw new ActionError('NOT_FOUND', 'asset not found')
 
     if (parent_id) {
-      if (parent_id === id) throw new Error('parent cannot be the asset itself')
+      if (parent_id === id) throw new ActionError('VALIDATION', 'parent cannot be the asset itself')
       const p = await prisma.asset.findUnique({
         where: { id: parent_id },
         select: { id: true, parent_id: true },
       })
-      if (!p) throw new Error('invalid parent asset')
+      if (!p) throw new ActionError('VALIDATION', 'invalid parent asset')
 
       const all_assets = await prisma.asset.findMany({
         select: { id: true, parent_id: true },
@@ -308,7 +308,7 @@ export async function update_asset(
 
       let curr_parent_id: string | null = p.parent_id
       while (curr_parent_id) {
-        if (curr_parent_id === id) throw new Error('invalid parent: would create cycle')
+        if (curr_parent_id === id) throw new ActionError('VALIDATION', 'invalid parent: would create cycle')
         curr_parent_id = parentMap.get(curr_parent_id) ?? null
       }
     }
@@ -326,14 +326,15 @@ export async function update_asset(
         },
       })
       if (type === 'etf' || type === 'mf' || type === 'shares') {
-        if (!asset.ticker || asset.ticker.length === 0) throw new Error('ticker is required for asset type ' + type)
+        if (!asset.ticker || asset.ticker.length === 0) throw new ActionError('VALIDATION', 'ticker is required for asset type ' + type)
         if (type === 'mf') {
-          if ((await get_nav({ code: asset.ticker })) === null) throw new Error('invalid ticker for mutual fund: ' + asset.ticker)
+          if ((await get_nav({ code: asset.ticker })) === null) throw new ActionError('VALIDATION', 'invalid ticker for mutual fund: ' + asset.ticker)
         } else if (type === 'etf' || type === 'shares') {
-          if ((await get_latest_etf_or_shares_price(asset.ticker)) === null) throw new Error('invalid ticker for etf/shares: ' + asset.ticker)
+          if ((await get_latest_etf_or_shares_price(asset.ticker)) === null)
+            throw new ActionError('VALIDATION', 'invalid ticker for etf/shares: ' + asset.ticker)
         }
       } else if (asset.ticker !== null) {
-        throw new Error('ticker cannot non-null for asset type ' + type)
+        throw new ActionError('VALIDATION', 'ticker cannot non-null for asset type ' + type)
       }
     })
     return ok()
