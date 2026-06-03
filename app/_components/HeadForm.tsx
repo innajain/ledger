@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { create_account, update_account, find_user_by_username } from '@/app/_actions/resources'
 import type { Prisma, accounting_head_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
-import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert, ToggleSwitch } from '@/app/_components/AccountFormComponents'
+import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert, ToggleSwitch } from '@/app/_components/FormComponents'
 
-type AccountFormConfig = {
+type HeadFormConfig = {
   headType: accounting_head_type
   entityName: string // "Account", "Allocation", "Income / Expense"
   basePath: string // "/heads/account", "/heads/allocation", "/heads/income_expense"
@@ -15,7 +15,7 @@ type AccountFormConfig = {
   parentHelpText: string
 }
 
-const ACCOUNT_FORM_CONFIGS: Record<accounting_head_type, AccountFormConfig> = {
+const HEAD_FORM_CONFIGS: Record<accounting_head_type, HeadFormConfig> = {
   account: {
     headType: 'account',
     entityName: 'Account',
@@ -42,12 +42,12 @@ const ACCOUNT_FORM_CONFIGS: Record<accounting_head_type, AccountFormConfig> = {
   },
 }
 
-export function accountFormConfig(type: accounting_head_type): AccountFormConfig {
-  return ACCOUNT_FORM_CONFIGS[type]
+export function headFormConfig(type: accounting_head_type): HeadFormConfig {
+  return HEAD_FORM_CONFIGS[type]
 }
 
 // Picker for linking this account to another user. Resolves a username to a
-// user id via find_user_by_username; transactions touching a linked account
+// user id via find_user_by_username; transactions touching a linked head
 // become approval-gated in the other user's ledger.
 function LinkedUserField({
   linkedUserId,
@@ -123,21 +123,21 @@ function LinkedUserField({
   )
 }
 
-type CreateAccountFormProps = {
+type CreateHeadFormProps = {
   parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
-  config: AccountFormConfig
+  config: HeadFormConfig
 }
 
-type UpdateAccountFormProps = {
-  account: Prisma.accounting_headGetPayload<Record<string, never>>
+type UpdateHeadFormProps = {
+  head: Prisma.accounting_headGetPayload<Record<string, never>>
   parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
-  config: AccountFormConfig
-  deleteAccount?: (id: string) => Promise<ActionResult>
+  config: HeadFormConfig
+  deleteHead?: (id: string) => Promise<ActionResult>
   // Username of the currently linked user (resolved server-side for display).
   linkedUsername?: string | null
 }
 
-export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
+export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState<string | null>(null)
   // UPI only makes sense for accounts (payees you'd send money to).
@@ -222,14 +222,14 @@ export function CreateAccountForm({ parents, config }: CreateAccountFormProps) {
   )
 }
 
-export function UpdateAccountForm({ account, parents, config, deleteAccount, linkedUsername: initialLinkedUsername }: UpdateAccountFormProps) {
-  const [name, setName] = useState(account.name)
-  const [parentId, setParentId] = useState<string | null>(account.parent_id ?? null)
-  const [isActive, setIsActive] = useState(account.is_active)
-  const [isPlaceholder, setIsPlaceholder] = useState(account.is_placeholder)
+export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUsername: initialLinkedUsername }: UpdateHeadFormProps) {
+  const [name, setName] = useState(head.name)
+  const [parentId, setParentId] = useState<string | null>(head.parent_id ?? null)
+  const [isActive, setIsActive] = useState(head.is_active)
+  const [isPlaceholder, setIsPlaceholder] = useState(head.is_placeholder)
   const supportsUpi = config.headType === 'account'
-  const [upiId, setUpiId] = useState(account.upi_id ?? '')
-  const [linkedUserId, setLinkedUserId] = useState<string | null>(account.linked_user_id ?? null)
+  const [upiId, setUpiId] = useState(head.upi_id ?? '')
+  const [linkedUserId, setLinkedUserId] = useState<string | null>(head.linked_user_id ?? null)
   const [linkedUsername, setLinkedUsername] = useState<string | null>(initialLinkedUsername ?? null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -240,7 +240,7 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount, lin
     setBusy(true)
     try {
       const result = await update_account(
-        account.id,
+        head.id,
         name,
         config.headType,
         parentId,
@@ -259,14 +259,14 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount, lin
   }
 
   async function onDelete() {
-    if (!deleteAccount) {
+    if (!deleteHead) {
       setError('Delete operation is not available')
       return
     }
     if (!confirm(`Delete this ${config.entityName.toLowerCase()}? This action cannot be undone.`)) return
     setError(null)
     try {
-      const result = await deleteAccount(account.id)
+      const result = await deleteHead(head.id)
       if (!result.success) throw new Error(result.message)
       window.location.href = config.basePath
     } catch (err: unknown) {
@@ -298,7 +298,7 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount, lin
             value={parentId}
             onChange={setParentId}
             parents={parents}
-            excludeId={account.id}
+            excludeId={head.id}
             helpText={config.parentHelpText}
           />
 
@@ -339,7 +339,7 @@ export function UpdateAccountForm({ account, parents, config, deleteAccount, lin
           cancelLink={config.basePath}
           submitText={busy ? 'Updating...' : `Update ${config.entityName}`}
           busy={busy}
-          onDelete={deleteAccount ? onDelete : undefined}
+          onDelete={deleteHead ? onDelete : undefined}
           deleteText={`Delete ${config.entityName}`}
         />
       </form>

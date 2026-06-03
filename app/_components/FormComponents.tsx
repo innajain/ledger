@@ -1,4 +1,4 @@
-// components/AccountFormComponents.tsx
+// components/FormComponents.tsx
 import Link from 'next/link'
 import type { accounting_head_type, Prisma } from '@/generated/prisma/client'
 import { Card } from './Card'
@@ -76,7 +76,7 @@ export function TextInput({ label, value, onChange, placeholder, required, helpT
 }
 
 // Account Type Select
-interface AccountTypeSelectProps {
+interface HeadTypeSelectProps {
   label: string
   value: accounting_head_type
   onChange: (value: accounting_head_type) => void
@@ -84,7 +84,7 @@ interface AccountTypeSelectProps {
   restrictedTo?: accounting_head_type[]
 }
 
-export function AccountTypeSelect({ label, value, onChange, disabled, restrictedTo }: AccountTypeSelectProps) {
+export function HeadTypeSelect({ label, value, onChange, disabled, restrictedTo }: HeadTypeSelectProps) {
   const allowedTypes = restrictedTo || ['account', 'allocation', 'income_expense']
 
   return (

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { approve_request, reject_request, accept_all_from } from '@/app/_actions/approvals'
 import type { InboxItem, OutboxItem } from '@/app/_utils/links'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
-import { ErrorAlert } from '@/app/_components/AccountFormComponents'
+import { ErrorAlert } from '@/app/_components/FormComponents'
 import { EmptyState } from '@/app/_components/EmptyState'
 
 function PreviewLines({ preview }: { preview: { asset_name: string; quantity: number | null; txn_value: number | null }[] }) {

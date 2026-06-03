@@ -8,7 +8,7 @@ import { save_attachments, delete_attachment, type AttachmentInput } from '@/app
 import { ActionResult } from '@/app/_actions/_result'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
 import { AttachmentUpload } from '@/app/_components/AttachmentUpload'
-import { ErrorAlert } from '@/app/_components/AccountFormComponents'
+import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
 import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app/_utils/line_item_defaults'

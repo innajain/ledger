@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { asset_type } from '@/generated/prisma/enums'
 import { approve_request, revert_request } from '@/app/_actions/approvals'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
-import { ErrorAlert } from '@/app/_components/AccountFormComponents'
+import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { EditorContext } from '@/app/_utils/links'
 

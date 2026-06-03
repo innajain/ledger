@@ -28,7 +28,7 @@ export type LineItem = {
   remaining_quantity?: number | null
 }
 
-export type AccountData = {
+export type HeadData = {
   id: string
   name: string
   total: number
@@ -38,7 +38,7 @@ export type AccountData = {
   children?: { id: string; name: string; link: string; total: number }[]
   /** Parent head, when this head is nested under another. */
   parent?: { name: string; link: string } | null
-  /** The user this account is linked to (cross-user), enabling notifications. */
+  /** The user this head is linked to (cross-user), enabling notifications. */
   linked_user?: { id: string; username: string } | null
   xirr?: number | null
   /** Optional UPI handle. When set, the page renders a "Pay via UPI" button. */
@@ -55,23 +55,23 @@ export type AccountData = {
   value_timeseries?: ValuePoint[]
 }
 
-type AccountDetailConfig = {
+type HeadDetailConfig = {
   backLink: string
   backText: string
   entityName: string // "Account", "Allocation"
   holdingsTitle?: string
 }
 
-type AccountDetailPageProps = {
-  account: AccountData
-  config: AccountDetailConfig
+type HeadDetailPageProps = {
+  head: HeadData
+  config: HeadDetailConfig
 }
 
-export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
+export function HeadDetailPage({ head, config }: HeadDetailPageProps) {
   const router = useRouter()
   const [pay_status, set_pay_status] = useState<{ kind: 'ok'; txn_id: string } | { kind: 'err'; message: string } | null>(null)
 
-  const holdingsItems: HoldingItem[] = account.breakdown.map(b => ({
+  const holdingsItems: HoldingItem[] = head.breakdown.map(b => ({
     id: b.asset_id,
     name: b.asset_name,
     link: `/assets/${b.asset_id}`,
@@ -83,7 +83,7 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
 
   async function handle_mark_paid(amount: number, note: string) {
     const result = await create_upi_payment({
-      payee_account_id: account.id,
+      payee_account_id: head.id,
       amount,
       description: note || null,
     })
@@ -101,45 +101,45 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
       <ViewPageHeader
         backLink={config.backLink}
         backText={config.backText}
-        title={account.name}
+        title={head.name}
         description={`${config.entityName} details and holdings`}
-        editLink={`${config.backLink}/${account.id}/update`}
+        editLink={`${config.backLink}/${head.id}/update`}
         editText={`Edit ${config.entityName}`}
       />
 
-      {account.parent && (
+      {head.parent && (
         <Link
-          href={account.parent.link}
+          href={head.parent.link}
           className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
         >
           <span aria-hidden>↑</span>
           <span>
-            Part of <span className="font-medium">{account.parent.name}</span>
+            Part of <span className="font-medium">{head.parent.name}</span>
           </span>
         </Link>
       )}
 
-      {account.upi_id && (
+      {head.upi_id && (
         <div className="bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-green-900 dark:text-green-100">Send money via UPI</p>
-            <p className="text-xs font-mono text-green-700 dark:text-green-300 break-all">{account.upi_id}</p>
-            {account.total < 0 && (
+            <p className="text-xs font-mono text-green-700 dark:text-green-300 break-all">{head.upi_id}</p>
+            {head.total < 0 && (
               <p className="text-xs text-green-700 dark:text-green-300 mt-1">
                 You owe{' '}
                 <span className="font-semibold">
-                  {(-account.total).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 })}
+                  {(-head.total).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 })}
                 </span>{' '}
                 — pre-filled below
               </p>
             )}
           </div>
           <UpiPayButton
-            upi_id={account.upi_id}
-            payee_name={account.name}
+            upi_id={head.upi_id}
+            payee_name={head.name}
             mark_paid_label="Log Transaction"
-            initial_amount={account.total < 0 ? -account.total : undefined}
-            initial_note={account.total < 0 ? 'reimbursement. balance settled' : undefined}
+            initial_amount={head.total < 0 ? -head.total : undefined}
+            initial_note={head.total < 0 ? 'reimbursement. balance settled' : undefined}
             on_mark_paid={handle_mark_paid}
           />
         </div>
@@ -182,40 +182,40 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         title={`${config.entityName} Information`}
         fields={[
           {
-            label: account.subtree_total != null ? 'Total Value (this head only)' : 'Total Value',
+            label: head.subtree_total != null ? 'Total Value (this head only)' : 'Total Value',
             value: (
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                <MaskedAmount value={account.total} />
+                <MaskedAmount value={head.total} />
               </p>
             ),
           },
-          ...(account.subtree_total != null
+          ...(head.subtree_total != null
             ? [
                 {
                   label: 'Total Value (incl. sub-accounts)',
                   value: (
                     <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                      <MaskedAmount value={account.subtree_total} />
+                      <MaskedAmount value={head.subtree_total} />
                     </p>
                   ),
                 },
               ]
             : []),
-          ...(account.xirr !== undefined && account.xirr !== null
+          ...(head.xirr !== undefined && head.xirr !== null
             ? [
                 {
                   label: 'XIRR',
                   value: (
                     <span
                       className={
-                        account.xirr > 0
+                        head.xirr > 0
                           ? 'text-green-600 dark:text-green-400 font-semibold'
-                          : account.xirr < 0
+                          : head.xirr < 0
                             ? 'text-red-600 dark:text-red-400 font-semibold'
                             : 'text-slate-500 dark:text-slate-400 font-semibold'
                       }
                     >
-                      {(account.xirr * 100).toFixed(2)}%
+                      {(head.xirr * 100).toFixed(2)}%
                     </span>
                   ),
                 },
@@ -224,20 +224,18 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         ]}
       />
 
-      {account.linked_user && (
-        <LinkedUserNotify targetUserId={account.linked_user.id} username={account.linked_user.username} owedAmount={account.total} />
-      )}
+      {head.linked_user && <LinkedUserNotify targetUserId={head.linked_user.id} username={head.linked_user.username} owedAmount={head.total} />}
 
-      {account.children && account.children.length > 0 && (
+      {head.children && head.children.length > 0 && (
         <Card>
           <div className="p-6 border-b border-slate-200 dark:border-slate-700">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sub-{config.entityName.toLowerCase()}s</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              {account.children.length} child {account.children.length !== 1 ? 'heads' : 'head'} — values include their own descendants
+              {head.children.length} child {head.children.length !== 1 ? 'heads' : 'head'} — values include their own descendants
             </p>
           </div>
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
-            {account.children.map(child => (
+            {head.children.map(child => (
               <Link
                 key={child.id}
                 href={child.link}
@@ -265,16 +263,16 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Line Items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {account.line_items.length} item
-            {account.line_items.length !== 1 ? 's' : ''}
+            {head.line_items.length} item
+            {head.line_items.length !== 1 ? 's' : ''}
           </p>
         </div>
 
-        {account.line_items.length === 0 ? (
+        {head.line_items.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="max-h-96 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-700">
-            {account.line_items.map(li => (
+            {head.line_items.map(li => (
               <LineItemRow
                 key={li.id}
                 assetName={li.asset_name}
@@ -293,7 +291,7 @@ export function AccountDetailPage({ account, config }: AccountDetailPageProps) {
         )}
       </Card>
 
-      {account.value_timeseries && account.value_timeseries.length > 0 && <ValueChart points={account.value_timeseries} title="Value over time" />}
+      {head.value_timeseries && head.value_timeseries.length > 0 && <ValueChart points={head.value_timeseries} title="Value over time" />}
     </div>
   )
 }

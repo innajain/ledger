@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
-import { AccountDetailPage, type AccountData, type LineItem } from '@/app/_components/AccountDetailPage'
+import { HeadDetailPage, type HeadData, type LineItem } from '@/app/_components/HeadDetailPage'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
@@ -14,7 +14,7 @@ import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { profile } from '@/lib/metrics/profile'
 
 // All three head types share the same detail view (XIRR, value timeseries,
-// subtree rollup, parent nav). Two extras are genuinely account-specific:
+// subtree rollup, parent nav). Two extras are genuinely head-specific:
 //   - FIFO remaining units: accounts hold asset lots; the other types tag flows
 //   - linked-user + UPI: only accounts can be linked / paid to
 // The timeseries valuation walk uses FIFO-lot mode for accounts and net
@@ -118,7 +118,7 @@ async function Page({ params }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const line_items: LineItem[] = lineItemsWithValues.map(({ _sortDate, ...rest }) => rest)
 
-  const breakdown: AccountData['breakdown'] = []
+  const breakdown: HeadData['breakdown'] = []
   for (const e of Object.values(map)) {
     if (e.total_qty.equals(0)) continue
     const priceData = priceByAsset.get(e.asset_id) ?? null
@@ -141,14 +141,14 @@ async function Page({ params }: Props) {
 
   // Roll up value across descendants and list children/parent for navigation.
   const { subtree_total, children } = await compute_head_rollup(head.id, user.id)
-  const parent: AccountData['parent'] = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
+  const parent: HeadData['parent'] = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
 
   const linked_user =
     isAccount && head.linked_user_id
       ? await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { id: true, username: true } })
       : null
 
-  let value_timeseries: AccountData['value_timeseries'] = []
+  let value_timeseries: HeadData['value_timeseries'] = []
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
   if (has_priced_asset) {
     value_timeseries = await compute_value_timeseries(
@@ -161,8 +161,8 @@ async function Page({ params }: Props) {
   reconcile_timeseries_tail(value_timeseries, acc_total.toNumber(), xirr_value)
 
   return (
-    <AccountDetailPage
-      account={{
+    <HeadDetailPage
+      head={{
         id: head.id,
         name: head.name,
         total: acc_total.toNumber(),

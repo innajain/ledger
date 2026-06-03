@@ -13,7 +13,7 @@ import {
   FormActions,
   ErrorAlert,
   ToggleSwitch,
-} from '@/app/_components/AccountFormComponents'
+} from '@/app/_components/FormComponents'
 
 export default function ClientPage({
   asset,

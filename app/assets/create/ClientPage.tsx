@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { create_asset } from '@/app/_actions/resources'
 import type { asset_type, Prisma } from '@/generated/prisma/client'
-import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/AccountFormComponents'
+import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/FormComponents'
 
 export default function ClientPage({ parents }: { parents: Prisma.assetGetPayload<Record<string, never>>[] }) {
   const [name, setName] = useState('')
