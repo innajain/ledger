@@ -82,12 +82,14 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
           )}
         </div>
 
-        {/* Database Dump */}
+        {/* SQL Dump (user-scoped) */}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Database Dump</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Download a SQL file with INSERT statements for every user-data table.</p>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">SQL Dump</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                Download your data as SQL <code>INSERT</code> statements — a restorable, data-only dump scoped to you.
+              </p>
             </div>
             <a
               href="/api/dump"
@@ -99,6 +101,56 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              Download
+            </a>
+          </div>
+        </div>
+
+        {/* CSV Export */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Export CSV (ZIP)</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Download a ZIP with one CSV per table, scoped to your own data.</p>
+            </div>
+            <a
+              href="/api/export"
+              className="shrink-0 px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors font-medium border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              Download
+            </a>
+          </div>
+        </div>
+
+        {/* Excel Export (linked) */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Export Excel (linked)</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                One workbook, a sheet per table — foreign keys are clickable links to the rows they reference.
+              </p>
+            </div>
+            <a
+              href="/api/export/xlsx"
+              className="shrink-0 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors font-medium border border-emerald-200 dark:border-emerald-800 inline-flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
               Download
