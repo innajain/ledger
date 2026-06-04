@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { delete_account } from '@/app/_actions/resources'
 import type { Prisma } from '@/generated/prisma/client'
-import { UpdateHeadForm, headFormConfig } from '@/app/_components/HeadForm'
+import { UpdateHeadForm } from '@/app/_components/HeadForm'
 import { HEAD_CONFIG, isHeadType } from '../../head_config'
 import { profile } from '@/lib/metrics/profile'
 
@@ -45,7 +45,7 @@ async function Page({ params }: Props) {
     orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
   })
 
-  return <UpdateHeadForm head={head} parents={parents} config={headFormConfig(type)} deleteHead={delete_account} linkedUsername={linkedUsername} />
+  return <UpdateHeadForm head={head} parents={parents} headType={type} deleteHead={delete_account} linkedUsername={linkedUsername} />
 }
 
 export default profile('/heads/[type]/[id]/update', Page)

@@ -126,20 +126,23 @@ function LinkedUserField({
 
 type CreateHeadFormProps = {
   parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
-  config: HeadFormConfig
+  // The head type is passed (not the resolved config) because headFormConfig
+  // lives in this 'use client' module and can't be called from a server page.
+  headType: accounting_head_type
 }
 
 type UpdateHeadFormProps = {
   head: Prisma.accounting_headGetPayload<Record<string, never>>
   parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
-  config: HeadFormConfig
+  headType: accounting_head_type
   deleteHead?: (id: string) => Promise<ActionResult>
   // Username of the currently linked user (resolved server-side for display).
   linkedUsername?: string | null
 }
 
-export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
+export function CreateHeadForm({ parents, headType }: CreateHeadFormProps) {
   const router = useRouter()
+  const config = headFormConfig(headType)
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState<string | null>(null)
   // Only account-type heads can be linked to another user (and thereby derive
@@ -206,8 +209,9 @@ export function CreateHeadForm({ parents, config }: CreateHeadFormProps) {
   )
 }
 
-export function UpdateHeadForm({ head, parents, config, deleteHead, linkedUsername: initialLinkedUsername }: UpdateHeadFormProps) {
+export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUsername: initialLinkedUsername }: UpdateHeadFormProps) {
   const router = useRouter()
+  const config = headFormConfig(headType)
   const [name, setName] = useState(head.name)
   const [parentId, setParentId] = useState<string | null>(head.parent_id ?? null)
   const [isActive, setIsActive] = useState(head.is_active)

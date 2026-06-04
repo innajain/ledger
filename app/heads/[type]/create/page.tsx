@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import type { Prisma } from '@/generated/prisma/client'
-import { CreateHeadForm, headFormConfig } from '@/app/_components/HeadForm'
+import { CreateHeadForm } from '@/app/_components/HeadForm'
 import { isHeadType } from '../head_config'
 import { profile } from '@/lib/metrics/profile'
 
@@ -20,7 +20,7 @@ async function Page({ params }: Props) {
       })
     : []
 
-  return <CreateHeadForm parents={parents} config={headFormConfig(type)} />
+  return <CreateHeadForm parents={parents} headType={type} />
 }
 
 export default profile('/heads/[type]/create', Page)
