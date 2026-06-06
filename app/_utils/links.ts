@@ -376,6 +376,13 @@ export async function get_inbox(user_id: string): Promise<InboxItem[]> {
   })
   const hasRecip = new Set(recips.map(r => r.linked_user_id))
 
+  const sourceIds = links.map(l => their_txn_id(l, user_id)).filter((id): id is string => id !== null)
+  const sourceTxns = await prisma.transaction.findMany({
+    where: { id: { in: sourceIds } },
+    include: { line_items: { include: { accounting_head: true, asset: true } } },
+  })
+  const srcById = new Map(sourceTxns.map(t => [t.id, t]))
+
   const items: InboxItem[] = []
   for (const link of links) {
     const other = other_user(link, user_id)
@@ -383,22 +390,17 @@ export async function get_inbox(user_id: string): Promise<InboxItem[]> {
     let preview: InboxItem['preview'] = []
     let datetime: string | null = null
     let description: string | null = null
-    if (sourceTxnId) {
-      const src = await prisma.transaction.findUnique({
-        where: { id: sourceTxnId },
-        include: { line_items: { include: { accounting_head: true, asset: true } } },
-      })
-      if (src) {
-        datetime = src.datetime.toISOString()
-        description = src.description
-        preview = src.line_items
-          .filter(li => li.accounting_head.linked_user_id === user_id)
-          .map(li => ({
-            asset_name: li.asset.name,
-            quantity: li.quantity === null ? null : li.quantity.neg().toNumber(),
-            txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
-          }))
-      }
+    const src = sourceTxnId ? srcById.get(sourceTxnId) : undefined
+    if (src) {
+      datetime = src.datetime.toISOString()
+      description = src.description
+      preview = src.line_items
+        .filter(li => li.accounting_head.linked_user_id === user_id)
+        .map(li => ({
+          asset_name: li.asset.name,
+          quantity: li.quantity === null ? null : li.quantity.neg().toNumber(),
+          txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
+        }))
     }
     items.push({
       link_id: link.id,
@@ -451,6 +453,13 @@ export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
   const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
   const nameById = new Map(users.map(u => [u.id, u.username]))
 
+  const myIds = links.map(l => my_txn_id(l, user_id)).filter((id): id is string => id !== null)
+  const myTxns = await prisma.transaction.findMany({
+    where: { id: { in: myIds } },
+    include: { line_items: { include: { accounting_head: true, asset: true } } },
+  })
+  const myTxnById = new Map(myTxns.map(t => [t.id, t]))
+
   const items: OutboxItem[] = []
   for (const link of links) {
     const other = other_user(link, user_id)
@@ -458,22 +467,17 @@ export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
     let preview: OutboxItem['preview'] = []
     let datetime: string | null = null
     let description: string | null = null
-    if (myTxnId) {
-      const mine = await prisma.transaction.findUnique({
-        where: { id: myTxnId },
-        include: { line_items: { include: { accounting_head: true, asset: true } } },
-      })
-      if (mine) {
-        datetime = mine.datetime.toISOString()
-        description = mine.description
-        preview = mine.line_items
-          .filter(li => li.accounting_head.linked_user_id === other)
-          .map(li => ({
-            asset_name: li.asset.name,
-            quantity: li.quantity === null ? null : li.quantity.toNumber(),
-            txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
-          }))
-      }
+    const mine = myTxnId ? myTxnById.get(myTxnId) : undefined
+    if (mine) {
+      datetime = mine.datetime.toISOString()
+      description = mine.description
+      preview = mine.line_items
+        .filter(li => li.accounting_head.linked_user_id === other)
+        .map(li => ({
+          asset_name: li.asset.name,
+          quantity: li.quantity === null ? null : li.quantity.toNumber(),
+          txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
+        }))
     }
     items.push({
       link_id: link.id,
