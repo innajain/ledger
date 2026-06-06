@@ -97,8 +97,26 @@ export default function ClientPage({
         ? `@${item.other_username} wants to delete a shared transaction`
         : `@${item.other_username} sent a transaction for your approval`
 
+    const borderAccent = isRejected ? 'border-l-4 border-l-red-400 dark:border-l-red-500' : 'border-l-4 border-l-yellow-400 dark:border-l-yellow-500'
+
+    const badge = isRejected ? (
+      <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        Rejected
+      </span>
+    ) : (
+      <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Pending
+      </span>
+    )
+
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+      <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 ${borderAccent} p-5`}>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
@@ -110,10 +128,11 @@ export default function ClientPage({
             )}
             <PreviewLines preview={item.preview} />
           </div>
+          {badge}
         </div>
 
         {!item.has_reciprocal && item.kind === 'change' && (
-          <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
+          <p className="mt-3 text-sm text-yellow-600 dark:text-yellow-400">
             Link an account back to @{item.other_username} before you can approve this.
           </p>
         )}
@@ -129,7 +148,15 @@ export default function ClientPage({
                   {item.kind === 'deletion' ? 'Restore (undo deletion)' : 'Revert to approved'}
                 </Link>
               )}
-              {item.kind !== 'deletion' && (
+              {item.my_txn_id && (
+                <Link
+                  href={`/transactions/${item.my_txn_id}`}
+                  className="px-4 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 font-medium"
+                >
+                  View transaction
+                </Link>
+              )}
+              {item.kind !== 'deletion' && !item.my_txn_id && (
                 <span className="text-sm text-slate-500 dark:text-slate-400 self-center">
                   {item.can_revert ? 'or edit / delete your own transaction.' : 'Edit or delete your transaction to resolve.'}
                 </span>
@@ -195,7 +222,7 @@ export default function ClientPage({
             )}
             <PreviewLines preview={item.preview} />
           </div>
-          <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+          <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
             Pending
           </span>
         </div>
@@ -235,7 +262,7 @@ export default function ClientPage({
             <section className="space-y-2">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Accept all</h2>
               {accounts.length === 0 ? (
-                <p className="text-sm text-amber-600 dark:text-amber-400">
+                <p className="text-sm text-yellow-600 dark:text-yellow-400">
                   Create one of your own accounts (e.g. “Cash”) to bulk-approve these against — a linked account can’t be the balancing account.
                 </p>
               ) : (

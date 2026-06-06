@@ -16,6 +16,7 @@ type Transaction = {
   date: Date
   description: string | null
   total_book: number
+  link_severity: 'error' | 'warning' | 'info' | null
 }
 
 type Account = { id: string; name: string }
@@ -440,53 +441,78 @@ export default function ClientPage({
               </div>
             </div>
             <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-              {transactions.map((tx, index) => (
-                <li
-                  key={tx.id}
-                  className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all stagger-item"
-                  style={{ animationDelay: `${index * 0.03}s` }}
-                >
-                  <Link href={`/transactions/${tx.id}`} className="block px-6 py-4 group">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <div className="shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              {tx.description || 'No description'}
-                            </p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                              <LocalDateTime value={tx.date} />
-                            </p>
+              {transactions.map((tx, index) => {
+                const borderCls =
+                  tx.link_severity === 'error'
+                    ? 'border-l-4 border-l-red-400 dark:border-l-red-500'
+                    : tx.link_severity === 'warning'
+                      ? 'border-l-4 border-l-yellow-400 dark:border-l-yellow-500'
+                      : tx.link_severity === 'info'
+                        ? 'border-l-4 border-l-yellow-400 dark:border-l-yellow-500'
+                        : ''
+                const badge =
+                  tx.link_severity === 'error' ? (
+                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                      Rejected
+                    </span>
+                  ) : tx.link_severity === 'warning' ? (
+                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+                      Pending
+                    </span>
+                  ) : tx.link_severity === 'info' ? (
+                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+                      Awaiting
+                    </span>
+                  ) : null
+                return (
+                  <li
+                    key={tx.id}
+                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all stagger-item ${borderCls}`}
+                    style={{ animationDelay: `${index * 0.03}s` }}
+                  >
+                    <Link href={`/transactions/${tx.id}`} className="block px-6 py-4 group">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3">
+                            <div className="shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                {tx.description || 'No description'}
+                              </p>
+                              <p className="text-sm text-slate-500 dark:text-slate-400">
+                                <LocalDateTime value={tx.date} />
+                              </p>
+                            </div>
                           </div>
                         </div>
+                        <div className="ml-4 shrink-0 flex items-center gap-2">
+                          {badge}
+                          <span
+                            className={`text-lg font-semibold transition-transform group-hover:scale-110 inline-block ${
+                              tx.total_book > 0
+                                ? 'text-green-600 dark:text-green-400'
+                                : tx.total_book < 0
+                                  ? 'text-red-600 dark:text-red-400'
+                                  : 'text-gray-500 dark:text-gray-400'
+                            }`}
+                          >
+                            <MaskedAmount value={tx.total_book} />
+                          </span>
+                        </div>
                       </div>
-                      <div className="ml-4 shrink-0">
-                        <span
-                          className={`text-lg font-semibold transition-transform group-hover:scale-110 inline-block ${
-                            tx.total_book > 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : tx.total_book < 0
-                                ? 'text-red-600 dark:text-red-400'
-                                : 'text-gray-500 dark:text-gray-400'
-                          }`}
-                        >
-                          <MaskedAmount value={tx.total_book} />
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                </li>
-              ))}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           </div>
 

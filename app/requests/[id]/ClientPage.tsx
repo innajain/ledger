@@ -10,6 +10,96 @@ import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { EditorContext } from '@/app/_utils/links'
 
+type SharedLine = NonNullable<EditorContext['previous']>['mirrored_lines'][number]
+
+function fmtLine(l: SharedLine): string {
+  const qty = l.quantity === null ? '—' : l.quantity < 0 ? `-₹${Math.abs(l.quantity)}` : `₹${l.quantity}`
+  if (l.asset_type === 'rupees') return qty
+  const val = l.txn_value === null ? '—' : `₹${l.txn_value}`
+  return `${l.quantity ?? '—'} units · book ${val}`
+}
+
+function DiffCard({ ctx }: { ctx: EditorContext }) {
+  const prev = ctx.previous
+  if (!prev || ctx.mode === 'revert') return null
+
+  const dateChanged = prev.datetime !== ctx.datetime
+  const descChanged = (prev.description ?? '') !== (ctx.description ?? '')
+  const linesChanged = JSON.stringify(prev.mirrored_lines) !== JSON.stringify(ctx.mirrored_lines)
+
+  if (!dateChanged && !descChanged && !linesChanged) return null
+
+  return (
+    <div className="rounded-lg border border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-yellow-900 dark:text-yellow-200 uppercase tracking-wide">Proposed changes</h2>
+
+      {dateChanged && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Date &amp; Time</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-3 py-2 text-sm text-red-800 dark:text-red-300 line-through">
+              {prev.datetime ? <LocalDateTime value={prev.datetime} /> : '—'}
+            </div>
+            <div className="rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 px-3 py-2 text-sm text-green-800 dark:text-green-300">
+              {ctx.datetime ? <LocalDateTime value={ctx.datetime} /> : '—'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {descChanged && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Description</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-3 py-2 text-sm text-red-800 dark:text-red-300 line-through italic">
+              {prev.description || 'No description'}
+            </div>
+            <div className="rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 px-3 py-2 text-sm text-green-800 dark:text-green-300 italic">
+              {ctx.description || 'No description'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {linesChanged && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Shared lines</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-3 py-2 space-y-1">
+              {prev.mirrored_lines.length === 0 ? (
+                <p className="text-xs text-red-500 dark:text-red-400 italic">none</p>
+              ) : (
+                prev.mirrored_lines.map((l, i) => (
+                  <div key={i} className="flex justify-between gap-2 text-sm text-red-800 dark:text-red-300 line-through">
+                    <span className="truncate">{l.asset_name}</span>
+                    <span className="shrink-0 font-medium">{fmtLine(l)}</span>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 px-3 py-2 space-y-1">
+              {ctx.mirrored_lines.length === 0 ? (
+                <p className="text-xs text-green-500 dark:text-green-400 italic">none</p>
+              ) : (
+                ctx.mirrored_lines.map((l, i) => (
+                  <div key={i} className="flex justify-between gap-2 text-sm text-green-800 dark:text-green-300">
+                    <span className="truncate">{l.asset_name}</span>
+                    <span className="shrink-0 font-medium">{fmtLine(l)}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-0.5">
+            <p className="text-center text-xs text-slate-400 dark:text-slate-500">Before</p>
+            <p className="text-center text-xs text-slate-400 dark:text-slate-500">After</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ISO → local `datetime-local` input value (YYYY-MM-DDTHH:mm).
 function toLocalInput(iso: string | null): string {
   if (!iso) return ''
@@ -141,6 +231,8 @@ export default function ClientPage({
           The mirrored lines below are fixed. Add your own balancing lines so the transaction balances in your ledger.
         </p>
       </div>
+
+      <DiffCard ctx={ctx} />
 
       {/* Transaction-level details — mirrored from the request, locked */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">

@@ -1,5 +1,7 @@
 'use client'
 
+'use client'
+
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -8,6 +10,7 @@ import { asset_type } from '@/generated/prisma/enums'
 import { delete_transaction } from '@/app/_actions/transactions'
 import { cancel_request } from '@/app/_actions/approvals'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
+import type { TransactionStatus } from '@/app/_utils/links'
 
 type Attachment = { id: string; url: string; filename: string; content_type: string | null; size: number | null }
 
@@ -18,12 +21,21 @@ function fmt_size(bytes: number | null) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+const statusBannerCls: Record<TransactionStatus['severity'], string> = {
+  error: 'rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 px-4 py-3 text-sm text-red-800 dark:text-red-200',
+  warning:
+    'rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/30 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200',
+  info: 'rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/30 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200',
+  success:
+    'rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30 px-4 py-3 text-sm text-green-800 dark:text-green-200',
+}
+
 export default function ClientPage({
   transaction,
   linkStatus,
   cancellable = [],
 }: {
-  linkStatus?: string | null
+  linkStatus?: TransactionStatus
   cancellable?: { link_id: string; other_username: string }[]
   transaction: {
     id: string
@@ -138,15 +150,15 @@ export default function ClientPage({
   return (
     <div className="space-y-6">
       {linkStatus && (
-        <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 px-4 py-3 text-sm text-blue-800 dark:text-blue-200 flex flex-wrap items-center justify-between gap-3">
-          <span>{linkStatus}</span>
+        <div className={`${statusBannerCls[linkStatus.severity]} flex flex-wrap items-center justify-between gap-3`}>
+          <span>{linkStatus.text}</span>
           <div className="flex items-center gap-4 shrink-0">
             {cancellable.length > 0 && (
               <button
                 type="button"
                 onClick={handleCancel}
                 disabled={cancelling}
-                className="font-medium text-red-700 dark:text-red-300 underline disabled:opacity-50"
+                className="font-medium underline opacity-80 hover:opacity-100 disabled:opacity-50"
               >
                 {cancelling ? 'Cancelling…' : 'Cancel request'}
               </button>

@@ -359,6 +359,8 @@ export type InboxItem = {
   can_revert: boolean
   datetime: string | null
   description: string | null
+  // My own copy of the transaction (present for rejected items so the user can navigate to it).
+  my_txn_id: string | null
 }
 
 // Everything awaiting my action: pending requests (to approve/reject) and
@@ -413,6 +415,7 @@ export async function get_inbox(user_id: string): Promise<InboxItem[]> {
       can_revert: link.pending_status === 'rejected' && sourceTxnId !== null,
       datetime,
       description,
+      my_txn_id: my_txn_id(link, user_id),
     })
   }
   return items
@@ -515,7 +518,9 @@ export async function get_cancellable_links(user_id: string, transaction_id: str
 
 // A one-line approval status for a transaction, from `user_id`'s perspective,
 // or null if it isn't a shared transaction.
-export async function get_transaction_status(user_id: string, transaction_id: string): Promise<string | null> {
+export type TransactionStatus = { text: string; severity: 'success' | 'warning' | 'error' | 'info' }
+
+export async function get_transaction_status(user_id: string, transaction_id: string): Promise<TransactionStatus | null> {
   const links = await prisma.transaction_link.findMany({
     where: {
       OR: [
@@ -543,8 +548,29 @@ export async function get_transaction_status(user_id: string, transaction_id: st
   if (rejectedMine.length) parts.push(`your change was rejected by ${rejectedMine.map(tag).join(', ')} — resolve in Requests`)
   if (rejectedTheirs.length) parts.push(`awaiting ${rejectedTheirs.map(tag).join(', ')} to resolve a rejected change`)
 
-  if (parts.length === 0) return `Shared with ${otherIds.map(id => '@' + name(id)).join(', ')} (approved)`
-  return `Shared transaction — ${parts.join('; ')}`
+  // Severity by precedence: rejected-mine (must act) > awaiting-me (must act) > info > approved
+  const severity: TransactionStatus['severity'] = rejectedMine.length
+    ? 'error'
+    : awaitingMe.length
+      ? 'warning'
+      : awaitingThem.length || rejectedTheirs.length
+        ? 'info'
+        : 'success'
+
+  const text =
+    parts.length === 0 ? `Shared with ${otherIds.map(id => '@' + name(id)).join(', ')} (approved)` : `Shared transaction — ${parts.join('; ')}`
+
+  return { text, severity }
+}
+
+type SharedLine = {
+  asset_id: string
+  asset_name: string
+  asset_type: string
+  quantity: number | null
+  txn_value: number | null
+  description: string | null
+  datetime: string | null
 }
 
 export type EditorContext = {
@@ -553,15 +579,7 @@ export type EditorContext = {
   other_username: string
   reciprocal_head: { id: string; name: string } | null
   // Locked, server-derived mirrored lines (booked to my reciprocal head).
-  mirrored_lines: {
-    asset_id: string
-    asset_name: string
-    asset_type: string
-    quantity: number | null
-    txn_value: number | null
-    description: string | null
-    datetime: string | null
-  }[]
+  mirrored_lines: SharedLine[]
   // My existing NON-linked balancing lines (for re-approving an edit), or [].
   prefill_balancing: { accounting_head_id: string; asset_id: string; quantity: string | null; txn_value: string | null; description: string }[]
   // Lines on my OTHER linked heads (shared with a different counterparty) — shown
@@ -576,6 +594,8 @@ export type EditorContext = {
   }[]
   datetime: string | null
   description: string | null
+  // Last-approved shared state — present when re-approving an edit, null on first approval.
+  previous: { datetime: string | null; description: string | null; mirrored_lines: SharedLine[] } | null
 }
 
 // Context for the approve/revert editor. Returns null if the link isn't
@@ -623,15 +643,28 @@ export async function get_editor_context(user_id: string, link_id: string): Prom
 
   const prefill: EditorContext['prefill_balancing'] = []
   const otherLocked: EditorContext['other_locked_lines'] = []
+  let previous: EditorContext['previous'] = null
   const myTxnId = my_txn_id(link, user_id)
   if (myTxnId && recip) {
     const mine = await prisma.transaction.findUnique({
       where: { id: myTxnId },
-      include: { line_items: { include: { accounting_head: true } } },
+      include: { line_items: { include: { accounting_head: true, asset: true } } },
     })
     if (mine) {
+      const prevLines: SharedLine[] = []
       for (const li of mine.line_items) {
-        if (li.accounting_head_id === recip.id) continue // re-derived as the mirrored lines
+        if (li.accounting_head_id === recip.id) {
+          prevLines.push({
+            asset_id: li.asset_id,
+            asset_name: li.asset.name,
+            asset_type: li.asset.type,
+            quantity: li.quantity === null ? null : li.quantity.toNumber(),
+            txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
+            description: li.description ?? null,
+            datetime: li.datetime ? li.datetime.toISOString() : null,
+          })
+          continue
+        }
         const row = {
           accounting_head_id: li.accounting_head_id,
           asset_id: li.asset_id,
@@ -645,6 +678,7 @@ export async function get_editor_context(user_id: string, link_id: string): Prom
           prefill.push(row)
         }
       }
+      previous = { datetime: mine.datetime.toISOString(), description: mine.description, mirrored_lines: prevLines }
     }
   }
 
@@ -658,6 +692,7 @@ export async function get_editor_context(user_id: string, link_id: string): Prom
     other_locked_lines: otherLocked,
     datetime,
     description,
+    previous,
   }
 }
 

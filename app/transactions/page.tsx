@@ -32,6 +32,7 @@ type TxForClient = {
   date: Date
   description: string | null
   total_book: number
+  link_severity: 'error' | 'warning' | 'info' | null
 }
 
 const SORT_KEYS = ['date_desc', 'date_asc', 'amount_desc', 'amount_asc'] as const
@@ -173,6 +174,7 @@ async function Page({
       date: t.datetime,
       description: t.description,
       total_book: txTotal(t),
+      link_severity: null as TxForClient['link_severity'],
     }))
   } else {
     // Scan path: fetch up to cap, normalize, filter on amount, sort, slice.
@@ -189,6 +191,7 @@ async function Page({
       date: t.datetime,
       description: t.description,
       total_book: txTotal(t),
+      link_severity: null as TxForClient['link_severity'],
     }))
     const filtered = allWithTotals.filter(tx => {
       if (minAmount !== undefined && tx.total_book < minAmount) return false
@@ -211,6 +214,36 @@ async function Page({
     totalCount = filtered.length
     pageSize = wantsAll ? totalCount : requestedPageSize
     txForClient = wantsAll ? filtered : filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize)
+  }
+
+  // Attach link severity for the current page slice only.
+  if (txForClient.length > 0) {
+    const txIds = txForClient.map(t => t.id)
+    const activeLinks = await prisma.transaction_link.findMany({
+      where: {
+        OR: [
+          { user_a_id: user.id, txn_a_id: { in: txIds } },
+          { user_b_id: user.id, txn_b_id: { in: txIds } },
+        ],
+        NOT: { pending_status: 'approved' },
+      },
+      select: { user_a_id: true, txn_a_id: true, txn_b_id: true, pending_status: true, pending_by: true },
+    })
+    const rank = { error: 2, warning: 1, info: 0 } as const
+    const severityMap = new Map<string, TxForClient['link_severity']>()
+    for (const link of activeLinks) {
+      const txn_id = link.user_a_id === user.id ? link.txn_a_id : link.txn_b_id
+      if (!txn_id) continue
+      const sev: NonNullable<TxForClient['link_severity']> =
+        link.pending_status === 'rejected' && link.pending_by === user.id
+          ? 'error'
+          : link.pending_status === 'pending' && link.pending_by === user.id
+            ? 'warning'
+            : 'info'
+      const existing = severityMap.get(txn_id)
+      if (!existing || rank[sev] > rank[existing]) severityMap.set(txn_id, sev)
+    }
+    txForClient = txForClient.map(t => ({ ...t, link_severity: severityMap.get(t.id) ?? null }))
   }
 
   return (

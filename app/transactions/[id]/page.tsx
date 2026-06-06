@@ -52,7 +52,7 @@ async function Page({ params }: Props) {
     })),
   }
 
-  return <ClientPage transaction={txForClient} linkStatus={linkStatus} cancellable={cancellable} />
+  return <ClientPage transaction={txForClient} linkStatus={linkStatus ?? undefined} cancellable={cancellable} />
 }
 
 export default profile('/transactions/[id]', Page)
