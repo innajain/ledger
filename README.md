@@ -182,9 +182,20 @@ Files are stored in a **private** Vercel Blob store and served through an authen
 - **Atomic writes** — All create/update flows run inside a Prisma `$transaction`
 - **Balance cache** — `get_or_compute_balances` aggregates `accounting_head → asset` and `asset → accounting_head` maps via `normalize_txn`, caches in Redis (5-day TTL), and overwrites after every transaction write
 
-### Database Dump
+### Data Export & Dumps
 
-`GET /api/dump` streams a `.sql` file of `INSERT` statements for every user-data table. Auth-gated; table names are allowlisted to prevent injection.
+Four download endpoints, all built on shared collectors in [`app/_utils/db_export.ts`](app/_utils/db_export.ts) and pure, unit-tested builders in `app/_utils/{csv,zip,xlsx,sql_dump}.ts` (no new deps — the ZIP and `.xlsx` OOXML are hand-rolled). Table names and `WHERE` clauses are static literals; the only bound parameter is the user id, so there's no injection surface. The CSV/Excel variants drop the user's `password_hash` (`DEFAULT_EXCLUDED_COLUMNS`); the SQL dumps keep every column so they restore cleanly.
+
+| Endpoint           | Scope                  | Format                                                                                                    | Auth            |
+| ------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------- | --------------- |
+| `/api/export`      | Caller's own rows      | ZIP of one CSV per table (UTF-8 BOM so Excel auto-detects encoding)                                       | Signed-in user  |
+| `/api/export/xlsx` | Caller's own rows      | One linked `.xlsx` workbook — a sheet per table, every foreign-key cell hyperlinked to the referenced row | Signed-in user  |
+| `/api/dump`        | Caller's own rows      | `.sql` data-only `INSERT`s (restorable backup; keeps `password_hash`)                                     | Signed-in user  |
+| `/api/admin/dump`  | Every table, all users | `.sql` data-only `INSERT`s in restore-friendly (parent-first) order; includes all credentials             | `require_admin` |
+
+The user-scoped collector pulls each table holding the caller's data (heads, transactions, line items, templates, attachments, push subscriptions, transaction links, plus the `asset` catalog rows they reference); the full dump walks every base table in the `public` schema. Surfaced in **Settings** (CSV/Excel/SQL under Data; the complete dump under an admin-only section). SQL dumps are verified restorable by loading into a fresh Postgres.
+
+> Note: `/api/dump` was previously auth-gated but **unscoped** — it returned every user's rows and password hashes to any signed-in caller. It is now scoped to the caller; the whole-DB dump moved behind `require_admin` at `/api/admin/dump`.
 
 ### Security
 
@@ -201,9 +212,9 @@ Files are stored in a **private** Vercel Blob store and served through an authen
 | Layer            | Technology                          |
 | ---------------- | ----------------------------------- |
 | **Framework**    | Next.js 16.1 (App Router)           |
-| **Language**     | TypeScript 5                        |
+| **Language**     | TypeScript 6                        |
 | **UI**           | React 19, Tailwind CSS 4            |
-| **ORM**          | Prisma 7.6 (`prisma-client` engine) |
+| **ORM**          | Prisma 7.8 (`prisma-client` engine) |
 | **Database**     | PostgreSQL (Neon Serverless)        |
 | **Cache**        | Redis (ioredis)                     |
 | **File storage** | Vercel Blob (private, proxied)      |
@@ -245,6 +256,9 @@ model user {
   default_income_expense_id String?
   default_asset_id          String?
 
+  // UPI VPA for the Pay button on linked account heads
+  upi_id String?
+
   // UI preferences — synced across devices via update_user_preferences
   theme           String  @default("system") // light | dark | system
   masking_enabled Boolean @default(true)
@@ -264,13 +278,15 @@ model accounting_head {
 }
 
 model asset {
-  id        String     @id @default(cuid())
-  user_id   String
-  name      String
-  type      asset_type // rupees | mf | etf | shares | other
-  ticker    String?    // ISIN for MF, symbol for ETF/Shares
-  is_active Boolean    @default(true)
-  parent_id String?
+  // Global catalog — admin-managed, no user_id. Shared across users so that
+  // cross-user mirrored transactions can reference the same asset row.
+  id             String     @id @default(cuid())
+  name           String     @unique
+  type           asset_type // rupees | mf | etf | shares | other
+  ticker         String?    // ISIN for MF, symbol for ETF/Shares
+  is_active      Boolean    @default(true)
+  is_placeholder Boolean    @default(false)
+  parent_id      String?
 }
 
 model transaction {
