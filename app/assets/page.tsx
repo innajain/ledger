@@ -67,7 +67,7 @@ async function Page() {
 
   const asset_ids = assets.map(a => a.id)
   const all_line_items = await prisma.line_item.findMany({
-    where: { asset_id: { in: asset_ids }, accounting_head: { type: 'account' } },
+    where: { asset_id: { in: asset_ids }, accounting_head: { type: 'account' }, transaction: { user_id: user.id } },
     include: { transaction: true },
   })
   const tx_ids = Array.from(new Set(all_line_items.map(li => li.transaction_id)))

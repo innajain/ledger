@@ -29,7 +29,9 @@ async function Page({ params }: Props) {
   const asset = await prisma.asset.findUnique({
     where: { id },
     include: {
-      line_items: { include: { accounting_head: true, transaction: true } },
+      // Assets are global, but their line items belong to individual users.
+      // Scope to the caller so one user can't see another user's positions.
+      line_items: { where: { transaction: { user_id: user.id } }, include: { accounting_head: true, transaction: true } },
       parent: true,
     },
   })
