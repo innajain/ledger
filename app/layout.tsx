@@ -70,14 +70,17 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const [user, prefs] = await Promise.all([get_current_user(), get_user_preferences()])
-  const nonce = (await headers()).get('x-nonce') ?? undefined
+  // `|| undefined` so an absent/empty header never renders `nonce=""`.
+  const nonce = (await headers()).get('x-nonce') || undefined
   const [requestCount, isAdmin] = user ? await Promise.all([inbox_count(user.id), is_current_user_admin()]) : [0, false]
   const persist = !!user
   const htmlClassName = prefs.theme === 'dark' ? 'dark' : ''
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" data-theme={prefs.theme} className={htmlClassName}>
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* The browser blanks the nonce attribute out of the DOM once CSP applies,
+            so it won't match React's vDOM on hydration — suppress that one diff. */}
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-900 transition-colors`}>
         {PROFILING_ENABLED && <WebVitalsReporter />}
