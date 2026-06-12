@@ -52,7 +52,7 @@ export async function find_user_by_username(username: string): Promise<ActionRes
 }
 
 const createAccountSchema = z.object({
-  name: z.string().trim().min(1, 'name cannot be empty string'),
+  name: z.string().trim().min(1, 'name cannot be empty string').max(120, 'name is too long'),
 })
 
 export async function create_account(
@@ -90,7 +90,7 @@ export async function create_account(
 
 const updateAccountSchema = z.object({
   id: z.string().min(1, 'id is required'),
-  name: z.string().trim().min(1, 'name cannot be empty string').optional(),
+  name: z.string().trim().min(1, 'name cannot be empty string').max(120, 'name is too long').optional(),
 })
 
 export async function update_account(
@@ -212,8 +212,8 @@ export async function delete_account(id: string): Promise<ActionResult> {
 
 // Assets
 const createAssetSchema = z.object({
-  name: z.string().trim().min(1, 'name cannot be empty string'),
-  ticker: z.string().trim().min(1, 'ticker cannot be empty string').nullish(),
+  name: z.string().trim().min(1, 'name cannot be empty string').max(120, 'name is too long'),
+  ticker: z.string().trim().min(1, 'ticker cannot be empty string').max(64, 'ticker is too long').nullish(),
 })
 
 export async function create_asset(
@@ -255,8 +255,8 @@ export async function create_asset(
 
 const updateAssetSchema = z.object({
   id: z.string().min(1, 'id is required'),
-  name: z.string().trim().min(1, 'name cannot be empty string').optional(),
-  ticker: z.string().trim().min(1, 'ticker cannot be empty string').nullish(),
+  name: z.string().trim().min(1, 'name cannot be empty string').max(120, 'name is too long').optional(),
+  ticker: z.string().trim().min(1, 'ticker cannot be empty string').max(64, 'ticker is too long').nullish(),
 })
 
 export async function update_asset(

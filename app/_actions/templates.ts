@@ -15,6 +15,7 @@ const templateSchema = z.object({
   description: z
     .string()
     .trim()
+    .max(2000, 'Description is too long')
     .transform(val => (val === '' ? null : val))
     .nullish(),
 })
