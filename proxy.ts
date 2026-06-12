@@ -16,12 +16,13 @@ function isPublicPath(pathname: string) {
   return false
 }
 
-async function verifyToken(token: string): Promise<{ uid: string; username: string | null } | null> {
+async function verifyToken(token: string): Promise<{ uid: string; username: string | null; iat: number | null } | null> {
   try {
     const { payload } = await jwtVerify(token, secret, { algorithms: ['HS256'] })
     if (typeof payload.uid !== 'string') return null
     const username = typeof payload.username === 'string' ? payload.username : null
-    return { uid: payload.uid, username }
+    const iat = typeof payload.iat === 'number' ? payload.iat : null
+    return { uid: payload.uid, username, iat }
   } catch {
     return null
   }
@@ -64,10 +65,12 @@ function nextWithSecurity(requestHeaders: Headers): NextResponse {
 export async function proxy(request: NextRequest) {
   const pathname = new URL(request.url).pathname
 
-  // Defense in depth: strip any client-supplied x-user-id / x-username before trusting them downstream.
+  // Defense in depth: strip any client-supplied x-user-id / x-username / x-token-iat
+  // before trusting them downstream (x-token-iat gates session revocation).
   const requestHeaders = new Headers(request.headers)
   requestHeaders.delete('x-user-id')
   requestHeaders.delete('x-username')
+  requestHeaders.delete('x-token-iat')
 
   if (isPublicPath(pathname)) {
     return nextWithSecurity(requestHeaders)
@@ -81,6 +84,7 @@ export async function proxy(request: NextRequest) {
 
   requestHeaders.set('x-user-id', verified.uid)
   if (verified.username) requestHeaders.set('x-username', verified.username)
+  if (verified.iat != null) requestHeaders.set('x-token-iat', String(verified.iat))
   return nextWithSecurity(requestHeaders)
 }
 

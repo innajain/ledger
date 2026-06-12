@@ -10,6 +10,7 @@ import type { user } from '@/generated/prisma/client'
 import { z } from 'zod'
 import { ActionResult, ok, err } from './_result'
 import { rate_limit } from '@/lib/rate_limit'
+import { redis } from '@/lib/redis'
 
 const token_name = 'ledger_token'
 const JWT_EXPIRY_DAYS = 7
@@ -55,15 +56,40 @@ const ChangeUsernameSchema = z.object({
 const secret_bytes = new TextEncoder().encode(env.JWT_SECRET)
 
 async function sign_token(payload: { uid: string; username: string }): Promise<string> {
-  return new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setExpirationTime(`${JWT_EXPIRY_DAYS}d`).sign(secret_bytes)
+  return new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setIssuedAt().setExpirationTime(`${JWT_EXPIRY_DAYS}d`).sign(secret_bytes)
 }
 
-async function verify_token(token: string): Promise<{ uid: string; username?: string }> {
+async function verify_token(token: string): Promise<{ uid: string; username?: string; iat?: number }> {
   const { payload } = await jwtVerify(token, secret_bytes, { algorithms: ['HS256'] })
   if (typeof payload.uid !== 'string') throw new Error('invalid token')
   const username = typeof payload.username === 'string' ? payload.username : undefined
-  return { uid: payload.uid, username }
+  const iat = typeof payload.iat === 'number' ? payload.iat : undefined
+  return { uid: payload.uid, username, iat }
 }
+
+// --- Session revocation -------------------------------------------------------
+// Tokens for a user whose issued-at (`iat`) predates `auth:revoke_before:<uid>`
+// (unix seconds) are treated as logged out. Set on password change (and any future
+// "sign out everywhere"). Stored in Redis with a TTL equal to the max token
+// lifetime — past that, every pre-cutoff token has already expired on its own.
+const revoke_key = (uid: string) => `auth:revoke_before:${uid}`
+
+async function revoke_sessions_before(uid: string, when_seconds: number): Promise<void> {
+  await redis.setex(revoke_key(uid), JWT_EXPIRY_SECONDS, String(when_seconds))
+}
+
+// Cached per request (deduped across get_current_user_id / get_current_user).
+// Fails open on a Redis error: an outage shouldn't lock everyone out — it just
+// suspends revocation enforcement until Redis is reachable again.
+const is_token_revoked = cache(async (uid: string, iat: number | undefined): Promise<boolean> => {
+  if (!iat) return false // legacy token without an iat — can't evaluate; it expires within JWT_EXPIRY_DAYS anyway
+  try {
+    const cutoff = await redis.get(revoke_key(uid))
+    return cutoff !== null && iat < Number(cutoff)
+  } catch {
+    return false
+  }
+})
 
 async function set_session_cookie(token: string): Promise<void> {
   const cookieStore = await cookies()
@@ -153,13 +179,20 @@ export async function log_out(): Promise<ActionResult> {
 // before re-setting it from a verified JWT). Falls back to verifying the cookie
 // for paths the proxy doesn't cover.
 export const get_current_user_id = cache(async (): Promise<string | null> => {
-  const headerUid = (await headers()).get('x-user-id')
-  if (headerUid) return headerUid
+  const h = await headers()
+  const headerUid = h.get('x-user-id')
+  if (headerUid) {
+    const iat = Number(h.get('x-token-iat')) || undefined
+    if (await is_token_revoked(headerUid, iat)) return null
+    return headerUid
+  }
 
   const cookie = (await cookies()).get(token_name)?.value
   if (!cookie) return null
   try {
-    return (await verify_token(cookie)).uid
+    const { uid, iat } = await verify_token(cookie)
+    if (await is_token_revoked(uid, iat)) return null
+    return uid
   } catch {
     return null
   }
@@ -176,16 +209,21 @@ export const get_current_user = cache(async (): Promise<Pick<user, 'id' | 'usern
   const h = await headers()
   const headerUid = h.get('x-user-id')
   const headerUsername = h.get('x-username')
-  if (headerUid && headerUsername) return { id: headerUid, username: headerUsername }
+  if (headerUid && headerUsername) {
+    const iat = Number(h.get('x-token-iat')) || undefined
+    if (await is_token_revoked(headerUid, iat)) return null
+    return { id: headerUid, username: headerUsername }
+  }
 
   const cookie = (await cookies()).get(token_name)?.value
   if (!cookie) return null
-  let payload: { uid: string; username?: string }
+  let payload: { uid: string; username?: string; iat?: number }
   try {
     payload = await verify_token(cookie)
   } catch {
     return null
   }
+  if (await is_token_revoked(payload.uid, payload.iat)) return null
   if (payload.username) return { id: payload.uid, username: payload.username }
 
   const userRec = await prisma.user.findUnique({
@@ -241,6 +279,13 @@ export async function change_password(payload: z.infer<typeof ChangePasswordSche
       where: { id: user.id },
       data: { password_hash: new_password_hash },
     })
+
+    // Invalidate every existing session (all devices), then re-issue this device's
+    // cookie so the user who just changed their password stays logged in here. The
+    // fresh token's iat is >= the cutoff, so it survives the revocation check.
+    await revoke_sessions_before(user.id, Math.floor(Date.now() / 1000))
+    const token = await sign_token({ uid: user.id, username: user.username })
+    await set_session_cookie(token)
 
     return ok(undefined, 'Password changed successfully')
   } catch (error) {
