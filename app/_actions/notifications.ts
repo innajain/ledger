@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { send_push_to_user } from '@/app/_utils/push'
+import { rate_limit } from '@/lib/rate_limit'
 import { logger } from '@/lib/logger'
 import { ActionResult, ok, err, fromError } from './_result'
 
@@ -48,6 +49,7 @@ export async function send_test_notification(): Promise<ActionResult<{ delivered
   try {
     const me = await get_current_user_id()
     if (!me) return err('UNAUTHORIZED', 'unauthorized')
+    if (!(await rate_limit(`notify_test:${me}`, 5, 60))) return err('VALIDATION', 'Too many test notifications — wait a minute.')
     const delivered = await send_push_to_user(me, {
       title: 'Ledger',
       body: 'Test notification ✓ — push is working.',
@@ -81,6 +83,10 @@ export async function notify_linked_user(target_user_id: string, message: string
     if (text.length > 500) return err('VALIDATION', 'Message is too long (max 500 characters)')
     if (target_user_id === me) return err('VALIDATION', "You can't notify yourself")
     if (!(await is_linked_to(me, target_user_id))) return err('VALIDATION', 'That user is not linked to you')
+
+    // Throttle to curb push spam/harassment: per-recipient and overall per-sender.
+    if (!(await rate_limit(`notify:${me}:${target_user_id}`, 5, 10 * 60)) || !(await rate_limit(`notify:${me}`, 20, 60 * 60)))
+      return err('VALIDATION', 'You’re sending messages too fast. Please wait a bit.')
 
     const meRow = await prisma.user.findUnique({ where: { id: me }, select: { username: true } })
     const delivered = await send_push_to_user(target_user_id, {

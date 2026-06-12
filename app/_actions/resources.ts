@@ -71,6 +71,13 @@ export async function create_account(
 
     const linked = await resolve_linked_user(user_id, type, linked_user_id ?? null, null)
 
+    // A parent must be one of the caller's own heads (update_account already
+    // enforces this; create_account previously trusted the client value).
+    if (parent_id) {
+      const parent = await prisma.accounting_head.findUnique({ where: { id: parent_id, user_id }, select: { id: true } })
+      if (!parent) throw new ActionError('VALIDATION', 'invalid parent account')
+    }
+
     await prisma.accounting_head.create({
       data: { name, type, user_id, parent_id, linked_user_id: linked },
     })

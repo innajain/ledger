@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { formatInTimeZone } from 'date-fns-tz'
 import { get_current_user } from '@/app/_actions/auth'
 import { collect_user_export, cell } from '@/app/_utils/db_export'
-import { to_csv } from '@/app/_utils/csv'
+import { to_csv, formula_guard } from '@/app/_utils/csv'
 import { build_zip } from '@/app/_utils/zip'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
@@ -21,15 +21,20 @@ export async function GET() {
 
     const tables = await collect_user_export(user.id)
     const zip = build_zip(
-      tables.map(t => ({
-        name: `${t.table}.csv`,
-        data: utf8(
-          to_csv(
-            t.columns,
-            t.rows.map(r => r.map(cell)),
+      tables.map(t => {
+        const numeric = new Set(t.numericColumns)
+        return {
+          name: `${t.table}.csv`,
+          data: utf8(
+            to_csv(
+              t.columns,
+              // Guard textual columns against spreadsheet formula injection; numeric
+              // columns are left as-is (a legitimate value may start with '-').
+              t.rows.map(r => r.map((v, i) => (numeric.has(t.columns[i]) ? cell(v) : formula_guard(cell(v))))),
+            ),
           ),
-        ),
-      })),
+        }
+      }),
     )
 
     const stamp = formatInTimeZone(new Date(), USER_TIMEZONE, 'yyyy-MM-dd_HH-mm')

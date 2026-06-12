@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { csv_cell, to_csv } from './csv'
+import { csv_cell, to_csv, formula_guard } from './csv'
 
 describe('csv_cell', () => {
   it('passes simple values through unquoted', () => {
@@ -18,6 +18,22 @@ describe('csv_cell', () => {
     expect(csv_cell('she said "hi"')).toBe('"she said ""hi"""')
     expect(csv_cell('line1\nline2')).toBe('"line1\nline2"')
     expect(csv_cell('has\rcr')).toBe('"has\rcr"')
+  })
+})
+
+describe('formula_guard', () => {
+  it('prefixes cells that begin with a formula trigger', () => {
+    expect(formula_guard('=1+1')).toBe("'=1+1")
+    expect(formula_guard('+1')).toBe("'+1")
+    expect(formula_guard('-cmd|calc')).toBe("'-cmd|calc")
+    expect(formula_guard('@SUM(A1)')).toBe("'@SUM(A1)")
+    expect(formula_guard('\tTAB')).toBe("'\tTAB")
+  })
+
+  it('leaves ordinary text untouched', () => {
+    expect(formula_guard('hello')).toBe('hello')
+    expect(formula_guard('a=b')).toBe('a=b')
+    expect(formula_guard('')).toBe('')
   })
 })
 
