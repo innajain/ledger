@@ -9,6 +9,7 @@ import { env, isProd } from '@/lib/env'
 import type { user } from '@/generated/prisma/client'
 import { z } from 'zod'
 import { ActionResult, ok, err } from './_result'
+import { rate_limit } from '@/lib/rate_limit'
 
 const token_name = 'ledger_token'
 const JWT_EXPIRY_DAYS = 7
@@ -19,18 +20,34 @@ function fromCatch(error: unknown): ActionResult<never> {
   return err('SERVER', error instanceof Error ? error.message : 'Unknown error')
 }
 
+// Login accepts whatever is on file — existing accounts may pre-date the policy
+// below, so we only check that the fields are present.
 const AuthSchema = z.object({
   username: z.string().min(1, 'Username is required'),
   password: z.string().min(1, 'Password is required'),
 })
 
+// Stricter rules for creating an account or choosing a new username/password.
+const UsernameSchema = z
+  .string()
+  .trim()
+  .min(3, 'Username must be at least 3 characters')
+  .max(32, 'Username must be at most 32 characters')
+  .regex(/^[a-zA-Z0-9_.-]+$/, 'Username may only contain letters, numbers, dot, underscore and hyphen')
+const StrongPasswordSchema = z.string().min(10, 'Password must be at least 10 characters').max(200, 'Password is too long')
+
+const SignUpSchema = z.object({
+  username: UsernameSchema,
+  password: StrongPasswordSchema,
+})
+
 const ChangePasswordSchema = z.object({
   current_password: z.string().min(1, 'Current password is required'),
-  new_password: z.string().min(1, 'New password is required'),
+  new_password: StrongPasswordSchema,
 })
 
 const ChangeUsernameSchema = z.object({
-  new_username: z.string().min(1, 'New username is required'),
+  new_username: UsernameSchema,
   password: z.string().min(1, 'Password is required'),
 })
 
@@ -60,9 +77,12 @@ async function set_session_cookie(token: string): Promise<void> {
   })
 }
 
-export async function sign_up(payload: z.infer<typeof AuthSchema>): Promise<ActionResult> {
+export async function sign_up(payload: z.infer<typeof SignUpSchema>): Promise<ActionResult> {
   try {
-    const { username, password } = AuthSchema.parse(payload)
+    const { username, password } = SignUpSchema.parse(payload)
+
+    const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    if (!(await rate_limit(`signup:ip:${ip}`, 5, 60 * 60))) return err('VALIDATION', 'Too many sign-ups from this network. Please try again later.')
 
     const existing = await prisma.user.findUnique({
       where: { username },
@@ -88,6 +108,11 @@ export async function sign_up(payload: z.infer<typeof AuthSchema>): Promise<Acti
 export async function log_in(payload: z.infer<typeof AuthSchema>): Promise<ActionResult> {
   try {
     const { username, password } = AuthSchema.parse(payload)
+
+    const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const within_ip = await rate_limit(`login:ip:${ip}`, 10, 60)
+    const within_user = await rate_limit(`login:user:${username.toLowerCase()}`, 5, 5 * 60)
+    if (!within_ip || !within_user) return err('UNAUTHORIZED', 'Too many attempts. Please wait a minute and try again.')
 
     const userRec = await prisma.user.findUnique({
       where: { username },

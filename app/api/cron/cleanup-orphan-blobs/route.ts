@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { list, del } from '@vercel/blob'
 import { prisma } from '@/lib/prisma'
-import { env, isProd } from '@/lib/env'
+import { check_cron_auth } from '@/lib/cron'
 import { logger } from '@/lib/logger'
 
 // Grace period: don't delete a blob that's been uploaded within this window —
@@ -9,11 +9,8 @@ import { logger } from '@/lib/logger'
 const GRACE_MS = 60 * 60 * 1000 // 1 hour
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization')
-  if (isProd() && authHeader !== `Bearer ${env.CRON_SECRET}`) {
-    logger.error({ route: '/api/cron/cleanup-orphan-blobs', secretConfigured: !!env.CRON_SECRET }, 'Cron auth failed')
-    return new Response('Unauthorized', { status: 401 })
-  }
+  const denied = check_cron_auth(request, '/api/cron/cleanup-orphan-blobs')
+  if (denied) return denied
 
   try {
     const referenced = new Set((await prisma.transaction_attachment.findMany({ select: { pathname: true } })).map(a => a.pathname))

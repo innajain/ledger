@@ -27,6 +27,40 @@ async function verifyToken(token: string): Promise<{ uid: string; username: stri
   }
 }
 
+// Content-Security-Policy. A per-request nonce authorizes our one inline script
+// (the theme initializer in app/layout.tsx); 'strict-dynamic' lets Next's own
+// scripts load via that nonce. Emitted report-only for now — rename the response
+// header to 'Content-Security-Policy' to start enforcing once the browser
+// console is free of violations.
+function buildCsp(nonce: string): string {
+  return [
+    `default-src 'self'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `style-src 'self' 'unsafe-inline'`,
+    `img-src 'self' data: https://*.blob.vercel-storage.com`,
+    `font-src 'self'`,
+    `connect-src 'self'`,
+    `worker-src 'self'`,
+    `manifest-src 'self'`,
+    `frame-ancestors 'none'`,
+    `base-uri 'self'`,
+    `form-action 'self'`,
+    `object-src 'none'`,
+  ].join('; ')
+}
+
+function nextWithSecurity(requestHeaders: Headers): NextResponse {
+  const nonce = btoa(crypto.randomUUID())
+  const csp = buildCsp(nonce)
+  // x-nonce is read by the layout to nonce the inline script; forwarding the CSP
+  // on the request lets Next attach the same nonce to its framework scripts.
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('content-security-policy', csp)
+  const res = NextResponse.next({ request: { headers: requestHeaders } })
+  res.headers.set('Content-Security-Policy-Report-Only', csp)
+  return res
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = new URL(request.url).pathname
 
@@ -36,7 +70,7 @@ export async function proxy(request: NextRequest) {
   requestHeaders.delete('x-username')
 
   if (isPublicPath(pathname)) {
-    return NextResponse.next({ request: { headers: requestHeaders } })
+    return nextWithSecurity(requestHeaders)
   }
 
   const token = request.cookies.get('ledger_token')?.value
@@ -47,7 +81,7 @@ export async function proxy(request: NextRequest) {
 
   requestHeaders.set('x-user-id', verified.uid)
   if (verified.username) requestHeaders.set('x-username', verified.username)
-  return NextResponse.next({ request: { headers: requestHeaders } })
+  return nextWithSecurity(requestHeaders)
 }
 
 export const config = {
