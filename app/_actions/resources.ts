@@ -216,6 +216,11 @@ export async function create_asset(
   parent_id?: string | null | undefined,
 ): Promise<ActionResult> {
   try {
+    // Authorize before any user-controlled ticker triggers an external price
+    // fetch / NAV sync — those have side effects (outbound requests, Redis
+    // writes) and must not be reachable by non-admins.
+    await require_admin()
+
     const parsed = createAssetSchema.safeParse({ name, ticker })
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     name = parsed.data.name
@@ -231,8 +236,6 @@ export async function create_asset(
     } else if (ticker !== undefined && ticker !== null) {
       throw new ActionError('VALIDATION', 'ticker cannot be non-null for asset type ' + type)
     }
-
-    await require_admin()
 
     await prisma.asset.create({
       data: { name, type, ticker, parent_id },
