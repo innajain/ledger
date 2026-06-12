@@ -18,7 +18,7 @@ function isPublicPath(pathname: string) {
 
 async function verifyToken(token: string): Promise<{ uid: string; username: string | null } | null> {
   try {
-    const { payload } = await jwtVerify(token, secret)
+    const { payload } = await jwtVerify(token, secret, { algorithms: ['HS256'] })
     if (typeof payload.uid !== 'string') return null
     const username = typeof payload.username === 'string' ? payload.username : null
     return { uid: payload.uid, username }

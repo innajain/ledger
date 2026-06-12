@@ -48,6 +48,10 @@ export function fromError(error: unknown, fallback: ActionErrorCode = 'SERVER'):
     if (prismaCode === 'P2003') return err('SERVER', 'Cannot delete: this item is still referenced by other records')
     if (prismaCode === 'P2025') return err('NOT_FOUND', 'Record not found')
   }
-  const message = error instanceof Error ? error.message : String(error)
+  const detail = error instanceof Error ? error.message : String(error)
+  // Don't leak internal/Prisma error text to clients in production; the real
+  // detail still surfaces in dev and in server logs. Typed VALIDATION/NOT_FOUND
+  // results (ActionError, Prisma mappings) keep their user-facing messages.
+  const message = fallback === 'SERVER' && process.env.NODE_ENV === 'production' ? 'Something went wrong. Please try again.' : detail
   return { success: false, code: fallback, message }
 }

@@ -4,6 +4,7 @@ import type { transaction_link } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validate_line_items } from './validate_line_items'
 import { toDecimal } from './decimal'
+import { ActionError } from '@/app/_actions/_result'
 import type { CreateLineItemInput } from '@/app/_actions/transactions'
 
 // Helpers for the cross-user transaction approval workflow. Pure server logic
@@ -83,16 +84,16 @@ export async function build_actor_copy(
 ): Promise<void> {
   const other_id = other_user(link, actor_id)
   const recip = await reciprocal_head(tx, actor_id, other_id)
-  if (!recip) throw new Error('Link an account back to that user before approving')
+  if (!recip) throw new ActionError('VALIDATION', 'Link an account back to that user before approving')
 
   const source_txn_id = their_txn_id(link, actor_id)
-  if (!source_txn_id) throw new Error('No counterpart transaction to mirror')
+  if (!source_txn_id) throw new ActionError('NOT_FOUND', 'No counterpart transaction to mirror')
 
   const source = await tx.transaction.findUnique({
     where: { id: source_txn_id },
     include: { line_items: { include: { accounting_head: true } } },
   })
-  if (!source) throw new Error('Counterpart transaction not found')
+  if (!source) throw new ActionError('NOT_FOUND', 'Counterpart transaction not found')
 
   // Seeded (locked) lines: the source's lines on the head linked to the actor,
   // mirrored onto the actor's reciprocal head with negated amounts.
@@ -107,7 +108,7 @@ export async function build_actor_copy(
       description: li.description ?? null,
       datetime: li.datetime ?? null,
     }))
-  if (seed.length === 0) throw new Error('The counterpart transaction has no linked line items to mirror')
+  if (seed.length === 0) throw new ActionError('VALIDATION', 'The counterpart transaction has no linked line items to mirror')
 
   // Bulk "accept all" path: auto-balance onto one chosen account so the copy is
   // an account-only transfer (per-asset account quantities sum to zero). Sum the
@@ -163,9 +164,9 @@ export async function build_actor_copy(
   const head_ids = Array.from(new Set(all_lines.map(l => l.accounting_head_id)))
   const asset_ids = Array.from(new Set(all_lines.map(l => l.asset_id)))
   const heads = await tx.accounting_head.findMany({ where: { id: { in: head_ids }, user_id: actor_id } })
-  if (heads.length !== head_ids.length) throw new Error('One or more of your accounts were not found')
+  if (heads.length !== head_ids.length) throw new ActionError('VALIDATION', 'One or more of your accounts were not found')
   const assets = await tx.asset.findMany({ where: { id: { in: asset_ids } } })
-  if (assets.length !== asset_ids.length) throw new Error('One or more assets were not found')
+  if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets were not found')
 
   const { is_valid, message } = validate_line_items(
     all_lines.map(li => ({
@@ -175,7 +176,7 @@ export async function build_actor_copy(
       accounting_head: heads.find(a => a.id === li.accounting_head_id)!,
     })),
   )
-  if (!is_valid) throw new Error(message)
+  if (!is_valid) throw new ActionError('VALIDATION', message)
 
   const data_lines = all_lines.map(li => ({
     quantity: toDecimal(li.quantity),
@@ -303,7 +304,7 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
     for (const link of existing) {
       const cp = other_user(link, user_id)
       if (!current.includes(cp)) {
-        throw new Error('Removing the shared portion of a linked transaction isn’t supported — delete the transaction instead')
+        throw new ActionError('VALIDATION', 'Removing the shared portion of a linked transaction isn’t supported — delete the transaction instead')
       }
     }
   }
@@ -324,7 +325,7 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
     } else {
       // Anchor hard-block: can't edit linked lines while their request awaits me.
       if (link.pending_status === 'pending' && link.pending_by === user_id) {
-        throw new Error('Resolve the pending request from this counterparty before editing the shared lines')
+        throw new ActionError('VALIDATION', 'Resolve the pending request from this counterparty before editing the shared lines')
       }
     }
 

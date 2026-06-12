@@ -17,7 +17,8 @@ const JWT_EXPIRY_SECONDS = JWT_EXPIRY_DAYS * 24 * 60 * 60
 
 function fromCatch(error: unknown): ActionResult<never> {
   if (error instanceof z.ZodError) return err('VALIDATION', error.issues[0].message)
-  return err('SERVER', error instanceof Error ? error.message : 'Unknown error')
+  const detail = error instanceof Error ? error.message : 'Unknown error'
+  return err('SERVER', isProd() ? 'Something went wrong. Please try again.' : detail)
 }
 
 // Login accepts whatever is on file — existing accounts may pre-date the policy
@@ -58,7 +59,7 @@ async function sign_token(payload: { uid: string; username: string }): Promise<s
 }
 
 async function verify_token(token: string): Promise<{ uid: string; username?: string }> {
-  const { payload } = await jwtVerify(token, secret_bytes)
+  const { payload } = await jwtVerify(token, secret_bytes, { algorithms: ['HS256'] })
   if (typeof payload.uid !== 'string') throw new Error('invalid token')
   const username = typeof payload.username === 'string' ? payload.username : undefined
   return { uid: payload.uid, username }
