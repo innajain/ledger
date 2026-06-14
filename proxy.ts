@@ -34,13 +34,20 @@ async function verifyToken(token: string): Promise<{ uid: string; username: stri
 // header to 'Content-Security-Policy' to start enforcing once the browser
 // console is free of violations.
 function buildCsp(nonce: string): string {
+  // The Vercel Blob client SDK uploads/downloads attachments straight from the
+  // browser, hitting the blob API + store host. In prod that's vercel.com plus
+  // the *.blob.vercel-storage.com store; in dev it's the local emulator origin
+  // (NEXT_PUBLIC_VERCEL_BLOB_API_URL, e.g. http://localhost:3100).
+  const blobSrc = env.NEXT_PUBLIC_VERCEL_BLOB_API_URL
+    ? new URL(env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin
+    : 'https://vercel.com https://*.blob.vercel-storage.com'
   return [
     `default-src 'self'`,
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' data: https://*.blob.vercel-storage.com`,
+    `img-src 'self' data: ${blobSrc}`,
     `font-src 'self'`,
-    `connect-src 'self'`,
+    `connect-src 'self' ${blobSrc}`,
     `worker-src 'self'`,
     `manifest-src 'self'`,
     `frame-ancestors 'none'`,
