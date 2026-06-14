@@ -30,9 +30,9 @@ async function verifyToken(token: string): Promise<{ uid: string; username: stri
 
 // Content-Security-Policy. A per-request nonce authorizes our one inline script
 // (the theme initializer in app/layout.tsx); 'strict-dynamic' lets Next's own
-// scripts load via that nonce. Emitted report-only for now — rename the response
-// header to 'Content-Security-Policy' to start enforcing once the browser
-// console is free of violations.
+// scripts load via that nonce. Enforced (not report-only) — verified free of
+// violations in prod. Switch back to 'Content-Security-Policy-Report-Only' when
+// trialing new directives before enforcing them.
 function buildCsp(nonce: string): string {
   // The Vercel Blob client SDK uploads/downloads attachments straight from the
   // browser, hitting the blob API + store host. In prod that's vercel.com plus
@@ -65,7 +65,7 @@ function nextWithSecurity(requestHeaders: Headers): NextResponse {
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set('content-security-policy', csp)
   const res = NextResponse.next({ request: { headers: requestHeaders } })
-  res.headers.set('Content-Security-Policy-Report-Only', csp)
+  res.headers.set('Content-Security-Policy', csp)
   return res
 }
 
