@@ -200,7 +200,9 @@ The user-scoped collector pulls each table holding the caller's data (heads, tra
 ### Security
 
 - **JWT in HTTP-only cookies** — 7-day expiry, signed with `JWT_SECRET`
-- **Edge proxy gate** — `proxy.ts` verifies the JWT on every non-public route, redirects to `/login` on failure, stamps `x-user-id` on the request header
+- **Edge proxy gate** — `proxy.ts` verifies the JWT on every non-public route, redirects to `/login` on failure, injects a per-request nonce, enforces Content-Security-Policy headers, and stamps `x-user-id` on the request
+- **Session revocation** — On password change a `auth:revoke_before:<uid>` key is written to Redis (TTL = token lifetime); the proxy rejects any token whose `iat` pre-dates it. Fails open on Redis outage
+- **Rate limiting** — Fixed-window Redis limiter (`lib/rate_limit.ts`): login is capped at 10 attempts/min by IP and 5/5 min by username; signup at 5/hr by IP. Fails open on Redis outage
 - **bcryptjs** — 10 rounds
 - **User isolation** — Every query scoped to `user_id`; updates use composite `where: { id, user_id }`
 - **Cron auth** — All `/api/cron/*` routes require `Bearer ${CRON_SECRET}` in production
@@ -211,7 +213,7 @@ The user-scoped collector pulls each table holding the caller's data (heads, tra
 
 | Layer            | Technology                          |
 | ---------------- | ----------------------------------- |
-| **Framework**    | Next.js 16.1 (App Router)           |
+| **Framework**    | Next.js 16.2 (App Router)           |
 | **Language**     | TypeScript 6                        |
 | **UI**           | React 19, Tailwind CSS 4            |
 | **ORM**          | Prisma 7.8 (`prisma-client` engine) |
@@ -266,6 +268,15 @@ model user {
   graphs_visible  Boolean @default(false)
 }
 
+model push_subscription {
+  id         String   @id @default(cuid())
+  user_id    String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  created_at DateTime @default(now())
+}
+
 model accounting_head {
   id             String               @id @default(cuid())
   user_id        String
@@ -273,6 +284,7 @@ model accounting_head {
   type           accounting_head_type // account | income_expense | allocation
   is_active      Boolean              @default(true)
   is_placeholder Boolean              @default(false)
+  order_index    Int?
   parent_id      String?
   linked_user_id String?              // cross-user link; Pay button uses the linked user's profile UPI
 }
@@ -286,6 +298,7 @@ model asset {
   ticker         String?    // ISIN for MF, symbol for ETF/Shares
   is_active      Boolean    @default(true)
   is_placeholder Boolean    @default(false)
+  order_index    Int?
   parent_id      String?
 }
 
@@ -328,13 +341,32 @@ model transaction_template {
 }
 
 model line_item_template {
-  // Same shape as line_item, no datetime
-  quantity   Decimal? @db.Decimal(14, 4)
-  txn_value  Decimal? @db.Decimal(14, 4)
+  id                      String   @id @default(cuid())
+  transaction_template_id String
+  accounting_head_id      String
+  asset_id                String
+  description             String?
+  quantity                Decimal? @db.Decimal(14, 4)
+  txn_value               Decimal? @db.Decimal(14, 4)
 }
 
 enum accounting_head_type { account  income_expense  allocation }
 enum asset_type            { rupees   mf              etf         shares  other }
+enum pending_status        { pending  approved        rejected }
+enum pending_kind          { change   deletion }
+
+model transaction_link {
+  id             String         @id @default(cuid())
+  user_a_id      String                               // original creator (stable identity)
+  user_b_id      String                               // linked counterparty (stable identity)
+  txn_a_id       String?                              // creator's copy; nullable — a side may delete while the link lives
+  txn_b_id       String?                              // counterparty's copy; null until first approval
+  pending_status pending_status @default(pending)
+  pending_kind   pending_kind?
+  pending_by     String?                              // user who must respond; null iff approved
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+}
 ```
 
 Profiling tables (`server_metric`, `slow_query`, `web_vital`) live alongside the domain tables — see [Performance Profiling](#performance-profiling).
