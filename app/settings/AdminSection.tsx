@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useToast } from '@/app/_components/Toast'
-import { flush_redis } from '@/app/_actions/flush'
-import { validate_all_txns } from '@/app/_actions/validate_all_txns'
+import { flush_redis } from './flush'
+import { validate_all_txns } from './validate_all_txns'
 import { SectionHeading } from './SectionHeading'
 
 export function AdminSection() {

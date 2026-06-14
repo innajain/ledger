@@ -1,8 +1,8 @@
 'use server'
 
 import { redis } from '@/lib/redis'
-import { require_admin } from './auth'
-import { ActionResult, ok, fromError } from './_result'
+import { require_admin } from '@/app/_actions/auth'
+import { ActionResult, ok, fromError } from '@/app/_actions/_result'
 
 export async function flush_redis(): Promise<ActionResult> {
   try {

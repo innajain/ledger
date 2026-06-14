@@ -2,15 +2,15 @@
 
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
-import { CreateLineItemInput } from './transactions'
-import { validate_line_items } from '../_utils/validate_line_items'
-import { toDecimal } from '../_utils/decimal'
-import { invalidate_balances } from './compute_balances'
-import { sync_links_after_update } from '../_utils/links'
-import { notify_request_pending } from '../_utils/notify_events'
+import { CreateLineItemInput } from '@/app/_actions/transactions'
+import { validate_line_items } from '@/app/_utils/validate_line_items'
+import { toDecimal } from '@/app/_utils/decimal'
+import { invalidate_balances } from '@/app/_actions/compute_balances'
+import { sync_links_after_update } from '@/app/_utils/links'
+import { notify_request_pending } from '@/app/_utils/notify_events'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
-import { ActionResult, ok, err, fromError, ActionError } from './_result'
+import { ActionResult, ok, err, fromError, ActionError } from '@/app/_actions/_result'
 
 const updateTransactionSchema = z.object({
   id: z.string().min(1, 'Transaction ID is required'),

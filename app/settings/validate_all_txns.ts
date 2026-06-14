@@ -1,8 +1,8 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { validate_line_items } from '../_utils/validate_line_items'
-import { require_admin } from './auth'
+import { validate_line_items } from '@/app/_utils/validate_line_items'
+import { require_admin } from '@/app/_actions/auth'
 
 export async function validate_all_txns() {
   await require_admin()
