@@ -4,30 +4,30 @@ Triple-entry bookkeeping app. Next.js 16 App Router, React 19, Prisma 7 (Postgre
 
 ## Commands
 
-- **Package manager**: `pnpm@11.1.2` only. Never `npm`/`npx`.
+- **Package manager**: `pnpm@11.1.2` only. Never `npm`/`npx`. Always `pnpm <script>` / `pnpm exec <bin>` / `pnpm dlx <pkg>`.
 - `pnpm dev` / `pnpm build` (runs `prisma generate` first) / `pnpm start`
 - `pnpm typecheck` / `pnpm lint` / `pnpm format` / `pnpm format:check`
 - `pnpm test` — vitest (colocated `*.test.ts`). Single file: `pnpm test -- normalize_txn`
-- `pnpm dlx tsx scripts/seed_sample_user.ts` (user `rahul`/`rahul1234`) or `seed_demo.ts`
+- `pnpm test:watch` / `pnpm analyze` (bundle analyzer, `ANALYZE=true`)
+- `pnpm dlx tsx scripts/seed_sample_user.ts` (user `rahul`/`rahul1234`) or `seed_demo.ts` — idempotent, deterministic PRNG, reads `DATABASE_URL`
 - **Local stack**: `docker compose up -d postgres redis blob` then `docker compose run --rm sync-db`
 
 ## CI gate (run before pushing)
 
 Order: `prisma generate` → `pnpm typecheck` → `pnpm lint` → `pnpm test` → `prettier --check`.  
-CI has no real DB — a placeholder `DATABASE_URL` in `prisma.config.ts` keeps the generate happy.
+CI has no real DB — a placeholder `DATABASE_URL` in the workflow's `env` block satisfies `prisma.config.ts`.
 
 ## Prisma quirks
 
 - **Generated client**: `generated/prisma` (not `node_modules`). Import from `@/generated/prisma/client` and `@/generated/prisma/enums`.
 - **Migrations**: never hand-write — `pnpm exec prisma migrate dev --name <name>`. Prod: strip `-pooler` from Neon host before `prisma migrate deploy`.
-- **DB naming**: all `snake_case` (tables, columns, by convention functions/actions too).
 - **Singleton**: `lib/prisma.ts` — `$extends`-instrumented for profiling. Don't create a second `PrismaClient`.
 
 ## Architecture
 
-- **Server-wrapper pattern**: `page.tsx` (server component, data fetching only) → `ClientPage.tsx` (UI/state).
-- **Server actions**: shared ones in `app/_actions/*`, per-page ones colocated in route folder. Return `ActionResult<T>` (`ok(data, msg)` / `err(code, msg)`). Use `fromError` in catch blocks; throw `ActionError` inside `$transaction` callbacks to abort.
-- **User scoping**: `proxy.ts` verifies JWT cookie, stamps `x-user-id` header. Actions call `get_current_user_id()` / `get_current_user()` from `_actions/auth.ts`. **Every query must be scoped to `user_id`**; updates/deletes use composite `where: { id, user_id }`.
+- **Server-wrapper pattern**: `page.tsx` (server component, data fetching only) → `ClientPage.tsx` (UI/state). Pages wrapped with `profile('/path', Page)` from `lib/metrics/`.
+- **Server actions**: shared ones in `app/_actions/*`, per-page ones colocated in route folder. Return `ActionResult<T>` (`ok(data, msg)` / `err(code, msg)`). Use `fromError` in catch blocks (maps Prisma P2002/P2003/P2025); throw `ActionError` inside `$transaction` callbacks to abort.
+- **User scoping**: `proxy.ts` (Next 16 middleware — note the filename) verifies JWT cookie, stamps `x-user-id`/`x-username`/`x-token-iat` headers. Actions call `get_current_user_id()` / `get_current_user()` from `_actions/auth.ts`. **Every query must be scoped to `user_id`**; updates/deletes use composite `where: { id, user_id }`.
 - **Env validation**: `lib/env.ts` (zod, `server-only`). Never read `process.env` directly.
 - **Decimals**: `Decimal(14,4)` columns. Use `toDecimal()` from `app/_utils/decimal.ts`. No plain JS floats.
 - **Timezone**: `Asia/Kolkata` (IST) — all date handling.
@@ -46,6 +46,14 @@ Any transaction create/update/delete on an `account`-type head with `linked_user
 
 Web Push (`web-push`, `app/_utils/push.ts`). **VAPID keys are optional** — when unset, sending is a silent no-op. Fire-and-forget from `app/_utils/notify_events.ts`.
 
+## Transaction templates
+
+`transaction_template` + `line_item_template` models for reusable transaction patterns. CRUD in `app/_actions/templates.ts`.
+
+## Data export
+
+Routes in `app/api/export/` and `app/api/dump/` — must always be user-scoped. `/api/dump` was historically unscoped (leaked all users' rows); don't reintroduce.
+
 ## Profiling & dev tooling
 
 - `profile()` wrapper on pages (`lib/metrics/`). Disable with `PROFILING=off`.
@@ -53,4 +61,4 @@ Web Push (`web-push`, `app/_utils/push.ts`). **VAPID keys are optional** — whe
 
 ## Code style
 
-Prettier: no semicolons, single quotes, `arrowParens: avoid`, `printWidth: 150`. Node 24 (`.nvmrc`). `@/*` → repo root.
+Prettier: no semicolons, single quotes, `arrowParens: avoid`, `printWidth: 150`. Node 24 (`.nvmrc`). `@/*` → repo root. All DB names `snake_case` (tables, columns, by convention functions/actions too).
