@@ -11,7 +11,7 @@ import {
   get_user_preferences_core,
   update_user_preferences_core,
 } from '@/app/_core/preferences_core'
-import type { LineItemDefaults, ThemeChoice, UserPreferences } from '@/app/_core/preferences_core'
+import type { LineItemDefaults, UserPreferences } from '@/app/_core/preferences_core'
 
 export type { LineItemDefaults, ThemeChoice, UserPreferences } from '@/app/_core/preferences_core'
 

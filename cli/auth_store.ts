@@ -40,12 +40,11 @@ export async function load_session(): Promise<Session | null> {
   }
 }
 
-/** Like load_session but exits with a friendly message when logged out. */
+/** Like load_session but throws with a friendly message when logged out. */
 export async function require_session(): Promise<Session> {
   const s = await load_session()
   if (!s) {
-    console.error('Not logged in. Run `pnpm cli login` first.')
-    process.exit(1)
+    throw new Error('Not logged in. Run `login` first.')
   }
   return s
 }

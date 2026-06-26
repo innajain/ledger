@@ -1,11 +1,11 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    "jsx": "react-jsx",
     "paths": {
       "@/*": ["../*"],
       "server-only": ["./_shims/server-only.ts"]
     }
   },
-  "include": ["**/*.ts", "../app/**/*.ts", "../lib/**/*.ts", "../generated/**/*.ts"]
+  "include": ["**/*.ts", "**/*.tsx", "../app/**/*.ts", "../lib/**/*.ts", "../generated/**/*.ts"]
 }

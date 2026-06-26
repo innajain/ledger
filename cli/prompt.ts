@@ -1,10 +1,8 @@
 /**
- * Interactive prompt layer. Lines are pulled through readline's async iterator
- * (which buffers) rather than repeated rl.question() calls, so input isn't
- * dropped when several lines arrive at once (piped/non-interactive stdin).
- * Prompts go straight to stdout; echo flows through `masked_out`, muted during
- * password entry. readline is created lazily so non-interactive paths
- * (e.g. `add --json -`, which reads JSON from stdin) never claim stdin.
+ * Interactive prompt layer. Uses rl.question() for each prompt so it works
+ * both in single-shot mode (lazily creates its own readline) and in REPL mode
+ * (shares the REPL's readline injected via `set_rl()`). Password entry mutes
+ * echo by temporarily swapping the readline's output to a sink stream.
  */
 import * as readline from 'node:readline'
 import { Writable } from 'node:stream'
@@ -19,29 +17,53 @@ const masked_out = new Writable({
 })
 
 let rl: readline.Interface | undefined
-let lines: AsyncIterableIterator<string> | undefined
-function get_lines(): AsyncIterableIterator<string> {
-  if (!lines) {
+let rl_owned = false // true if we created it; false if injected by REPL
+
+/** Inject an external readline (REPL mode). Prevents creating a second one. */
+export function set_rl(external: readline.Interface): void {
+  rl = external
+  rl_owned = false
+}
+
+function ensure_rl(): readline.Interface {
+  if (!rl) {
     rl = readline.createInterface({ input: stdin, output: masked_out, terminal: stdin.isTTY })
-    lines = rl[Symbol.asyncIterator]()
+    rl_owned = true
   }
-  return lines
+  return rl
 }
 
 export async function ask(q: string): Promise<string> {
-  stdout.write(q)
-  const { value, done } = await get_lines().next()
-  return done ? '' : value
+  const r = ensure_rl()
+  return new Promise<string>(resolve => {
+    r.question(q, answer => resolve(answer))
+  })
 }
 
 export async function ask_hidden(q: string): Promise<string> {
-  stdout.write(q)
-  const iter = get_lines()
-  muted = true
-  const { value, done } = await iter.next()
-  muted = false
-  stdout.write('\n')
-  return done ? '' : value
+  const r = ensure_rl()
+  return new Promise<string>(resolve => {
+    // Suppress echo by temporarily swapping the output stream.
+    // In single-shot mode rl.output is `masked_out` and `muted` does the job.
+    // In REPL mode rl.output is `process.stdout`, so we swap it to a sink.
+    // `output` exists at runtime but isn't in @types/node's Interface type.
+    const rl_any = r as unknown as { output: NodeJS.WritableStream }
+    const orig_output = rl_any.output
+    const sink = new Writable({
+      write(_chunk, _enc, cb) {
+        cb()
+      },
+    })
+    stdout.write(q) // write the question ourselves before swapping
+    rl_any.output = sink
+    muted = true
+    r.question('', answer => {
+      rl_any.output = orig_output
+      muted = false
+      stdout.write('\n')
+      resolve(answer)
+    })
+  })
 }
 
 export async function confirm(q: string): Promise<boolean> {
@@ -49,7 +71,7 @@ export async function confirm(q: string): Promise<boolean> {
   return a === 'y' || a === 'yes'
 }
 
-/** Close the readline interface if it was ever opened (called on shutdown). */
+/** Close the readline interface if we own it (single-shot mode). */
 export function close_prompt(): void {
-  rl?.close()
+  if (rl_owned) rl?.close()
 }
