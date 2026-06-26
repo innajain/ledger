@@ -1,5 +1,9 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
+import { to_csv, formula_guard } from './csv'
+import { build_zip } from './zip'
+import { build_xlsx, type XlsxTable } from './xlsx'
+import { build_sql_dump } from './sql_dump'
 
 // Shared data layer for the export/dump features:
 //   - collect_user_export(user_id) — every table holding the caller's data,
@@ -156,4 +160,46 @@ export async function collect_full_dump(): Promise<TableExport[]> {
       }
     }),
   )
+}
+
+// --- Packaged artifacts (shared by the /api download routes and the CLI) ------
+// Excel only auto-detects UTF-8 when the file leads with a BOM.
+const utf8_bom = (s: string) => Buffer.from('﻿' + s, 'utf8')
+
+/** CSV-per-table ZIP, caller-scoped, dropping password_hash (text export). */
+export async function build_user_csv_zip(user_id: string): Promise<Buffer> {
+  const tables = await collect_user_export(user_id)
+  return build_zip(
+    tables.map(t => {
+      const numeric = new Set(t.numericColumns)
+      return {
+        name: `${t.table}.csv`,
+        data: utf8_bom(
+          to_csv(
+            t.columns,
+            // Guard textual columns against spreadsheet formula injection; numeric
+            // columns are left as-is (a legitimate value may start with '-').
+            t.rows.map(r => r.map((v, i) => (numeric.has(t.columns[i]) ? cell(v) : formula_guard(cell(v))))),
+          ),
+        ),
+      }
+    }),
+  )
+}
+
+/** One linked .xlsx workbook (FK cells hyperlinked), caller-scoped, dropping password_hash. */
+export async function build_user_xlsx(user_id: string): Promise<Buffer> {
+  const dumps = await collect_user_export(user_id)
+  const tables: XlsxTable[] = dumps.map(d => ({
+    name: d.table,
+    columns: d.columns.map(c => ({ name: c, numeric: d.numericColumns.includes(c), fkSheet: d.foreignKeys[c] })),
+    rows: d.rows.map(r => r.map(cell)),
+  }))
+  return build_xlsx(tables)
+}
+
+/** Caller-scoped SQL dump (data-only INSERTs). Keeps every column so it restores. */
+export async function build_user_sql(user_id: string, username: string): Promise<string> {
+  const tables = await collect_user_export(user_id, {})
+  return build_sql_dump(tables, { title: `Ledger SQL dump — @${username} (your data only)` })
 }

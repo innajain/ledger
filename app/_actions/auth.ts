@@ -1,6 +1,5 @@
 'use server'
 
-import bcrypt from 'bcryptjs'
 import { cookies, headers } from 'next/headers'
 import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
@@ -10,7 +9,16 @@ import { z } from 'zod'
 import { ActionResult, ok, err } from './_result'
 import { rate_limit } from '@/lib/rate_limit'
 import { redis } from '@/lib/redis'
-import { authenticate, sign_token, verify_token, JWT_EXPIRY_SECONDS } from '@/app/_core/auth_core'
+import {
+  authenticate,
+  sign_token,
+  verify_token,
+  JWT_EXPIRY_SECONDS,
+  revoke_key,
+  sign_up_core,
+  change_password_core,
+  change_username_core,
+} from '@/app/_core/auth_core'
 
 const token_name = 'ledger_token'
 
@@ -27,44 +35,9 @@ const AuthSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
-// Stricter rules for creating an account or choosing a new username/password.
-const UsernameSchema = z
-  .string()
-  .trim()
-  .min(3, 'Username must be at least 3 characters')
-  .max(32, 'Username must be at most 32 characters')
-  .regex(/^[a-zA-Z0-9_.-]+$/, 'Username may only contain letters, numbers, dot, underscore and hyphen')
-const StrongPasswordSchema = z.string().min(10, 'Password must be at least 10 characters').max(200, 'Password is too long')
-
-const SignUpSchema = z.object({
-  username: UsernameSchema,
-  password: StrongPasswordSchema,
-})
-
-const ChangePasswordSchema = z.object({
-  current_password: z.string().min(1, 'Current password is required'),
-  new_password: StrongPasswordSchema,
-})
-
-const ChangeUsernameSchema = z.object({
-  new_username: UsernameSchema,
-  password: z.string().min(1, 'Password is required'),
-})
-
-// JWT signing/verification + password check live in the framework-agnostic core
-// (`app/_core/auth_core.ts`) so the CLI shares them; this file keeps the
-// web-only concerns (cookies, headers, rate limiting, session revocation).
-
-// --- Session revocation -------------------------------------------------------
-// Tokens for a user whose issued-at (`iat`) predates `auth:revoke_before:<uid>`
-// (unix seconds) are treated as logged out. Set on password change (and any future
-// "sign out everywhere"). Stored in Redis with a TTL equal to the max token
-// lifetime — past that, every pre-cutoff token has already expired on its own.
-const revoke_key = (uid: string) => `auth:revoke_before:${uid}`
-
-async function revoke_sessions_before(uid: string, when_seconds: number): Promise<void> {
-  await redis.setex(revoke_key(uid), JWT_EXPIRY_SECONDS, String(when_seconds))
-}
+// Credential schemas, session revocation, and the sign-up / change-password /
+// change-username DB logic live in `app/_core/auth_core.ts` so the CLI shares
+// them; this file keeps the web-only concerns (cookies, headers, rate limiting).
 
 // Cached per request (deduped across get_current_user_id / get_current_user).
 // Fails open on a Redis error: an outage shouldn't lock everyone out — it just
@@ -92,28 +65,16 @@ async function set_session_cookie(token: string): Promise<void> {
   })
 }
 
-export async function sign_up(payload: z.infer<typeof SignUpSchema>): Promise<ActionResult> {
+export async function sign_up(payload: { username: string; password: string }): Promise<ActionResult> {
   try {
-    const { username, password } = SignUpSchema.parse(payload)
-
     const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
     if (!(await rate_limit(`signup:ip:${ip}`, 5, 60 * 60))) return err('VALIDATION', 'Too many sign-ups from this network. Please try again later.')
 
-    const existing = await prisma.user.findUnique({
-      where: { username },
-      select: { id: true },
-    })
-    if (existing) return err('VALIDATION', 'user already exists')
+    const res = await sign_up_core(payload)
+    if (!res.success) return res
 
-    const password_hash = await bcrypt.hash(password, 10)
-    const created = await prisma.user.create({
-      data: { username, password_hash },
-      select: { id: true, username: true },
-    })
-
-    const token = await sign_token({ uid: created.id, username: created.username })
+    const token = await sign_token({ uid: res.data!.id, username: res.data!.username })
     await set_session_cookie(token)
-
     return ok(undefined, 'Account created successfully')
   } catch (error) {
     return fromCatch(error)
@@ -240,79 +201,36 @@ export async function require_admin(): Promise<string> {
   return id
 }
 
-export async function change_password(payload: z.infer<typeof ChangePasswordSchema>): Promise<ActionResult> {
+export async function change_password(payload: { current_password: string; new_password: string }): Promise<ActionResult> {
   try {
-    const { current_password, new_password } = ChangePasswordSchema.parse(payload)
-
     const user = await get_current_user()
     if (!user) return err('UNAUTHORIZED', 'not authenticated')
 
-    const userRec = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { id: true, password_hash: true },
-    })
-    if (!userRec) return err('NOT_FOUND', 'user not found')
+    const res = await change_password_core(user.id, payload)
+    if (!res.success) return res
 
-    const isValid = await bcrypt.compare(current_password, userRec.password_hash)
-    if (!isValid) return err('UNAUTHORIZED', 'current password is incorrect')
-
-    const new_password_hash = await bcrypt.hash(new_password, 10)
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password_hash: new_password_hash },
-    })
-
-    // Invalidate every existing session (all devices), then re-issue this device's
-    // cookie so the user who just changed their password stays logged in here. The
-    // fresh token's iat is >= the cutoff, so it survives the revocation check.
-    await revoke_sessions_before(user.id, Math.floor(Date.now() / 1000))
+    // The core revoked every session; re-issue this device's cookie so the user
+    // who just changed their password stays logged in here (fresh iat survives).
     const token = await sign_token({ uid: user.id, username: user.username })
     await set_session_cookie(token)
-
     return ok(undefined, 'Password changed successfully')
   } catch (error) {
     return fromCatch(error)
   }
 }
 
-export async function change_username(payload: z.infer<typeof ChangeUsernameSchema>): Promise<ActionResult> {
+export async function change_username(payload: { new_username: string; password: string }): Promise<ActionResult> {
   try {
-    const { new_username, password } = ChangeUsernameSchema.parse(payload)
-
     const user = await get_current_user()
     if (!user) return err('UNAUTHORIZED', 'not authenticated')
 
-    const userRec = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { id: true, username: true, password_hash: true },
-    })
-    if (!userRec) return err('NOT_FOUND', 'user not found')
-
-    const isValid = await bcrypt.compare(password, userRec.password_hash)
-    if (!isValid) return err('UNAUTHORIZED', 'password is incorrect')
-
-    const existing = await prisma.user.findUnique({
-      where: { username: new_username },
-      select: { id: true },
-    })
-    if (existing && existing.id !== user.id) {
-      return err('VALIDATION', 'username already taken')
-    }
-
-    if (userRec.username === new_username) {
-      return err('VALIDATION', 'new username must be different from current username')
-    }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { username: new_username },
-    })
+    const res = await change_username_core(user.id, payload)
+    if (!res.success) return res
 
     // Re-issue the cookie so the JWT payload (and proxy-set x-username header)
     // reflects the new username instead of the stale one until the next login.
-    const token = await sign_token({ uid: user.id, username: new_username })
+    const token = await sign_token({ uid: user.id, username: res.data!.username })
     await set_session_cookie(token)
-
     return ok(undefined, 'Username changed successfully')
   } catch (error) {
     return fromCatch(error)

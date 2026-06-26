@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { formatInTimeZone } from 'date-fns-tz'
 import { get_current_user } from '@/app/_actions/auth'
-import { collect_user_export } from '@/app/_utils/db_export'
-import { build_sql_dump } from '@/app/_utils/sql_dump'
+import { build_user_sql } from '@/app/_utils/db_export'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
 
@@ -17,8 +16,7 @@ export async function GET() {
     const user = await get_current_user()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const tables = await collect_user_export(user.id, {})
-    const sql = build_sql_dump(tables, { title: `Ledger SQL dump — @${user.username} (your data only)` })
+    const sql = await build_user_sql(user.id, user.username)
 
     const stamp = formatInTimeZone(new Date(), USER_TIMEZONE, 'yyyy-MM-dd_HH-mm')
     const safeName = user.username.replace(/[^a-zA-Z0-9_-]/g, '_')
