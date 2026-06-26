@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
-import { env } from '@/lib/env'
+import { env, isDev } from '@/lib/env'
 
 // `/sw.js` and the manifest must be reachable without auth — the service worker
 // registers from any page (incl. /login) and the browser fetches the manifest
@@ -41,9 +41,14 @@ function buildCsp(nonce: string): string {
   const blobSrc = env.NEXT_PUBLIC_VERCEL_BLOB_API_URL
     ? new URL(env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin
     : 'https://vercel.com https://*.blob.vercel-storage.com'
+  // React/Turbopack dev mode needs eval() for debugging features (HMR, callstack
+  // reconstruction). 'unsafe-eval' is dev-only — prod uses no eval, so the strict
+  // policy stays there. ('strict-dynamic' ignores host/'unsafe-inline' but not
+  // 'unsafe-eval', so eval is still authorized.)
+  const scriptSrc = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev() ? " 'unsafe-eval'" : ''}`
   return [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    scriptSrc,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: ${blobSrc}`,
     `font-src 'self'`,
