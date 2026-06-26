@@ -328,6 +328,8 @@ function tokenize(line: string): string[] {
 // ---------------------------------------------------------------------------
 
 async function repl() {
+  const { load_session } = await import('./auth_store')
+  const { set_rl } = await import('./prompt')
   const session = await load_session()
   const greeting = session ? `Logged in as ${session.username}.` : 'Not logged in — run `login` to start.'
   console.log(`ledger interactive shell. ${greeting}`)
@@ -370,7 +372,10 @@ async function repl() {
 
     running = true
     try {
+      const start = performance.now()
       await dispatch(command, rest)
+      const ms = performance.now() - start
+      console.error(`\x1b[90m(done in ${ms < 1000 ? ms.toFixed(0) + 'ms' : (ms / 1000).toFixed(2) + 's'})\x1b[0m`)
     } catch (err) {
       console.error(`✗ ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -412,7 +417,13 @@ async function main() {
     process.exit(0)
   }
 
-  return dispatch(command, rest)
+  const start = performance.now()
+  await dispatch(command, rest)
+  const ms = performance.now() - start
+
+  if (command !== 'repl' && command !== 'ui') {
+    console.error(`\x1b[90m(done in ${ms < 1000 ? ms.toFixed(0) + 'ms' : (ms / 1000).toFixed(2) + 's'})\x1b[0m`)
+  }
 }
 
 main()
