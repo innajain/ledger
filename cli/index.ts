@@ -11,24 +11,10 @@
  */
 import 'dotenv/config'
 import * as readline from 'node:readline'
-import { prisma } from '@/lib/prisma'
-import { logger } from '@/lib/logger'
-import { load_session } from './auth_store'
-import { close_prompt, set_rl } from './prompt'
-import { cmd_login, cmd_logout, cmd_whoami } from './cmd/auth'
-import { cmd_heads, cmd_assets, cmd_balances, cmd_txns, cmd_txn } from './cmd/read'
-import { cmd_add, cmd_edit, cmd_delete } from './cmd/transactions'
-import { cmd_requests, cmd_approve, cmd_reject, cmd_cancel, cmd_revert, cmd_accept_all } from './cmd/approvals'
-import { cmd_worth, cmd_holdings } from './cmd/worth'
-import { cmd_head_add, cmd_head_edit, cmd_head_rm, cmd_asset_add, cmd_asset_edit, cmd_asset_rm } from './cmd/resources'
-import { cmd_prefs, cmd_prefs_set, cmd_defaults_set, cmd_upi_set, cmd_pay, cmd_signup, cmd_passwd, cmd_rename } from './cmd/account'
-import { cmd_templates, cmd_template_add, cmd_template_rm, cmd_template_apply } from './cmd/templates'
-import { cmd_export, cmd_export_xlsx, cmd_dump } from './cmd/export'
-import { start_ui } from './ui'
 
 // Quiet the server logger's info chatter (DB/Redis "connected" lines) for a
 // clean CLI; this only affects the CLI process. Override with LEDGER_LOG_LEVEL.
-logger.level = process.env.LEDGER_LOG_LEVEL ?? 'warn'
+process.env.LEDGER_LOG_LEVEL ??= 'warn'
 
 // ---------------------------------------------------------------------------
 // Command list — used for dispatch, help text, and tab-completion.
@@ -44,106 +30,221 @@ type CmdEntry = {
 
 const COMMANDS: CmdEntry[] = [
   // Auth
-  { name: 'login', group: 'Auth', desc: 'Log in (prompts for username + password)', handler: () => cmd_login() },
-  { name: 'logout', group: 'Auth', desc: 'Forget the stored session', handler: () => cmd_logout() },
-  { name: 'whoami', group: 'Auth', desc: 'Show the current session', handler: () => cmd_whoami() },
+  { name: 'login', group: 'Auth', desc: 'Log in (prompts for username + password)', handler: async () => (await import('./cmd/auth')).cmd_login() },
+  { name: 'logout', group: 'Auth', desc: 'Forget the stored session', handler: async () => (await import('./cmd/auth')).cmd_logout() },
+  { name: 'whoami', group: 'Auth', desc: 'Show the current session', handler: async () => (await import('./cmd/auth')).cmd_whoami() },
   // Read
-  { name: 'heads', group: 'Read', desc: 'List your accounting heads (with ids)', handler: () => cmd_heads() },
-  { name: 'assets', group: 'Read', desc: 'List the asset catalog (with ids)', handler: () => cmd_assets() },
-  { name: 'balances', group: 'Read', desc: 'Show per-account asset balances', handler: () => cmd_balances() },
-  { name: 'worth', group: 'Read', desc: 'Net worth, allocation breakdown, Investments XIRR', handler: () => cmd_worth() },
-  { name: 'holdings', group: 'Read', desc: 'Per-asset quantity, cost, live price, current value', handler: () => cmd_holdings() },
+  {
+    name: 'heads',
+    group: 'Read',
+    desc: 'List your accounting heads (with ids)',
+    handler: async args => (await import('./cmd/read')).cmd_heads(args),
+  },
+  { name: 'assets', group: 'Read', desc: 'List the asset catalog (with ids)', handler: async args => (await import('./cmd/read')).cmd_assets(args) },
+  {
+    name: 'balances',
+    group: 'Read',
+    desc: 'Show per-account asset balances',
+    handler: async args => (await import('./cmd/read')).cmd_balances(args),
+  },
+  {
+    name: 'worth',
+    group: 'Read',
+    desc: 'Net worth, allocation breakdown, Investments XIRR',
+    handler: async args => (await import('./cmd/worth')).cmd_worth(args),
+  },
+  {
+    name: 'holdings',
+    group: 'Read',
+    desc: 'Per-asset quantity, cost, live price, current value',
+    handler: async args => (await import('./cmd/worth')).cmd_holdings(args),
+  },
   {
     name: 'txns',
     group: 'Read',
     desc: 'List transactions [-n N] [-s text] [--from dd-MM-yyyy] [--to dd-MM-yyyy]',
-    handler: args => cmd_txns(args),
+    handler: async args => (await import('./cmd/read')).cmd_txns(args),
   },
-  { name: 'txn', group: 'Read', desc: "Show a transaction's line items  txn <id>", handler: args => cmd_txn(args) },
+  {
+    name: 'txn',
+    group: 'Read',
+    desc: "Show a transaction's line items  txn <id>",
+    handler: async args => (await import('./cmd/read')).cmd_txn(args),
+  },
   // Write
-  { name: 'add', group: 'Write', desc: 'Create a transaction (interactive, or --json <file|->)', handler: args => cmd_add(args) },
-  { name: 'edit', group: 'Write', desc: "Replace a transaction's line items  edit <id>", handler: args => cmd_edit(args) },
-  { name: 'delete', group: 'Write', desc: 'Delete a transaction  delete <id>', handler: args => cmd_delete(args) },
+  {
+    name: 'add',
+    group: 'Write',
+    desc: 'Create a transaction (interactive, or --json <file|->)',
+    handler: async args => (await import('./cmd/transactions')).cmd_add(args),
+  },
+  {
+    name: 'edit',
+    group: 'Write',
+    desc: "Replace a transaction's line items  edit <id>",
+    handler: async args => (await import('./cmd/transactions')).cmd_edit(args),
+  },
+  {
+    name: 'delete',
+    group: 'Write',
+    desc: 'Delete a transaction  delete <id>',
+    handler: async args => (await import('./cmd/transactions')).cmd_delete(args),
+  },
   // Approvals
-  { name: 'requests', group: 'Approvals', desc: 'Show your inbox (awaiting you) + outbox', handler: () => cmd_requests() },
+  {
+    name: 'requests',
+    group: 'Approvals',
+    desc: 'Show your inbox (awaiting you) + outbox',
+    handler: async () => (await import('./cmd/approvals')).cmd_requests(),
+  },
   {
     name: 'approve',
     group: 'Approvals',
     desc: 'Approve a request  approve <link> [-a <acct>|--lines]',
-    handler: args => cmd_approve(args),
+    handler: async args => (await import('./cmd/approvals')).cmd_approve(args),
   },
-  { name: 'reject', group: 'Approvals', desc: 'Reject a request awaiting you  reject <link>', handler: args => cmd_reject(args) },
-  { name: 'cancel', group: 'Approvals', desc: 'Cancel a request you sent  cancel <link>', handler: args => cmd_cancel(args) },
+  {
+    name: 'reject',
+    group: 'Approvals',
+    desc: 'Reject a request awaiting you  reject <link>',
+    handler: async args => (await import('./cmd/approvals')).cmd_reject(args),
+  },
+  {
+    name: 'cancel',
+    group: 'Approvals',
+    desc: 'Cancel a request you sent  cancel <link>',
+    handler: async args => (await import('./cmd/approvals')).cmd_cancel(args),
+  },
   {
     name: 'revert',
     group: 'Approvals',
     desc: 'Revert your rejected change  revert <link> [-a <acct>|--lines]',
-    handler: args => cmd_revert(args),
+    handler: async args => (await import('./cmd/approvals')).cmd_revert(args),
   },
   {
     name: 'accept-all',
     group: 'Approvals',
     desc: 'Bulk-approve from a counterparty  accept-all <user_id> -a <acct>',
-    handler: args => cmd_accept_all(args),
+    handler: async args => (await import('./cmd/approvals')).cmd_accept_all(args),
   },
   // Reference data
   {
     name: 'head-add',
     group: 'Reference data',
     desc: 'Create a head  head-add <name> -t <type> [--parent <ref>] [--link <user>]',
-    handler: args => cmd_head_add(args),
+    handler: async args => (await import('./cmd/resources')).cmd_head_add(args),
   },
-  { name: 'head-edit', group: 'Reference data', desc: 'Edit a head  head-edit <id> [...]', handler: args => cmd_head_edit(args) },
-  { name: 'head-rm', group: 'Reference data', desc: 'Delete a head  head-rm <id>', handler: args => cmd_head_rm(args) },
+  {
+    name: 'head-edit',
+    group: 'Reference data',
+    desc: 'Edit a head  head-edit <id> [...]',
+    handler: async args => (await import('./cmd/resources')).cmd_head_edit(args),
+  },
+  {
+    name: 'head-rm',
+    group: 'Reference data',
+    desc: 'Delete a head  head-rm <id>',
+    handler: async args => (await import('./cmd/resources')).cmd_head_rm(args),
+  },
   {
     name: 'asset-add',
     group: 'Reference data',
     desc: 'Create an asset  asset-add <name> -t <type> [--ticker T]',
-    handler: args => cmd_asset_add(args),
+    handler: async args => (await import('./cmd/resources')).cmd_asset_add(args),
   },
-  { name: 'asset-edit', group: 'Reference data', desc: 'Edit an asset  asset-edit <id> [...]', handler: args => cmd_asset_edit(args) },
-  { name: 'asset-rm', group: 'Reference data', desc: 'Delete an asset  asset-rm <id>', handler: args => cmd_asset_rm(args) },
+  {
+    name: 'asset-edit',
+    group: 'Reference data',
+    desc: 'Edit an asset  asset-edit <id> [...]',
+    handler: async args => (await import('./cmd/resources')).cmd_asset_edit(args),
+  },
+  {
+    name: 'asset-rm',
+    group: 'Reference data',
+    desc: 'Delete an asset  asset-rm <id>',
+    handler: async args => (await import('./cmd/resources')).cmd_asset_rm(args),
+  },
   // Account & preferences
   {
     name: 'pay',
     group: 'Account',
     desc: 'Record a UPI payment  pay --to <acct> -a <amt> [--note ...]',
-    handler: args => cmd_pay(args),
+    handler: async args => (await import('./cmd/account')).cmd_pay(args),
   },
-  { name: 'prefs', group: 'Account', desc: 'Show preferences, defaults, UPI, admin', handler: () => cmd_prefs() },
-  { name: 'prefs-set', group: 'Account', desc: 'Set preferences  prefs-set [--theme|--masking|...]', handler: args => cmd_prefs_set(args) },
+  {
+    name: 'prefs',
+    group: 'Account',
+    desc: 'Show preferences, defaults, UPI, admin',
+    handler: async () => (await import('./cmd/account')).cmd_prefs(),
+  },
+  {
+    name: 'prefs-set',
+    group: 'Account',
+    desc: 'Set preferences  prefs-set [--theme|--masking|...]',
+    handler: async args => (await import('./cmd/account')).cmd_prefs_set(args),
+  },
   {
     name: 'defaults-set',
     group: 'Account',
     desc: 'Set defaults  defaults-set [--account|--allocation|--income-expense|--asset <ref>]',
-    handler: args => cmd_defaults_set(args),
+    handler: async args => (await import('./cmd/account')).cmd_defaults_set(args),
   },
-  { name: 'upi-set', group: 'Account', desc: 'Set/clear your UPI handle  upi-set <upi_id|none>', handler: args => cmd_upi_set(args) },
-  { name: 'signup', group: 'Account', desc: 'Create a new account (and log in)', handler: () => cmd_signup() },
-  { name: 'passwd', group: 'Account', desc: 'Change your password', handler: () => cmd_passwd() },
-  { name: 'rename', group: 'Account', desc: 'Change your username', handler: () => cmd_rename() },
+  {
+    name: 'upi-set',
+    group: 'Account',
+    desc: 'Set/clear your UPI handle  upi-set <upi_id|none>',
+    handler: async args => (await import('./cmd/account')).cmd_upi_set(args),
+  },
+  { name: 'signup', group: 'Account', desc: 'Create a new account (and log in)', handler: async () => (await import('./cmd/account')).cmd_signup() },
+  { name: 'passwd', group: 'Account', desc: 'Change your password', handler: async () => (await import('./cmd/account')).cmd_passwd() },
+  { name: 'rename', group: 'Account', desc: 'Change your username', handler: async () => (await import('./cmd/account')).cmd_rename() },
   // Templates
-  { name: 'templates', group: 'Templates', desc: 'List your transaction templates', handler: () => cmd_templates() },
-  { name: 'template-add', group: 'Templates', desc: 'Create a template (interactive)', handler: () => cmd_template_add() },
+  {
+    name: 'templates',
+    group: 'Templates',
+    desc: 'List your transaction templates',
+    handler: async () => (await import('./cmd/templates')).cmd_templates(),
+  },
+  {
+    name: 'template-add',
+    group: 'Templates',
+    desc: 'Create a template (interactive)',
+    handler: async () => (await import('./cmd/templates')).cmd_template_add(),
+  },
   {
     name: 'template-apply',
     group: 'Templates',
     desc: 'Create a transaction from a template  template-apply <id>',
-    handler: args => cmd_template_apply(args),
+    handler: async args => (await import('./cmd/templates')).cmd_template_apply(args),
   },
-  { name: 'template-rm', group: 'Templates', desc: 'Delete a template  template-rm <id>', handler: args => cmd_template_rm(args) },
+  {
+    name: 'template-rm',
+    group: 'Templates',
+    desc: 'Delete a template  template-rm <id>',
+    handler: async args => (await import('./cmd/templates')).cmd_template_rm(args),
+  },
   // Export
-  { name: 'export', group: 'Export', desc: 'Your data as a CSV-per-table ZIP  export [-o file.zip]', handler: args => cmd_export(args) },
+  {
+    name: 'export',
+    group: 'Export',
+    desc: 'Your data as a CSV-per-table ZIP  export [-o file.zip]',
+    handler: async args => (await import('./cmd/export')).cmd_export(args),
+  },
   {
     name: 'export-xlsx',
     group: 'Export',
     desc: 'Your data as a linked .xlsx workbook  export-xlsx [-o file.xlsx]',
-    handler: args => cmd_export_xlsx(args),
+    handler: async args => (await import('./cmd/export')).cmd_export_xlsx(args),
   },
-  { name: 'dump', group: 'Export', desc: 'Restorable SQL dump  dump [-o file.sql]', handler: args => cmd_dump(args) },
+  {
+    name: 'dump',
+    group: 'Export',
+    desc: 'Restorable SQL dump  dump [-o file.sql]',
+    handler: async args => (await import('./cmd/export')).cmd_dump(args),
+  },
   // Interactive UI
-  { name: 'repl', group: 'Interactive', desc: 'Start the text-based interactive REPL', handler: () => repl() },
-  { name: 'ui', group: 'Interactive', desc: 'Start the graphical terminal UI (Ink)', handler: () => start_ui() },
+  { name: 'repl', group: 'Interactive', desc: 'Start the text-based interactive REPL', handler: async () => repl() },
+  { name: 'ui', group: 'Interactive', desc: 'Start the graphical terminal UI (Ink)', handler: async () => (await import('./ui')).start_ui() },
 ]
 
 const CMD_NAMES = COMMANDS.map(c => c.name)
@@ -300,27 +401,33 @@ async function repl() {
 async function main() {
   const [, , command, ...rest] = process.argv
 
+  // Dynamic import for start_ui
   if (command === undefined && process.stdin.isTTY) {
     // No command + interactive terminal → Ink UI
-    return start_ui()
+    return (await import('./ui')).start_ui()
   }
 
   if (command === undefined || command === 'help' || command === '--help' || command === '-h') {
     print_help()
-    return
+    process.exit(0)
   }
 
   return dispatch(command, rest)
 }
 
 main()
-  .catch(err => {
-    console.error(`✗ ${err instanceof Error ? err.message : String(err)}`)
+  .catch(e => {
+    console.error(e instanceof Error ? e.message : e)
     process.exitCode = 1
   })
   .finally(async () => {
+    // dynamically import the prompt functions
+    const { close_prompt } = await import('./prompt')
     close_prompt()
-    await prisma.$disconnect()
-    // Redis (ioredis) keeps the event loop alive; force-exit once work is done.
+    // dynamically import prisma to disconnect
+    try {
+      const { prisma } = await import('@/lib/prisma')
+      await prisma.$disconnect()
+    } catch {}
     process.exit(process.exitCode ?? 0)
   })

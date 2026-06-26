@@ -7,9 +7,14 @@ import { require_session } from '../auth_store'
 import { table, money, fmt_date } from '../format'
 import { load_heads, load_assets } from '../shared'
 
-export async function cmd_heads() {
+export async function cmd_heads(rest: string[]) {
+  const { values } = parseArgs({ args: rest, options: { json: { type: 'boolean' } }, allowPositionals: true })
   const { uid } = await require_session()
   const heads = await load_heads(uid)
+  if (values.json) {
+    console.log(JSON.stringify(heads, null, 2))
+    return
+  }
   const nameById = new Map(heads.map(h => [h.id, h.name]))
   const rows = heads.map((h, i) => [
     String(i + 1),
@@ -21,9 +26,14 @@ export async function cmd_heads() {
   console.log(table(['#', 'id', 'type', 'parent', 'name'], rows))
 }
 
-export async function cmd_assets() {
+export async function cmd_assets(rest: string[]) {
+  const { values } = parseArgs({ args: rest, options: { json: { type: 'boolean' } }, allowPositionals: true })
   await require_session()
   const assets = await load_assets()
+  if (values.json) {
+    console.log(JSON.stringify(assets, null, 2))
+    return
+  }
   const rows = assets.map((a, i) => [String(i + 1), a.id, a.type, a.ticker ?? '', a.name + (a.is_active ? '' : ' (inactive)')])
   console.log(table(['#', 'id', 'type', 'ticker', 'name'], rows))
 }
@@ -37,6 +47,7 @@ export async function cmd_txns(rest: string[]) {
       search: { type: 'string', short: 's' },
       from: { type: 'string' },
       to: { type: 'string' },
+      json: { type: 'boolean' },
     },
     allowPositionals: false,
   })
@@ -62,6 +73,10 @@ export async function cmd_txns(rest: string[]) {
       line_items: { select: { txn_value: true } },
     },
   })
+  if (values.json) {
+    console.log(JSON.stringify(txns, null, 2))
+    return
+  }
   const rows = txns.map(t => {
     const amount = t.line_items.reduce((s, li) => s + (li.txn_value && li.txn_value.toNumber() > 0 ? li.txn_value.toNumber() : 0), 0)
     return [t.id, fmt_date(t.datetime), String(t._count.line_items), amount > 0 ? money(amount) : '—', t.description ?? '']
@@ -79,6 +94,13 @@ export async function cmd_txn(rest: string[]) {
   })
   if (!raw) throw new Error('Transaction not found')
   const t = normalize_txn(raw)
+
+  const { values } = parseArgs({ args: rest, options: { json: { type: 'boolean' } }, allowPositionals: true })
+  if (values.json) {
+    console.log(JSON.stringify(t, null, 2))
+    return
+  }
+
   console.log(`Transaction ${t.id}`)
   console.log(`  Date:        ${fmt_date(t.datetime)}`)
   console.log(`  Description: ${t.description ?? '—'}`)
@@ -95,11 +117,32 @@ export async function cmd_txn(rest: string[]) {
   if (total > 0) console.log(`\n  Total: ${money(total)}`)
 }
 
-export async function cmd_balances() {
+export async function cmd_balances(rest: string[]) {
+  const { values } = parseArgs({ args: rest, options: { json: { type: 'boolean' } }, allowPositionals: true })
   const { uid } = await require_session()
   const [{ accountsToAssets }, heads, assets] = await Promise.all([compute_balances_core(uid), load_heads(uid), load_assets()])
   const headById = new Map(heads.map(h => [h.id, h]))
   const assetById = new Map(assets.map(a => [a.id, a]))
+
+  if (values.json) {
+    const data = Array.from(accountsToAssets.entries()).map(([headId, assetMap]) => {
+      const head = headById.get(headId)
+      return {
+        head_id: headId,
+        head_name: head?.name,
+        head_type: head?.type,
+        assets: Array.from(assetMap.entries()).map(([assetId, bal]) => ({
+          asset_id: assetId,
+          asset_name: assetById.get(assetId)?.name,
+          qty: bal.qty,
+          txn_value: bal.txn_value,
+        })),
+      }
+    })
+    console.log(JSON.stringify(data, null, 2))
+    return
+  }
+
   const rows: string[][] = []
   for (const [headId, assetMap] of accountsToAssets) {
     const head = headById.get(headId)
