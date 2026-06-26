@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { get_date_obj_from_indian_date } from '@/app/_utils/date'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 import type { ActionResult } from '@/app/_actions/_result'
+import { get_line_item_defaults_core } from '@/app/_core/preferences_core'
 import { ask } from './prompt'
 import { table, fmt_date } from './format'
 
@@ -10,7 +11,7 @@ export const load_heads = (uid: string) =>
   prisma.accounting_head.findMany({
     where: { user_id: uid },
     orderBy: [{ type: 'asc' }, { order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-    select: { id: true, name: true, type: true, is_active: true, linked_user_id: true },
+    select: { id: true, name: true, type: true, is_active: true, linked_user_id: true, parent_id: true },
   })
 
 export const load_assets = () =>
@@ -46,22 +47,26 @@ export async function ask_datetime(label: string, fallback: Date): Promise<Date>
 
 /** Interactively build a list of line items, listing heads/assets for reference. */
 export async function build_line_items(uid: string): Promise<CreateLineItemInput[]> {
-  const heads = await load_heads(uid)
-  const assets = await load_assets()
+  const [heads, assets, defaults] = await Promise.all([load_heads(uid), load_assets(), get_line_item_defaults_core(uid)])
+
+  const defaultHeadIds = new Set([defaults.default_account_id, defaults.default_allocation_id, defaults.default_income_expense_id].filter(Boolean))
+  const defaultAsset = assets.find(a => a.id === defaults.default_asset_id)
+
   console.log('\nHeads:')
   console.log(
     table(
       ['#', 'type', 'name'],
-      heads.map((h, i) => [String(i + 1), h.type, h.name]),
+      heads.map((h, i) => [String(i + 1), h.type, h.name + (defaultHeadIds.has(h.id) ? ' *' : '')]),
     ),
   )
   console.log('\nAssets:')
   console.log(
     table(
-      ['#', 'type', 'name'],
-      assets.map((a, i) => [String(i + 1), a.type, a.name]),
+      ['#', 'type', 'ticker', 'name'],
+      assets.map((a, i) => [String(i + 1), a.type, a.ticker ?? '', a.name + (a.id === defaults.default_asset_id ? ' *' : '')]),
     ),
   )
+  if (defaultHeadIds.size > 0 || defaultAsset) console.log('  (* = your default)')
   console.log('')
 
   const items: CreateLineItemInput[] = []
@@ -77,8 +82,13 @@ export async function build_line_items(uid: string): Promise<CreateLineItemInput
     let head, asset
     try {
       head = resolve_ref(headRef, heads, 'head')
-      const assetRef = (await ask('         asset (#/name/id): ')).trim()
-      asset = resolve_ref(assetRef, assets, 'asset')
+      const assetHint = defaultAsset ? `, blank = ${defaultAsset.name}` : ''
+      const assetRef = (await ask(`         asset (#/name/id${assetHint}): `)).trim()
+      if (!assetRef && defaultAsset) {
+        asset = defaultAsset
+      } else {
+        asset = resolve_ref(assetRef, assets, 'asset')
+      }
     } catch (e) {
       console.log(`  ${(e as Error).message}`)
       continue

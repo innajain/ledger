@@ -41,7 +41,7 @@ Read
   balances                       Show per-account asset balances
   worth                          Net worth, allocation breakdown, Investments XIRR
   holdings                       Per-asset quantity, cost, live price, current value
-  txns [-n N]                    List recent transactions (default 20)
+  txns [-n N] [-s text] [--from dd-MM-yyyy] [--to dd-MM-yyyy]   List transactions (default 20)
   txn <id>                       Show a transaction's line items
 
 Write
