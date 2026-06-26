@@ -14,6 +14,7 @@
     "analyze": "ANALYZE=true next build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "cli": "tsx --tsconfig cli/tsconfig.json cli/index.ts",
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {
@@ -69,6 +70,7 @@
     "prisma": "^7.8.0",
     "simple-git-hooks": "^2.13.1",
     "tailwindcss": "^4.3.1",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },

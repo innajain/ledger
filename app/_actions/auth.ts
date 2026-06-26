@@ -1,20 +1,18 @@
 'use server'
 
 import bcrypt from 'bcryptjs'
-import { SignJWT, jwtVerify } from 'jose'
 import { cookies, headers } from 'next/headers'
 import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
-import { env, isProd } from '@/lib/env'
+import { isProd } from '@/lib/env'
 import type { user } from '@/generated/prisma/client'
 import { z } from 'zod'
 import { ActionResult, ok, err } from './_result'
 import { rate_limit } from '@/lib/rate_limit'
 import { redis } from '@/lib/redis'
+import { authenticate, sign_token, verify_token, JWT_EXPIRY_SECONDS } from '@/app/_core/auth_core'
 
 const token_name = 'ledger_token'
-const JWT_EXPIRY_DAYS = 7
-const JWT_EXPIRY_SECONDS = JWT_EXPIRY_DAYS * 24 * 60 * 60
 
 function fromCatch(error: unknown): ActionResult<never> {
   if (error instanceof z.ZodError) return err('VALIDATION', error.issues[0].message)
@@ -53,19 +51,9 @@ const ChangeUsernameSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
-const secret_bytes = new TextEncoder().encode(env.JWT_SECRET)
-
-async function sign_token(payload: { uid: string; username: string }): Promise<string> {
-  return new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setIssuedAt().setExpirationTime(`${JWT_EXPIRY_DAYS}d`).sign(secret_bytes)
-}
-
-async function verify_token(token: string): Promise<{ uid: string; username?: string; iat?: number }> {
-  const { payload } = await jwtVerify(token, secret_bytes, { algorithms: ['HS256'] })
-  if (typeof payload.uid !== 'string') throw new Error('invalid token')
-  const username = typeof payload.username === 'string' ? payload.username : undefined
-  const iat = typeof payload.iat === 'number' ? payload.iat : undefined
-  return { uid: payload.uid, username, iat }
-}
+// JWT signing/verification + password check live in the framework-agnostic core
+// (`app/_core/auth_core.ts`) so the CLI shares them; this file keeps the
+// web-only concerns (cookies, headers, rate limiting, session revocation).
 
 // --- Session revocation -------------------------------------------------------
 // Tokens for a user whose issued-at (`iat`) predates `auth:revoke_before:<uid>`
@@ -141,14 +129,8 @@ export async function log_in(payload: z.infer<typeof AuthSchema>): Promise<Actio
     const within_user = await rate_limit(`login:user:${username.toLowerCase()}`, 5, 5 * 60)
     if (!within_ip || !within_user) return err('UNAUTHORIZED', 'Too many attempts. Please wait a minute and try again.')
 
-    const userRec = await prisma.user.findUnique({
-      where: { username },
-      select: { id: true, username: true, password_hash: true },
-    })
+    const userRec = await authenticate(username, password)
     if (!userRec) return err('UNAUTHORIZED', 'invalid credentials')
-
-    const passwordOk = await bcrypt.compare(password, userRec.password_hash)
-    if (!passwordOk) return err('UNAUTHORIZED', 'invalid credentials')
 
     const token = await sign_token({ uid: userRec.id, username: userRec.username })
     await set_session_cookie(token)
