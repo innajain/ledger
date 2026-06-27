@@ -22,7 +22,8 @@ const GAP = 2
  * tracks the columns (no more hand-counted `'─'.repeat(N)`), optional right
  * alignment and per-cell colour. Replaces the per-screen hand-rolled tables.
  */
-export function DataTable<T>({ columns, rows }: { columns: Column<T>[]; rows: T[] }) {
+/** When `selectedIndex` is set, that row is highlighted (an interactive cursor). */
+export function DataTable<T>({ columns, rows, selectedIndex }: { columns: Column<T>[]; rows: T[]; selectedIndex?: number }) {
   const ruleWidth = columns.reduce((w, c) => w + c.width, 0) + GAP * (columns.length - 1)
   const justify = (c: Column<T>) => (c.align === 'right' ? 'flex-end' : 'flex-start')
 
@@ -36,17 +37,20 @@ export function DataTable<T>({ columns, rows }: { columns: Column<T>[]; rows: T[
         ))}
       </Box>
       <Text color="gray">{'─'.repeat(ruleWidth)}</Text>
-      {rows.map((row, ri) => (
-        <Box key={ri}>
-          {columns.map((c, ci) => (
-            <Box key={ci} width={c.width} marginRight={ci < columns.length - 1 ? GAP : 0} justifyContent={justify(c)}>
-              <Text color={c.color?.(row) ?? c.fixedColor} wrap="truncate">
-                {c.cell(row)}
-              </Text>
-            </Box>
-          ))}
-        </Box>
-      ))}
+      {rows.map((row, ri) => {
+        const selected = ri === selectedIndex
+        return (
+          <Box key={ri}>
+            {columns.map((c, ci) => (
+              <Box key={ci} width={c.width} marginRight={ci < columns.length - 1 ? GAP : 0} justifyContent={justify(c)}>
+                <Text color={selected ? 'black' : (c.color?.(row) ?? c.fixedColor)} backgroundColor={selected ? 'cyan' : undefined} wrap="truncate">
+                  {c.cell(row)}
+                </Text>
+              </Box>
+            ))}
+          </Box>
+        )
+      })}
     </Box>
   )
 }

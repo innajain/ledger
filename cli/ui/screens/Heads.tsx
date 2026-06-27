@@ -2,9 +2,11 @@ import React from 'react'
 import { prisma } from '@/lib/prisma'
 import { load_heads } from '../../shared'
 import { useAsync } from '../hooks/useAsync'
+import { useExitOnEsc } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
+import type { ScreenProps } from '../types'
 
 type HeadRow = {
   id: string
@@ -24,7 +26,8 @@ const columns: Column<HeadRow>[] = [
   { header: 'Active', width: 8, cell: r => (r.active ? 'Yes' : 'No'), color: r => (r.active ? 'green' : 'red') },
 ]
 
-export function Heads({ uid }: { uid: string }) {
+export function Heads({ uid, active, onExit }: ScreenProps) {
+  useExitOnEsc(active, onExit)
   const { data: rows, error } = useAsync<HeadRow[]>(async () => {
     const heads = await load_heads(uid)
     const users = await prisma.user.findMany({ select: { id: true, username: true } })

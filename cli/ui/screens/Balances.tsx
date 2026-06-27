@@ -3,9 +3,11 @@ import { compute_balances_core } from '@/app/_core/balances_core'
 import { load_heads, load_assets } from '../../shared'
 import { money, qty } from '../../format'
 import { useAsync } from '../hooks/useAsync'
+import { useExitOnEsc } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
+import type { ScreenProps } from '../types'
 
 type BalanceRow = {
   account: string
@@ -21,7 +23,8 @@ const columns: Column<BalanceRow>[] = [
   { header: 'Value', width: 16, align: 'right', cell: r => money(r.value), color: r => (r.value < 0 ? 'red' : undefined) },
 ]
 
-export function Balances({ uid }: { uid: string }) {
+export function Balances({ uid, active, onExit }: ScreenProps) {
+  useExitOnEsc(active, onExit)
   const { data: rows, error } = useAsync<BalanceRow[]>(async () => {
     const [{ accountsToAssets }, heads, assets] = await Promise.all([compute_balances_core(uid), load_heads(uid), load_assets()])
     const headById = new Map(heads.map(h => [h.id, h]))

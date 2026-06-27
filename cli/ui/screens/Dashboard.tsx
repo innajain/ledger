@@ -3,8 +3,10 @@ import { Box, Text } from 'ink'
 import { compute_net_worth, subtree_total, compute_xirr_for_accounts } from '@/app/_core/valuation_core'
 import { money } from '../../format'
 import { useAsync } from '../hooks/useAsync'
+import { useExitOnEsc } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { Loading, ErrorView } from '../components/Status'
+import type { ScreenProps } from '../types'
 
 type DashboardData = {
   networth: number
@@ -28,7 +30,8 @@ function Stat({ label, value, color, hint }: { label: string; value: string; col
   )
 }
 
-export function Dashboard({ uid }: { uid: string }) {
+export function Dashboard({ uid, active, onExit }: ScreenProps) {
+  useExitOnEsc(active, onExit)
   const { data, error } = useAsync<DashboardData>(async () => {
     const { networth, allocations } = await compute_net_worth(uid)
     const invest = subtree_total(allocations, 'Investments')

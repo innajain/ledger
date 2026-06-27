@@ -29,13 +29,16 @@ export function App() {
   const { session, loading, login, logout } = useSession()
   const { exit } = useApp()
   const [tab, setTab] = useState('dashboard')
+  const [focus, setFocus] = useState<'menu' | 'content'>('menu')
 
-  // Quit from anywhere once signed in (login screen owns the keyboard otherwise).
+  // The menu owns the keyboard until you enter a screen; the focused screen
+  // owns it after that and returns here on Esc (via the onExit prop).
   useInput(
     (input, key) => {
       if (input === 'q' || key.escape) exit()
+      else if (key.rightArrow || key.return) setFocus('content')
     },
-    { isActive: !!session },
+    { isActive: !!session && focus === 'menu' },
   )
 
   if (loading) return <Text color="yellow">Loading session…</Text>
@@ -44,9 +47,14 @@ export function App() {
   const handleSelect = (item: { value: string }) => {
     if (item.value === 'exit') exit()
     else if (item.value === 'logout') logout()
-    else setTab(item.value)
+    else {
+      setTab(item.value)
+      setFocus('content')
+    }
   }
 
+  const onExit = () => setFocus('menu')
+  const active = focus === 'content'
   const activeLabel = TABS.find(t => t.value === tab)?.label ?? ''
 
   return (
@@ -63,23 +71,23 @@ export function App() {
 
       <Box flexDirection="row" marginTop={1}>
         <Box width={18} flexDirection="column" marginRight={2}>
-          <SelectInput items={MENU} onSelect={handleSelect} />
+          <SelectInput items={MENU} isFocused={focus === 'menu'} onSelect={handleSelect} />
         </Box>
         <Box flexGrow={1} flexDirection="column">
-          {tab === 'dashboard' && <Dashboard uid={session.uid} />}
-          {tab === 'holdings' && <Holdings uid={session.uid} />}
-          {tab === 'balances' && <Balances uid={session.uid} />}
-          {tab === 'transactions' && <Transactions uid={session.uid} />}
-          {tab === 'approvals' && <Approvals uid={session.uid} />}
-          {tab === 'templates' && <Templates uid={session.uid} />}
-          {tab === 'heads' && <Heads uid={session.uid} />}
-          {tab === 'assets' && <Assets />}
+          {tab === 'dashboard' && <Dashboard uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'holdings' && <Holdings uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'balances' && <Balances uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'transactions' && <Transactions uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'approvals' && <Approvals uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'templates' && <Templates uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'heads' && <Heads uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'assets' && <Assets active={active} onExit={onExit} />}
         </Box>
       </Box>
 
       <Box marginTop={1}>
         <Text color="gray" dimColor>
-          ↑↓ navigate · enter open · q quit
+          {focus === 'menu' ? '↑↓ navigate · enter open · q quit' : 'esc back to menu'}
         </Text>
       </Box>
     </Box>

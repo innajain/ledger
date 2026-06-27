@@ -1,6 +1,7 @@
 import React from 'react'
 import { load_assets } from '../../shared'
 import { useAsync } from '../hooks/useAsync'
+import { useExitOnEsc } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
@@ -21,7 +22,8 @@ const columns: Column<AssetRow>[] = [
   { header: 'Active', width: 8, cell: r => (r.active ? 'Yes' : 'No'), color: r => (r.active ? 'green' : 'red') },
 ]
 
-export function Assets() {
+export function Assets({ active, onExit }: { active: boolean; onExit: () => void }) {
+  useExitOnEsc(active, onExit)
   const { data: rows, error } = useAsync<AssetRow[]>(async () => {
     const assets = await load_assets()
     return assets.map(a => ({ id: a.id.substring(0, 8), name: a.name, type: a.type, ticker: a.ticker, active: a.is_active }))

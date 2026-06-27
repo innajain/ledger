@@ -2,9 +2,11 @@ import React from 'react'
 import { Box } from 'ink'
 import { get_inbox, get_outbox } from '@/app/_utils/links'
 import { useAsync } from '../hooks/useAsync'
+import { useExitOnEsc } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
+import type { ScreenProps } from '../types'
 
 type ApprovalRow = {
   id: string
@@ -30,7 +32,8 @@ const outboxColumns: Column<ApprovalRow>[] = [
   { header: 'Description', width: 24, cell: r => r.desc },
 ]
 
-export function Approvals({ uid }: { uid: string }) {
+export function Approvals({ uid, active, onExit }: ScreenProps) {
+  useExitOnEsc(active, onExit)
   const { data, error } = useAsync(async () => {
     const [inboxRaw, outboxRaw] = await Promise.all([get_inbox(uid), get_outbox(uid)])
     const inbox: ApprovalRow[] = inboxRaw.map(i => ({

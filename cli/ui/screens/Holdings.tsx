@@ -7,9 +7,11 @@ import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { money, qty } from '../../format'
 import { useAsync } from '../hooks/useAsync'
+import { useExitOnEsc } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
+import type { ScreenProps } from '../types'
 
 type HoldingRow = {
   asset: string
@@ -29,7 +31,8 @@ const columns: Column<HoldingRow>[] = [
   { header: 'Value', width: 14, align: 'right', cell: r => money(r.value) },
 ]
 
-export function Holdings({ uid }: { uid: string }) {
+export function Holdings({ uid, active, onExit }: ScreenProps) {
+  useExitOnEsc(active, onExit)
   const { data, error } = useAsync(async () => {
     const [{ assetsToAccounts }, assets] = await Promise.all([
       compute_balances_core(uid),

@@ -1,9 +1,11 @@
 import React from 'react'
 import { get_transaction_templates_core } from '@/app/_core/templates_core'
 import { useAsync } from '../hooks/useAsync'
+import { useExitOnEsc } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
+import type { ScreenProps } from '../types'
 
 type TemplateRow = {
   id: string
@@ -17,7 +19,8 @@ const columns: Column<TemplateRow>[] = [
   { header: 'Lines', width: 8, align: 'right', cell: r => String(r.lines) },
 ]
 
-export function Templates({ uid }: { uid: string }) {
+export function Templates({ uid, active, onExit }: ScreenProps) {
+  useExitOnEsc(active, onExit)
   const { data: rows, error } = useAsync<TemplateRow[]>(async () => {
     const templates = await get_transaction_templates_core(uid)
     return templates.map(t => ({ id: t.id.substring(0, 8), desc: t.description ?? '—', lines: t.line_items.length }))
