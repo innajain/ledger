@@ -47,7 +47,7 @@ export async function ask_hidden(q: string): Promise<string> {
     // In single-shot mode rl.output is `masked_out` and `muted` does the job.
     // In REPL mode rl.output is `process.stdout`, so we swap it to a sink.
     // `output` exists at runtime but isn't in @types/node's Interface type.
-    const rl_any = r as unknown as { output: NodeJS.WritableStream }
+    const rl_any = r as unknown as { output: NodeJS.WritableStream; history?: string[] }
     const orig_output = rl_any.output
     const sink = new Writable({
       write(_chunk, _enc, cb) {
@@ -60,6 +60,9 @@ export async function ask_hidden(q: string): Promise<string> {
     r.question('', answer => {
       rl_any.output = orig_output
       muted = false
+      // readline records answered lines in history — keep the secret out of it so
+      // the REPL's up-arrow can't replay a just-typed password.
+      if (answer && rl_any.history?.[0] === answer) rl_any.history.shift()
       stdout.write('\n')
       resolve(answer)
     })

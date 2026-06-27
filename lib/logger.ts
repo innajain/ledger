@@ -8,7 +8,9 @@ import { isDev } from './env'
  * route, etc.). Do not import from edge runtime / client components.
  */
 export const logger = pino({
-  level: isDev() ? 'debug' : 'info',
+  // LEDGER_LOG_LEVEL overrides when set (the CLI sets it to 'warn' to keep info
+  // chatter off stdout so piped `--json` output stays clean); web leaves it unset.
+  level: process.env.LEDGER_LOG_LEVEL ?? (isDev() ? 'debug' : 'info'),
   ...(isDev()
     ? {
         transport: {

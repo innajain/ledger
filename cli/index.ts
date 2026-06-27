@@ -435,10 +435,29 @@ main()
     // dynamically import the prompt functions
     const { close_prompt } = await import('./prompt')
     close_prompt()
+    // Drain the best-effort push notifications that write/approval commands fire
+    // (on the web the runtime keeps them alive; here process.exit would drop them).
+    // Cap the wait so an unreachable push service can't hang the CLI.
+    try {
+      const { flush_notifications } = await import('@/app/_utils/notify_events')
+      const timeout = new Promise<void>(r => setTimeout(r, 2000).unref())
+      await Promise.race([flush_notifications(), timeout])
+    } catch {}
     // dynamically import prisma to disconnect
     try {
       const { prisma } = await import('@/lib/prisma')
       await prisma.$disconnect()
     } catch {}
+    // process.exit doesn't wait for buffered stdout/stderr to drain — flush first
+    // so piped/redirected output (e.g. `cli txns --json > f`) isn't truncated.
+    await Promise.all([flush_stream(process.stdout), flush_stream(process.stderr)])
     process.exit(process.exitCode ?? 0)
   })
+
+/** Resolve once a writable stream's buffered output has been flushed to its sink. */
+function flush_stream(s: NodeJS.WriteStream): Promise<void> {
+  return new Promise<void>(resolve => {
+    if (s.writableLength === 0) resolve()
+    else s.write('', () => resolve())
+  })
+}
