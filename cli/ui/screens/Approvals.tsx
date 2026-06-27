@@ -1,101 +1,66 @@
-import React, { useEffect, useState } from 'react'
-import { Text, Box } from 'ink'
+import React from 'react'
+import { Box } from 'ink'
 import { get_inbox, get_outbox } from '@/app/_utils/links'
+import { useAsync } from '../hooks/useAsync'
+import { Panel } from '../components/Panel'
+import { DataTable, type Column } from '../components/DataTable'
+import { Loading, ErrorView, Empty } from '../components/Status'
 
 type ApprovalRow = {
   id: string
   status: string
-  type: string
+  kind: string
   counterparty: string
   desc: string
 }
 
+const inboxColumns: Column<ApprovalRow>[] = [
+  { header: 'ID', width: 10, cell: r => r.id, fixedColor: 'yellow' },
+  { header: 'Kind', width: 10, cell: r => r.kind },
+  { header: 'From', width: 16, cell: r => r.counterparty },
+  { header: 'Status', width: 18, cell: r => r.status, color: r => (r.status.startsWith('rejected') ? 'red' : undefined) },
+  { header: 'Description', width: 24, cell: r => r.desc },
+]
+
+const outboxColumns: Column<ApprovalRow>[] = [
+  { header: 'ID', width: 10, cell: r => r.id, fixedColor: 'yellow' },
+  { header: 'Kind', width: 10, cell: r => r.kind },
+  { header: 'To', width: 16, cell: r => r.counterparty },
+  { header: 'Status', width: 18, cell: r => r.status, color: r => (r.status === 'rejected' ? 'red' : undefined) },
+  { header: 'Description', width: 24, cell: r => r.desc },
+]
+
 export function Approvals({ uid }: { uid: string }) {
-  const [rows, setRows] = useState<{ inbox: ApprovalRow[]; outbox: ApprovalRow[] } | null>(null)
-
-  useEffect(() => {
-    async function load() {
-      const [inboxRaw, outboxRaw] = await Promise.all([get_inbox(uid), get_outbox(uid)])
-
-      const inbox = inboxRaw.map(i => ({
-        id: i.link_id.substring(0, 8),
-        status: i.status + (i.can_revert ? ' (revertible)' : ''),
-        type: i.kind,
-        counterparty: i.other_username,
-        desc: i.description ?? '—',
-      }))
-
-      const outbox = outboxRaw.map(i => ({
-        id: i.link_id.substring(0, 8),
-        status: 'pending',
-        type: i.kind,
-        counterparty: i.other_username,
-        desc: i.description ?? '—',
-      }))
-
-      setRows({ inbox, outbox })
-    }
-    load()
+  const { data, error } = useAsync(async () => {
+    const [inboxRaw, outboxRaw] = await Promise.all([get_inbox(uid), get_outbox(uid)])
+    const inbox: ApprovalRow[] = inboxRaw.map(i => ({
+      id: i.link_id.substring(0, 8),
+      status: i.status + (i.can_revert ? ' ↩ revertible' : ''),
+      kind: i.kind,
+      counterparty: i.other_username,
+      desc: i.description ?? '—',
+    }))
+    const outbox: ApprovalRow[] = outboxRaw.map(i => ({
+      id: i.link_id.substring(0, 8),
+      status: 'pending',
+      kind: i.kind,
+      counterparty: i.other_username,
+      desc: i.description ?? '—',
+    }))
+    return { inbox, outbox }
   }, [uid])
 
-  if (!rows) return <Text color="yellow">Loading approvals...</Text>
+  if (error) return <ErrorView message={error} />
+  if (!data) return <Loading label="Loading approvals…" />
 
   return (
-    <Box flexDirection="column" marginY={1}>
-      <Box borderStyle="round" borderColor="magenta" padding={1} flexDirection="column">
-        <Text color="magenta" bold>
-          Inbox (Action Required)
-        </Text>
-        {rows.inbox.length === 0 ? (
-          <Text>No pending approvals.</Text>
-        ) : (
-          rows.inbox.map((r, i) => (
-            <Box key={i} flexDirection="row" marginTop={1}>
-              <Box width={10}>
-                <Text color="yellow">{r.id}</Text>
-              </Box>
-              <Box width={15}>
-                <Text>{r.type}</Text>
-              </Box>
-              <Box width={15}>
-                <Text>{r.counterparty}</Text>
-              </Box>
-              <Box width={20}>
-                <Text wrap="truncate">{r.desc}</Text>
-              </Box>
-            </Box>
-          ))
-        )}
-      </Box>
-
-      <Box borderStyle="round" borderColor="blue" padding={1} flexDirection="column" marginTop={1}>
-        <Text color="blue" bold>
-          Outbox (Waiting for Others)
-        </Text>
-        {rows.outbox.length === 0 ? (
-          <Text>No outgoing requests.</Text>
-        ) : (
-          rows.outbox.map((r, i) => (
-            <Box key={i} flexDirection="row" marginTop={1}>
-              <Box width={10}>
-                <Text color="yellow">{r.id}</Text>
-              </Box>
-              <Box width={15}>
-                <Text>{r.type}</Text>
-              </Box>
-              <Box width={15}>
-                <Text>{r.counterparty}</Text>
-              </Box>
-              <Box width={20}>
-                <Text wrap="truncate">{r.desc}</Text>
-              </Box>
-              <Box width={15}>
-                <Text color={r.status === 'rejected' ? 'red' : 'white'}>{r.status}</Text>
-              </Box>
-            </Box>
-          ))
-        )}
-      </Box>
+    <Box flexDirection="column">
+      <Panel title={`Inbox — awaiting you (${data.inbox.length})`} color="magenta">
+        {data.inbox.length === 0 ? <Empty label="Nothing awaiting you." /> : <DataTable columns={inboxColumns} rows={data.inbox} />}
+      </Panel>
+      <Panel title={`Outbox — awaiting them (${data.outbox.length})`} color="blue">
+        {data.outbox.length === 0 ? <Empty label="No outgoing requests." /> : <DataTable columns={outboxColumns} rows={data.outbox} />}
+      </Panel>
     </Box>
   )
 }

@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react'
-import { Text, Box } from 'ink'
+import React from 'react'
+import { Box, Text } from 'ink'
 import { compute_net_worth, subtree_total, compute_xirr_for_accounts } from '@/app/_core/valuation_core'
 import { money } from '../../format'
+import { useAsync } from '../hooks/useAsync'
+import { Panel } from '../components/Panel'
+import { Loading, ErrorView } from '../components/Status'
 
 type DashboardData = {
   networth: number
@@ -10,73 +13,66 @@ type DashboardData = {
   allocations: { name: string; total: number }[]
 }
 
+/** A label + right-aligned value row, used for the overview stats. */
+function Stat({ label, value, color, hint }: { label: string; value: string; color?: string; hint?: string }) {
+  return (
+    <Box>
+      <Box width={14}>
+        <Text>{label}</Text>
+      </Box>
+      <Text bold color={color}>
+        {value}
+      </Text>
+      {hint ? <Text color="cyan"> {hint}</Text> : null}
+    </Box>
+  )
+}
+
 export function Dashboard({ uid }: { uid: string }) {
-  const [data, setData] = useState<DashboardData | null>(null)
-
-  useEffect(() => {
-    async function load() {
-      const { networth, allocations } = await compute_net_worth(uid)
-      const invest = subtree_total(allocations, 'Investments')
-      const savings = subtree_total(allocations, 'Savings')
-
-      let xirr = null
-      if (invest && invest.total !== 0) {
-        xirr = await compute_xirr_for_accounts(uid, invest.ids, invest.total)
-      }
-
-      const allocs = allocations
-        .filter(a => Math.abs(a.total) >= 0.005)
-        .sort((a, b) => b.total - a.total)
-        .map(a => ({ name: a.name, total: a.total }))
-
-      setData({
-        networth,
-        investments: invest ? { total: invest.total, xirr } : null,
-        savings: savings ? savings.total : null,
-        allocations: allocs,
-      })
+  const { data, error } = useAsync<DashboardData>(async () => {
+    const { networth, allocations } = await compute_net_worth(uid)
+    const invest = subtree_total(allocations, 'Investments')
+    const savings = subtree_total(allocations, 'Savings')
+    const xirr = invest && invest.total !== 0 ? await compute_xirr_for_accounts(uid, invest.ids, invest.total) : null
+    return {
+      networth,
+      investments: invest ? { total: invest.total, xirr } : null,
+      savings: savings ? savings.total : null,
+      allocations: allocations.filter(a => Math.abs(a.total) >= 0.005).sort((a, b) => b.total - a.total),
     }
-    load()
   }, [uid])
 
-  if (!data) return <Text color="yellow">Loading dashboard...</Text>
+  if (error) return <ErrorView message={error} />
+  if (!data) return <Loading label="Loading dashboard…" />
 
   return (
-    <Box flexDirection="column" marginY={1}>
-      <Box borderStyle="round" borderColor="green" padding={1} flexDirection="column">
-        <Text color="green" bold>
-          Financial Overview
-        </Text>
-        <Box marginTop={1}>
-          <Text>Net Worth: </Text>
-          <Text bold>{money(data.networth)}</Text>
-        </Box>
-        {data.savings !== null && (
-          <Box>
-            <Text>Savings: </Text>
-            <Text>{money(data.savings)}</Text>
-          </Box>
-        )}
+    <Box flexDirection="column">
+      <Panel title="Financial Overview" color="green">
+        <Stat label="Net worth" value={money(data.networth)} />
+        {data.savings !== null && <Stat label="Savings" value={money(data.savings)} />}
         {data.investments && (
-          <Box>
-            <Text>Investments: </Text>
-            <Text>{money(data.investments.total)}</Text>
-            {data.investments.xirr !== null && <Text color="cyan"> (XIRR {(data.investments.xirr * 100).toFixed(2)}%)</Text>}
-          </Box>
+          <Stat
+            label="Investments"
+            value={money(data.investments.total)}
+            hint={data.investments.xirr !== null ? `(XIRR ${(data.investments.xirr * 100).toFixed(2)}%)` : undefined}
+          />
         )}
-      </Box>
+      </Panel>
 
-      <Box borderStyle="round" borderColor="blue" padding={1} flexDirection="column" marginTop={1}>
-        <Text color="blue" bold>
-          Allocations
-        </Text>
-        {data.allocations.map(a => (
-          <Box key={a.name} justifyContent="space-between" width={40}>
-            <Text>{a.name}</Text>
-            <Text>{money(a.total)}</Text>
-          </Box>
-        ))}
-      </Box>
+      {data.allocations.length > 0 && (
+        <Panel title="Allocations" color="blue">
+          {data.allocations.map(a => (
+            <Box key={a.name}>
+              <Box width={24}>
+                <Text wrap="truncate">{a.name}</Text>
+              </Box>
+              <Box width={16} justifyContent="flex-end">
+                <Text color={a.total < 0 ? 'red' : undefined}>{money(a.total)}</Text>
+              </Box>
+            </Box>
+          ))}
+        </Panel>
+      )}
     </Box>
   )
 }

@@ -1,62 +1,34 @@
-import React, { useEffect, useState } from 'react'
-import { Text, Box } from 'ink'
+import React from 'react'
 import { get_transaction_templates_core } from '@/app/_core/templates_core'
+import { useAsync } from '../hooks/useAsync'
+import { Panel } from '../components/Panel'
+import { DataTable, type Column } from '../components/DataTable'
+import { Loading, ErrorView, Empty } from '../components/Status'
 
 type TemplateRow = {
   id: string
   desc: string
-  linesCount: number
+  lines: number
 }
 
-export function Templates({ uid }: { uid: string }) {
-  const [rows, setRows] = useState<TemplateRow[] | null>(null)
+const columns: Column<TemplateRow>[] = [
+  { header: 'ID', width: 10, cell: r => r.id, fixedColor: 'gray' },
+  { header: 'Description', width: 40, cell: r => r.desc },
+  { header: 'Lines', width: 8, align: 'right', cell: r => String(r.lines) },
+]
 
-  useEffect(() => {
-    async function load() {
-      const templates = await get_transaction_templates_core(uid)
-      const mapped = templates.map(t => ({
-        id: t.id.substring(0, 8),
-        desc: t.description ?? '—',
-        linesCount: t.line_items.length,
-      }))
-      setRows(mapped)
-    }
-    load()
+export function Templates({ uid }: { uid: string }) {
+  const { data: rows, error } = useAsync<TemplateRow[]>(async () => {
+    const templates = await get_transaction_templates_core(uid)
+    return templates.map(t => ({ id: t.id.substring(0, 8), desc: t.description ?? '—', lines: t.line_items.length }))
   }, [uid])
 
-  if (!rows) return <Text color="yellow">Loading templates...</Text>
-  if (rows.length === 0) return <Text>No templates found.</Text>
+  if (error) return <ErrorView message={error} />
+  if (!rows) return <Loading label="Loading templates…" />
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="magenta" padding={1} marginY={1}>
-      <Text color="magenta" bold>
-        Transaction Templates
-      </Text>
-      <Box flexDirection="row" marginTop={1}>
-        <Box width={10}>
-          <Text bold>ID</Text>
-        </Box>
-        <Box width={40}>
-          <Text bold>Description</Text>
-        </Box>
-        <Box width={15}>
-          <Text bold>Line Items</Text>
-        </Box>
-      </Box>
-      <Text color="gray">{'─'.repeat(65)}</Text>
-      {rows.map((r, i) => (
-        <Box key={i} flexDirection="row">
-          <Box width={10}>
-            <Text color="gray">{r.id}</Text>
-          </Box>
-          <Box width={40}>
-            <Text wrap="truncate">{r.desc}</Text>
-          </Box>
-          <Box width={15}>
-            <Text>{r.linesCount}</Text>
-          </Box>
-        </Box>
-      ))}
-    </Box>
+    <Panel title="Transaction Templates" color="magenta">
+      {rows.length === 0 ? <Empty label="No templates." /> : <DataTable columns={columns} rows={rows} />}
+    </Panel>
   )
 }

@@ -6,6 +6,13 @@ export function money(n: number): string {
   return currency_fmt.format(n)
 }
 
+const qty_fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 4 })
+
+/** Format an asset quantity: grouped, up to 4 dp, trailing zeros trimmed. */
+export function qty(n: number): string {
+  return qty_fmt.format(n)
+}
+
 export function fmt_date(d: Date): string {
   return get_indian_date_from_date_obj(d)
 }

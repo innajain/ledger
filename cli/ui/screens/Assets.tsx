@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react'
-import { Text, Box } from 'ink'
+import React from 'react'
 import { load_assets } from '../../shared'
+import { useAsync } from '../hooks/useAsync'
+import { Panel } from '../components/Panel'
+import { DataTable, type Column } from '../components/DataTable'
+import { Loading, ErrorView, Empty } from '../components/Status'
 
 type AssetRow = {
   id: string
@@ -10,69 +13,26 @@ type AssetRow = {
   active: boolean
 }
 
-export function Assets() {
-  const [rows, setRows] = useState<AssetRow[] | null>(null)
+const columns: Column<AssetRow>[] = [
+  { header: 'ID', width: 10, cell: r => r.id, fixedColor: 'gray' },
+  { header: 'Name', width: 24, cell: r => r.name },
+  { header: 'Type', width: 10, cell: r => r.type },
+  { header: 'Ticker', width: 14, cell: r => r.ticker ?? '—' },
+  { header: 'Active', width: 8, cell: r => (r.active ? 'Yes' : 'No'), color: r => (r.active ? 'green' : 'red') },
+]
 
-  useEffect(() => {
-    async function load() {
-      const assets = await load_assets()
-      const mapped = assets.map(a => ({
-        id: a.id.substring(0, 8),
-        name: a.name,
-        type: a.type,
-        ticker: a.ticker,
-        active: a.is_active,
-      }))
-      setRows(mapped)
-    }
-    load()
+export function Assets() {
+  const { data: rows, error } = useAsync<AssetRow[]>(async () => {
+    const assets = await load_assets()
+    return assets.map(a => ({ id: a.id.substring(0, 8), name: a.name, type: a.type, ticker: a.ticker, active: a.is_active }))
   }, [])
 
-  if (!rows) return <Text color="yellow">Loading assets...</Text>
-  if (rows.length === 0) return <Text>No assets found.</Text>
+  if (error) return <ErrorView message={error} />
+  if (!rows) return <Loading label="Loading assets…" />
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="blue" padding={1} marginY={1}>
-      <Text color="blue" bold>
-        Asset Catalog
-      </Text>
-      <Box flexDirection="row" marginTop={1}>
-        <Box width={10}>
-          <Text bold>ID</Text>
-        </Box>
-        <Box width={25}>
-          <Text bold>Name</Text>
-        </Box>
-        <Box width={15}>
-          <Text bold>Type</Text>
-        </Box>
-        <Box width={15}>
-          <Text bold>Ticker</Text>
-        </Box>
-        <Box width={10}>
-          <Text bold>Active</Text>
-        </Box>
-      </Box>
-      <Text color="gray">{'─'.repeat(75)}</Text>
-      {rows.map((r, i) => (
-        <Box key={i} flexDirection="row">
-          <Box width={10}>
-            <Text color="gray">{r.id}</Text>
-          </Box>
-          <Box width={25}>
-            <Text wrap="truncate">{r.name}</Text>
-          </Box>
-          <Box width={15}>
-            <Text>{r.type}</Text>
-          </Box>
-          <Box width={15}>
-            <Text>{r.ticker ?? '—'}</Text>
-          </Box>
-          <Box width={10}>
-            <Text color={r.active ? 'green' : 'red'}>{r.active ? 'Yes' : 'No'}</Text>
-          </Box>
-        </Box>
-      ))}
-    </Box>
+    <Panel title="Asset Catalog" color="blue">
+      {rows.length === 0 ? <Empty label="No assets." /> : <DataTable columns={columns} rows={rows} />}
+    </Panel>
   )
 }
