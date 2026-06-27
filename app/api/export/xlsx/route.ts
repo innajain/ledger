@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { formatInTimeZone } from 'date-fns-tz'
 import { get_current_user } from '@/app/_actions/auth'
-import { collect_user_export, cell } from '@/app/_utils/db_export'
-import { build_xlsx, type XlsxTable } from '@/app/_utils/xlsx'
+import { build_user_xlsx } from '@/app/_utils/db_export'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
 
@@ -17,13 +16,7 @@ export async function GET() {
     const user = await get_current_user()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const dumps = await collect_user_export(user.id)
-    const tables: XlsxTable[] = dumps.map(d => ({
-      name: d.table,
-      columns: d.columns.map(c => ({ name: c, numeric: d.numericColumns.includes(c), fkSheet: d.foreignKeys[c] })),
-      rows: d.rows.map(r => r.map(cell)),
-    }))
-    const xlsx = build_xlsx(tables)
+    const xlsx = await build_user_xlsx(user.id)
 
     const stamp = formatInTimeZone(new Date(), USER_TIMEZONE, 'yyyy-MM-dd_HH-mm')
     return new NextResponse(new Uint8Array(xlsx), {

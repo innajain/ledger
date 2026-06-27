@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { validate_line_items } from './validate_line_items'
 import { toDecimal } from './decimal'
 import { ActionError } from '@/app/_actions/_result'
-import type { CreateLineItemInput } from '@/app/_actions/transactions'
+import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 
 // Helpers for the cross-user transaction approval workflow. Pure server logic
 // operating on a passed Prisma transaction client — see docs/linked-accounts-plan.md.

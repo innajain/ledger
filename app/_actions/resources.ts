@@ -4,56 +4,22 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id, require_admin } from '@/app/_actions/auth'
 import type { accounting_head_type, asset_type } from '@/generated/prisma/client'
-import { get_latest_etf_or_shares_price, get_nav } from '../_utils/price_fetcher'
-import { invalidate_balances } from './compute_balances'
-import { backfill_links_for_account } from '../_utils/links'
-import { notify_request_pending } from '../_utils/notify_events'
-import { ActionResult, ok, err, fromError, ActionError } from './_result'
+import {
+  find_user_by_username_core,
+  create_account_core,
+  update_account_core,
+  delete_account_core,
+  create_asset_core,
+  update_asset_core,
+  delete_asset_core,
+} from '@/app/_core/resources_core'
+import { ActionResult, ok, err, fromError } from './_result'
 
-// Validate and normalize a cross-user account link. Returns the linked user id
-// to store (or null to clear), or throws with a user-facing message.
-// `current_head_id` excludes the head being edited from the one-link-per-user check.
-async function resolve_linked_user(
-  user_id: string,
-  type: accounting_head_type | undefined,
-  linked_user_id: string | null,
-  current_head_id: string | null,
-): Promise<string | null> {
-  if (!linked_user_id) return null
-  if (type !== 'account') throw new ActionError('VALIDATION', 'Only account-type heads can be linked to another user')
-  if (linked_user_id === user_id) throw new ActionError('VALIDATION', 'You cannot link an account to yourself')
-  const target = await prisma.user.findUnique({ where: { id: linked_user_id }, select: { id: true } })
-  if (!target) throw new ActionError('NOT_FOUND', 'Linked user not found')
-  const dupe = await prisma.accounting_head.findFirst({
-    where: { user_id, linked_user_id, ...(current_head_id ? { id: { not: current_head_id } } : {}) },
-    select: { id: true },
-  })
-  if (dupe) throw new ActionError('VALIDATION', 'You already have an account linked to this user')
-  return linked_user_id
-}
-
-const findUserSchema = z.object({ username: z.string().trim().min(1, 'username is required') })
-
-// Resolve a username to a user id for the "link account to another user" picker.
-// Returns only id + username — no other PII crosses the boundary.
 export async function find_user_by_username(username: string): Promise<ActionResult<{ id: string; username: string }>> {
-  try {
-    const parsed = findUserSchema.safeParse({ username })
-    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
-    const me = await get_current_user_id()
-    if (!me) return err('UNAUTHORIZED', 'unauthorized')
-    const user = await prisma.user.findUnique({ where: { username: parsed.data.username }, select: { id: true, username: true } })
-    if (!user) return err('NOT_FOUND', 'No user with that username')
-    if (user.id === me) return err('VALIDATION', 'That is your own account')
-    return ok(user)
-  } catch (error) {
-    return fromError(error)
-  }
+  const me = await get_current_user_id()
+  if (!me) return err('UNAUTHORIZED', 'unauthorized')
+  return find_user_by_username_core(me, username)
 }
-
-const createAccountSchema = z.object({
-  name: z.string().trim().min(1, 'name cannot be empty string').max(120, 'name is too long'),
-})
 
 export async function create_account(
   name: string,
@@ -61,37 +27,10 @@ export async function create_account(
   parent_id?: string | null,
   linked_user_id?: string | null,
 ): Promise<ActionResult> {
-  try {
-    const parsed = createAccountSchema.safeParse({ name })
-    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
-    name = parsed.data.name
-
-    const user_id = await get_current_user_id()
-    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
-
-    const linked = await resolve_linked_user(user_id, type, linked_user_id ?? null, null)
-
-    // A parent must be one of the caller's own heads (update_account already
-    // enforces this; create_account previously trusted the client value).
-    if (parent_id) {
-      const parent = await prisma.accounting_head.findUnique({ where: { id: parent_id, user_id }, select: { id: true } })
-      if (!parent) throw new ActionError('VALIDATION', 'invalid parent account')
-    }
-
-    await prisma.accounting_head.create({
-      data: { name, type, user_id, parent_id, linked_user_id: linked },
-    })
-    await invalidate_balances(user_id)
-    return ok()
-  } catch (error) {
-    return fromError(error)
-  }
+  const user_id = await get_current_user_id()
+  if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
+  return create_account_core(user_id, name, type, parent_id, linked_user_id)
 }
-
-const updateAccountSchema = z.object({
-  id: z.string().min(1, 'id is required'),
-  name: z.string().trim().min(1, 'name cannot be empty string').max(120, 'name is too long').optional(),
-})
 
 export async function update_account(
   id: string,
@@ -102,119 +41,16 @@ export async function update_account(
   is_placeholder?: boolean | undefined,
   linked_user_id?: string | null | undefined,
 ): Promise<ActionResult> {
-  try {
-    const parsed = updateAccountSchema.safeParse({ id, name })
-    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
-    id = parsed.data.id
-    name = parsed.data.name
-
-    const user_id = await get_current_user_id()
-    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
-
-    const existing = await prisma.accounting_head.findUnique({
-      where: { id, user_id },
-    })
-    if (!existing) throw new ActionError('NOT_FOUND', 'account not found')
-
-    // If parent_id provided, validate
-    if (parent_id) {
-      if (parent_id === id) throw new ActionError('VALIDATION', 'parent cannot be the account itself')
-      // ensure parent exists and belongs to user
-      const p = await prisma.accounting_head.findUnique({
-        where: { id: parent_id, user_id },
-        select: { id: true, user_id: true, parent_id: true },
-      })
-      if (!p) throw new ActionError('VALIDATION', 'invalid parent account')
-
-      const all_accounts = await prisma.accounting_head.findMany({
-        where: { user_id },
-        select: { id: true, parent_id: true },
-      })
-      const parentMap = new Map(all_accounts.map(a => [a.id, a.parent_id]))
-
-      // prevent cycles: walk up the parent chain
-      let curr_parent_id: string | null = p.parent_id
-      while (curr_parent_id) {
-        if (curr_parent_id === id) throw new ActionError('VALIDATION', 'invalid parent: would create cycle')
-        curr_parent_id = parentMap.get(curr_parent_id) ?? null
-      }
-    }
-
-    // Cross-user link change. Block changing/clearing a link that already has
-    // shared transactions (would orphan their approval links).
-    let linked_update: string | null | undefined = undefined
-    if (linked_user_id !== undefined) {
-      linked_update = await resolve_linked_user(user_id, type ?? existing.type, linked_user_id ?? null, id)
-      if (existing.linked_user_id && existing.linked_user_id !== linked_update) {
-        const inUse = await prisma.transaction_link.findFirst({
-          where: {
-            OR: [
-              { txn_a: { user_id, line_items: { some: { accounting_head_id: id } } } },
-              { txn_b: { user_id, line_items: { some: { accounting_head_id: id } } } },
-            ],
-          },
-          select: { id: true },
-        })
-        if (inUse) throw new ActionError('VALIDATION', 'Cannot change this account’s linked user while it has shared transactions')
-      }
-    }
-
-    // Newly linking an existing account retroactively turns its transactions
-    // into pending requests for the counterparty.
-    const newly_linked = linked_update != null && linked_update !== existing.linked_user_id
-
-    const backfilled = await prisma.$transaction(
-      async tx => {
-        await tx.accounting_head.update({
-          where: { id, user_id },
-          data: {
-            name,
-            type,
-            parent_id,
-            ...(is_active !== undefined ? { is_active } : {}),
-            ...(is_placeholder !== undefined ? { is_placeholder } : {}),
-            ...(linked_update !== undefined ? { linked_user_id: linked_update } : {}),
-          },
-        })
-        return newly_linked ? await backfill_links_for_account(tx, user_id, id, linked_update!) : 0
-      },
-      { timeout: 30_000 },
-    )
-    await invalidate_balances(user_id)
-    // Linking retroactively opened approval requests for the counterparty — ping them once.
-    if (newly_linked && backfilled > 0) void notify_request_pending(linked_update!, user_id)
-    return ok()
-  } catch (error) {
-    return fromError(error)
-  }
+  const user_id = await get_current_user_id()
+  if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
+  return update_account_core(user_id, id, name, type, parent_id, is_active, is_placeholder, linked_user_id)
 }
-
-const deleteAccountSchema = z.object({
-  id: z.string().min(1, 'id is required'),
-})
 
 export async function delete_account(id: string): Promise<ActionResult> {
-  try {
-    const parsed = deleteAccountSchema.safeParse({ id })
-    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
-    id = parsed.data.id
-
-    const user_id = await get_current_user_id()
-    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
-
-    await prisma.accounting_head.delete({ where: { id, user_id } })
-    await invalidate_balances(user_id)
-    return ok()
-  } catch (error) {
-    return fromError(error)
-  }
+  const user_id = await get_current_user_id()
+  if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
+  return delete_account_core(user_id, id)
 }
-
-// Assets
-const createAssetSchema = z.object({
-  name: z.string().trim().min(1, 'name cannot be empty string').max(120, 'name is too long'),
-  ticker: z.string().trim().min(1, 'ticker cannot be empty string').max(64, 'ticker is too long').nullish(),
-})
 
 export async function create_asset(
   name: string,
@@ -222,42 +58,15 @@ export async function create_asset(
   ticker?: string | null | undefined,
   parent_id?: string | null | undefined,
 ): Promise<ActionResult> {
+  // Authorize before any user-controlled ticker triggers an external price
+  // fetch / NAV sync — those have side effects and must not be reachable by non-admins.
   try {
-    // Authorize before any user-controlled ticker triggers an external price
-    // fetch / NAV sync — those have side effects (outbound requests, Redis
-    // writes) and must not be reachable by non-admins.
     await require_admin()
-
-    const parsed = createAssetSchema.safeParse({ name, ticker })
-    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
-    name = parsed.data.name
-    ticker = parsed.data.ticker
-
-    if (type === 'etf' || type === 'mf' || type === 'shares') {
-      if (!ticker || ticker.length === 0) throw new ActionError('VALIDATION', 'ticker is required for asset type ' + type)
-      if (type === 'mf') {
-        if ((await get_nav({ code: ticker })) === null) throw new ActionError('VALIDATION', 'invalid ticker for mutual fund: ' + ticker)
-      } else if (type === 'etf' || type === 'shares') {
-        if ((await get_latest_etf_or_shares_price(ticker)) === null) throw new ActionError('VALIDATION', 'invalid ticker for etf/shares: ' + ticker)
-      }
-    } else if (ticker !== undefined && ticker !== null) {
-      throw new ActionError('VALIDATION', 'ticker cannot be non-null for asset type ' + type)
-    }
-
-    await prisma.asset.create({
-      data: { name, type, ticker, parent_id },
-    })
-    return ok()
   } catch (error) {
     return fromError(error)
   }
+  return create_asset_core(name, type, ticker, parent_id)
 }
-
-const updateAssetSchema = z.object({
-  id: z.string().min(1, 'id is required'),
-  name: z.string().trim().min(1, 'name cannot be empty string').max(120, 'name is too long').optional(),
-  ticker: z.string().trim().min(1, 'ticker cannot be empty string').max(64, 'ticker is too long').nullish(),
-})
 
 export async function update_asset(
   id: string,
@@ -269,86 +78,20 @@ export async function update_asset(
   is_placeholder?: boolean | undefined,
 ): Promise<ActionResult> {
   try {
-    const parsed = updateAssetSchema.safeParse({ id, name, ticker })
-    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
-    id = parsed.data.id
-    name = parsed.data.name
-    ticker = parsed.data.ticker
-
     await require_admin()
-
-    const existing = await prisma.asset.findUnique({
-      where: { id },
-    })
-    if (!existing) throw new ActionError('NOT_FOUND', 'asset not found')
-
-    if (parent_id) {
-      if (parent_id === id) throw new ActionError('VALIDATION', 'parent cannot be the asset itself')
-      const p = await prisma.asset.findUnique({
-        where: { id: parent_id },
-        select: { id: true, parent_id: true },
-      })
-      if (!p) throw new ActionError('VALIDATION', 'invalid parent asset')
-
-      const all_assets = await prisma.asset.findMany({
-        select: { id: true, parent_id: true },
-      })
-      const parentMap = new Map(all_assets.map(a => [a.id, a.parent_id]))
-
-      let curr_parent_id: string | null = p.parent_id
-      while (curr_parent_id) {
-        if (curr_parent_id === id) throw new ActionError('VALIDATION', 'invalid parent: would create cycle')
-        curr_parent_id = parentMap.get(curr_parent_id) ?? null
-      }
-    }
-
-    await prisma.$transaction(async prisma => {
-      const asset = await prisma.asset.update({
-        where: { id },
-        data: {
-          name,
-          type,
-          ticker,
-          parent_id,
-          ...(is_active !== undefined ? { is_active } : {}),
-          ...(is_placeholder !== undefined ? { is_placeholder } : {}),
-        },
-      })
-      if (type === 'etf' || type === 'mf' || type === 'shares') {
-        if (!asset.ticker || asset.ticker.length === 0) throw new ActionError('VALIDATION', 'ticker is required for asset type ' + type)
-        if (type === 'mf') {
-          if ((await get_nav({ code: asset.ticker })) === null) throw new ActionError('VALIDATION', 'invalid ticker for mutual fund: ' + asset.ticker)
-        } else if (type === 'etf' || type === 'shares') {
-          if ((await get_latest_etf_or_shares_price(asset.ticker)) === null)
-            throw new ActionError('VALIDATION', 'invalid ticker for etf/shares: ' + asset.ticker)
-        }
-      } else if (asset.ticker !== null) {
-        throw new ActionError('VALIDATION', 'ticker cannot non-null for asset type ' + type)
-      }
-    })
-    return ok()
   } catch (error) {
     return fromError(error)
   }
+  return update_asset_core(id, name, type, ticker, parent_id, is_active, is_placeholder)
 }
-
-const deleteAssetSchema = z.object({
-  id: z.string().min(1, 'id is required'),
-})
 
 export async function delete_asset(id: string): Promise<ActionResult> {
   try {
-    const parsed = deleteAssetSchema.safeParse({ id })
-    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
-    id = parsed.data.id
-
     await require_admin()
-
-    await prisma.asset.delete({ where: { id } })
-    return ok()
   } catch (error) {
     return fromError(error)
   }
+  return delete_asset_core(id)
 }
 
 const updateHierarchyOrderSchema = z.object({
