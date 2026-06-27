@@ -1,7 +1,7 @@
 'use server'
 
 import { get_current_user_id } from './auth'
-import { CreateLineItemInput } from './transactions'
+import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 import { revalidatePath } from 'next/cache'
 import { ActionResult, err } from './_result'
 import {

@@ -3,7 +3,7 @@
 import { get_current_user_id } from '@/app/_actions/auth'
 import { approve_request_core, accept_all_from_core, cancel_request_core, reject_request_core, revert_request_core } from '@/app/_core/approvals_core'
 import { ActionResult, err } from './_result'
-import type { CreateLineItemInput } from './transactions'
+import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 
 export async function approve_request(link_id: string, balancing_lines: CreateLineItemInput[] = []): Promise<ActionResult> {
   const me = await get_current_user_id()

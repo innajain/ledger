@@ -4,8 +4,6 @@ import { get_current_user_id } from '@/app/_actions/auth'
 import { create_transaction_core, delete_transaction_core, create_upi_payment_core, type CreateLineItemInput } from '@/app/_core/transactions_core'
 import { ActionResult, err } from './_result'
 
-export type { CreateLineItemInput }
-
 export async function create_transaction(
   datetime: Date,
   line_items: CreateLineItemInput[],
