@@ -2,6 +2,7 @@ import ClientPage from './ClientPage'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
+import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { get_editor_context } from '@/app/_utils/links'
 import { profile } from '@/lib/metrics/profile'
 
@@ -27,7 +28,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     )
   }
 
-  const [rawAccounts, assets] = await Promise.all([
+  const [rawAccounts, assets, defaults] = await Promise.all([
     prisma.accounting_head.findMany({
       where: { user_id, is_active: true, is_placeholder: false },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
@@ -38,12 +39,13 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true, type: true },
     }),
+    get_line_item_defaults(),
   ])
   // Tag linked (person) accounts so the editor only offers your own non-linked
   // accounts for balancing, while still rendering the locked linked rows.
   const accounts = rawAccounts.map(a => ({ id: a.id, name: a.name, type: a.type, linked: a.linked_user_id !== null }))
 
-  return <ClientPage ctx={ctx} accounts={accounts} assets={assets} />
+  return <ClientPage ctx={ctx} accounts={accounts} assets={assets} defaults={defaults} />
 }
 
 export default profile('/requests/[id]', Page)

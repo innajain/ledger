@@ -1,6 +1,7 @@
 import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
+import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { get_inbox, get_outbox } from '@/app/_utils/links'
 import { profile } from '@/lib/metrics/profile'
 import type { Metadata } from 'next'
@@ -23,7 +24,7 @@ async function Page() {
       </div>
     )
   }
-  const [items, outbox, accounts] = await Promise.all([
+  const [items, outbox, accounts, defaults] = await Promise.all([
     get_inbox(user_id),
     get_outbox(user_id),
     // Only the user's own (non-linked) accounts can absorb the balancing —
@@ -33,8 +34,12 @@ async function Page() {
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true },
     }),
+    get_line_item_defaults(),
   ])
-  return <ClientPage items={items} outbox={outbox} accounts={accounts} />
+  // Preselect the user's preferred default account in the "balance with" picker,
+  // falling back to the first account when it's unset or not a valid option here.
+  const defaultAccountId = accounts.find(a => a.id === defaults.default_account_id)?.id ?? accounts[0]?.id
+  return <ClientPage items={items} outbox={outbox} accounts={accounts} defaultAccountId={defaultAccountId} />
 }
 
 export default profile('/requests', Page)
