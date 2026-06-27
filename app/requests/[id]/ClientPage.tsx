@@ -9,6 +9,8 @@ import { TransactionLineItems, LineItemData } from '@/app/_components/Transactio
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { EditorContext } from '@/app/_utils/links'
+import type { LineItemDefaults } from '@/app/_actions/preferences'
+import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app/_utils/line_item_defaults'
 
 type SharedLine = NonNullable<EditorContext['previous']>['mirrored_lines'][number]
 
@@ -116,35 +118,39 @@ export default function ClientPage({
   ctx,
   accounts,
   assets,
+  defaults,
 }: {
   ctx: EditorContext
   accounts: { id: string; name: string; type: string; linked?: boolean }[]
   assets: { id: string; name: string; type: asset_type }[]
+  defaults: LineItemDefaults
 }) {
   const router = useRouter()
+  // Only your own (non-linked) accounts are valid balancing lines — linked
+  // person accounts are server-derived/locked here.
+  const ownAccounts = accounts.filter(a => !a.linked)
+  const defaultAsset = pickDefaultAsset(assets, defaults)
+
+  function defaultItemForType(typeKey: AccountTypeKey): LineItemData {
+    const acc = pickDefaultAccount(ownAccounts, defaults, typeKey)
+    return {
+      accounting_head_id: acc?.id ?? '',
+      asset_id: defaultAsset?.id ?? assets[0]?.id ?? '',
+      quantity: null,
+      txn_value: null,
+      description: '',
+      datetime: '',
+    }
+  }
+
   const [items, setItems] = useState<LineItemData[]>(
-    ctx.prefill_balancing.length > 0
-      ? ctx.prefill_balancing.map(b => ({ ...b, datetime: '' }))
-      : [
-          {
-            accounting_head_id: accounts.find(a => !a.linked)?.id ?? '',
-            asset_id: assets[0]?.id ?? '',
-            quantity: null,
-            txn_value: null,
-            description: '',
-            datetime: '',
-          },
-        ],
+    ctx.prefill_balancing.length > 0 ? ctx.prefill_balancing.map(b => ({ ...b, datetime: '' })) : [defaultItemForType('account')],
   )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function addItem(typeKey: string) {
-    const acc = accounts.find(a => a.type === typeKey && !a.linked)
-    setItems(prev => [
-      { accounting_head_id: acc?.id ?? '', asset_id: assets[0]?.id ?? '', quantity: null, txn_value: null, description: '', datetime: '' },
-      ...prev,
-    ])
+    setItems(prev => [defaultItemForType(typeKey as AccountTypeKey), ...prev])
   }
   function removeItem(i: number) {
     setItems(prev => prev.filter((_, idx) => idx !== i))

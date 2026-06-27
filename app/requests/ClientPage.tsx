@@ -29,10 +29,12 @@ export default function ClientPage({
   items,
   outbox = [],
   accounts,
+  defaultAccountId,
 }: {
   items: InboxItem[]
   outbox?: OutboxItem[]
   accounts: { id: string; name: string }[]
+  defaultAccountId?: string
 }) {
   const router = useRouter()
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -41,7 +43,7 @@ export default function ClientPage({
   const [error, setError] = useState<string | null>(null)
 
   async function bulkAccept(otherId: string) {
-    const acct = balancingByOther[otherId] ?? accounts[0]?.id
+    const acct = balancingByOther[otherId] ?? defaultAccountId ?? accounts[0]?.id
     if (!acct) {
       setError('Add an account first to balance with')
       return
@@ -282,7 +284,7 @@ export default function ClientPage({
                     </span>
                     <label className="text-sm text-slate-500 dark:text-slate-400">balance with</label>
                     <select
-                      value={balancingByOther[otherId] ?? accounts[0].id}
+                      value={balancingByOther[otherId] ?? defaultAccountId ?? accounts[0].id}
                       onChange={e => setBalancingByOther(prev => ({ ...prev, [otherId]: e.target.value }))}
                       className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                     >
