@@ -29,7 +29,7 @@ import { get_inbox, get_outbox } from '@/app/_utils/links'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
-import { get_date_obj_from_indian_date } from '@/app/_utils/date'
+import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/app/_utils/date'
 import type { ActionResult } from '@/app/_actions/_result'
 
 // ---------------------------------------------------------------------------
@@ -91,6 +91,21 @@ function resolve_ref<T extends { id: string; name: string; type?: string; is_act
   throw new Error(`No ${kind} matching "${ref}". Valid options — ${format_candidates(list)}`)
 }
 
+/**
+ * A transaction's net inflow/outflow = signed sum of txn_value over its account
+ * lines — the same per-transaction total the web UI shows (positive = net in,
+ * negative = net out, ~0 = transfer). Accepts raw or normalized lines: on account
+ * lines txn_value is set for non-rupee assets and quantity carries the rupee value.
+ */
+function net_account_flow(
+  line_items: { accounting_head: { type: string }; quantity: Prisma.Decimal | null; txn_value: Prisma.Decimal | null }[],
+): number {
+  const n = line_items
+    .filter(li => li.accounting_head.type === 'account')
+    .reduce((s, li) => s + (li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0), 0)
+  return Math.round(n * 100) / 100
+}
+
 /** Accept dd-MM-yyyy (IST) or an ISO string; default to now. */
 function parse_date(s?: string): Date {
   if (!s) return new Date()
@@ -144,7 +159,8 @@ function register_tools(server: McpServer) {
   server.registerTool(
     'get_net_worth',
     {
-      description: 'Total net worth and the Investments XIRR. Pass include_allocations to also get the per-head allocation breakdown.',
+      description:
+        'Headline dashboard figures: total net worth, Investments current value + XIRR, and Savings current value. Pass include_allocations to also get the per-head allocation breakdown.',
       inputSchema: { include_allocations: z.boolean().optional().describe('Include the full allocation breakdown (default false)') },
       annotations: ro,
     },
@@ -152,11 +168,13 @@ function register_tools(server: McpServer) {
       const uid = get_uid(extra as ToolExtra)
       const { networth, allocations } = await compute_net_worth(uid)
       const invest = subtree_total(allocations, 'Investments')
+      const savings = subtree_total(allocations, 'Savings')
       const xirr = invest && invest.total !== 0 ? await compute_xirr_for_accounts(uid, invest.ids, invest.total) : null
       return text({
         net_worth: networth,
         investments: invest?.total ?? 0,
         investments_xirr: xirr,
+        savings: savings?.total ?? 0,
         ...(args.include_allocations
           ? {
               allocations: allocations
@@ -233,12 +251,14 @@ function register_tools(server: McpServer) {
     'list_transactions',
     {
       description:
-        'List recent transactions with debit/credit amounts. Optional text search and IST date range (dd-MM-yyyy). debit = money flowing out of accounts (expenses, transfers out); credit = money flowing in (income, transfers in).',
+        'List recent transactions (newest first) as a compact index: id, datetime, description, and amount (net inflow/outflow in INR — signed sum over the account lines, matching the web UI: positive = net in, negative = net out, ~0 = transfer). Optional text search and IST date range (dd-MM-yyyy). ' +
+        "Set include_line_items to attach each transaction's full normalized line items (head, head_type, asset, quantity, txn_value) — use that to inspect specific transactions. Do NOT sum amount across rows to total spending/income (transfers, EMIs and investments net through here too); use get_income_expense for period totals.",
       inputSchema: {
         limit: z.number().int().positive().max(200).optional(),
         search: z.string().optional(),
         from: z.string().optional().describe('dd-MM-yyyy'),
         to: z.string().optional().describe('dd-MM-yyyy'),
+        include_line_items: z.boolean().optional().describe("Attach each transaction's full normalized line items (default false; larger payload)"),
       },
       annotations: ro,
     },
@@ -251,50 +271,55 @@ function register_tools(server: McpServer) {
         toDate = get_date_obj_from_indian_date(args.to)
         toDate.setDate(toDate.getDate() + 1)
       }
-      const txns = await prisma.transaction.findMany({
-        where: {
-          user_id: uid,
-          ...(args.search ? { description: { contains: args.search, mode: 'insensitive' } } : {}),
-          ...(fromDate || toDate ? { datetime: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lt: toDate } : {}) } } : {}),
-        },
-        orderBy: { datetime: 'desc' },
-        take,
-        include: {
-          _count: { select: { line_items: true } },
-          line_items: { select: { quantity: true, txn_value: true, accounting_head: { select: { type: true } } } },
-        },
-      })
-      return text(
-        txns.map(t => {
-          // For rupee assets txn_value is null in DB; quantity holds the INR amount.
-          // For non-rupee assets txn_value holds the INR value.
-          const inr = (li: { quantity: { toNumber(): number } | null; txn_value: { toNumber(): number } | null }) =>
-            li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0
-          const account_lines = t.line_items.filter(li => li.accounting_head.type === 'account')
-          const debit = account_lines.reduce((s, li) => {
-            const v = inr(li)
-            return v < 0 ? s + Math.abs(v) : s
-          }, 0)
-          const credit = account_lines.reduce((s, li) => {
-            const v = inr(li)
-            return v > 0 ? s + v : s
-          }, 0)
-          return {
+      const where = {
+        user_id: uid,
+        ...(args.search ? { description: { contains: args.search, mode: 'insensitive' as const } } : {}),
+        ...(fromDate || toDate ? { datetime: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lt: toDate } : {}) } } : {}),
+      }
+      const orderBy = { datetime: 'desc' as const }
+
+      if (args.include_line_items) {
+        const txns = await prisma.transaction.findMany({
+          where,
+          orderBy,
+          take,
+          include: { line_items: { include: { accounting_head: true, asset: true } } },
+        })
+        return text(
+          txns.map(normalize_txn).map(t => ({
             id: t.id,
             datetime: t.datetime,
             description: t.description,
-            line_count: t._count.line_items,
-            debit,
-            credit,
-          }
-        }),
-      )
+            line_items: t.line_items.map(li => ({
+              head: li.accounting_head.name,
+              head_type: li.accounting_head.type,
+              asset: li.asset.name,
+              quantity: li.quantity.toNumber(),
+              txn_value: li.txn_value.toNumber(),
+              description: li.description,
+            })),
+          })),
+        )
+      }
+
+      const txns = await prisma.transaction.findMany({
+        where,
+        orderBy,
+        take,
+        include: { line_items: { select: { quantity: true, txn_value: true, accounting_head: { select: { type: true } } } } },
+      })
+      return text(txns.map(t => ({ id: t.id, datetime: t.datetime, description: t.description, amount: net_account_flow(t.line_items) })))
     },
   )
 
   server.registerTool(
     'get_transaction',
-    { description: "Show one transaction's line items.", inputSchema: { id: z.string() }, annotations: ro },
+    {
+      description:
+        'Show one transaction: its total value (net inflow/outflow) and all normalized line items, with head_type so they can be grouped account / allocation / income_expense.',
+      inputSchema: { id: z.string() },
+      annotations: ro,
+    },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const raw = await prisma.transaction.findFirst({
@@ -307,6 +332,7 @@ function register_tools(server: McpServer) {
         id: t.id,
         datetime: t.datetime,
         description: t.description,
+        total: net_account_flow(t.line_items),
         line_items: t.line_items.map(li => ({
           head: li.accounting_head.name,
           head_type: li.accounting_head.type,
@@ -357,6 +383,45 @@ function register_tools(server: McpServer) {
       const uid = get_uid(extra as ToolExtra)
       const [inbox, outbox] = await Promise.all([get_inbox(uid), get_outbox(uid)])
       return text({ inbox, outbox })
+    },
+  )
+
+  server.registerTool(
+    'get_income_expense',
+    {
+      description:
+        'Net income and expense by accounting head over an IST date range. This is the CORRECT way to total spending or income for a period — never sum list_transactions debit/credit for that, as those gross account flows include transfers, reimbursements, EMIs, card payments and investments that are neither income nor spend. ' +
+        'Every income/expense line is included (e.g. a ₹35 lunch posts −35 to the "Expenses" head; a transfer or EMI posts nothing here). Returns one row per income/expense head with its net INR in ledger convention: spending is negative (e.g. "Expenses"), income positive (e.g. "Salary", "Interest", "Cashbacks"). Defaults to the current calendar month.',
+      inputSchema: {
+        from: z.string().optional().describe('dd-MM-yyyy (IST). Default: first day of the current month'),
+        to: z.string().optional().describe('dd-MM-yyyy (IST), inclusive. Default: today'),
+      },
+      annotations: ro,
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const today = get_indian_date_from_date_obj(new Date())
+      const from = args.from ?? `01-${today.slice(3)}`
+      const to = args.to ?? today
+      const fromDate = get_date_obj_from_indian_date(from)
+      const toDate = get_date_obj_from_indian_date(to)
+      toDate.setDate(toDate.getDate() + 1)
+      const txns = await prisma.transaction.findMany({
+        where: { user_id: uid, datetime: { gte: fromDate, lt: toDate }, line_items: { some: { accounting_head: { type: 'income_expense' } } } },
+        include: { line_items: { include: { accounting_head: true, asset: true } } },
+      })
+      const totals = new Map<string, number>()
+      for (const t of txns.map(normalize_txn)) {
+        for (const li of t.line_items) {
+          if (li.accounting_head.type !== 'income_expense') continue
+          totals.set(li.accounting_head.name, (totals.get(li.accounting_head.name) ?? 0) + li.txn_value.toNumber())
+        }
+      }
+      const rows = [...totals]
+        .map(([head, net]) => ({ head, net: Math.round(net * 100) / 100 }))
+        .filter(r => r.net !== 0)
+        .sort((a, b) => Math.abs(b.net) - Math.abs(a.net))
+      return text({ from, to, rows, note: 'net is in ledger convention: expenses negative (money out), income positive (money in)' })
     },
   )
 
