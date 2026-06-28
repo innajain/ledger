@@ -12,7 +12,7 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import { Prisma } from '@/generated/prisma/client'
+import { Prisma, asset_type } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { resolve_access_token } from '@/lib/mcp/oauth'
 import { compute_net_worth, subtree_total, compute_xirr_for_accounts } from '@/app/_core/valuation_core'
@@ -26,8 +26,12 @@ import {
 } from '@/app/_core/transactions_core'
 import { approve_request_core, reject_request_core } from '@/app/_core/approvals_core'
 import { get_inbox, get_outbox } from '@/app/_utils/links'
-import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
+import { get_prices_for_assets, get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
+import { compute_fifo_remaining } from '@/app/_utils/fifo'
+import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
+import { calculate_xirr } from '@/app/_utils/xirr_calculator'
+import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/app/_utils/date'
 import type { ActionResult } from '@/app/_actions/_result'
@@ -222,6 +226,153 @@ function register_tools(server: McpServer) {
       }
       holdings.sort((a, b) => (b.value as number) - (a.value as number))
       return text({ holdings, total })
+    },
+  )
+
+  server.registerTool(
+    'get_asset',
+    {
+      description:
+        'Full detail for one asset (by id or name), mirroring its web page: type, ticker, live price, XIRR, parent/children, total current value, total book (txn) value, current investment (FIFO cost basis of remaining lots), and holdings aggregated by account and by allocation. Pass include_line_items for every account line (with FIFO remaining_quantity and the book value of that remainder); include_timeseries for the value-over-time series (priced assets only).',
+      inputSchema: {
+        asset: z.string().describe('Asset id or name'),
+        include_line_items: z.boolean().optional().describe('Attach per-account line items with FIFO remaining (default false)'),
+        include_timeseries: z.boolean().optional().describe('Attach the value-over-time series for priced assets (default false)'),
+      },
+      annotations: ro,
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const ref = resolve_ref(args.asset, await load_assets(), 'asset')
+      const asset = await prisma.asset.findUnique({
+        where: { id: ref.id },
+        include: {
+          // Assets are global; their line items belong to individual users — scope to the caller.
+          line_items: { where: { transaction: { user_id: uid } }, include: { accounting_head: true, transaction: true } },
+          parent: true,
+          children: true,
+        },
+      })
+      if (!asset) return { content: [{ type: 'text', text: 'Asset not found' }], isError: true }
+      const is_rupees = asset.type === asset_type.rupees
+
+      const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(asset.line_items)
+      const real_line_items = asset.line_items.filter(li => li.accounting_head.type === 'account')
+      const allocation_line_items = asset.line_items.filter(li => li.accounting_head.type === 'allocation')
+      const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
+      const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
+
+      // Aggregate per account
+      let asset_total = new Prisma.Decimal(0)
+      let book_total = new Prisma.Decimal(0)
+      const acc_map = new Map<string, { name: string; qty: Prisma.Decimal; book: Prisma.Decimal }>()
+      for (const li of real_line_items) {
+        const n = normalizedById.get(li.id)!
+        const e = acc_map.get(li.accounting_head.id) ?? { name: li.accounting_head.name, qty: new Prisma.Decimal(0), book: new Prisma.Decimal(0) }
+        e.qty = e.qty.add(n.quantity)
+        e.book = e.book.add(n.txn_value)
+        acc_map.set(li.accounting_head.id, e)
+      }
+      const by_account: { account: string; quantity: number; txn_value: number; current_value: number }[] = []
+      for (const e of acc_map.values()) {
+        book_total = book_total.add(e.book)
+        if (e.qty.equals(0)) continue
+        const cv = compute_current_value(asset.type, e.qty, priceDecimal, e.book)
+        asset_total = asset_total.add(cv)
+        by_account.push({ account: e.name, quantity: e.qty.toNumber(), txn_value: e.book.toNumber(), current_value: cv.toNumber() })
+      }
+
+      // Aggregate per allocation
+      const alloc_map = new Map<string, { name: string; qty: Prisma.Decimal; book: Prisma.Decimal }>()
+      for (const li of allocation_line_items) {
+        const n = normalizedById.get(li.id)!
+        const e = alloc_map.get(li.accounting_head.id) ?? { name: li.accounting_head.name, qty: new Prisma.Decimal(0), book: new Prisma.Decimal(0) }
+        e.qty = e.qty.add(n.quantity)
+        e.book = e.book.add(n.txn_value)
+        alloc_map.set(li.accounting_head.id, e)
+      }
+      const by_allocation: { allocation: string; quantity: number; txn_value: number | null; current_value: number }[] = []
+      for (const e of alloc_map.values()) {
+        if (e.qty.equals(0)) continue
+        const cv = compute_current_value(asset.type, e.qty, priceDecimal, e.book)
+        by_allocation.push({
+          allocation: e.name,
+          quantity: e.qty.toNumber(),
+          txn_value: is_rupees ? null : e.book.toNumber(),
+          current_value: cv.toNumber(),
+        })
+      }
+
+      // FIFO remaining per account line (non-rupee only) + current investment
+      const items = real_line_items.map(li => {
+        const n = normalizedById.get(li.id)!
+        return { li, qty: n.quantity, book: n.txn_value, sortDate: li.datetime ?? li.transaction.datetime }
+      })
+      const remaining_by_id = is_rupees
+        ? new Map<string, Prisma.Decimal>()
+        : compute_fifo_remaining(items.map(it => ({ id: it.li.id, group_key: it.li.accounting_head.id, qty: it.qty, date: it.sortDate })))
+      let current_investment = new Prisma.Decimal(0)
+      for (const { li, qty, book } of items) {
+        if (!qty.greaterThan(0)) continue
+        const rem = remaining_by_id.get(li.id) ?? new Prisma.Decimal(0)
+        if (rem.greaterThan(0)) current_investment = current_investment.add(book.mul(rem).div(qty))
+      }
+
+      // XIRR (non-rupee): each account line an outflow, current value an inflow today
+      let xirr: number | null = null
+      if (!is_rupees && real_line_items.length > 0) {
+        const cashflows = real_line_items.map(li => ({
+          amount: -normalizedById.get(li.id)!.txn_value.toNumber(),
+          when: li.datetime ?? li.transaction.datetime,
+        }))
+        if (!asset_total.equals(0)) cashflows.push({ amount: asset_total.toNumber(), when: new Date() })
+        xirr = calculate_xirr(cashflows)
+      }
+
+      const out: Record<string, unknown> = {
+        id: asset.id,
+        name: asset.name,
+        type: asset.type,
+        ticker: asset.ticker,
+        price: priceDecimal?.toNumber() ?? null,
+        xirr,
+        parent: asset.parent ? asset.parent.name : null,
+        children: asset.children.map(c => c.name),
+        total: asset_total.toNumber(),
+        txn_value_total: is_rupees ? null : book_total.toNumber(),
+        current_investment: is_rupees ? null : current_investment.toNumber(),
+        by_account,
+        by_allocation,
+      }
+
+      if (args.include_line_items) {
+        out.line_items = items
+          .map(({ li, qty, book }) => {
+            const rem = remaining_by_id.has(li.id) ? remaining_by_id.get(li.id)! : null
+            return {
+              transaction_id: li.transaction.id,
+              datetime: li.datetime ?? li.transaction.datetime,
+              account: li.accounting_head.name,
+              description: li.description ?? li.transaction.description,
+              quantity: qty.toNumber(),
+              txn_value: book.toNumber(),
+              current_value: compute_current_value(asset.type, qty, priceDecimal, book).toNumber(),
+              remaining_quantity: rem ? rem.toNumber() : null,
+              remaining_txn_value: rem && qty.greaterThan(0) ? book.mul(rem).div(qty).toNumber() : null,
+            }
+          })
+          .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime())
+      }
+
+      if (args.include_timeseries && (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares')) {
+        const series = await compute_value_timeseries(rawTransactions, { kind: 'asset', asset_id: asset.id }, [
+          { id: asset.id, type: asset.type, ticker: asset.ticker },
+        ])
+        reconcile_timeseries_tail(series, asset_total.toNumber(), xirr)
+        out.value_timeseries = series
+      }
+
+      return text(out)
     },
   )
 
