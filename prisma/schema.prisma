@@ -41,6 +41,8 @@ model user {
   links_as_a            transaction_link[]     @relation("LinkUserA")
   links_as_b            transaction_link[]     @relation("LinkUserB")
   push_subscriptions    push_subscription[]
+  mcp_oauth_codes       mcp_oauth_code[]
+  mcp_access_tokens     mcp_access_token[]
 }
 
 // A browser Web Push subscription for a user. One row per device/browser; a
@@ -314,4 +316,69 @@ model web_vital {
 
   @@index([route, name, created_at])
   @@index([created_at])
+}
+
+// ---------------------------------------------------------------------------
+// MCP / OAuth 2.1 — backs the remote MCP server (app/api/mcp) so external AI
+// clients (Claude, ChatGPT, Gemini) can read/write the ledger as the user.
+// Clients self-register via Dynamic Client Registration (RFC 7591); auth is the
+// OAuth 2.1 authorization-code + PKCE flow. Codes and tokens are stored hashed
+// (sha256) — the raw value is only ever returned to the client once.
+// ---------------------------------------------------------------------------
+
+// A self-registered OAuth client (one per AI app / connector instance).
+model mcp_oauth_client {
+  id            String  @id @default(cuid())
+  client_id     String  @unique
+  // Hashed client secret; null for public clients (PKCE, token_endpoint_auth_method "none").
+  client_secret String?
+  client_name   String?
+  redirect_uris String[]
+  scope         String?
+  created_at    DateTime @default(now())
+
+  codes  mcp_oauth_code[]
+  tokens mcp_access_token[]
+}
+
+// A short-lived authorization code minted by /api/oauth/authorize after consent.
+model mcp_oauth_code {
+  id                    String   @id @default(cuid())
+  code_hash             String   @unique
+  client_id             String
+  user_id               String
+  redirect_uri          String
+  code_challenge        String
+  code_challenge_method String
+  scope                 String?
+  expires_at            DateTime
+  used                  Boolean  @default(false)
+  created_at            DateTime @default(now())
+
+  client mcp_oauth_client @relation(fields: [client_id], references: [client_id], onDelete: Cascade)
+  user   user             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([client_id])
+  @@index([user_id])
+}
+
+// An issued access token (with optional refresh token). Revoke = set revoked or delete.
+model mcp_access_token {
+  id                 String    @id @default(cuid())
+  token_hash         String    @unique
+  refresh_token_hash String?   @unique
+  client_id          String
+  user_id            String
+  scope              String?
+  expires_at         DateTime
+  refresh_expires_at DateTime?
+  revoked            Boolean   @default(false)
+  created_at         DateTime  @default(now())
+  last_used_at       DateTime?
+
+  client mcp_oauth_client @relation(fields: [client_id], references: [client_id], onDelete: Cascade)
+  user   user             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([client_id])
+  @@index([user_id])
 }

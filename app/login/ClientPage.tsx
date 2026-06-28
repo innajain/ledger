@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
 import type { user } from '@/generated/prisma/client'
 import { log_in, sign_up, log_out } from '@/app/_actions/auth'
@@ -8,8 +8,33 @@ import { Confetti } from '@/app/_components/Confetti'
 
 type Props = { user: Pick<user, 'id' | 'username'> | null }
 
+/**
+ * A `?next=` target to return to after login (used by the OAuth authorize flow,
+ * which may point at an /api route). Only same-origin relative paths are allowed
+ * — rejects absolute URLs and protocol-relative `//host` to avoid open redirects.
+ */
+function safe_next(): string | null {
+  if (typeof window === 'undefined') return null
+  const next = new URLSearchParams(window.location.search).get('next')
+  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return null
+  return next
+}
+
 export default function ClientPage({ user }: Props) {
   const router = useRouter()
+
+  // Already logged in but sent here with a `next` (e.g. OAuth re-auth) → go back.
+  useEffect(() => {
+    if (!user) return
+    const next = safe_next()
+    if (next) window.location.assign(next)
+  }, [user])
+
+  function go_next_or_home() {
+    const next = safe_next()
+    if (next) window.location.assign(next)
+    else router.push('/')
+  }
   const [isSignup, setIsSignup] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -29,7 +54,7 @@ export default function ClientPage({ user }: Props) {
       if (!result.success) throw new Error(result.message)
       setSuccess('Login successful! Redirecting...')
       setShowConfetti(true)
-      setTimeout(() => router.push('/'), 500)
+      setTimeout(go_next_or_home, 500)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -47,7 +72,7 @@ export default function ClientPage({ user }: Props) {
       if (!result.success) throw new Error(result.message)
       setSuccess('Account created! Redirecting...')
       setShowConfetti(true)
-      setTimeout(() => router.push('/'), 500)
+      setTimeout(go_next_or_home, 500)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {

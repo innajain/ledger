@@ -6,13 +6,26 @@ import { env, isDev } from '@/lib/env'
 // `/sw.js` and the manifest must be reachable without auth — the service worker
 // registers from any page (incl. /login) and the browser fetches the manifest
 // pre-auth; redirecting them to /login serves HTML and breaks both.
-const PUBLIC_PATHS = ['/login', '/favicon.ico', '/robots.txt', '/sitemap.xml', '/sw.js', '/manifest.webmanifest']
+const PUBLIC_PATHS = [
+  '/login',
+  '/favicon.ico',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/sw.js',
+  '/manifest.webmanifest',
+  // OAuth discovery metadata for the remote MCP server (RFC 8414 / RFC 9728).
+  '/.well-known/oauth-authorization-server',
+  '/.well-known/oauth-protected-resource',
+]
 
 const secret = new TextEncoder().encode(env.JWT_SECRET)
 
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true
   if (pathname.startsWith('/_next/') || pathname.startsWith('/public/') || pathname.startsWith('/api/cron/')) return true
+  // The MCP server and OAuth endpoints do their own bearer/cookie auth; the JWT
+  // cookie gate would wrongly redirect API/OAuth callers to /login.
+  if (pathname === '/api/mcp' || pathname.startsWith('/api/oauth/')) return true
   return false
 }
 
