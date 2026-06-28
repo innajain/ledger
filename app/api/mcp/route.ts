@@ -120,8 +120,12 @@ function register_tools(server: McpServer) {
 
   server.registerTool(
     'get_net_worth',
-    { description: 'Total net worth, the allocation breakdown, and the Investments XIRR.', inputSchema: {}, annotations: ro },
-    async (_args, extra) => {
+    {
+      description: 'Total net worth and the Investments XIRR. Pass include_allocations to also get the per-head allocation breakdown.',
+      inputSchema: { include_allocations: z.boolean().optional().describe('Include the full allocation breakdown (default false)') },
+      annotations: ro,
+    },
+    async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const { networth, allocations } = await compute_net_worth(uid)
       const invest = subtree_total(allocations, 'Investments')
@@ -130,7 +134,14 @@ function register_tools(server: McpServer) {
         net_worth: networth,
         investments: invest?.total ?? 0,
         investments_xirr: xirr,
-        allocations: allocations.map(a => ({ name: a.name, total: a.total })).sort((a, b) => b.total - a.total),
+        ...(args.include_allocations
+          ? {
+              allocations: allocations
+                .filter(a => a.total !== 0)
+                .map(a => ({ name: a.name, total: a.total }))
+                .sort((a, b) => b.total - a.total),
+            }
+          : {}),
       })
     },
   )
@@ -268,21 +279,33 @@ function register_tools(server: McpServer) {
   server.registerTool(
     'list_heads',
     {
-      description: 'List accounting heads (accounts, allocations, income/expense).',
-      inputSchema: { type: z.enum(['account', 'allocation', 'income_expense']).optional() },
+      description: 'List accounting heads (accounts, allocations, income/expense). Active only unless include_inactive is set.',
+      inputSchema: {
+        type: z.enum(['account', 'allocation', 'income_expense']).optional(),
+        include_inactive: z.boolean().optional().describe('Include archived/inactive heads (default false)'),
+      },
       annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const heads = await load_heads(uid)
-      return text(heads.filter(h => !args.type || h.type === args.type))
+      return text(heads.filter(h => (!args.type || h.type === args.type) && (args.include_inactive || h.is_active)))
     },
   )
 
-  server.registerTool('list_assets', { description: 'List the asset catalog.', inputSchema: {}, annotations: ro }, async (_args, extra) => {
-    get_uid(extra as ToolExtra)
-    return text(await load_assets())
-  })
+  server.registerTool(
+    'list_assets',
+    {
+      description: 'List the asset catalog. Active only unless include_inactive is set.',
+      inputSchema: { include_inactive: z.boolean().optional().describe('Include inactive assets (default false)') },
+      annotations: ro,
+    },
+    async (args, extra) => {
+      get_uid(extra as ToolExtra)
+      const assets = await load_assets()
+      return text(args.include_inactive ? assets : assets.filter(a => a.is_active))
+    },
+  )
 
   server.registerTool(
     'list_requests',
