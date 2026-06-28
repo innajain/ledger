@@ -34,6 +34,7 @@ type HeadRow = {
   linkedName: string | null
   totalValue: number
   hasNegativeMoney: boolean
+  hasPositiveMoney: boolean
 }
 type TypeFilter = 'all' | accounting_head_type
 type Mode = 'list' | 'add' | 'edit' | 'detail' | 'deleting'
@@ -41,7 +42,12 @@ type Mode = 'list' | 'add' | 'edit' | 'detail' | 'deleting'
 const TYPE_CYCLE: TypeFilter[] = ['all', 'account', 'allocation', 'income_expense']
 
 const columns: Column<HeadRow>[] = [
-  { header: 'Name', width: 22, cell: r => (r.hasNegativeMoney ? `● ${r.name}` : r.name), color: r => (r.hasNegativeMoney ? 'red' : undefined) },
+  {
+    header: 'Name',
+    width: 22,
+    cell: r => (r.hasNegativeMoney || r.hasPositiveMoney ? `● ${r.name}` : r.name),
+    color: r => (r.hasNegativeMoney ? 'red' : r.hasPositiveMoney ? 'yellow' : undefined),
+  },
   { header: 'Type', width: 15, cell: r => r.type },
   { header: 'Parent', width: 18, cell: r => r.parentName ?? '—' },
   { header: 'Linked', width: 14, cell: r => r.linkedName ?? '—', color: r => (r.linkedName ? 'cyan' : undefined) },
@@ -68,14 +74,36 @@ export function Heads({ uid, active, onExit, initialType, navContext }: ScreenPr
     const nameById = new Map(heads.map(h => [h.id, h.name]))
 
     const moneyAsset = assets.find(a => a.name === 'Money')
+    const headById = new Map(heads.map(h => [h.id, h]))
 
     return heads.map(h => {
       const assetMap = accountsToAssets.get(h.id) ?? new Map()
       const totalValue = compute_head_value(assetMap, priceByAsset).toNumber()
       let hasNegativeMoney = false
-      if (moneyAsset && assetMap.has(moneyAsset.id)) {
-        if (assetMap.get(moneyAsset.id)!.qty < -1e-9) {
-          hasNegativeMoney = true
+      let hasPositiveMoney = false
+
+      const moneyQty = moneyAsset && assetMap.has(moneyAsset.id) ? assetMap.get(moneyAsset.id)!.qty : 0
+
+      if (moneyQty < -1e-9) {
+        hasNegativeMoney = true
+      } else if (h.type === 'allocation' && moneyQty > 1e-9) {
+        const nameLower = h.name.toLowerCase()
+        if (nameLower !== 'rent' && nameLower !== 'monthly expenses') {
+          // Check ancestors
+          let current = h
+          let isDescendantOfMonthlyExpenses = false
+          while (current.parent_id) {
+            const parent = headById.get(current.parent_id)
+            if (!parent) break
+            if (parent.name.toLowerCase() === 'monthly expenses') {
+              isDescendantOfMonthlyExpenses = true
+              break
+            }
+            current = parent
+          }
+          if (!isDescendantOfMonthlyExpenses) {
+            hasPositiveMoney = true
+          }
         }
       }
 
@@ -89,6 +117,7 @@ export function Heads({ uid, active, onExit, initialType, navContext }: ScreenPr
         linkedName: h.linked_user_id ? (userById.get(h.linked_user_id) ?? null) : null,
         totalValue,
         hasNegativeMoney,
+        hasPositiveMoney,
       }
     })
   }, [uid, reload])

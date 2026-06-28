@@ -47,21 +47,54 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
             onReorderToggle={setReorderEnabled}
             accentBorderClass={cfg.accentBorderClass}
             renderExtraInfo={
-              cfg.showNegativeAssetBadges
+              cfg.showNegativeAssetBadges || type === 'allocation'
                 ? item => {
                     const assetQtys = assetQuantities.get(item.id) || new Map<string, number>()
-                    const negativeAssets = [
-                      ...new Set(
-                        Array.from(assetQtys.entries())
-                          .filter(([, qty]) => qty < 0)
-                          .map(([assetId]) => assetId),
-                      ),
-                    ]
-                    if (negativeAssets.length === 0) return null
+
+                    const negativeAssets = cfg.showNegativeAssetBadges
+                      ? [
+                          ...new Set(
+                            Array.from(assetQtys.entries())
+                              .filter(([, qty]) => qty < -1e-9)
+                              .map(([assetName]) => assetName),
+                          ),
+                        ]
+                      : []
+
+                    let showPositiveMoney = false
+                    if (type === 'allocation') {
+                      const moneyQty = assetQtys.get('Money') || 0
+                      if (moneyQty > 1e-9) {
+                        const nameLower = item.name.toLowerCase()
+                        if (nameLower !== 'rent' && nameLower !== 'monthly expenses') {
+                          // Check if descendant of monthly expenses
+                          let isDescendant = false
+                          let current = item
+                          while (current.parent_id) {
+                            const parent = heads.find(h => h.id === current.parent_id)
+                            if (!parent) break
+                            if (parent.name.toLowerCase() === 'monthly expenses') {
+                              isDescendant = true
+                              break
+                            }
+                            current = parent
+                          }
+                          if (!isDescendant) {
+                            showPositiveMoney = true
+                          }
+                        }
+                      }
+                    }
+
+                    if (negativeAssets.length === 0 && !showPositiveMoney) return null
+
                     return (
                       <div className="flex flex-wrap gap-2">
                         {negativeAssets.map((assetName, idx) => (
-                          <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
+                          <span
+                            key={`neg-${idx}`}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium"
+                          >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path
                                 strokeLinecap="round"
@@ -73,6 +106,11 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
                             {assetName}
                           </span>
                         ))}
+                        {showPositiveMoney && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                            ● Money
+                          </span>
+                        )}
                       </div>
                     )
                   }
