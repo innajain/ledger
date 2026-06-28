@@ -28,10 +28,11 @@ const TABS = [
 const MENU = [...TABS, { label: 'Logout', value: 'logout' }, { label: 'Exit', value: 'exit' }]
 
 export function App() {
-  const { session, loading, login, logout } = useSession()
+  const { session, loading, login, signup, logout } = useSession()
   const { exit } = useApp()
   const [tab, setTab] = useState('home')
   const [focus, setFocus] = useState<'menu' | 'content'>('menu')
+  const [navContext, setNavContext] = useState<string | null>(null)
 
   // The menu owns the keyboard until you enter a screen; the focused screen
   // owns it after that and returns here on Esc (via the onExit prop).
@@ -44,15 +45,22 @@ export function App() {
   )
 
   if (loading) return <Text color="yellow">Loading session…</Text>
-  if (!session) return <Login onLogin={login} />
+  if (!session) return <Login onLogin={login} onSignup={signup} />
 
   const handleSelect = (item: { value: string }) => {
     if (item.value === 'exit') exit()
     else if (item.value === 'logout') logout()
     else {
       setTab(item.value)
+      setNavContext(null)
       setFocus('content')
     }
+  }
+
+  const handleNavigate = (newTab: string, context?: string | null) => {
+    setTab(newTab)
+    setNavContext(context || null)
+    setFocus('content')
   }
 
   const onExit = () => setFocus('menu')
@@ -76,16 +84,29 @@ export function App() {
           <SelectInput items={MENU} isFocused={focus === 'menu'} onSelect={handleSelect} />
         </Box>
         <Box flexGrow={1} flexDirection="column">
-          {tab === 'home' && <Dashboard uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'assets' && <Assets uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'accounts' && <Heads uid={session.uid} active={active} onExit={onExit} initialType="account" />}
-          {tab === 'allocations' && <Heads uid={session.uid} active={active} onExit={onExit} initialType="allocation" />}
-          {tab === 'income_expense' && <Heads uid={session.uid} active={active} onExit={onExit} initialType="income_expense" />}
-          {tab === 'transactions' && <Transactions uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'requests' && <Approvals uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'holdings' && <Holdings uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'balances' && <Balances uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'templates' && <Templates uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'home' && <Dashboard uid={session.uid} active={active} onExit={onExit} onNavigate={handleNavigate} />}
+          {tab === 'assets' && <Assets uid={session.uid} active={active} onExit={onExit} onNavigate={handleNavigate} navContext={navContext} />}
+          {tab === 'accounts' && (
+            <Heads uid={session.uid} active={active} onExit={onExit} initialType="account" onNavigate={handleNavigate} navContext={navContext} />
+          )}
+          {tab === 'allocations' && (
+            <Heads uid={session.uid} active={active} onExit={onExit} initialType="allocation" onNavigate={handleNavigate} navContext={navContext} />
+          )}
+          {tab === 'income_expense' && (
+            <Heads
+              uid={session.uid}
+              active={active}
+              onExit={onExit}
+              initialType="income_expense"
+              onNavigate={handleNavigate}
+              navContext={navContext}
+            />
+          )}
+          {tab === 'transactions' && <Transactions uid={session.uid} active={active} onExit={onExit} onNavigate={handleNavigate} />}
+          {tab === 'requests' && <Approvals uid={session.uid} active={active} onExit={onExit} onNavigate={handleNavigate} />}
+          {tab === 'holdings' && <Holdings uid={session.uid} active={active} onExit={onExit} onNavigate={handleNavigate} />}
+          {tab === 'balances' && <Balances uid={session.uid} active={active} onExit={onExit} onNavigate={handleNavigate} />}
+          {tab === 'templates' && <Templates uid={session.uid} active={active} onExit={onExit} onNavigate={handleNavigate} />}
         </Box>
       </Box>
 

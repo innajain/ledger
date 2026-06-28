@@ -7,6 +7,7 @@ import { asset_type } from '@/generated/prisma/enums'
 import { precise_currency_fmt } from '@/app/_utils/currency_formatter'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
+import { Card } from '@/app/_components/Card'
 
 type BreakdownItem = {
   accounting_head_id: string
@@ -44,6 +45,7 @@ type AssetForClient = {
   type: string
   ticker: string | null
   parent: { id: string; name: string } | null
+  children?: { id: string; name: string }[]
   total: number
   txn_value_total: number | null
   current_investment: number | null
@@ -67,18 +69,26 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         editText={isAdmin ? 'Edit Asset' : undefined}
       />
 
+      {asset.parent && (
+        <Link
+          href={`/assets/${asset.parent.id}`}
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+        >
+          <span aria-hidden>↑</span>
+          <span>
+            Part of <span className="font-medium">{asset.parent.name}</span>
+          </span>
+        </Link>
+      )}
+
       <InfoCard
         title="Asset Information"
         fields={[
           {
             label: 'Asset Type',
-            value: <span className="capitalize">{asset.type}</span>,
+            value: <span className="capitalize text-slate-900 dark:text-slate-100 font-medium">{asset.type}</span>,
           },
           { label: 'Ticker', value: asset.ticker ?? '—' },
-          {
-            label: 'Parent Asset',
-            value: asset.parent ? asset.parent.name : '—',
-          },
           ...((asset.type === asset_type.mf || asset.type === asset_type.etf || asset.type === asset_type.shares) && asset.price !== null
             ? [
                 {
@@ -136,6 +146,33 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
           )}
         </div>
       </div>
+
+      {asset.children && asset.children.length > 0 && (
+        <Card>
+          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sub-assets</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              {asset.children.length} child {asset.children.length !== 1 ? 'assets' : 'asset'}
+            </p>
+          </div>
+          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+            {asset.children.map(child => (
+              <Link
+                key={child.id}
+                href={`/assets/${child.id}`}
+                className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors group"
+              >
+                <span className="font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  {child.name}
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">→</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">

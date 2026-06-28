@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { prisma } from '@/lib/prisma'
 import { Prisma, asset_type } from '@/generated/prisma/client'
 import type { accounting_head_type } from '@/generated/prisma/client'
 import { delete_account_core } from '@/app/_core/resources_core'
+import { compute_balances_core } from '@/app/_core/balances_core'
+import { compute_head_value } from '@/app/_utils/head_value'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
@@ -30,6 +32,8 @@ type HeadRow = {
   is_active: boolean
   parentName: string | null
   linkedName: string | null
+  totalValue: number
+  hasNegativeMoney: boolean
 }
 type TypeFilter = 'all' | accounting_head_type
 type Mode = 'list' | 'add' | 'edit' | 'detail' | 'deleting'
@@ -37,33 +41,56 @@ type Mode = 'list' | 'add' | 'edit' | 'detail' | 'deleting'
 const TYPE_CYCLE: TypeFilter[] = ['all', 'account', 'allocation', 'income_expense']
 
 const columns: Column<HeadRow>[] = [
-  { header: 'Name', width: 22, cell: r => r.name },
+  { header: 'Name', width: 22, cell: r => (r.hasNegativeMoney ? `● ${r.name}` : r.name), color: r => (r.hasNegativeMoney ? 'red' : undefined) },
   { header: 'Type', width: 15, cell: r => r.type },
   { header: 'Parent', width: 18, cell: r => r.parentName ?? '—' },
   { header: 'Linked', width: 14, cell: r => r.linkedName ?? '—', color: r => (r.linkedName ? 'cyan' : undefined) },
+  { header: 'Value', width: 14, align: 'right', cell: r => money(r.totalValue), color: r => (r.totalValue < 0 ? 'red' : undefined) },
   { header: 'Active', width: 8, cell: r => (r.is_active ? 'Yes' : 'No'), color: r => (r.is_active ? 'green' : 'red') },
 ]
 
-export function Heads({ uid, active, onExit, initialType }: ScreenProps & { initialType?: accounting_head_type }) {
+export function Heads({ uid, active, onExit, initialType, navContext }: ScreenProps & { initialType?: accounting_head_type }) {
   const [reload, setReload] = useState(0)
   const [mode, setMode] = useState<Mode>('list')
   const [result, setResult] = useState<ActionResult<unknown> | null>(null)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(initialType ?? 'all')
 
   const { data: allRows, error } = useAsync<HeadRow[]>(async () => {
-    const heads = await load_heads(uid)
-    const users = await prisma.user.findMany({ select: { id: true, username: true } })
+    const [heads, users, { accountsToAssets }, assets] = await Promise.all([
+      load_heads(uid),
+      prisma.user.findMany({ select: { id: true, username: true } }),
+      compute_balances_core(uid),
+      prisma.asset.findMany({ select: { id: true, type: true, ticker: true, name: true } }),
+    ])
+
+    const priceByAsset = await get_prices_for_assets(assets)
     const userById = new Map(users.map(u => [u.id, u.username]))
     const nameById = new Map(heads.map(h => [h.id, h.name]))
-    return heads.map(h => ({
-      id: h.id,
-      name: h.name,
-      type: h.type,
-      parent_id: h.parent_id,
-      is_active: h.is_active,
-      parentName: h.parent_id ? (nameById.get(h.parent_id) ?? null) : null,
-      linkedName: h.linked_user_id ? (userById.get(h.linked_user_id) ?? null) : null,
-    }))
+
+    const moneyAsset = assets.find(a => a.name === 'Money')
+
+    return heads.map(h => {
+      const assetMap = accountsToAssets.get(h.id) ?? new Map()
+      const totalValue = compute_head_value(assetMap, priceByAsset).toNumber()
+      let hasNegativeMoney = false
+      if (moneyAsset && assetMap.has(moneyAsset.id)) {
+        if (assetMap.get(moneyAsset.id)!.qty < -1e-9) {
+          hasNegativeMoney = true
+        }
+      }
+
+      return {
+        id: h.id,
+        name: h.name,
+        type: h.type,
+        parent_id: h.parent_id,
+        is_active: h.is_active,
+        parentName: h.parent_id ? (nameById.get(h.parent_id) ?? null) : null,
+        linkedName: h.linked_user_id ? (userById.get(h.linked_user_id) ?? null) : null,
+        totalValue,
+        hasNegativeMoney,
+      }
+    })
   }, [uid, reload])
 
   const rows = useMemo(() => {
@@ -71,9 +98,20 @@ export function Heads({ uid, active, onExit, initialType }: ScreenProps & { init
     return typeFilter === 'all' ? allRows : allRows.filter(h => h.type === typeFilter)
   }, [allRows, typeFilter])
 
-  const [cursor] = useListNav(rows?.length ?? 0, active && mode === 'list')
+  const [cursor, setCursor] = useListNav(rows?.length ?? 0, active && mode === 'list')
   const maxRows = useViewportRows()
   const sel = rows && rows.length > 0 ? rows[Math.min(cursor, rows.length - 1)] : null
+
+  useEffect(() => {
+    if (navContext && rows) {
+      const idx = rows.findIndex(r => r.id === navContext)
+      if (idx !== -1) {
+        setCursor(idx)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setMode('detail')
+      }
+    }
+  }, [navContext, rows, setCursor])
 
   const finish = (r: ActionResult<unknown>) => {
     setResult(r)
@@ -83,7 +121,11 @@ export function Heads({ uid, active, onExit, initialType }: ScreenProps & { init
 
   useInput(
     (input, key) => {
-      if (key.escape || key.leftArrow) return onExit()
+      if (key.escape || key.leftArrow) {
+        if (mode === 'list') {
+          return onExit()
+        }
+      }
       if (input === 't') setTypeFilter(cur => TYPE_CYCLE[(TYPE_CYCLE.indexOf(cur) + 1) % TYPE_CYCLE.length])
       else if (input === 'a') {
         setResult(null)

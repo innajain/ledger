@@ -33,6 +33,7 @@ async function Page({ params }: Props) {
       // Scope to the caller so one user can't see another user's positions.
       line_items: { where: { transaction: { user_id: user.id } }, include: { accounting_head: true, transaction: true } },
       parent: true,
+      children: true,
     },
   })
 
@@ -197,6 +198,7 @@ async function Page({ params }: Props) {
         type: asset.type,
         ticker: asset.ticker,
         parent: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
+        children: asset.children.map(c => ({ id: c.id, name: c.name })),
         total: asset_total.toNumber(),
         txn_value_total: asset.type === asset_type.rupees ? null : book_total.toNumber(),
         current_investment: asset.type === asset_type.rupees ? null : current_investment.toNumber(),
