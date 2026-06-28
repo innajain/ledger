@@ -65,7 +65,7 @@ export function Transactions({ uid, active, onExit }: ScreenProps) {
       take: 500,
       include: {
         line_items: {
-          select: { txn_value: true, accounting_head: { select: { type: true } } },
+          select: { txn_value: true, quantity: true, accounting_head: { select: { type: true } } },
         },
       },
     })
@@ -103,7 +103,9 @@ export function Transactions({ uid, active, onExit }: ScreenProps) {
       id: t.id,
       date: fmt_date(t.datetime),
       desc: t.description ?? '—',
-      total: t.line_items.filter(li => li.accounting_head.type === 'account').reduce((s, li) => s + (li.txn_value?.toNumber() ?? 0), 0),
+      total: t.line_items
+        .filter(li => li.accounting_head.type === 'account')
+        .reduce((s, li) => s + ((li.txn_value ?? li.quantity)?.toNumber() ?? 0), 0),
       severity: severityMap.get(t.id) ?? null,
     }))
   }, [uid, reload])
