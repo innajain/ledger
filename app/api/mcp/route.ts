@@ -32,6 +32,7 @@ import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
+import { get_subtree_head_ids, compute_subtree_total } from '@/app/_utils/subtree_value'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/app/_utils/date'
 import type { ActionResult } from '@/app/_actions/_result'
@@ -108,6 +109,33 @@ function net_account_flow(
     .filter(li => li.accounting_head.type === 'account')
     .reduce((s, li) => s + (li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0), 0)
   return Math.round(n * 100) / 100
+}
+
+/**
+ * Subtree value + immediate-children totals for a head — the same rollup the
+ * head detail page shows, but driven by the explicit-uid balances core (the
+ * page's compute_head_rollup resolves the user from request context, which MCP
+ * bearer auth doesn't populate).
+ */
+async function head_rollup(uid: string, root_id: string): Promise<{ subtree_total: number | null; children: { name: string; total: number }[] }> {
+  const all_heads = await prisma.accounting_head.findMany({ where: { user_id: uid }, select: { id: true, parent_id: true, name: true } })
+  const subtree_ids = get_subtree_head_ids(root_id, all_heads)
+  if (subtree_ids.size <= 1) return { subtree_total: null, children: [] }
+  const { accountsToAssets: balances } = await compute_balances_core(uid)
+  const subtree_asset_ids = new Set<string>()
+  for (const head_id of subtree_ids) for (const asset_id of balances.get(head_id)?.keys() ?? []) subtree_asset_ids.add(asset_id)
+  const subtree_assets = await prisma.asset.findMany({ where: { id: { in: [...subtree_asset_ids] } } })
+  const price_by_asset = await get_prices_for_assets(subtree_assets)
+  const asset_type_by_id = new Map(subtree_assets.map(a => [a.id, a.type]))
+  const subtree_total = compute_subtree_total(subtree_ids, balances, asset_type_by_id, price_by_asset).toNumber()
+  const children = all_heads
+    .filter(h => h.parent_id === root_id)
+    .map(child => ({
+      name: child.name,
+      total: compute_subtree_total(get_subtree_head_ids(child.id, all_heads), balances, asset_type_by_id, price_by_asset).toNumber(),
+    }))
+    .sort((a, b) => b.total - a.total)
+  return { subtree_total, children }
 }
 
 /** Accept dd-MM-yyyy (IST) or an ISO string; default to now. */
@@ -395,6 +423,154 @@ function register_tools(server: McpServer) {
       }
       rows.sort((a, b) => String(a.account).localeCompare(String(b.account)))
       return text(rows)
+    },
+  )
+
+  server.registerTool(
+    'get_head',
+    {
+      description:
+        'Full detail for one accounting head (account / allocation / income_expense, by id or name), mirroring its web page: current value, subtree rollup total + immediate children, XIRR, parent, linked user (accounts), and holdings aggregated by asset. Pass include_line_items for every line touching the head (with FIFO remaining_quantity for accounts); include_timeseries for the value-over-time series (priced holdings only).',
+      inputSchema: {
+        head: z.string().describe('Accounting head id or name'),
+        include_line_items: z.boolean().optional().describe('Attach every line item touching the head (default false)'),
+        include_timeseries: z.boolean().optional().describe('Attach the value-over-time series (default false)'),
+      },
+      annotations: ro,
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const ref = resolve_ref(args.head, await load_heads(uid), 'account')
+      const head = await prisma.accounting_head.findFirst({
+        where: { id: ref.id, user_id: uid },
+        include: { line_items: { include: { asset: true, transaction: true } }, parent: true },
+      })
+      if (!head) return { content: [{ type: 'text', text: 'Head not found' }], isError: true }
+      const is_account = head.type === 'account'
+
+      const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(head.line_items)
+      const uniqueAssets = Array.from(new Map(head.line_items.map(li => [li.asset.id, li.asset])).values())
+      const priceByAsset = await get_prices_for_assets(uniqueAssets)
+
+      let total = new Prisma.Decimal(0)
+      const cashflows: { amount: number; when: Date }[] = []
+      const by_asset_map = new Map<string, { name: string; type: asset_type; qty: Prisma.Decimal; book: Prisma.Decimal }>()
+      const lines: {
+        id: string
+        asset: string
+        asset_type: asset_type
+        quantity: number
+        txn_value: number
+        current_value: number
+        transaction_id: string
+        datetime: Date
+        description: string | null
+        remaining_quantity: number | null
+      }[] = []
+
+      for (const li of head.line_items) {
+        const n = normalizedById.get(li.id)!
+        const priceData = priceByAsset.get(li.asset.id) ?? null
+        const priceDecimal = priceData ? new Prisma.Decimal(priceData.price) : null
+        const current_value = compute_current_value(li.asset.type, n.quantity, priceDecimal, n.txn_value)
+        total = total.add(current_value)
+        cashflows.push({ amount: -n.txn_value.toNumber(), when: li.datetime ?? li.transaction.datetime })
+
+        const e = by_asset_map.get(li.asset.id) ?? {
+          name: li.asset.name,
+          type: li.asset.type,
+          qty: new Prisma.Decimal(0),
+          book: new Prisma.Decimal(0),
+        }
+        e.qty = e.qty.add(n.quantity)
+        e.book = e.book.add(n.txn_value)
+        by_asset_map.set(li.asset.id, e)
+
+        lines.push({
+          id: li.id,
+          asset: li.asset.name,
+          asset_type: li.asset.type,
+          quantity: n.quantity.toNumber(),
+          txn_value: n.txn_value.toNumber(),
+          current_value: current_value.toNumber(),
+          transaction_id: li.transaction.id,
+          datetime: li.datetime ?? li.transaction.datetime,
+          description: li.description ?? li.transaction.description,
+          remaining_quantity: null,
+        })
+      }
+
+      // FIFO remaining units per asset (non-rupees) — accounts only
+      if (is_account) {
+        const lineById = new Map(head.line_items.map(li => [li.id, li]))
+        const remaining_by_id = compute_fifo_remaining(
+          lines
+            .filter(l => l.asset_type !== asset_type.rupees)
+            .map(l => ({ id: l.id, group_key: lineById.get(l.id)!.asset.id, qty: new Prisma.Decimal(l.quantity), date: l.datetime })),
+        )
+        for (const l of lines) l.remaining_quantity = remaining_by_id.has(l.id) ? remaining_by_id.get(l.id)!.toNumber() : null
+      }
+
+      const by_asset: { asset: string; quantity: number; txn_value: number; current_value: number }[] = []
+      for (const [asset_id, e] of by_asset_map) {
+        if (e.qty.equals(0)) continue
+        const priceData = priceByAsset.get(asset_id) ?? null
+        const cv = compute_current_value(e.type, e.qty, priceData ? new Prisma.Decimal(priceData.price) : null, e.book)
+        by_asset.push({ asset: e.name, quantity: e.qty.toNumber(), txn_value: e.book.toNumber(), current_value: cv.toNumber() })
+      }
+
+      let xirr: number | null = null
+      if (cashflows.length > 0) {
+        if (!total.equals(0)) cashflows.push({ amount: total.toNumber(), when: new Date() })
+        xirr = calculate_xirr(cashflows)
+      }
+
+      const { subtree_total, children } = await head_rollup(uid, head.id)
+      const linked_user =
+        is_account && head.linked_user_id
+          ? await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { username: true, upi_id: true } })
+          : null
+
+      const out: Record<string, unknown> = {
+        id: head.id,
+        name: head.name,
+        type: head.type,
+        total: total.toNumber(),
+        subtree_total,
+        children,
+        parent: head.parent ? head.parent.name : null,
+        linked_user: linked_user ? { username: linked_user.username, upi_id: linked_user.upi_id } : null,
+        xirr,
+        by_asset,
+      }
+
+      if (args.include_line_items) {
+        out.line_items = lines
+          .slice()
+          .sort((a, b) => b.datetime.getTime() - a.datetime.getTime())
+          .map(l => ({
+            asset: l.asset,
+            quantity: l.quantity,
+            txn_value: l.txn_value,
+            current_value: l.current_value,
+            transaction_id: l.transaction_id,
+            datetime: l.datetime,
+            description: l.description,
+            remaining_quantity: l.remaining_quantity,
+          }))
+      }
+
+      if (args.include_timeseries && uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')) {
+        const series = await compute_value_timeseries(
+          rawTransactions,
+          is_account ? { kind: 'account', accounting_head_id: head.id } : { kind: 'allocation', allocation_id: head.id },
+          uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
+        )
+        reconcile_timeseries_tail(series, total.toNumber(), xirr)
+        out.value_timeseries = series
+      }
+
+      return text(out)
     },
   )
 
