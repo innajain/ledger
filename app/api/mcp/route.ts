@@ -344,80 +344,10 @@ function register_tools(server: McpServer) {
   // --- Write tools (no readOnlyHint → clients confirm before running) ---
 
   server.registerTool(
-    'record_expense',
-    {
-      description:
-        'Simplest way to record a cash/rupee expense. Debits an account and auto-derives all balancing entries. ' +
-        'Use list_heads to find account, category (income/expense), and allocation head names if unknown. ' +
-        'allocation defaults to the nearest allocation-type ancestor of the category head; specify it explicitly if auto-detection fails.',
-      inputSchema: {
-        account: z.string().describe('Account to deduct from (id or name, e.g. "Kotak", "Wallet")'),
-        category: z.string().describe('Income/expense head (id or name, e.g. "Barber", "Groceries", "Commute")'),
-        amount: z.number().positive().describe('Positive rupee amount'),
-        allocation: z.string().optional().describe('Allocation head (id or name, e.g. "Expenses"). Auto-detected from category parent if omitted.'),
-        note: z.string().nullish().describe('Transaction description'),
-        date: z.string().optional().describe('dd-MM-yyyy; defaults to today'),
-      },
-    },
-    async (args, extra) => {
-      const uid = get_uid(extra as ToolExtra)
-      const heads = await load_heads(uid)
-
-      const account_head = resolve_ref(args.account, heads.filter(h => h.type === 'account'), 'account')
-      const category_head = resolve_ref(args.category, heads.filter(h => h.type === 'income_expense'), 'income/expense head')
-
-      let allocation_head: (typeof heads)[0]
-      if (args.allocation) {
-        allocation_head = resolve_ref(args.allocation, heads.filter(h => h.type === 'allocation'), 'allocation head')
-      } else {
-        // Walk up the parent chain to find an allocation-type ancestor
-        let candidate_id = category_head.parent_id
-        const found = null as (typeof heads)[0] | null
-        let walk = found
-        while (candidate_id) {
-          const parent = heads.find(h => h.id === candidate_id)
-          if (!parent) break
-          if (parent.type === 'allocation') { walk = parent; break }
-          candidate_id = parent.parent_id
-        }
-        if (!walk) {
-          const options = heads.filter(h => h.type === 'allocation').map(h => h.name).join(', ')
-          return {
-            content: [{ type: 'text', text: `Could not auto-detect allocation head for "${category_head.name}". Please pass the "allocation" parameter. Available allocation heads: ${options || 'none'}` }],
-            isError: true,
-          }
-        }
-        allocation_head = walk
-      }
-
-      const rupees_assets = await prisma.asset.findMany({
-        where: { type: 'rupees', is_active: true },
-        select: { id: true },
-        orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-      })
-      if (rupees_assets.length === 0)
-        return { content: [{ type: 'text', text: 'Error: No rupees asset found in the catalog' }], isError: true }
-
-      const rupees_asset_id = rupees_assets[0].id
-      const line_items: CreateLineItemInput[] = [
-        { accounting_head_id: account_head.id, asset_id: rupees_asset_id, quantity: -args.amount },
-        { accounting_head_id: allocation_head.id, asset_id: rupees_asset_id },
-        { accounting_head_id: category_head.id, asset_id: rupees_asset_id },
-      ]
-      return action_result(await create_transaction_core(uid, parse_date(args.date), line_items, args.note))
-    },
-  )
-
-  server.registerTool(
     'create_transaction',
     {
       description:
-        'Create a transaction from balanced line items. For a simple rupee expense use record_expense instead — it handles the line-item rules automatically. ' +
-        'Use this tool for complex cases (non-rupee assets, transfers, investments). ' +
-        'Call list_heads (type="account"/"allocation"/"income_expense") and list_assets first to get valid names. ' +
-        'Null-remainder rule per asset: every account line needs an explicit signed quantity; omit quantity on exactly one allocation line and one income/expense line (auto-derived). ' +
-        'For rupee assets never set txn_value. ' +
-        'Example — spend ₹53 from Wallet on Commute: [{account:"Wallet", asset:"Rupees", quantity:-53}, {account:"Expenses", asset:"Rupees"}, {account:"Commute", asset:"Rupees"}]',
+        'Create a transaction from balanced line items (accounts/assets by id or name). Null-remainder rule, applied per asset: give every account head an explicit signed quantity; leave the quantity omitted on exactly one allocation line and exactly one income/expense line (auto-derived). E.g. spend ₹53 from Wallet on Commute → Wallet quantity -53, plus one Expenses line and one Commute line with quantity omitted.',
       inputSchema: {
         description: z.string().nullish(),
         datetime: z.string().optional().describe('dd-MM-yyyy or ISO; default now'),
