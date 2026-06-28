@@ -6,7 +6,7 @@ import { create_transaction_core, update_transaction_core, delete_transaction_co
 import type { ActionResult } from '@/app/_actions/_result'
 import { money, fmt_date } from '../../format'
 import { useAsync } from '../hooks/useAsync'
-import { useListNav } from '../hooks/useListNav'
+import { useListNav, useViewportRows } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
@@ -45,6 +45,7 @@ export function Transactions({ uid, active, onExit }: ScreenProps) {
   }, [uid, reload])
 
   const [cursor] = useListNav(rows?.length ?? 0, active && mode === 'list')
+  const maxRows = useViewportRows()
   const selected = rows && rows.length > 0 ? rows[Math.min(cursor, rows.length - 1)] : null
 
   useInput(
@@ -90,7 +91,7 @@ export function Transactions({ uid, active, onExit }: ScreenProps) {
 
   return (
     <Panel title="Transactions" color="yellow">
-      {rows.length === 0 ? <Empty label="No transactions." /> : <DataTable columns={columns} rows={rows} selectedIndex={cursor} />}
+      {rows.length === 0 ? <Empty label="No transactions." /> : <DataTable columns={columns} rows={rows} selectedIndex={cursor} maxRows={maxRows} />}
       {result && (
         <Box marginTop={1}>
           <ActionFeedback result={result} />

@@ -1,5 +1,16 @@
 import { useState } from 'react'
-import { useInput } from 'ink'
+import { useInput, useStdout } from 'ink'
+
+/**
+ * How many list rows fit in the current terminal, leaving `overhead` lines for
+ * the app header, panel border, hints and feedback. Used as DataTable `maxRows`
+ * so long lists scroll instead of overflowing. Recomputed each render (picks up
+ * resizes on the next keystroke).
+ */
+export function useViewportRows(overhead = 12, min = 6): number {
+  const { stdout } = useStdout()
+  return Math.max(min, (stdout?.rows ?? 24) - overhead)
+}
 
 /**
  * A keyboard row cursor over `[0, length)`. ↑/k up, ↓/j down, g/G jump to

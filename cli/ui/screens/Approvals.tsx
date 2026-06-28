@@ -4,7 +4,7 @@ import { get_inbox, get_outbox, type InboxItem, type OutboxItem } from '@/app/_u
 import { reject_request_core, cancel_request_core, approve_request_core, accept_all_from_core } from '@/app/_core/approvals_core'
 import type { ActionResult } from '@/app/_actions/_result'
 import { useAsync } from '../hooks/useAsync'
-import { useListNav } from '../hooks/useListNav'
+import { useListNav, useViewportRows } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
@@ -46,6 +46,7 @@ export function Approvals({ uid, active, onExit }: ScreenProps) {
   }, [uid, reload])
 
   const [cursor] = useListNav(data?.length ?? 0, active && mode === 'list')
+  const maxRows = useViewportRows()
   const sel = data && data.length > 0 ? data[Math.min(cursor, data.length - 1)] : null
 
   const finish = (r: ActionResult<unknown>) => {
@@ -99,7 +100,7 @@ export function Approvals({ uid, active, onExit }: ScreenProps) {
 
   return (
     <Panel title="Approvals" color="magenta">
-      {data.length === 0 ? <Empty label="No requests." /> : <DataTable columns={columns} rows={data} selectedIndex={cursor} />}
+      {data.length === 0 ? <Empty label="No requests." /> : <DataTable columns={columns} rows={data} selectedIndex={cursor} maxRows={maxRows} />}
       {result && (
         <Box marginTop={1}>
           <ActionFeedback result={result} />

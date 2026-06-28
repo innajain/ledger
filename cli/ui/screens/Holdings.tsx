@@ -7,7 +7,7 @@ import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { money, qty } from '../../format'
 import { useAsync } from '../hooks/useAsync'
-import { useExitOnEsc } from '../hooks/useListNav'
+import { useExitOnEsc, useListNav, useViewportRows } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
@@ -67,6 +67,9 @@ export function Holdings({ uid, active, onExit }: ScreenProps) {
     return { rows, total }
   }, [uid])
 
+  const [cursor] = useListNav(data?.rows.length ?? 0, active)
+  const maxRows = useViewportRows()
+
   if (error) return <ErrorView message={error} />
   if (!data) return <Loading label="Loading holdings…" />
 
@@ -76,7 +79,7 @@ export function Holdings({ uid, active, onExit }: ScreenProps) {
         <Empty label="No holdings." />
       ) : (
         <>
-          <DataTable columns={columns} rows={data.rows} />
+          <DataTable columns={columns} rows={data.rows} selectedIndex={cursor} maxRows={maxRows} />
           <Box marginTop={1}>
             <Text bold>Total value: {money(data.total)}</Text>
           </Box>

@@ -4,7 +4,7 @@ import { get_transaction_templates_core, delete_transaction_template_core, creat
 import { create_transaction_core, type CreateLineItemInput } from '@/app/_core/transactions_core'
 import type { ActionResult } from '@/app/_actions/_result'
 import { useAsync } from '../hooks/useAsync'
-import { useListNav } from '../hooks/useListNav'
+import { useListNav, useViewportRows } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
@@ -38,6 +38,7 @@ export function Templates({ uid, active, onExit }: ScreenProps) {
   const { data: rows, error } = useAsync(async () => get_transaction_templates_core(uid), [uid, reload])
 
   const [cursor] = useListNav(rows?.length ?? 0, active && mode === 'list')
+  const maxRows = useViewportRows()
   const sel = rows && rows.length > 0 ? rows[Math.min(cursor, rows.length - 1)] : null
 
   const finish = (r: ActionResult<unknown>) => {
@@ -89,7 +90,7 @@ export function Templates({ uid, active, onExit }: ScreenProps) {
 
   return (
     <Panel title="Transaction Templates" color="magenta">
-      {rows.length === 0 ? <Empty label="No templates." /> : <DataTable columns={columns} rows={rows} selectedIndex={cursor} />}
+      {rows.length === 0 ? <Empty label="No templates." /> : <DataTable columns={columns} rows={rows} selectedIndex={cursor} maxRows={maxRows} />}
       {result && (
         <Box marginTop={1}>
           <ActionFeedback result={result} />

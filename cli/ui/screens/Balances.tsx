@@ -3,7 +3,7 @@ import { compute_balances_core } from '@/app/_core/balances_core'
 import { load_heads, load_assets } from '../../shared'
 import { money, qty } from '../../format'
 import { useAsync } from '../hooks/useAsync'
-import { useExitOnEsc } from '../hooks/useListNav'
+import { useExitOnEsc, useListNav, useViewportRows } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
@@ -43,12 +43,19 @@ export function Balances({ uid, active, onExit }: ScreenProps) {
     return newRows
   }, [uid])
 
+  const [cursor] = useListNav(rows?.length ?? 0, active)
+  const maxRows = useViewportRows()
+
   if (error) return <ErrorView message={error} />
   if (!rows) return <Loading label="Loading balances…" />
 
   return (
     <Panel title="Account Balances" color="magenta">
-      {rows.length === 0 ? <Empty label="No account balances." /> : <DataTable columns={columns} rows={rows} />}
+      {rows.length === 0 ? (
+        <Empty label="No account balances." />
+      ) : (
+        <DataTable columns={columns} rows={rows} selectedIndex={cursor} maxRows={maxRows} />
+      )}
     </Panel>
   )
 }

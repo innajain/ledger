@@ -6,7 +6,7 @@ import { delete_account_core } from '@/app/_core/resources_core'
 import type { ActionResult } from '@/app/_actions/_result'
 import { load_heads } from '../../shared'
 import { useAsync } from '../hooks/useAsync'
-import { useListNav } from '../hooks/useListNav'
+import { useListNav, useViewportRows } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
@@ -56,6 +56,7 @@ export function Heads({ uid, active, onExit }: ScreenProps) {
   }, [uid, reload])
 
   const [cursor] = useListNav(rows?.length ?? 0, active && mode === 'list')
+  const maxRows = useViewportRows()
   const sel = rows && rows.length > 0 ? rows[Math.min(cursor, rows.length - 1)] : null
 
   const finish = (r: ActionResult<unknown>) => {
@@ -94,7 +95,7 @@ export function Heads({ uid, active, onExit }: ScreenProps) {
 
   return (
     <Panel title="Accounting Heads" color="green">
-      {rows.length === 0 ? <Empty label="No heads." /> : <DataTable columns={columns} rows={rows} selectedIndex={cursor} />}
+      {rows.length === 0 ? <Empty label="No heads." /> : <DataTable columns={columns} rows={rows} selectedIndex={cursor} maxRows={maxRows} />}
       {result && (
         <Box marginTop={1}>
           <ActionFeedback result={result} />

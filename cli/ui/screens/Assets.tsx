@@ -6,7 +6,7 @@ import { delete_asset_core } from '@/app/_core/resources_core'
 import type { ActionResult } from '@/app/_actions/_result'
 import { load_assets } from '../../shared'
 import { useAsync } from '../hooks/useAsync'
-import { useListNav } from '../hooks/useListNav'
+import { useListNav, useViewportRows } from '../hooks/useListNav'
 import { Panel } from '../components/Panel'
 import { DataTable, type Column } from '../components/DataTable'
 import { Loading, ErrorView, Empty } from '../components/Status'
@@ -38,6 +38,7 @@ export function Assets({ uid, active, onExit }: ScreenProps) {
   const rows = data?.rows ?? []
   const isAdmin = data?.isAdmin ?? false
   const [cursor] = useListNav(rows.length, active && mode === 'list')
+  const maxRows = useViewportRows()
   const sel = rows.length > 0 ? rows[Math.min(cursor, rows.length - 1)] : null
 
   const finish = (r: ActionResult<unknown>) => {
@@ -74,7 +75,7 @@ export function Assets({ uid, active, onExit }: ScreenProps) {
 
   return (
     <Panel title="Asset Catalog" color="blue">
-      {rows.length === 0 ? <Empty label="No assets." /> : <DataTable columns={columns} rows={rows} selectedIndex={cursor} />}
+      {rows.length === 0 ? <Empty label="No assets." /> : <DataTable columns={columns} rows={rows} selectedIndex={cursor} maxRows={maxRows} />}
       {result && (
         <Box marginTop={1}>
           <ActionFeedback result={result} />
