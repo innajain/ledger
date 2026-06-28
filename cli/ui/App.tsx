@@ -81,7 +81,7 @@ export function App() {
           {tab === 'approvals' && <Approvals uid={session.uid} active={active} onExit={onExit} />}
           {tab === 'templates' && <Templates uid={session.uid} active={active} onExit={onExit} />}
           {tab === 'heads' && <Heads uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'assets' && <Assets active={active} onExit={onExit} />}
+          {tab === 'assets' && <Assets uid={session.uid} active={active} onExit={onExit} />}
         </Box>
       </Box>
 
