@@ -71,6 +71,12 @@ const COMMANDS: CmdEntry[] = [
     desc: "Show a transaction's line items  txn <id>",
     handler: async args => (await import('./cmd/read')).cmd_txn(args),
   },
+  {
+    name: 'head-txns',
+    group: 'Read',
+    desc: 'Transactions touching a head  head-txns <ref> [-n N] [--from dd-MM-yyyy] [--to dd-MM-yyyy]',
+    handler: async args => (await import('./cmd/read')).cmd_head_txns(args),
+  },
   // Write
   {
     name: 'add',

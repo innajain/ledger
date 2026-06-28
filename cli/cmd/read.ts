@@ -5,7 +5,7 @@ import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { get_date_obj_from_indian_date } from '@/app/_utils/date'
 import { require_session } from '../auth_store'
 import { table, money, fmt_date } from '../format'
-import { load_heads, load_assets } from '../shared'
+import { load_heads, load_assets, resolve_ref } from '../shared'
 
 export async function cmd_heads(rest: string[]) {
   const { values } = parseArgs({ args: rest, options: { json: { type: 'boolean' } }, allowPositionals: true })
@@ -115,6 +115,66 @@ export async function cmd_txn(rest: string[]) {
   console.log(table(['type', 'head', 'asset', 'qty', 'value', 'note'], rows))
   const total = t.line_items.reduce((s, li) => s + (li.txn_value.toNumber() > 0 ? li.txn_value.toNumber() : 0), 0)
   if (total > 0) console.log(`\n  Total: ${money(total)}`)
+}
+
+export async function cmd_head_txns(rest: string[]) {
+  const { uid } = await require_session()
+  const { values, positionals } = parseArgs({
+    args: rest,
+    options: {
+      limit: { type: 'string', short: 'n' },
+      from: { type: 'string' },
+      to: { type: 'string' },
+      json: { type: 'boolean' },
+    },
+    allowPositionals: true,
+  })
+
+  const ref = positionals[0]
+  if (!ref) throw new Error('Usage: head-txns <head-ref> [-n N] [--from dd-MM-yyyy] [--to dd-MM-yyyy]')
+
+  const heads = await load_heads(uid)
+  const head = resolve_ref(ref, heads, 'head')
+
+  const take = Math.max(1, Number(values.limit ?? 200) || 200)
+
+  const fromDate = values.from ? get_date_obj_from_indian_date(values.from) : undefined
+  let toDate: Date | undefined
+  if (values.to) {
+    toDate = get_date_obj_from_indian_date(values.to)
+    toDate.setDate(toDate.getDate() + 1)
+  }
+
+  const rawTxns = await prisma.transaction.findMany({
+    where: {
+      user_id: uid,
+      line_items: { some: { accounting_head_id: head.id } },
+      ...(fromDate || toDate ? { datetime: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lt: toDate } : {}) } } : {}),
+    },
+    orderBy: { datetime: 'desc' },
+    take,
+    include: { line_items: { include: { accounting_head: true, asset: true } } },
+  })
+
+  const txns = rawTxns.map(normalize_txn)
+
+  const rows = txns.map(t => {
+    const headLines = t.line_items.filter(li => li.accounting_head_id === head.id)
+    const value = headLines.reduce((s, li) => s + li.txn_value.toNumber(), 0)
+    return { id: t.id, date: fmt_date(t.datetime), value, description: t.description ?? '' }
+  })
+
+  if (values.json) {
+    console.log(JSON.stringify(rows, null, 2))
+    return
+  }
+
+  console.log(`Head: ${head.name} (${head.type})\n`)
+  const tableRows = rows.map(r => [r.id, r.date, money(r.value), r.description])
+  console.log(table(['id', 'date', 'value', 'description'], tableRows))
+
+  const total = rows.reduce((s, r) => s + r.value, 0)
+  if (rows.length > 0) console.log(`\n  ${rows.length} transactions · Total: ${money(total)}`)
 }
 
 export async function cmd_balances(rest: string[]) {
