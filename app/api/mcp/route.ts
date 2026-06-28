@@ -68,14 +68,27 @@ const load_assets = () =>
     select: { id: true, name: true, type: true, ticker: true, is_active: true },
   })
 
+/** Active candidate names, grouped by `type` when present, for a not-found error hint. */
+function format_candidates<T extends { name: string; type?: string; is_active?: boolean }>(list: T[]): string {
+  const active = list.filter(x => x.is_active !== false)
+  if (!active.some(x => x.type)) return active.map(x => x.name).join(', ') || 'none'
+  const groups = new Map<string, string[]>()
+  for (const x of active) {
+    const k = x.type ?? 'other'
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k)!.push(x.name)
+  }
+  return [...groups].map(([k, names]) => `${k}: ${names.join(', ')}`).join('; ') || 'none'
+}
+
 /** Resolve a head/asset reference that is either an exact id or a (case-insensitive) name. */
-function resolve_ref<T extends { id: string; name: string }>(ref: string, list: T[], kind: string): T {
+function resolve_ref<T extends { id: string; name: string; type?: string; is_active?: boolean }>(ref: string, list: T[], kind: string): T {
   const r = ref.trim()
   const byId = list.find(x => x.id === r)
   if (byId) return byId
   const byName = list.find(x => x.name.toLowerCase() === r.toLowerCase())
   if (byName) return byName
-  throw new Error(`No ${kind} matching "${ref}"`)
+  throw new Error(`No ${kind} matching "${ref}". Valid options — ${format_candidates(list)}`)
 }
 
 /** Accept dd-MM-yyyy (IST) or an ISO string; default to now. */
@@ -258,8 +271,14 @@ function register_tools(server: McpServer) {
           const inr = (li: { quantity: { toNumber(): number } | null; txn_value: { toNumber(): number } | null }) =>
             li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0
           const account_lines = t.line_items.filter(li => li.accounting_head.type === 'account')
-          const debit = account_lines.reduce((s, li) => { const v = inr(li); return v < 0 ? s + Math.abs(v) : s }, 0)
-          const credit = account_lines.reduce((s, li) => { const v = inr(li); return v > 0 ? s + v : s }, 0)
+          const debit = account_lines.reduce((s, li) => {
+            const v = inr(li)
+            return v < 0 ? s + Math.abs(v) : s
+          }, 0)
+          const credit = account_lines.reduce((s, li) => {
+            const v = inr(li)
+            return v > 0 ? s + v : s
+          }, 0)
           return {
             id: t.id,
             datetime: t.datetime,
@@ -347,7 +366,12 @@ function register_tools(server: McpServer) {
     'create_transaction',
     {
       description:
-        'Create a transaction from balanced line items (accounts/assets by id or name). Null-remainder rule, applied per asset: give every account head an explicit signed quantity; leave the quantity omitted on exactly one allocation line and exactly one income/expense line (auto-derived). E.g. spend ₹53 from Wallet on Commute → Wallet quantity -53, plus one Expenses line and one Commute line with quantity omitted.',
+        'Create a transaction from balanced line items (accounts/assets by id or name). ' +
+        'Call list_heads and list_assets FIRST to get exact head/asset names — do not guess them (the rupee asset is usually named "Money", not "INR"/"Rupees"). ' +
+        'A simple cash expense is three lines: the account you paid from, one allocation head, and one income/expense head. ' +
+        'Null-remainder rule, applied per asset: every account line needs an explicit signed quantity; then omit quantity on exactly one allocation line AND on exactly one income/expense line (both auto-derived as the balancing remainder — do not also fill them). ' +
+        'For rupee assets never set txn_value. ' +
+        'Example — spend ₹150 from Kotak on Barber: [{account:"Kotak", asset:"Money", quantity:-150}, {account:"Expenses", asset:"Money"}, {account:"Barber", asset:"Money"}].',
       inputSchema: {
         description: z.string().nullish(),
         datetime: z.string().optional().describe('dd-MM-yyyy or ISO; default now'),
