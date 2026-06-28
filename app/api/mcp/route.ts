@@ -28,6 +28,7 @@ import { approve_request_core, reject_request_core } from '@/app/_core/approvals
 import { get_inbox, get_outbox } from '@/app/_utils/links'
 import { get_prices_for_assets, get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
+import { compute_head_value, value_balance_entry } from '@/app/_utils/head_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
@@ -70,7 +71,7 @@ const load_heads = (uid: string) =>
 const load_assets = () =>
   prisma.asset.findMany({
     orderBy: [{ type: 'asc' }, { order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-    select: { id: true, name: true, type: true, ticker: true, is_active: true },
+    select: { id: true, name: true, type: true, ticker: true, is_active: true, parent_id: true },
   })
 
 /** Active candidate names, grouped by `type` when present, for a not-found error hint. */
@@ -675,31 +676,112 @@ function register_tools(server: McpServer) {
   server.registerTool(
     'list_heads',
     {
-      description: 'List accounting heads (accounts, allocations, income/expense). Active only unless include_inactive is set.',
+      description:
+        "List accounting heads (accounts, allocations, income/expense) with parent_id for the hierarchy. Active only unless include_inactive is set. Pass include_values to attach each head's current value (matches the heads list page) — that also surfaces inactive heads that still hold a non-zero balance.",
       inputSchema: {
         type: z.enum(['account', 'allocation', 'income_expense']).optional(),
         include_inactive: z.boolean().optional().describe('Include archived/inactive heads (default false)'),
+        include_values: z
+          .boolean()
+          .optional()
+          .describe("Attach each head's current value and include inactive heads with a non-zero balance (default false)"),
       },
       annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const heads = await load_heads(uid)
-      return text(heads.filter(h => (!args.type || h.type === args.type) && (args.include_inactive || h.is_active)))
+      const heads = (await load_heads(uid)).filter(h => !args.type || h.type === args.type)
+      if (!args.include_values) return text(heads.filter(h => args.include_inactive || h.is_active))
+
+      const [{ accountsToAssets }, assets] = await Promise.all([compute_balances_core(uid), load_assets()])
+      const priceByAsset = await get_prices_for_assets(assets)
+      const rows = heads
+        .map(h => {
+          const assetMap = accountsToAssets.get(h.id) ?? new Map<string, { qty: number; txn_value: number }>()
+          const nonzero = [...assetMap.values()].some(b => Math.abs(b.qty) > 1e-9 || Math.abs(b.txn_value) > 1e-9)
+          return { head: h, value: compute_head_value(assetMap, priceByAsset).toNumber(), nonzero }
+        })
+        .filter(r => args.include_inactive || r.head.is_active || r.nonzero)
+        .map(r => ({ ...r.head, value: r.value }))
+      return text(rows)
     },
   )
 
   server.registerTool(
     'list_assets',
     {
-      description: 'List the asset catalog. Active only unless include_inactive is set.',
-      inputSchema: { include_inactive: z.boolean().optional().describe('Include inactive assets (default false)') },
+      description:
+        "List the asset catalog with parent_id for the hierarchy. Active only unless include_inactive is set. Pass include_values to attach each asset's total quantity, current value and XIRR (matches the assets list page) — that also surfaces inactive assets still holding a non-zero quantity.",
+      inputSchema: {
+        include_inactive: z.boolean().optional().describe('Include inactive assets (default false)'),
+        include_values: z
+          .boolean()
+          .optional()
+          .describe('Attach total qty, current value and XIRR, and include inactive assets with non-zero qty (default false)'),
+      },
       annotations: ro,
     },
     async (args, extra) => {
-      get_uid(extra as ToolExtra)
+      const uid = get_uid(extra as ToolExtra)
       const assets = await load_assets()
-      return text(args.include_inactive ? assets : assets.filter(a => a.is_active))
+      if (!args.include_values) return text(args.include_inactive ? assets : assets.filter(a => a.is_active))
+
+      const { assetsToAccounts } = await compute_balances_core(uid)
+      const priceByAsset = await get_prices_for_assets(assets)
+      // Normalized account-line txn_values, for per-asset XIRR (same cashflows as the assets page).
+      const account_lines = await prisma.line_item.findMany({
+        where: { accounting_head: { type: 'account' }, transaction: { user_id: uid } },
+        include: { transaction: true },
+      })
+      const tx_ids = [...new Set(account_lines.map(li => li.transaction_id))]
+      const txnValueById = new Map<string, number>()
+      if (tx_ids.length > 0) {
+        const rawTxns = await prisma.transaction.findMany({
+          where: { id: { in: tx_ids } },
+          include: { line_items: { include: { accounting_head: true, asset: true } } },
+        })
+        for (const tx of rawTxns.map(normalize_txn)) for (const li of tx.line_items) txnValueById.set(li.id, li.txn_value.toNumber())
+      }
+
+      const rows = assets
+        .map(a => {
+          const accMap = assetsToAccounts.get(a.id) ?? new Map<string, { qty: number; txn_value: number }>()
+          const price = priceByAsset.get(a.id)?.price ?? null
+          let qty = 0
+          let value = new Prisma.Decimal(0)
+          for (const b of accMap.values()) {
+            qty += b.qty
+            value = value.add(value_balance_entry(b.qty, b.txn_value, price))
+          }
+          const current_value = value.toNumber()
+          let xirr: number | null = null
+          if (a.type !== asset_type.rupees && current_value !== 0) {
+            const cashflows = account_lines
+              .filter(li => li.asset_id === a.id)
+              .flatMap(li => {
+                const v = txnValueById.get(li.id)
+                return v === undefined ? [] : [{ amount: -v, when: li.datetime ?? li.transaction.datetime }]
+              })
+            if (cashflows.length > 0) {
+              cashflows.push({ amount: current_value, when: new Date() })
+              xirr = calculate_xirr(cashflows)
+            }
+          }
+          return { asset: a, qty, current_value, xirr, nonzero: Math.abs(qty) > 1e-9 }
+        })
+        .filter(r => args.include_inactive || r.asset.is_active || r.nonzero)
+        .map(r => ({
+          id: r.asset.id,
+          name: r.asset.name,
+          type: r.asset.type,
+          ticker: r.asset.ticker,
+          parent_id: r.asset.parent_id,
+          is_active: r.asset.is_active,
+          qty: r.qty,
+          current_value: r.current_value,
+          xirr: r.xirr,
+        }))
+      return text(rows)
     },
   )
 
