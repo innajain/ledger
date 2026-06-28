@@ -44,11 +44,11 @@ const columns: Column<HeadRow>[] = [
   { header: 'Active', width: 8, cell: r => (r.is_active ? 'Yes' : 'No'), color: r => (r.is_active ? 'green' : 'red') },
 ]
 
-export function Heads({ uid, active, onExit }: ScreenProps) {
+export function Heads({ uid, active, onExit, initialType }: ScreenProps & { initialType?: accounting_head_type }) {
   const [reload, setReload] = useState(0)
   const [mode, setMode] = useState<Mode>('list')
   const [result, setResult] = useState<ActionResult<unknown> | null>(null)
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>(initialType ?? 'all')
 
   const { data: allRows, error } = useAsync<HeadRow[]>(async () => {
     const heads = await load_heads(uid)

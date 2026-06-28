@@ -13,14 +13,16 @@ import { Assets } from './screens/Assets'
 import { Templates } from './screens/Templates'
 
 const TABS = [
-  { label: 'Dashboard', value: 'dashboard' },
+  { label: 'Home', value: 'home' },
+  { label: 'Assets', value: 'assets' },
+  { label: 'Accounts', value: 'accounts' },
+  { label: 'Allocations', value: 'allocations' },
+  { label: 'Income/Expenses', value: 'income_expense' },
+  { label: 'Transactions', value: 'transactions' },
+  { label: 'Requests', value: 'requests' },
   { label: 'Holdings', value: 'holdings' },
   { label: 'Balances', value: 'balances' },
-  { label: 'Transactions', value: 'transactions' },
-  { label: 'Approvals', value: 'approvals' },
   { label: 'Templates', value: 'templates' },
-  { label: 'Heads', value: 'heads' },
-  { label: 'Assets', value: 'assets' },
 ]
 
 const MENU = [...TABS, { label: 'Logout', value: 'logout' }, { label: 'Exit', value: 'exit' }]
@@ -28,7 +30,7 @@ const MENU = [...TABS, { label: 'Logout', value: 'logout' }, { label: 'Exit', va
 export function App() {
   const { session, loading, login, logout } = useSession()
   const { exit } = useApp()
-  const [tab, setTab] = useState('dashboard')
+  const [tab, setTab] = useState('home')
   const [focus, setFocus] = useState<'menu' | 'content'>('menu')
 
   // The menu owns the keyboard until you enter a screen; the focused screen
@@ -74,14 +76,16 @@ export function App() {
           <SelectInput items={MENU} isFocused={focus === 'menu'} onSelect={handleSelect} />
         </Box>
         <Box flexGrow={1} flexDirection="column">
-          {tab === 'dashboard' && <Dashboard uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'home' && <Dashboard uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'assets' && <Assets uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'accounts' && <Heads uid={session.uid} active={active} onExit={onExit} initialType="account" />}
+          {tab === 'allocations' && <Heads uid={session.uid} active={active} onExit={onExit} initialType="allocation" />}
+          {tab === 'income_expense' && <Heads uid={session.uid} active={active} onExit={onExit} initialType="income_expense" />}
+          {tab === 'transactions' && <Transactions uid={session.uid} active={active} onExit={onExit} />}
+          {tab === 'requests' && <Approvals uid={session.uid} active={active} onExit={onExit} />}
           {tab === 'holdings' && <Holdings uid={session.uid} active={active} onExit={onExit} />}
           {tab === 'balances' && <Balances uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'transactions' && <Transactions uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'approvals' && <Approvals uid={session.uid} active={active} onExit={onExit} />}
           {tab === 'templates' && <Templates uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'heads' && <Heads uid={session.uid} active={active} onExit={onExit} />}
-          {tab === 'assets' && <Assets uid={session.uid} active={active} onExit={onExit} />}
         </Box>
       </Box>
 
