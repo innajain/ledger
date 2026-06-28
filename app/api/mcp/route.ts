@@ -219,7 +219,8 @@ function register_tools(server: McpServer) {
   server.registerTool(
     'list_transactions',
     {
-      description: 'List recent transactions. Optional text search and IST date range (dd-MM-yyyy).',
+      description:
+        'List recent transactions with debit/credit amounts. Optional text search and IST date range (dd-MM-yyyy). debit = money flowing out of accounts (expenses, transfers out); credit = money flowing in (income, transfers in).',
       inputSchema: {
         limit: z.number().int().positive().max(200).optional(),
         search: z.string().optional(),
@@ -245,16 +246,29 @@ function register_tools(server: McpServer) {
         },
         orderBy: { datetime: 'desc' },
         take,
-        include: { _count: { select: { line_items: true } }, line_items: { select: { txn_value: true } } },
+        include: {
+          _count: { select: { line_items: true } },
+          line_items: { select: { quantity: true, txn_value: true, accounting_head: { select: { type: true } } } },
+        },
       })
       return text(
-        txns.map(t => ({
-          id: t.id,
-          datetime: t.datetime,
-          description: t.description,
-          line_count: t._count.line_items,
-          amount: t.line_items.reduce((s, li) => s + (li.txn_value && li.txn_value.toNumber() > 0 ? li.txn_value.toNumber() : 0), 0),
-        })),
+        txns.map(t => {
+          // For rupee assets txn_value is null in DB; quantity holds the INR amount.
+          // For non-rupee assets txn_value holds the INR value.
+          const inr = (li: { quantity: { toNumber(): number } | null; txn_value: { toNumber(): number } | null }) =>
+            li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0
+          const account_lines = t.line_items.filter(li => li.accounting_head.type === 'account')
+          const debit = account_lines.reduce((s, li) => { const v = inr(li); return v < 0 ? s + Math.abs(v) : s }, 0)
+          const credit = account_lines.reduce((s, li) => { const v = inr(li); return v > 0 ? s + v : s }, 0)
+          return {
+            id: t.id,
+            datetime: t.datetime,
+            description: t.description,
+            line_count: t._count.line_items,
+            debit,
+            credit,
+          }
+        }),
       )
     },
   )
