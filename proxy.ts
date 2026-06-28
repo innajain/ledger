@@ -46,7 +46,7 @@ async function verifyToken(token: string): Promise<{ uid: string; username: stri
 // scripts load via that nonce. Enforced (not report-only) — verified free of
 // violations in prod. Switch back to 'Content-Security-Policy-Report-Only' when
 // trialing new directives before enforcing them.
-function buildCsp(nonce: string): string {
+function buildCsp(nonce: string, formAction = `form-action 'self'`): string {
   // The Vercel Blob client SDK uploads/downloads attachments straight from the
   // browser, hitting the blob API + store host. In prod that's vercel.com plus
   // the *.blob.vercel-storage.com store; in dev it's the local emulator origin
@@ -70,14 +70,14 @@ function buildCsp(nonce: string): string {
     `manifest-src 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
-    `form-action 'self'`,
+    formAction,
     `object-src 'none'`,
   ].join('; ')
 }
 
-function nextWithSecurity(requestHeaders: Headers): NextResponse {
+function nextWithSecurity(requestHeaders: Headers, formAction?: string): NextResponse {
   const nonce = btoa(crypto.randomUUID())
-  const csp = buildCsp(nonce)
+  const csp = buildCsp(nonce, formAction)
   // x-nonce is read by the layout to nonce the inline script; forwarding the CSP
   // on the request lets Next attach the same nonce to its framework scripts.
   requestHeaders.set('x-nonce', nonce)
@@ -98,7 +98,21 @@ export async function proxy(request: NextRequest) {
   requestHeaders.delete('x-token-iat')
 
   if (isPublicPath(pathname)) {
-    return nextWithSecurity(requestHeaders)
+    // The OAuth consent page (app/api/oauth/authorize) submits a form that the
+    // server then 302-redirects to the client's callback. `form-action` is
+    // enforced on that redirect too, so a strict 'self' blocks the OAuth flow.
+    // Allow the registered (server-validated) redirect_uri's origin; the actual
+    // open-redirect guard is the redirect_uris allow-list check in the route.
+    let formAction: string | undefined
+    if (pathname === '/api/oauth/authorize') {
+      let origin = ''
+      try {
+        const ru = new URL(request.url).searchParams.get('redirect_uri')
+        if (ru) origin = new URL(ru).origin
+      } catch {}
+      formAction = `form-action 'self'${origin ? ` ${origin}` : ' https:'}`
+    }
+    return nextWithSecurity(requestHeaders, formAction)
   }
 
   const token = request.cookies.get('ledger_token')?.value
