@@ -92,8 +92,18 @@ const lineItemShape = z
     z.object({
       account: z.string().describe('Accounting head: exact id or name'),
       asset: z.string().describe('Asset: exact id or name'),
-      quantity: z.number().optional().describe('Signed quantity; omit to auto-derive'),
-      txn_value: z.number().nullish().describe('Rupee value; omit/null to auto-derive'),
+      quantity: z
+        .number()
+        .optional()
+        .describe(
+          'Signed quantity. REQUIRED on every account head. On allocation heads omit it on exactly one line, and on income/expense heads omit it on exactly one line — those are auto-derived as the balancing remainder.',
+        ),
+      txn_value: z
+        .number()
+        .nullish()
+        .describe(
+          'Non-rupee assets only: signed rupee value, required on account lines and auto-derived on the one omitted line per side. Omit entirely for rupee assets.',
+        ),
       description: z.string().nullish(),
     }),
   )
@@ -322,7 +332,8 @@ function register_tools(server: McpServer) {
   server.registerTool(
     'create_transaction',
     {
-      description: 'Create a transaction. Line items must balance per the ledger rules; accounts/assets are given by id or name.',
+      description:
+        'Create a transaction from balanced line items (accounts/assets by id or name). Null-remainder rule, applied per asset: give every account head an explicit signed quantity; leave the quantity omitted on exactly one allocation line and exactly one income/expense line (auto-derived). E.g. spend ₹53 from Wallet on Commute → Wallet quantity -53, plus one Expenses line and one Commute line with quantity omitted.',
       inputSchema: {
         description: z.string().nullish(),
         datetime: z.string().optional().describe('dd-MM-yyyy or ISO; default now'),
