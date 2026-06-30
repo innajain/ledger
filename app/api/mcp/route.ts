@@ -662,6 +662,69 @@ function register_tools(server: McpServer) {
   )
 
   server.registerTool(
+    'find_similar_transactions',
+    {
+      description:
+        'Find past transactions resembling a free-text description and return them with full normalized line items — the categorization template to reuse. ' +
+        'Use this BEFORE create_transaction/update_transaction (and whenever the user gives a terse instruction like "log my barber 150" or "add a swiggy order") to learn which account, allocation and income/expense heads the user themselves picked for similar entries, instead of guessing or asking. ' +
+        'The query is tokenized; a transaction matches if any word appears in its description OR in one of its head names, and results are ranked by how many distinct words matched, then by recency. Returns the same line_item shape as get_transaction.',
+      inputSchema: {
+        query: z.string().describe('Free-text hint, e.g. a merchant or category ("barber haircut", "swiggy lunch", "rent")'),
+        limit: z.number().int().positive().max(20).optional().describe('Max transactions to return (default 5)'),
+      },
+      annotations: ro,
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const take = args.limit ?? 5
+      const tokens = [
+        ...new Set(
+          args.query
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(t => t.length >= 2),
+        ),
+      ].slice(0, 10)
+      if (tokens.length === 0) return text([])
+      const txns = await prisma.transaction.findMany({
+        where: {
+          user_id: uid,
+          OR: tokens.flatMap(tok => [
+            { description: { contains: tok, mode: 'insensitive' as const } },
+            { line_items: { some: { accounting_head: { name: { contains: tok, mode: 'insensitive' as const } } } } },
+          ]),
+        },
+        orderBy: { datetime: 'desc' },
+        take: 200,
+        include: { line_items: { include: { accounting_head: true, asset: true } } },
+      })
+      const scored = txns.map(raw => {
+        const t = normalize_txn(raw)
+        const haystack = [t.description ?? '', ...t.line_items.map(li => li.accounting_head.name)].join(' ').toLowerCase()
+        const score = tokens.filter(tok => haystack.includes(tok)).length
+        return { t, score }
+      })
+      scored.sort((a, b) => b.score - a.score || new Date(b.t.datetime).getTime() - new Date(a.t.datetime).getTime())
+      return text(
+        scored.slice(0, take).map(({ t }) => ({
+          id: t.id,
+          datetime: t.datetime,
+          description: t.description,
+          total: net_account_flow(t.line_items),
+          line_items: t.line_items.map(li => ({
+            head: li.accounting_head.name,
+            head_type: li.accounting_head.type,
+            asset: li.asset.name,
+            quantity: li.quantity.toNumber(),
+            txn_value: li.txn_value.toNumber(),
+            description: li.description,
+          })),
+        })),
+      )
+    },
+  )
+
+  server.registerTool(
     'get_transaction',
     {
       description:
@@ -862,7 +925,7 @@ function register_tools(server: McpServer) {
     {
       description:
         'Create a transaction from balanced line items (accounts/assets by id or name). ' +
-        'Call list_heads and list_assets FIRST to get exact head/asset names — do not guess them (the rupee asset is usually named "Money", not "INR"/"Rupees"). ' +
+        'Call find_similar_transactions FIRST with the user\'s description to see how they categorized similar entries before, and reuse those exact heads rather than guessing or asking. Call list_heads and list_assets to get exact head/asset names — do not guess them (the rupee asset is usually named "Money", not "INR"/"Rupees"). ' +
         'A simple cash expense is three lines: the account you paid from, one allocation head, and one income/expense head. ' +
         'Null-remainder rule, applied per asset: every account line needs an explicit signed quantity; then omit quantity on exactly one allocation line AND on exactly one income/expense line (both auto-derived as the balancing remainder — do not also fill them). ' +
         'For rupee assets never set txn_value. ' +
@@ -947,7 +1010,13 @@ function register_tools(server: McpServer) {
 
 const handler = createMcpHandler(
   register_tools,
-  { serverInfo: { name: 'ledger', version: '1.0.0' } },
+  {
+    serverInfo: { name: 'ledger', version: '1.0.0' },
+    instructions:
+      "This is the user's personal finance ledger (triple-entry bookkeeping). The user categorizes things consistently over time, so don't make the user re-specify details you can infer from their history. " +
+      'Before creating or updating a transaction — and whenever the user gives a terse instruction or asks how something should be categorized — call find_similar_transactions (or list_transactions with search + include_line_items) to see how they recorded comparable entries, and reuse the same account, allocation and income/expense heads instead of guessing or asking. ' +
+      "Prefer matching the user's own past structure over inventing new heads. Use get_income_expense (never a sum of transaction amounts) for period spending/income totals.",
+  },
   { streamableHttpEndpoint: '/api/mcp', disableSse: true },
 )
 
