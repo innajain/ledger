@@ -14,6 +14,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { Prisma, asset_type } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 import { resolve_access_token } from '@/lib/mcp/oauth'
 import { compute_net_worth, subtree_total, compute_xirr_for_accounts } from '@/app/_core/valuation_core'
 import { compute_balances_core } from '@/app/_core/balances_core'
@@ -187,6 +188,26 @@ async function build_line_items(uid: string, items: z.infer<typeof lineItemShape
 // ---------------------------------------------------------------------------
 
 function register_tools(server: McpServer) {
+  // Route every tool handler through a try/catch that logs unexpected throws before
+  // mcp-handler turns them into a JSON-RPC error. Write tools surface failures via
+  // ActionResult (logged inside the *_core functions), but read tools throw raw —
+  // without this a DB/price-fetch fault in a read tool would fail silently in our logs.
+  // We patch registerTool once so every call site keeps its zod-inferred handler types.
+  const base_register = server.registerTool.bind(server)
+  server.registerTool = ((name: string, config: Parameters<typeof base_register>[1], handler: (...a: unknown[]) => unknown) =>
+    base_register(
+      name,
+      config as never,
+      (async (...a: unknown[]) => {
+        try {
+          return await handler(...a)
+        } catch (err) {
+          logger.error({ err, tool: name }, 'mcp tool failed')
+          throw err
+        }
+      }) as never,
+    )) as typeof server.registerTool
+
   const ro = { readOnlyHint: true } as const
 
   server.registerTool(
