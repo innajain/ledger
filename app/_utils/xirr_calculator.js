@@ -3,6 +3,7 @@ import xirr from 'xirr'
 export function calculate_xirr(cashflows) {
   if (cashflows.length < 2) return null
   const amounts = cashflows.map(c => c.amount)
+  const sum = amounts.reduce((a, b) => a + b, 0)
   const min = Math.min(...amounts)
   const max = Math.max(...amounts)
   const times = cashflows.map(c => Math.floor(c.when.getTime() / 86400000))
@@ -26,7 +27,8 @@ export function calculate_xirr(cashflows) {
       // astronomical annualized returns. Treat anything beyond ±1000% as
       // noise — chart libraries can't render values that large anyway.
       if (!Number.isFinite(rate) || Math.abs(rate) > 10) return null
-      return rate
+      // Force the sign of XIRR to match the sign of net cashflows.
+      return Math.abs(rate) * Math.sign(sum)
     } catch {
       // try next guess
     }

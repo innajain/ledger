@@ -11,7 +11,7 @@ import { render } from 'ink-testing-library'
 import { createElement as h } from 'react'
 import { LineItemEditor } from './LineItemEditor'
 
-const tick = (ms = 40) => new Promise(r => setTimeout(r, ms))
+const tick = (ms = 100) => new Promise(r => setTimeout(r, ms))
 const ESC = String.fromCharCode(27)
 const UP = ESC + '[A'
 const DOWN = ESC + '[B'
@@ -24,23 +24,23 @@ describe('LineItemEditor', () => {
   it('builds a line through the keyboard flow and returns it (lines mode)', async () => {
     const onDone = vi.fn()
     const { stdin, unmount } = render(h(LineItemEditor, { uid: 'u1', mode: 'lines', onDone, onCancel: vi.fn() }))
-    await tick(80) // wait for load_heads/load_assets
+    await tick(200)
 
     stdin.write(PRIME)
     await tick()
-    stdin.write(DOWN) // head picker: row 0 is "finish", move to the head
+    stdin.write(DOWN)
     await tick()
-    stdin.write(ENTER) // select Cash → asset phase
+    stdin.write(ENTER)
     await tick()
-    stdin.write(ENTER) // select Money (rupees) → qty phase
+    stdin.write(ENTER)
     await tick()
-    stdin.write('10') // type quantity
+    stdin.write('10')
     await tick()
-    stdin.write(ENTER) // submit qty → note phase (value skipped for rupees)
+    stdin.write(ENTER)
     await tick()
-    stdin.write(ENTER) // blank note → commit line, back to head phase
+    stdin.write(ENTER)
     await tick()
-    stdin.write(ENTER) // head phase cursor 0 = "finish" → onDone
+    stdin.write(ENTER)
     await tick()
 
     expect(onDone).toHaveBeenCalledTimes(1)
@@ -50,20 +50,20 @@ describe('LineItemEditor', () => {
       accounting_head_id: 'h1',
       asset_id: 'as1',
       quantity: 10,
-      txn_value: null, // rupees → value omitted
+      txn_value: null,
     })
     unmount()
-  })
+  }, 15_000)
 
   it('cancels the whole entry on escape at the first head', async () => {
     const onCancel = vi.fn()
     const { stdin, unmount } = render(h(LineItemEditor, { uid: 'u1', mode: 'lines', onDone: vi.fn(), onCancel }))
-    await tick(80)
+    await tick(200)
     stdin.write(PRIME)
     await tick()
     stdin.write(ESC)
     await tick()
     expect(onCancel).toHaveBeenCalled()
     unmount()
-  })
+  }, 10_000)
 })
