@@ -17,10 +17,8 @@ const D = (n: number) => new Prisma.Decimal(n)
 const MF: AssetMeta = { id: 'mf', type: asset_type.mf, ticker: 'XYZ' }
 const CASH: AssetMeta = { id: 'rupees', type: asset_type.rupees, ticker: null }
 
-// A constant-price lookup for one asset; everything else is unpriced (null).
 const priceFor = (asset_id: string, price: number | null): Map<string, PriceLookup> => new Map([[asset_id, () => price]])
 
-// Build an Event the way build_events would (dateKey derived from the date).
 function ev(over: { asset_id?: string; asset_type?: asset_type; accounting_head_id?: string; qty: number; book: number; date: Date }): Event {
   return {
     asset_id: over.asset_id ?? MF.id,
@@ -36,7 +34,6 @@ function ev(over: { asset_id?: string; asset_type?: asset_type; accounting_head_
 const ACCOUNT: TimeseriesFilter = { kind: 'account', accounting_head_id: 'head' }
 const ALLOCATION: TimeseriesFilter = { kind: 'allocation', allocation_id: 'head' }
 
-// IST is UTC+5:30, so use mid-day UTC to stay on the intended calendar day.
 const day = (n: number) => new Date(Date.UTC(2024, 0, n, 6, 0, 0))
 
 describe('reconcile_timeseries_tail', () => {
@@ -61,7 +58,7 @@ describe('walk_events — emits one point per IST day', () => {
     const events = [ev({ qty: 10, book: 1000, date: day(1) })]
     const points = walk_events(events, ACCOUNT, priceFor(MF.id, 150), [MF], 'all', day(3))
     expect(points.map(p => p.date)).toEqual(['2024-01-01', '2024-01-02', '2024-01-03'])
-    // 10 units @ 150 every day; invested stays at book.
+
     expect(points.every(p => p.current === 1500)).toBe(true)
     expect(points.every(p => p.invested === 1000)).toBe(true)
   })
@@ -90,14 +87,14 @@ describe('walk_events — FIFO lot accounting (account filter)', () => {
   it('reduces holdings and proportional book after a partial sell', () => {
     const events = [ev({ qty: 10, book: 1000, date: day(1) }), ev({ qty: -4, book: -400, date: day(2) })]
     const points = walk_events(events, ACCOUNT, priceFor(MF.id, 150), [MF], 'today-only', day(2))
-    // 6 units remain @ 150 = 900; invested = 1000 * 6/10 = 600.
+
     expect(points[0].current).toBe(900)
     expect(points[0].invested).toBe(600)
   })
 
   it('computes a positive XIRR for a held gain over time', () => {
     const events = [ev({ qty: 10, book: 1000, date: day(1) })]
-    // ~1 year later, holding now worth 1500 → ≈50% annualized.
+
     const oneYearLater = new Date(Date.UTC(2024, 11, 31, 6, 0, 0))
     const points = walk_events(events, ACCOUNT, priceFor(MF.id, 150), [MF], 'today-only', oneYearLater)
     expect(points[0].xirr).not.toBeNull()
@@ -109,7 +106,7 @@ describe('walk_events — allocation accumulation (allocation filter)', () => {
   it('accumulates net qty/book and prices the position', () => {
     const events = [ev({ qty: 10, book: 1000, date: day(1) }), ev({ qty: 5, book: 500, date: day(2) })]
     const points = walk_events(events, ALLOCATION, priceFor(MF.id, 200), [MF], 'today-only', day(2))
-    // 15 units @ 200 = 3000; invested = 1500 book.
+
     expect(points[0].current).toBe(3000)
     expect(points[0].invested).toBe(1500)
   })
@@ -120,8 +117,6 @@ describe('walk_events — allocation accumulation (allocation filter)', () => {
 })
 
 describe('build_events', () => {
-  // Minimal balanced rupees transaction (passes normalize_txn): account -35,
-  // with the null remainders on the allocation + income/expense sides.
   const makeTxn = (id: string, date: Date) => ({
     id,
     datetime: date,
@@ -175,8 +170,6 @@ describe('build_events', () => {
   })
 
   it('asset-scoped filters only count account-side line items', () => {
-    // The allocation/income_expense rupees lines also reference the asset, but
-    // an asset filter must ignore non-account sides.
     const events = build_events(txns(makeTxn('t1', day(1))), { kind: 'asset', asset_id: 'rupees' })
     expect(events).toHaveLength(1)
     expect(events[0].accounting_head_id).toBe('bank')
@@ -185,7 +178,6 @@ describe('build_events', () => {
 
 describe('compute_timeseries_points (build + walk)', () => {
   it('produces a daily series from raw transactions', () => {
-    // A +100 rupees deposit into the bank account (income).
     const tx = {
       id: 't1',
       datetime: day(1),
@@ -231,7 +223,7 @@ describe('compute_timeseries_points (build + walk)', () => {
       day(2),
     )
     expect(points.map(p => p.date)).toEqual(['2024-01-01', '2024-01-02'])
-    // Bank holds +100 rupees from day 1 onward.
+
     expect(points.every(p => p.current === 100)).toBe(true)
   })
 })

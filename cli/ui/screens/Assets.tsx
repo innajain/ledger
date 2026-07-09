@@ -240,7 +240,6 @@ function AssetDetail({ uid, assetId, onClose }: { uid: string; assetId: string; 
     const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
     const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
 
-    // Aggregate per account
     let asset_total = new Prisma.Decimal(0)
     let book_total = new Prisma.Decimal(0)
     const acc_map: Record<string, { id: string; name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
@@ -268,7 +267,6 @@ function AssetDetail({ uid, assetId, onClose }: { uid: string; assetId: string; 
       })
     }
 
-    // Aggregate per allocation
     const alloc_map: Record<string, { id: string; name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
     for (const li of allocation_line_items) {
       const n = normalizedById.get(li.id)!

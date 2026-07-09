@@ -76,9 +76,6 @@ async function Home() {
 
   const networth = allocation_values.reduce((sum, v) => sum.add(v?.total ?? new Prisma.Decimal(0)), new Prisma.Decimal(0)).toNumber()
 
-  // Investments XIRR is streamed in via Suspense so the rest of the dashboard
-  // paints immediately — the XIRR query touches every transaction in the
-  // Investments subtree, which can be slow for heavy users.
   const investSubtreeIds = invest ? Array.from(get_subtree_accounting_head_ids(invest)) : []
   const investXirrSlot =
     invest && invest_with_value && invest_with_value.total !== 0 ? (

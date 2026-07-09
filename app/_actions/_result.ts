@@ -1,10 +1,3 @@
-/**
- * Discriminated result type for server actions.
- *
- * Existing callers that only check `result.success` and read `result.message`
- * keep working. New callers that want to distinguish error categories (auth
- * vs. validation vs. server) can switch on `code`.
- */
 export type ActionErrorCode = 'VALIDATION' | 'UNAUTHORIZED' | 'NOT_FOUND' | 'SERVER'
 
 export type ActionResult<T = void> = { success: true; message?: string; data?: T } | { success: false; code: ActionErrorCode; message: string }
@@ -17,13 +10,6 @@ export function err(code: ActionErrorCode, message: string): ActionResult<never>
   return { success: false, code, message }
 }
 
-/**
- * A thrown error that carries an ActionErrorCode. Use it for validation /
- * not-found cases raised deep inside an action (e.g. inside a Prisma
- * transaction callback or a shared helper) where returning `err(...)` directly
- * is awkward. `fromError` maps it back to a typed ActionResult, so the code
- * survives the throw instead of collapsing to SERVER.
- */
 export class ActionError extends Error {
   code: ActionErrorCode
   constructor(code: ActionErrorCode, message: string) {
@@ -33,13 +19,6 @@ export class ActionError extends Error {
   }
 }
 
-/**
- * Map an unknown thrown value to an ActionResult error. Defaults to SERVER
- * unless a code is supplied. Use in catch blocks.
- *
- * Handles Prisma PrismaClientKnownRequestError codes by duck-typing the `code`
- * property so we don't need to import the Prisma client here.
- */
 export function fromError(error: unknown, fallback: ActionErrorCode = 'SERVER'): ActionResult<never> {
   if (error instanceof ActionError) return err(error.code, error.message)
   if (error && typeof error === 'object' && 'code' in error) {
@@ -49,9 +28,7 @@ export function fromError(error: unknown, fallback: ActionErrorCode = 'SERVER'):
     if (prismaCode === 'P2025') return err('NOT_FOUND', 'Record not found')
   }
   const detail = error instanceof Error ? error.message : String(error)
-  // Don't leak internal/Prisma error text to clients in production; the real
-  // detail still surfaces in dev and in server logs. Typed VALIDATION/NOT_FOUND
-  // results (ActionError, Prisma mappings) keep their user-facing messages.
+
   const message = fallback === 'SERVER' && process.env.NODE_ENV === 'production' ? 'Something went wrong. Please try again.' : detail
   return { success: false, code: fallback, message }
 }

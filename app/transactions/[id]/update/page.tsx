@@ -19,7 +19,6 @@ async function Page({ params }: Props) {
   })
   if (!tx) return <div>Transaction not found.</div>
 
-  // For now reuse the ClientPage to show transaction and provide an Edit entry point.
   const txForClient = {
     id: tx.id,
     date: tx.datetime,

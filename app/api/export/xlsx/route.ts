@@ -5,10 +5,6 @@ import { build_user_xlsx } from '@/app/_utils/db_export'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
 
-// A single linked .xlsx workbook: one sheet per table (scoped to the caller, via
-// db_export.ts), with every foreign-key cell hyperlinked to the referenced row
-// on its table's sheet. The Excel counterpart to the CSV-zip at /api/export.
-
 const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 export async function GET() {

@@ -5,12 +5,6 @@ import { build_user_sql } from '@/app/_utils/db_export'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
 
-// User-scoped SQL dump: the signed-in user's own rows across every table that
-// holds their data, as data-only INSERT statements. A restorable backup, so —
-// unlike the CSV/Excel exports — it keeps every column (incl. the owner's own
-// password_hash) by passing no exclusions. The admin-only whole-DB dump lives
-// at /api/admin/dump.
-
 export async function GET() {
   try {
     const user = await get_current_user()

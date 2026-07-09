@@ -115,7 +115,6 @@ export function Approvals({ uid, active, onExit }: ScreenProps) {
   )
 }
 
-/** Pick one of your own (non-linked) accounts to bulk-balance an accept-all onto. */
 function AcceptAllPicker({
   uid,
   counterparty,

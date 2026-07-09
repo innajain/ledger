@@ -28,22 +28,13 @@ function fromCatch(error: unknown): ActionResult<never> {
   return err('SERVER', isProd() ? 'Something went wrong. Please try again.' : detail)
 }
 
-// Login accepts whatever is on file — existing accounts may pre-date the policy
-// below, so we only check that the fields are present.
 const AuthSchema = z.object({
   username: z.string().min(1, 'Username is required'),
   password: z.string().min(1, 'Password is required'),
 })
 
-// Credential schemas, session revocation, and the sign-up / change-password /
-// change-username DB logic live in `app/_core/auth_core.ts` so the CLI shares
-// them; this file keeps the web-only concerns (cookies, headers, rate limiting).
-
-// Cached per request (deduped across get_current_user_id / get_current_user).
-// Fails open on a Redis error: an outage shouldn't lock everyone out — it just
-// suspends revocation enforcement until Redis is reachable again.
 const is_token_revoked = cache(async (uid: string, iat: number | undefined): Promise<boolean> => {
-  if (!iat) return false // legacy token without an iat — can't evaluate; it expires within JWT_EXPIRY_DAYS anyway
+  if (!iat) return false
   try {
     const cutoff = await redis.get(revoke_key(uid))
     return cutoff !== null && iat < Number(cutoff)
@@ -117,10 +108,6 @@ export async function log_out(): Promise<ActionResult> {
   }
 }
 
-// Resolve the current user id without touching the DB.
-// Trusts x-user-id set by the proxy (the proxy strips any client-supplied value
-// before re-setting it from a verified JWT). Falls back to verifying the cookie
-// for paths the proxy doesn't cover.
 export const get_current_user_id = cache(async (): Promise<string | null> => {
   const h = await headers()
   const headerUid = h.get('x-user-id')
@@ -141,13 +128,6 @@ export const get_current_user_id = cache(async (): Promise<string | null> => {
   }
 })
 
-// Cache the current user (full record) for the duration of the request.
-// Use this only when callers need username/etc. — for ownership scoping,
-// prefer `get_current_user_id`.
-//
-// Reads uid+username from the proxy-set headers when available to avoid a DB
-// round-trip on every authenticated render. Falls back to verifying the cookie
-// (and, for tokens issued before username was embedded, a one-time DB lookup).
 export const get_current_user = cache(async (): Promise<Pick<user, 'id' | 'username'> | null> => {
   const h = await headers()
   const headerUid = h.get('x-user-id')
@@ -176,9 +156,6 @@ export const get_current_user = cache(async (): Promise<Pick<user, 'id' | 'usern
   return userRec
 })
 
-// Whether the current user is an admin. Costs one indexed-PK lookup; cached for
-// the request. Use for UI affordances — server actions must still call
-// `require_admin` to enforce access.
 export const is_current_user_admin = cache(async (): Promise<boolean> => {
   const uid = await get_current_user_id()
   if (!uid) return false
@@ -186,10 +163,6 @@ export const is_current_user_admin = cache(async (): Promise<boolean> => {
   return !!rec?.is_admin
 })
 
-/**
- * Throw unless the current user has `is_admin = true`. Returns the user id
- * on success so callers can use it for downstream queries.
- */
 export async function require_admin(): Promise<string> {
   const id = await get_current_user_id()
   if (!id) throw new Error('unauthorized')
@@ -209,8 +182,6 @@ export async function change_password(payload: { current_password: string; new_p
     const res = await change_password_core(user.id, payload)
     if (!res.success) return res
 
-    // The core revoked every session; re-issue this device's cookie so the user
-    // who just changed their password stays logged in here (fresh iat survives).
     const token = await sign_token({ uid: user.id, username: user.username })
     await set_session_cookie(token)
     return ok(undefined, 'Password changed successfully')
@@ -227,8 +198,6 @@ export async function change_username(payload: { new_username: string; password:
     const res = await change_username_core(user.id, payload)
     if (!res.success) return res
 
-    // Re-issue the cookie so the JWT payload (and proxy-set x-username header)
-    // reflects the new username instead of the stale one until the next login.
     const token = await sign_token({ uid: user.id, username: res.data!.username })
     await set_session_cookie(token)
     return ok(undefined, 'Username changed successfully')

@@ -1,22 +1,11 @@
 import { useState } from 'react'
 import { useInput, useStdout } from 'ink'
 
-/**
- * How many list rows fit in the current terminal, leaving `overhead` lines for
- * the app header, panel border, hints and feedback. Used as DataTable `maxRows`
- * so long lists scroll instead of overflowing. Recomputed each render (picks up
- * resizes on the next keystroke).
- */
 export function useViewportRows(overhead = 12, min = 6): number {
   const { stdout } = useStdout()
   return Math.max(min, (stdout?.rows ?? 24) - overhead)
 }
 
-/**
- * A keyboard row cursor over `[0, length)`. ↑/k up, ↓/j down, g/G jump to
- * ends. The index is derived-clamped (never stored out of range) so a shrinking
- * list can't leave the cursor stranded — no setState-in-effect. Gated on `active`.
- */
 export function useListNav(length: number, active: boolean): readonly [number, (i: number) => void] {
   const [raw, setRaw] = useState(0)
   const cursor = length === 0 ? 0 : Math.min(raw, length - 1)
@@ -35,7 +24,6 @@ export function useListNav(length: number, active: boolean): readonly [number, (
   return [cursor, setRaw] as const
 }
 
-/** Return to the parent (menu) on Esc / ←. Used by the read-only screens. */
 export function useExitOnEsc(active: boolean, onExit: () => void): void {
   useInput(
     (_input, key) => {

@@ -2,21 +2,17 @@ import { Prisma } from '@/generated/prisma/client'
 
 export type FifoEntry = {
   id: string
-  group_key: string // e.g. accounting_head_id or asset_id — lots are tracked independently per group
+  group_key: string
   qty: Prisma.Decimal
   date: Date
 }
 
-/**
- * Computes remaining quantity for each buy lot using FIFO matching.
- * Sell entries (negative qty) consume from the oldest open buy lot in the same group_key.
- */
 export function compute_fifo_remaining(entries: FifoEntry[]): Map<string, Prisma.Decimal> {
   const remaining_by_id = new Map<string, Prisma.Decimal>()
   const chrono = [...entries].sort((a, b) => {
     const cmp = a.date.getTime() - b.date.getTime()
     if (cmp !== 0) return cmp
-    // Same instant: process buys before sells
+
     return b.qty.comparedTo(a.qty)
   })
   const open_lots = new Map<string, { id: string; remaining: Prisma.Decimal }[]>()

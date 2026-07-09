@@ -1,8 +1,3 @@
-/**
- * Persists the CLI session as a signed JWT (the same token shape the web app
- * issues) under ~/.ledger/token.json, mode 0600. The token expires on its own
- * after JWT_EXPIRY_DAYS, matching the browser cookie.
- */
 import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -22,7 +17,6 @@ export async function clear_token(): Promise<void> {
   await fs.rm(token_file, { force: true })
 }
 
-/** Read + verify the stored token. Returns null if missing, malformed, or expired. */
 export async function load_session(): Promise<Session | null> {
   let raw: string
   try {
@@ -36,11 +30,10 @@ export async function load_session(): Promise<Session | null> {
     const { uid, username } = await verify_token(token)
     return { uid, username: username ?? '(unknown)' }
   } catch {
-    return null // expired or tampered
+    return null
   }
 }
 
-/** Like load_session but throws with a friendly message when logged out. */
 export async function require_session(): Promise<Session> {
   const s = await load_session()
   if (!s) {

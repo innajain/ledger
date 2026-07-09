@@ -65,7 +65,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
         <div className="flex items-center justify-between h-16">
-          {/* Logo/Brand */}
+          {}
           <Link
             href="/"
             className="flex items-center space-x-2 text-slate-900 dark:text-slate-100 hover:text-slate-700 dark:hover:text-slate-300 transition-all shrink-0 group"
@@ -82,7 +82,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
             )}
           </Link>
 
-          {/* Desktop Navigation Links */}
+          {}
           {isLoggedIn && (
             <ul className="hidden lg:flex gap-2 list-none p-0 m-0 ml-auto">
               {NAV_ITEMS.map(item => (
@@ -93,7 +93,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
             </ul>
           )}
 
-          {/* Mobile Menu Button */}
+          {}
           <div className="flex items-center gap-2 shrink-0">
             {isLoggedIn && (
               <button
@@ -116,7 +116,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
+        {}
         {isLoggedIn && isMenuOpen && (
           <div className="lg:hidden pb-4 animate-slide-in-up">
             <ul className="flex flex-col gap-1 list-none p-0 m-0">

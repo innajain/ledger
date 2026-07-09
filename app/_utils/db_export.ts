@@ -5,23 +5,11 @@ import { build_zip } from './zip'
 import { build_xlsx, type XlsxTable } from './xlsx'
 import { build_sql_dump } from './sql_dump'
 
-// Shared data layer for the export/dump features:
-//   - collect_user_export(user_id) — every table holding the caller's data,
-//     scoped to them (CSV zip, linked Excel, and the user-scoped SQL dump).
-//   - collect_full_dump() — every table, every row (admin-only complete dump).
-//
-// Rows are returned as raw typed values; consumers stringify (CSV/Excel via
-// `cell`) or render SQL literals as they see fit.
-//
-// `$1` is bound to the user id (referenced more than once in some clauses, which
-// Postgres allows). Table names and WHERE clauses are static literals — never
-// request input — so the only bound parameter is the user id; no injection surface.
 const USER_TABLES: { table: string; where: string }[] = [
   { table: 'user', where: 'WHERE "id" = $1' },
   { table: 'push_subscription', where: 'WHERE "user_id" = $1' },
   { table: 'accounting_head', where: 'WHERE "user_id" = $1' },
-  // asset is a global catalog (no user_id) — include only the ones this user
-  // references, from either real or template line items.
+
   {
     table: 'asset',
     where:
@@ -37,17 +25,10 @@ const USER_TABLES: { table: string; where: string }[] = [
   { table: 'transaction_link', where: 'WHERE "user_a_id" = $1 OR "user_b_id" = $1' },
 ]
 
-// Default exclusion for the data exports (CSV/Excel): the user's bcrypt hash is
-// an auth credential and doesn't belong in a spreadsheet. The SQL dumps, being
-// restorable backups, pass `{}` to keep every column.
 export const DEFAULT_EXCLUDED_COLUMNS: Record<string, Set<string>> = {
   user: new Set(['password_hash']),
 }
 
-// Foreign keys per table: column -> the table it points at. Drives the Excel
-// export's clickable links (and documents the relational graph). Columns whose
-// target row isn't in the export — e.g. a counterparty's user/transaction — are
-// simply left as plain text by the consumer.
 const FOREIGN_KEYS: Record<string, Record<string, string>> = {
   push_subscription: { user_id: 'user' },
   accounting_head: { user_id: 'user', parent_id: 'accounting_head', linked_user_id: 'user' },
@@ -66,9 +47,6 @@ const FOREIGN_KEYS: Record<string, Record<string, string>> = {
   },
 }
 
-// Restore-friendly table order for the complete dump: parents before children,
-// so inter-table foreign keys mostly resolve as the file is replayed. Tables not
-// listed (e.g. a future addition) sort to the end, alphabetically.
 const FULL_TABLE_ORDER = [
   'user',
   'asset',
@@ -86,7 +64,6 @@ const FULL_TABLE_ORDER = [
   '_prisma_migrations',
 ]
 
-// Postgres types we surface as real numbers (Excel cells / unquoted SQL literals).
 const NUMERIC_TYPES = new Set(['integer', 'bigint', 'smallint', 'numeric', 'decimal', 'real', 'double precision'])
 
 export type TableExport = {
@@ -97,16 +74,12 @@ export type TableExport = {
   rows: unknown[][]
 }
 
-// Stringify a raw cell for the text exports (CSV/Excel). SQL rendering keeps the
-// raw value instead, so types survive into the dump.
 export function cell(v: unknown): string {
   if (v === null || v === undefined) return ''
   if (v instanceof Date) return v.toISOString()
   return String(v)
 }
 
-// Column name + type for a table, in declaration order (so an export has a
-// header even when empty, and new columns are picked up automatically).
 async function table_meta(table: string): Promise<{ name: string; numeric: boolean }[]> {
   const rows = await prisma.$queryRawUnsafe<{ column_name: string; data_type: string }[]>(
     `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
@@ -134,7 +107,6 @@ export async function collect_user_export(user_id: string, excluded: Record<stri
   )
 }
 
-// Every base table in the public schema, every row — for the admin-only dump.
 export async function collect_full_dump(): Promise<TableExport[]> {
   const found = await prisma.$queryRawUnsafe<{ table_name: string }[]>(
     `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`,
@@ -162,11 +134,8 @@ export async function collect_full_dump(): Promise<TableExport[]> {
   )
 }
 
-// --- Packaged artifacts (shared by the /api download routes and the CLI) ------
-// Excel only auto-detects UTF-8 when the file leads with a BOM.
 const utf8_bom = (s: string) => Buffer.from('﻿' + s, 'utf8')
 
-/** CSV-per-table ZIP, caller-scoped, dropping password_hash (text export). */
 export async function build_user_csv_zip(user_id: string): Promise<Buffer> {
   const tables = await collect_user_export(user_id)
   return build_zip(
@@ -177,8 +146,7 @@ export async function build_user_csv_zip(user_id: string): Promise<Buffer> {
         data: utf8_bom(
           to_csv(
             t.columns,
-            // Guard textual columns against spreadsheet formula injection; numeric
-            // columns are left as-is (a legitimate value may start with '-').
+
             t.rows.map(r => r.map((v, i) => (numeric.has(t.columns[i]) ? cell(v) : formula_guard(cell(v))))),
           ),
         ),
@@ -187,7 +155,6 @@ export async function build_user_csv_zip(user_id: string): Promise<Buffer> {
   )
 }
 
-/** One linked .xlsx workbook (FK cells hyperlinked), caller-scoped, dropping password_hash. */
 export async function build_user_xlsx(user_id: string): Promise<Buffer> {
   const dumps = await collect_user_export(user_id)
   const tables: XlsxTable[] = dumps.map(d => ({
@@ -198,7 +165,6 @@ export async function build_user_xlsx(user_id: string): Promise<Buffer> {
   return build_xlsx(tables)
 }
 
-/** Caller-scoped SQL dump (data-only INSERTs). Keeps every column so it restores. */
 export async function build_user_sql(user_id: string, username: string): Promise<string> {
   const tables = await collect_user_export(user_id, {})
   return build_sql_dump(tables, { title: `Ledger SQL dump — @${username} (your data only)` })

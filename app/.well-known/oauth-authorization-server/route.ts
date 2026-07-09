@@ -1,6 +1,3 @@
-// RFC 8414 — OAuth 2.0 Authorization Server Metadata. Advertises this app's
-// authorize/token/registration endpoints so MCP clients (Claude, ChatGPT,
-// Gemini) can run the authorization-code + PKCE flow against us.
 import { getPublicOrigin, metadataCorsOptionsRequestHandler } from 'mcp-handler'
 import { SUPPORTED_SCOPES } from '@/lib/mcp/oauth'
 

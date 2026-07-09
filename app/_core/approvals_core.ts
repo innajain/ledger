@@ -1,9 +1,3 @@
-/**
- * Framework-agnostic cross-user approval logic, shared by the web actions
- * (`app/_actions/approvals.ts`) and the CLI. Each function takes the acting
- * user id (`me`) explicitly. The inbox/outbox readers stay in `links.ts`
- * (they already take a user_id).
- */
 import { prisma } from '@/lib/prisma'
 import { build_actor_copy, other_user, my_txn_id, their_txn_id } from '@/app/_utils/links'
 import { notify_request_rejected } from '@/app/_utils/notify_events'
@@ -12,9 +6,6 @@ import { logger } from '@/lib/logger'
 import { ActionResult, ok, fromError, ActionError } from '@/app/_actions/_result'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 
-// Approve the request currently awaiting me. For a `change` request I author my
-// balanced copy (the locked mirrored lines are added server-side); for a
-// `deletion` request I remove my copy and the link closes.
 export async function approve_request_core(
   me: string,
   link_id: string,
@@ -47,9 +38,6 @@ export async function approve_request_core(
   }
 }
 
-// Bulk-approve every pending `change` request from one counterparty, auto-balancing
-// each onto a single chosen personal account (an account-only transfer). Used after
-// linking an account retroactively backfills many requests.
 export async function accept_all_from_core(
   me: string,
   counterparty_id: string,
@@ -94,9 +82,6 @@ export async function accept_all_from_core(
   }
 }
 
-// Cancel a request I sent that's still awaiting the other side. If there's a
-// prior approved copy on their side, revert my copy back to it (keeping my own
-// non-linked lines); otherwise (never approved) just withdraw the request.
 export async function cancel_request_core(me: string, link_id: string): Promise<ActionResult> {
   try {
     const { other_id, reverted } = await prisma.$transaction(async tx => {
@@ -107,14 +92,12 @@ export async function cancel_request_core(me: string, link_id: string): Promise<
       if (link.pending_by === me) throw new ActionError('VALIDATION', 'This request is awaiting your approval — approve or reject it instead')
 
       const other_id = other_user(link, me)
-      const anchor = their_txn_id(link, me) // the other side's approved copy, if any
+      const anchor = their_txn_id(link, me)
       if (!anchor) {
         await tx.transaction_link.delete({ where: { id: link.id } })
         return { other_id, reverted: false }
       }
 
-      // Revert my copy to the anchor: keep my own non-linked lines, rebuild the
-      // mirrored lines from the anchor (build_actor_copy uses the anchor as source).
       const recip = await tx.accounting_head.findFirst({
         where: { user_id: me, linked_user_id: other_id, type: 'account' },
         select: { id: true },
@@ -146,8 +129,6 @@ export async function cancel_request_core(me: string, link_id: string): Promise<
   }
 }
 
-// Reject the request awaiting me. The ball passes back to the proposer, whose
-// copy is now poisoned/absent; they resolve it (resubmit, revert, or delete).
 export async function reject_request_core(me: string, link_id: string): Promise<ActionResult> {
   try {
     const { proposer_id, description } = await prisma.$transaction(async tx => {
@@ -161,8 +142,6 @@ export async function reject_request_core(me: string, link_id: string): Promise<
         data: { pending_status: 'rejected', pending_by: proposer_id },
       })
 
-      // The proposer's copy is the one that diverged; grab its description for
-      // the notification (their txn from my perspective).
       const their_txn = their_txn_id(link, me)
       const txn = their_txn ? await tx.transaction.findUnique({ where: { id: their_txn }, select: { description: true } }) : null
       return { proposer_id, description: txn?.description ?? null }
@@ -175,9 +154,6 @@ export async function reject_request_core(me: string, link_id: string): Promise<
   }
 }
 
-// Discard my rejected change and rebuild my copy from the counterpart's
-// still-approved anchor. I supply fresh balancing lines; the mirrored lines come
-// from the anchor.
 export async function revert_request_core(
   me: string,
   link_id: string,

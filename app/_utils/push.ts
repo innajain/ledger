@@ -4,9 +4,6 @@ import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
 
-// Web Push fan-out. VAPID keys are optional — without them, sending is a no-op
-// so the app runs fine in environments that haven't configured push.
-
 let configured = false
 function ensure_configured(): boolean {
   if (configured) return true
@@ -19,17 +16,12 @@ function ensure_configured(): boolean {
 export type PushPayload = {
   title: string
   body: string
-  /** Path to open when the notification is clicked (defaults to '/'). */
+
   url?: string
-  /** Coalescing tag — a newer notification with the same tag replaces the old. */
+
   tag?: string
 }
 
-/**
- * Send a push to every subscription a user has. Fire-and-forget friendly:
- * never throws, prunes subscriptions the push service reports as gone
- * (404/410), and logs other failures. Returns the number delivered.
- */
 export async function send_push_to_user(user_id: string, payload: PushPayload): Promise<number> {
   if (!ensure_configured()) return 0
 

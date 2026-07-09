@@ -15,7 +15,6 @@ export function WebVitalsReporter() {
     }
     const body = JSON.stringify(payload)
 
-    // Prefer sendBeacon — survives page unload, never blocks rendering.
     if (navigator.sendBeacon) {
       const blob = new Blob([body], { type: 'application/json' })
       navigator.sendBeacon('/api/metrics/web-vital', blob)

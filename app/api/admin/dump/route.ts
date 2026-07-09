@@ -6,13 +6,9 @@ import { build_sql_dump } from '@/app/_utils/sql_dump'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
 
-// Admin-only complete database dump: every base table, every row, all users —
-// as data-only INSERT statements in restore-friendly (parent-first) order. This
-// includes credentials (password hashes) and is gated behind require_admin.
-
 export async function GET() {
   try {
-    await require_admin() // throws unless the caller is an admin
+    await require_admin()
   } catch {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

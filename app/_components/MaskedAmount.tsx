@@ -12,7 +12,6 @@ type Props = {
 
 const BULLETS = '•••••'
 
-// Keep currency symbol, sign, and spacing, strip digits/groups/decimals.
 function build_mask(value: number, formatter: Intl.NumberFormat): string {
   const parts = formatter.formatToParts(value)
   let prefix = ''
@@ -28,8 +27,6 @@ export function MaskedAmount({ value, precise = false, className }: Props) {
   const formatter = precise ? precise_currency_fmt : currency_fmt
   const formatted = formatter.format(value)
 
-  // Initial visibility is decided once at mount from the threshold. User clicks
-  // flip the local state; later threshold changes don't override prior clicks.
   const [hidden, setHidden] = useState(() => Math.abs(value) > mask_threshold)
 
   if (!masking_enabled) return <span className={className}>{formatted}</span>

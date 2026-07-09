@@ -77,8 +77,6 @@ export default function ClientPage({
   const [templateError, setTemplateError] = useState<string | null>(null)
   const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null)
 
-  // Load template from sessionStorage (set by /transactions on chip click).
-  // Client-only init — sessionStorage is unavailable during SSR.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const rawTemplate = sessionStorage.getItem('ledger_quick_template')
@@ -113,7 +111,6 @@ export default function ClientPage({
       sessionStorage.removeItem('ledger_quick_template')
     }
   }, [])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   function addItemForType(typeKey: string) {
     const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
@@ -137,15 +134,15 @@ export default function ClientPage({
   function updateItem(idx: number, field: keyof LineItemData, value: string | null) {
     setItems(prev => {
       const copy = [...prev]
-      // Allow `quantity` and `txn_value` to be null; coerce other nulls to empty string
+
       const v: string = field === 'quantity' || field === 'txn_value' ? (value === null ? '' : value) : (value ?? '')
       copy[idx] = { ...copy[idx], [field]: v }
-      // Clear txn_value when switching to rupees asset
+
       if (field === 'asset_id') {
         const sel = assets.find(a => a.id === v)
         if (sel?.type === asset_type.rupees) copy[idx].txn_value = null
       }
-      // Preserve null for quantity/txn_value when requested
+
       if (field === 'quantity' && value === null) {
         ;(copy[idx] as LineItemData).quantity = null
       }
@@ -236,7 +233,7 @@ export default function ClientPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {}
       <div>
         <Link
           href="/transactions"
@@ -252,7 +249,7 @@ export default function ClientPage({
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
-        {/* Basic Info Card */}
+        {}
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Transaction Details</h2>
 
@@ -292,7 +289,7 @@ export default function ClientPage({
           </div>
         </div>
 
-        {/* Line Items */}
+        {}
         <TransactionLineItems
           items={items}
           accounts={accounts}
@@ -302,11 +299,11 @@ export default function ClientPage({
           onUpdateItem={updateItem}
         />
 
-        {/* Error Display */}
+        {}
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
         {templateError && <ErrorAlert message={templateError} onDismiss={() => setTemplateError(null)} />}
 
-        {/* Submit Button */}
+        {}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-slate-200">
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {loadedTemplateId && (

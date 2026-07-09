@@ -12,9 +12,6 @@ export type LineItemData = {
   datetime: string
 }
 
-// `linked` accounts (those tied to another user) are shown for locked/display
-// rows but not offered as choices for editable rows — set only where that
-// matters (the approval editor), left undefined elsewhere so all stay selectable.
 type Account = { id: string; name: string; type: string; linked?: boolean }
 type Asset = { id: string; name: string; type: asset_type }
 
@@ -43,8 +40,7 @@ const colorClasses = {
 
 type TransactionLineItemsProps = {
   items: LineItemData[]
-  // Read-only rows (e.g. the mirrored lines on an approval) — rendered inside
-  // the sections in the same card layout, but disabled and non-removable.
+
   lockedItems?: LineItemData[]
   accounts: Account[]
   assets: Asset[]
@@ -64,7 +60,7 @@ export function TransactionLineItems({
 }: TransactionLineItemsProps) {
   const sortedAccounts = [...accounts].sort((a, b) => a.name.localeCompare(b.name))
   const sortedAssets = [...assets].sort((a, b) => a.name.localeCompare(b.name))
-  // Group items by account type
+
   const groups: Record<string, ItemGroup[]> = {
     account: [],
     allocation: [],

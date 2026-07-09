@@ -34,7 +34,6 @@ async function Page({ params }: Props) {
     )
   }
 
-  // Linked-user display is head-only (the only type that can be linked).
   const linkedUsername =
     type === 'account' && head.linked_user_id
       ? ((await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { username: true } }))?.username ?? null)

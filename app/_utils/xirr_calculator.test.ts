@@ -52,7 +52,6 @@ describe('calculate_xirr', () => {
   })
 
   it('rejects absurd annualized returns from tiny time windows as noise', () => {
-    // A near-instant 100% gain annualizes to an astronomical rate (>1000%).
     const rate = calculate_xirr([
       { amount: -100, when: date(2024, 1, 1) },
       { amount: 200, when: date(2024, 1, 2) },

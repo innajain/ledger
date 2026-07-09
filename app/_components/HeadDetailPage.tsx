@@ -32,17 +32,16 @@ export type HeadData = {
   id: string
   name: string
   total: number
-  /** Total value rolled up across descendants. Null when there are no children. */
+
   subtree_total?: number | null
-  /** Direct child heads, each with its own rolled-up value and detail-page link. */
+
   children?: { id: string; name: string; link: string; total: number }[]
-  /** Parent head, when this head is nested under another. */
+
   parent?: { name: string; link: string } | null
-  /** The user this head is linked to (cross-user), enabling notifications. */
+
   linked_user?: { id: string; username: string } | null
   xirr?: number | null
-  /** The linked user's own UPI handle (resolved server-side). When set, the
-   * page renders a "Pay via UPI" button targeting it. */
+
   upi_id?: string | null
   breakdown: {
     asset_id: string
@@ -59,7 +58,7 @@ export type HeadData = {
 type HeadDetailConfig = {
   backLink: string
   backText: string
-  entityName: string // "Account", "Allocation"
+  entityName: string
   holdingsTitle?: string
 }
 
@@ -90,7 +89,7 @@ export function HeadDetailPage({ head, config }: HeadDetailPageProps) {
     })
     if (result.success) {
       set_pay_status({ kind: 'ok', txn_id: result.data!.id })
-      // Refresh the server data so the new balance + line item show up.
+
       router.refresh()
     } else {
       set_pay_status({ kind: 'err', message: result.message })
@@ -261,7 +260,7 @@ export function HeadDetailPage({ head, config }: HeadDetailPageProps) {
 
       <HoldingsGrid title={config.holdingsTitle || 'Holdings (aggregated by asset)'} items={holdingsItems} linkLabel="View Asset →" />
 
-      {/* Line items section */}
+      {}
       <Card>
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Line Items</h2>

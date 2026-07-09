@@ -102,7 +102,6 @@ function DiffCard({ ctx }: { ctx: EditorContext }) {
   )
 }
 
-// ISO → local `datetime-local` input value (YYYY-MM-DDTHH:mm).
 function toLocalInput(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -126,8 +125,7 @@ export default function ClientPage({
   defaults: LineItemDefaults
 }) {
   const router = useRouter()
-  // Only your own (non-linked) accounts are valid balancing lines — linked
-  // person accounts are server-derived/locked here.
+
   const ownAccounts = accounts.filter(a => !a.linked)
   const defaultAsset = pickDefaultAsset(assets, defaults)
 
@@ -206,8 +204,7 @@ export default function ClientPage({
           datetime: toLocalInput(m.datetime),
         }))
       : []),
-    // Lines shared with a different counterparty — locked here; the server
-    // preserves them on submit (editing them would need that counterparty's approval).
+
     ...ctx.other_locked_lines.map(o => ({
       accounting_head_id: o.accounting_head_id,
       asset_id: o.asset_id,
@@ -240,7 +237,7 @@ export default function ClientPage({
 
       <DiffCard ctx={ctx} />
 
-      {/* Transaction-level details — mirrored from the request, locked */}
+      {}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Details</h2>

@@ -3,10 +3,9 @@ import { Prisma } from '@/generated/prisma/client'
 import { compute_fifo_remaining, type FifoEntry } from './fifo'
 
 const d = (n: number) => new Prisma.Decimal(n)
-// Sequential dates so ordering is unambiguous unless we deliberately collide.
+
 const day = (n: number) => new Date(2024, 0, n)
 
-// Convenience: turn the result map into a plain id→number map for assertions.
 const asNumbers = (m: Map<string, Prisma.Decimal>) => Object.fromEntries([...m].map(([k, v]) => [k, v.toNumber()]))
 
 describe('compute_fifo_remaining', () => {
@@ -35,7 +34,7 @@ describe('compute_fifo_remaining', () => {
     const entries: FifoEntry[] = [
       { id: 'b1', group_key: 'A', qty: d(10), date: day(1) },
       { id: 'b2', group_key: 'A', qty: d(10), date: day(2) },
-      { id: 's1', group_key: 'A', qty: d(-15), date: day(3) }, // eats all of b1, 5 of b2
+      { id: 's1', group_key: 'A', qty: d(-15), date: day(3) },
     ]
     expect(asNumbers(compute_fifo_remaining(entries))).toEqual({ b1: 0, b2: 5 })
   })
@@ -63,7 +62,7 @@ describe('compute_fifo_remaining', () => {
       { id: 's1', group_key: 'A', qty: d(-6), date: t },
       { id: 'b1', group_key: 'A', qty: d(10), date: t },
     ]
-    // Buy must be applied first, so the sell can consume from it.
+
     expect(asNumbers(compute_fifo_remaining(entries))).toEqual({ b1: 4 })
   })
 
@@ -74,7 +73,7 @@ describe('compute_fifo_remaining', () => {
       { id: 's1', group_key: 'A', qty: d(-3), date: day(3) },
       { id: 's2', group_key: 'A', qty: d(-9), date: day(4) },
     ]
-    // 12 sold from 15: b1 fully gone, b2 has 3 left.
+
     expect(asNumbers(compute_fifo_remaining(entries))).toEqual({ b1: 0, b2: 3 })
   })
 })

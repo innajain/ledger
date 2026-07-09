@@ -5,19 +5,12 @@ import { USER_TIMEZONE } from '@/lib/config'
 import { normalize_txn, type TransactionFull } from './normalize_txn'
 import { calculate_xirr } from './xirr_calculator'
 
-// Pure valuation engine for per-day value timeseries. Holds no I/O — prices are
-// passed in as resolver functions — so the FIFO / accumulation walk is unit
-// testable. The server-only caching + price-fetching shell lives in
-// ./value_timeseries (which re-exports the public surface).
-
-// Resolves an asset's price for a given historical date. Mirrors the type in
-// historical_price_fetcher; `null` means no price (fall back to book value).
 export type PriceLookup = (date: Date) => number | null
 
 export type AssetMeta = { id: string; type: asset_type; ticker: string | null }
 
 export type ValuePoint = {
-  date: string // 'yyyy-MM-dd' in IST
+  date: string
   invested: number
   current: number
   xirr: number | null
@@ -28,14 +21,10 @@ export type TimeseriesFilter =
   | { kind: 'account'; accounting_head_id: string }
   | { kind: 'allocation'; allocation_id: string }
 
-// All price closes are published once per Indian calendar day; aligning to IST
-// avoids off-by-one errors from UTC midnight crossings.
 export function ist_date_key(date: Date): string {
   return formatInTimeZone(date, USER_TIMEZONE, 'yyyy-MM-dd')
 }
 
-// Overwrite the final point with live current/xirr values (the chart's caller
-// reconciles the tail against the InfoCard's live numbers).
 export function reconcile_timeseries_tail(timeseries: ValuePoint[], current: number, xirr: number | null): void {
   if (timeseries.length > 0) {
     const last = timeseries[timeseries.length - 1]
@@ -58,7 +47,7 @@ type Lot = { qty: Prisma.Decimal; original_qty: Prisma.Decimal; original_book: P
 type AllocState = Map<string, { qty: Prisma.Decimal; book: Prisma.Decimal }>
 
 type WalkState = {
-  open_lots: Map<string, Lot[]> // key = `${accounting_head_id}|${asset_id}`
+  open_lots: Map<string, Lot[]>
   alloc_state: AllocState
   cashflows: { amount: number; when: Date }[]
 }
@@ -196,12 +185,6 @@ function compute_xirr_for(state: WalkState, snap: { current: Prisma.Decimal }, d
   return calculate_xirr([...state.cashflows, { amount: snap.current.toNumber(), when: date }])
 }
 
-/**
- * Walks pre-built events through the range [first event day .. today] and emits
- * one ValuePoint per IST day. With `mode: 'today-only'` it emits only the final
- * day's point but still walks every event to build the correct state. `now`
- * is injectable for deterministic tests.
- */
 export function walk_events(
   events: Event[],
   filter: TimeseriesFilter,
@@ -244,7 +227,6 @@ export function walk_events(
   return points
 }
 
-/** Convenience: build events from raw transactions then walk them. */
 export function compute_timeseries_points(
   transactions: TransactionFull[],
   filter: TimeseriesFilter,

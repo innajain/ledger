@@ -1,8 +1,3 @@
-/**
- * Framework-agnostic transaction-template CRUD, shared by the web actions
- * (`app/_actions/templates.ts`, which add `revalidatePath`) and the CLI.
- * Takes an explicit `user_id`; no `next/cache`.
- */
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { toDecimal } from '@/app/_utils/decimal'

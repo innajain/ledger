@@ -3,11 +3,8 @@
 import { useEffect, useState } from 'react'
 import { save_push_subscription, delete_push_subscription, send_test_notification } from '@/app/_actions/notifications'
 
-// Read directly from process.env: this is a client component, so it can't
-// import the server-only `lib/env`. Next inlines NEXT_PUBLIC_* at build time.
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
-// VAPID public key (base64url) → Uint8Array, as PushManager.subscribe expects.
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')

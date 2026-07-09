@@ -16,7 +16,6 @@ export function AnimatedCounter({ value, duration = 1000, formatter = v => v.toF
   const hasAnimated = useRef(false)
   const displayValueRef = useRef(displayValue)
 
-  // Keep ref in sync with state
   useEffect(() => {
     displayValueRef.current = displayValue
   }, [displayValue])
@@ -55,7 +54,6 @@ export function AnimatedCounter({ value, duration = 1000, formatter = v => v.toF
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / duration, 1)
 
-      // Easing function for smooth animation
       const easeOutQuart = 1 - Math.pow(1 - progress, 4)
 
       const currentValue = startValue + difference * easeOutQuart

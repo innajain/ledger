@@ -27,13 +27,9 @@ export function DevQueryToaster() {
         const ev = JSON.parse(e.data) as QueryEvent
         const type = ev.error ? 'error' : ev.replayed ? 'warning' : 'info'
         showToast(format(ev), type)
-      } catch {
-        // ignore malformed payloads
-      }
+      } catch {}
     }
-    es.onerror = () => {
-      // Swallow — EventSource will auto-reconnect.
-    }
+    es.onerror = () => {}
     return () => es.close()
   }, [showToast])
 

@@ -40,7 +40,6 @@ export function Dashboard({ uid, active, onExit, onNavigate }: ScreenProps) {
     const savings = subtree_total(allocations, 'Savings')
     const xirr = invest && invest.total !== 0 ? await compute_xirr_for_accounts(uid, invest.ids, invest.total) : null
 
-    // Find the head id for "Investments" and "Savings"
     const investId = allocations.find(a => a.name === 'Investments')?.id
     const savingsId = allocations.find(a => a.name === 'Savings')?.id
 

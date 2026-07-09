@@ -12,8 +12,6 @@ type SubscriptionInput = {
   keys: { p256dh: string; auth: string }
 }
 
-// Store (or refresh) a browser push subscription for the current user. Keyed by
-// endpoint, so re-subscribing the same browser just updates the keys.
 export async function save_push_subscription(sub: SubscriptionInput): Promise<ActionResult> {
   try {
     const me = await get_current_user_id()
@@ -32,7 +30,6 @@ export async function save_push_subscription(sub: SubscriptionInput): Promise<Ac
   }
 }
 
-// Remove a subscription (on unsubscribe). Scoped to the caller.
 export async function delete_push_subscription(endpoint: string): Promise<ActionResult> {
   try {
     const me = await get_current_user_id()
@@ -44,7 +41,6 @@ export async function delete_push_subscription(endpoint: string): Promise<Action
   }
 }
 
-// Send a notification to yourself — for verifying the pipeline end-to-end.
 export async function send_test_notification(): Promise<ActionResult<{ delivered: number }>> {
   try {
     const me = await get_current_user_id()
@@ -61,8 +57,6 @@ export async function send_test_notification(): Promise<ActionResult<{ delivered
   }
 }
 
-// True when `me` has an account head linked to `target` — i.e. they're a known
-// counterparty. Gate for sending notifications/reminders to another user.
 async function is_linked_to(me: string, target: string): Promise<boolean> {
   const head = await prisma.accounting_head.findFirst({
     where: { user_id: me, linked_user_id: target },
@@ -71,8 +65,6 @@ async function is_linked_to(me: string, target: string): Promise<boolean> {
   return !!head
 }
 
-// Send a free-form push to a linked counterparty. Used both for ad-hoc messages
-// and payment reminders (the UI just prefills the message). No rate limiting.
 export async function notify_linked_user(target_user_id: string, message: string): Promise<ActionResult<{ delivered: number }>> {
   try {
     const me = await get_current_user_id()
@@ -84,7 +76,6 @@ export async function notify_linked_user(target_user_id: string, message: string
     if (target_user_id === me) return err('VALIDATION', "You can't notify yourself")
     if (!(await is_linked_to(me, target_user_id))) return err('VALIDATION', 'That user is not linked to you')
 
-    // Throttle to curb push spam/harassment: per-recipient and overall per-sender.
     if (!(await rate_limit(`notify:${me}:${target_user_id}`, 5, 10 * 60)) || !(await rate_limit(`notify:${me}`, 20, 60 * 60)))
       return err('VALIDATION', 'You’re sending messages too fast. Please wait a bit.')
 

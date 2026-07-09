@@ -18,7 +18,6 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
 
   const [thresholdInput, setThresholdInput] = useState<string>(String(mask_threshold))
   useEffect(() => {
-    // Keep the input in sync after the privacy context hydrates from the DB.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setThresholdInput(String(mask_threshold))
   }, [mask_threshold])
@@ -60,10 +59,10 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
     <section>
       <SectionHeading id="preferences">Preferences</SectionHeading>
       <div className="space-y-6">
-        {/* Notifications */}
+        {}
         <NotificationToggle />
 
-        {/* Appearance */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Appearance</h3>
           <div className="flex items-center justify-between gap-4">
@@ -84,7 +83,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
           </div>
         </div>
 
-        {/* Privacy */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Privacy</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
@@ -142,7 +141,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
           </div>
         </div>
 
-        {/* Line Item Defaults */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Transaction Line Item Defaults</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">

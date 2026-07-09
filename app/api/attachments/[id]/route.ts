@@ -5,14 +5,7 @@ import { env } from '@/lib/env'
 
 const BLOB_HOST_SUFFIX = '.blob.vercel-storage.com'
 
-// We proxy blob bytes using the store's read/write token in the Authorization
-// header. `att.url`/`att.pathname` originate from the client (save_attachments),
-// so the token must only ever be sent to a trusted host — otherwise a forged
-// attachment row pointing at an attacker-controlled server would exfiltrate it
-// (SSRF + credential leak). Allow only the Vercel Blob host (prod) or the
-// configured emulator origin (dev); anything else resolves to null and 404s.
 function resolve_blob_fetch_url(att_url: string, pathname: string): string | null {
-  // Dev: bytes live on the local emulator; rewrite to its (trusted) origin.
   if (env.NEXT_PUBLIC_VERCEL_BLOB_API_URL) {
     return `${new URL(env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin}/${pathname}`
   }
@@ -38,10 +31,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   })
   if (!att || att.transaction.user_id !== user_id) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // The DB stores the URL the blob was put() against. In dev, sync-db copies the
-  // DB rows verbatim from prod, so `att.url` points at the prod blob host even
-  // though the bytes now live on the local emulator — resolve_blob_fetch_url
-  // rewrites to the emulator origin in dev and validates the host in prod.
   const fetch_url = resolve_blob_fetch_url(att.url, att.pathname)
   if (!fetch_url) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const response = await fetch(fetch_url, {

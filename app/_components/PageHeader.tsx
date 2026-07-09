@@ -3,7 +3,7 @@ import Link from 'next/link'
 type PageHeaderProps = {
   title: string
   description: string
-  // Optional — omit (e.g. for non-admins on global resources) to hide the button.
+
   createUrl?: string
   createLabel?: string
 }

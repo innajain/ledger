@@ -1,8 +1,3 @@
-/**
- * Framework-agnostic balance computation, shared by the web action
- * (`app/_actions/compute_balances.ts`, which wraps these in a request-scoped
- * `react.cache`) and the CLI. Takes an explicit `user_id` — no `next/headers`.
- */
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
@@ -16,20 +11,10 @@ export type BalanceMaps = {
   assetsToAccounts: Map<string, Map<string, { qty: number; txn_value: number }>>
 }
 
-/**
- * Drop the cached balance map for a user. Call this from any mutation that
- * could invalidate balances — transactions, accounts, assets, line items.
- * Also bumps the user's timeseries version so chart data is recomputed.
- */
 export async function invalidate_balances(user_id: string): Promise<void> {
   await Promise.all([redis.del(balance_cache_key(user_id)), invalidate_timeseries(user_id)])
 }
 
-/**
- * Compute (or read from the Redis cache) the per-account / per-asset balance
- * maps for a user. Mirrors the previous `get_or_compute_balances` body exactly,
- * with `user_id` passed in rather than resolved from the request.
- */
 export async function compute_balances_core(user_id: string, invalidate_cache = false): Promise<BalanceMaps> {
   const cache_key = balance_cache_key(user_id)
 
@@ -115,7 +100,7 @@ export async function compute_balances_core(user_id: string, invalidate_cache = 
 
   await redis.setex(
     cache_key,
-    5 * 24 * 60 * 60, // Expire in 5 days
+    5 * 24 * 60 * 60,
     JSON.stringify({
       accountsToAssets: Array.from(clientAccountsToAssets.entries()).map(([k, v]) => [k, Array.from(v.entries())]),
       assetsToAccounts: Array.from(clientAssetsToAccounts.entries()).map(([k, v]) => [k, Array.from(v.entries())]),

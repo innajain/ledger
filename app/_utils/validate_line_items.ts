@@ -1,7 +1,6 @@
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import { normalize_line_items } from './normalize_txn'
 
-// validates only qty and txn value
 export function validate_line_items(
   line_items: Prisma.transactionGetPayload<{
     include: {
@@ -102,7 +101,6 @@ export function validate_line_items(
     }
   }
 
-  // Fill inferred quantities then reject any that resolved to zero.
   const normalized = normalize_line_items(line_items)
   const zeroItem = normalized.find(li => li.quantity.equals(0))
   if (zeroItem)

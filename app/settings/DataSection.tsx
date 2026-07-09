@@ -10,7 +10,6 @@ const TYPE_LABELS: Record<string, string> = {
   income_expense: 'Income/Expense',
 }
 
-// The path segment is the head type verbatim: /heads/{account|allocation|income_expense}
 const accountUrl = (a: InactiveAccount) => `/heads/${a.type}/${a.id}`
 
 export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAccounts: InactiveAccount[]; inactiveAssets: InactiveAsset[] }) {
@@ -18,7 +17,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
     <section>
       <SectionHeading id="data">Data</SectionHeading>
       <div className="space-y-6">
-        {/* Inactive Accounts */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Accounts</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Accounts that are hidden from transaction selectors. Click to manage.</p>
@@ -54,7 +53,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
           )}
         </div>
 
-        {/* Inactive Assets */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Assets</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Assets that are hidden from transaction selectors. Click to manage.</p>
@@ -82,7 +81,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
           )}
         </div>
 
-        {/* SQL Dump (user-scoped) */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
@@ -108,7 +107,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
           </div>
         </div>
 
-        {/* CSV Export */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
@@ -132,7 +131,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
           </div>
         </div>
 
-        {/* Excel Export (linked) */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>

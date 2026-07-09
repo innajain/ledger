@@ -1,7 +1,6 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 
-/** A titled, rounded-border container — the shared frame for every screen. */
 export function Panel({ title, color = 'cyan', children }: { title: string; color?: string; children: React.ReactNode }) {
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={color} paddingX={1} marginY={1}>

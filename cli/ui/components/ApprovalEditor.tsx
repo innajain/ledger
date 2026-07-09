@@ -19,7 +19,6 @@ const fmtLine = (l: SharedLine): string =>
       : money(l.quantity)
     : `${l.quantity ?? '—'} · book ${l.txn_value == null ? '—' : money(l.txn_value)}`
 
-/** Before/after of the shared lines + date/description (only on a re-approval). */
 function DiffPanel({ ctx }: { ctx: EditorContext }) {
   const prev = ctx.previous
   if (!prev || ctx.mode === 'revert') return null
@@ -68,11 +67,6 @@ const mirroredColumns: Column<SharedLine>[] = [
   { header: 'Book value', width: 16, align: 'right', cell: l => (l.txn_value == null ? '·' : money(l.txn_value)) },
 ]
 
-/**
- * Rich approve/revert editor: shows the locked transaction details, the
- * proposed-changes diff (on a re-approval), the locked mirrored lines, then the
- * LineItemEditor for your own balancing lines. Mirrors requests/[id] on the web.
- */
 export function ApprovalEditor({
   uid,
   linkId,
@@ -86,8 +80,6 @@ export function ApprovalEditor({
 }) {
   const { data, error } = useAsync(async () => ({ ctx: await get_editor_context(uid, linkId) }), [uid, linkId])
 
-  // When there's no editor (not awaiting me, or a pending deletion handled
-  // inline), let Esc/Enter dismiss. Hook is unconditional; gated by `noEditor`.
   const noEditor = !!data && data.ctx === null
   useInput(
     (_i, key) => {

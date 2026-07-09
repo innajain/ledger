@@ -6,10 +6,6 @@ import { get_or_compute_balances } from '@/app/_actions/compute_balances'
 import { get_prices_for_assets } from './price_fetcher'
 import { compute_current_value } from './compute_current_value'
 
-/**
- * Walk the accounting-head hierarchy from `root_id` and return the id set of
- * the whole subtree (the root plus every descendant). Cycle-safe.
- */
 export function get_subtree_head_ids(root_id: string, heads: { id: string; parent_id: string | null }[]): Set<string> {
   const childrenByParent = new Map<string, string[]>()
   for (const h of heads) {
@@ -32,12 +28,6 @@ export function get_subtree_head_ids(root_id: string, heads: { id: string; paren
   return ids
 }
 
-/**
- * Current value of every holding across the given subtree of accounting heads,
- * using live prices where available and falling back to book value otherwise.
- * Mirrors the per-line-item valuation used on the head's own detail view, but
- * driven by the central balances map so it covers descendant heads too.
- */
 export function compute_subtree_total(
   subtree_ids: Set<string>,
   balances: Map<string, Map<string, { qty: number; txn_value: number }>>,
@@ -64,19 +54,12 @@ const HEAD_ROUTE: Record<accounting_head_type, string> = {
   allocation: '/heads/allocation',
 }
 
-/** Detail-page path for an accounting head, by its type. */
 export function head_detail_link(type: accounting_head_type, id: string): string {
   return `${HEAD_ROUTE[type]}/${id}`
 }
 
 export type ChildHeadSummary = { id: string; name: string; link: string; total: number }
 
-/**
- * For an accounting head's detail page: roll up the value of its whole subtree
- * and list its direct children (each with its own rolled-up value and a link to
- * its detail page). Returns `subtree_total: null` and no children when the head
- * is a leaf, so callers can skip rendering the extra UI.
- */
 export async function compute_head_rollup(root_id: string, user_id: string): Promise<{ subtree_total: number | null; children: ChildHeadSummary[] }> {
   const all_heads = await prisma.accounting_head.findMany({
     where: { user_id },

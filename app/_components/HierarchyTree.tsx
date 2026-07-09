@@ -25,8 +25,7 @@ type HierarchyTreeProps<T extends BaseItem> = {
   getItemUrl: (id: string) => string
   renderExtraInfo?: (item: T, node: Node<T>) => React.ReactNode
   expandAll?: boolean
-  // Setting `scope` enables the reorder button and persists order to the DB
-  // via the update_hierarchy_order server action.
+
   scope?: 'account' | 'asset'
   reorderEnabled?: boolean
   onReorderToggle?: (enabled: boolean) => void
@@ -47,16 +46,12 @@ export function HierarchyTree<T extends BaseItem>({
   const router = useRouter()
   const { showToast } = useToast()
 
-  // Manual expand/collapse overrides - only used when user manually toggles
   const [manualExpanded, setManualExpanded] = useState<Record<string, boolean>>({})
 
-  // Optimistic per-parent ordering after a drop, kept until the server refresh
-  // brings back the new order in `items`. Cleared whenever items change.
   const [optimisticOrder, setOptimisticOrder] = useState<Record<string, string[]>>({})
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    // Reset optimistic order when the server returns a new items list.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOptimisticOrder({})
   }, [items])
@@ -165,7 +160,7 @@ export function HierarchyTree<T extends BaseItem>({
         const result = await update_hierarchy_order({ scope, parent_id: parentId, ordered_ids: orderIds })
         if (!result.success) {
           showToast(result.message, 'error')
-          // Revert optimistic order — items prop hasn't changed.
+
           setOptimisticOrder(prev => {
             const next = { ...prev }
             delete next[parentKey(parentId)]

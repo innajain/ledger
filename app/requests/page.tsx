@@ -27,8 +27,7 @@ async function Page() {
   const [items, outbox, accounts, defaults] = await Promise.all([
     get_inbox(user_id),
     get_outbox(user_id),
-    // Only the user's own (non-linked) accounts can absorb the balancing —
-    // never a linked/person account (that would net to zero).
+
     prisma.accounting_head.findMany({
       where: { user_id, type: 'account', is_active: true, is_placeholder: false, linked_user_id: null },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
@@ -36,8 +35,7 @@ async function Page() {
     }),
     get_line_item_defaults(),
   ])
-  // Preselect the user's preferred default account in the "balance with" picker,
-  // falling back to the first account when it's unset or not a valid option here.
+
   const defaultAccountId = accounts.find(a => a.id === defaults.default_account_id)?.id ?? accounts[0]?.id
   return <ClientPage items={items} outbox={outbox} accounts={accounts} defaultAccountId={defaultAccountId} />
 }

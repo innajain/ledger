@@ -78,7 +78,6 @@ export default function ClientPage({
   const pending = items.filter(i => i.status === 'pending')
   const rejected = items.filter(i => i.status === 'rejected')
 
-  // Pending change requests grouped by counterparty (for "Accept all").
   const changeGroups = Array.from(
     pending
       .filter(i => i.kind === 'change' && i.has_reciprocal)

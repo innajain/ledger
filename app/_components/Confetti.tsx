@@ -26,7 +26,7 @@ export function Confetti({ active, duration = 3000, particleCount = 50 }: Confet
   useEffect(() => {
     if (active && !particlesGenerated.current) {
       particlesGenerated.current = true
-      // Use setTimeout to avoid synchronous setState in effect
+
       timerRef.current = setTimeout(() => {
         setParticles(generateParticles())
       }, 0)
@@ -41,7 +41,6 @@ export function Confetti({ active, duration = 3000, particleCount = 50 }: Confet
         clearTimeout(durationTimer)
       }
     } else if (!active) {
-      // Use setTimeout to avoid synchronous setState in effect
       setTimeout(() => {
         setParticles([])
         particlesGenerated.current = false

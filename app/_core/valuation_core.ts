@@ -1,9 +1,3 @@
-/**
- * Framework-agnostic valuation: net worth (allocation-head values at live
- * prices), allocation subtree totals, and XIRR over a set of accounting heads.
- * Shared by the dashboard (`app/page.tsx`, `InvestXirrBadge`) and the CLI so the
- * numbers can't diverge. Takes an explicit `user_id`.
- */
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@/generated/prisma/client'
 import { compute_balances_core } from '@/app/_core/balances_core'
@@ -33,7 +27,6 @@ export async function compute_net_worth(user_id: string): Promise<NetWorth> {
   return { networth, allocations: allocs }
 }
 
-/** Total value (and member head ids) of an allocation subtree by root name, e.g. "Investments". */
 export function subtree_total(allocations: AllocationValue[], root_name: string): { ids: string[]; total: number } | null {
   const root = allocations.find(a => a.name === root_name)
   if (!root) return null
@@ -43,12 +36,6 @@ export function subtree_total(allocations: AllocationValue[], root_name: string)
   return { ids: Array.from(ids), total }
 }
 
-/**
- * XIRR over every transaction touching the given accounting heads: each linked
- * line is an outflow (−txn_value) at its datetime, plus the current value as a
- * final inflow today. Returns null when there's nothing to annualize. Identical
- * to the dashboard's Investments badge.
- */
 export async function compute_xirr_for_accounts(user_id: string, account_ids: string[], current_value: number): Promise<number | null> {
   if (account_ids.length === 0 || current_value === 0) return null
 

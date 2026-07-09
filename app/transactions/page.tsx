@@ -10,11 +10,9 @@ import { USER_TIMEZONE } from '@/lib/config'
 import { get_transaction_templates } from '@/app/_actions/templates'
 import { profile } from '@/lib/metrics/profile'
 
-// Convert a YYYY-MM-DD string into a UTC Date representing midnight on that day in IST.
-// Used for date-range filter bounds: pass dateFrom directly, pass (dateTo + 1 day) for exclusive upper bound.
 function istDayStart(dateStr: string, addDays = 0): Date {
   const [y, m, d] = dateStr.split('-').map(Number)
-  // Construct an IST-zoned wall-clock date, then convert to UTC.
+
   const wall = new Date(Date.UTC(y, m - 1, d + addDays))
   const yyyy = wall.getUTCFullYear()
   const mm = String(wall.getUTCMonth() + 1).padStart(2, '0')
@@ -66,7 +64,7 @@ async function Page({
 
   const params = await searchParams
   const search = params.search || ''
-  // dateFrom: midnight (IST) on that day. dateTo: midnight (IST) on the *next* day, used with `lt` so the picked day is included.
+
   const dateFrom = params.dateFrom ? istDayStart(params.dateFrom, 0) : undefined
   const dateTo = params.dateTo ? istDayStart(params.dateTo, 1) : undefined
   const minAmount = params.minAmount ? parseFloat(params.minAmount) : undefined
@@ -75,7 +73,6 @@ async function Page({
   const assetId = params.assetId || undefined
   const sort: SortKey = (SORT_KEYS as readonly string[]).includes(params.sort ?? '') ? (params.sort as SortKey) : 'date_desc'
 
-  // Fetch accounts and assets for filter dropdowns
   const [accounts, assets, templates] = await Promise.all([
     prisma.accounting_head.findMany({
       where: { user_id: user.id },
@@ -148,8 +145,6 @@ async function Page({
       .reduce((s, li) => s.add(li.txn_value!), new Prisma.Decimal(0))
       .toNumber()
 
-  // Amount sort can't be done in SQL (total_book is a sum across line_items),
-  // so it falls through to the same in-memory scan path that amount filtering uses.
   const needsScan = minAmount !== undefined || maxAmount !== undefined || sort === 'amount_desc' || sort === 'amount_asc'
 
   let totalCount: number
@@ -157,7 +152,6 @@ async function Page({
   let pageSize: number
 
   if (!needsScan) {
-    // Fast path: SQL-side ordering + pagination, count via prisma.count
     const orderBy = { datetime: sort === 'date_asc' ? ('asc' as const) : ('desc' as const) }
     totalCount = await prisma.transaction.count({ where })
     pageSize = wantsAll ? totalCount : requestedPageSize
@@ -177,7 +171,6 @@ async function Page({
       link_severity: null as TxForClient['link_severity'],
     }))
   } else {
-    // Scan path: fetch up to cap, normalize, filter on amount, sort, slice.
     const AMOUNT_FILTER_SCAN_CAP = 5000
     const allRaw = await prisma.transaction.findMany({
       where,
@@ -216,7 +209,6 @@ async function Page({
     txForClient = wantsAll ? filtered : filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize)
   }
 
-  // Attach link severity for the current page slice only.
   if (txForClient.length > 0) {
     const txIds = txForClient.map(t => t.id)
     const activeLinks = await prisma.transaction_link.findMany({

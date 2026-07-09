@@ -29,7 +29,7 @@ export function PrivacyProvider({
   children,
 }: {
   initial: PrivacySettings
-  // When false (logged-out), changes stay in-memory and never hit the DB.
+
   persist: boolean
   children: ReactNode
 }) {
@@ -37,10 +37,8 @@ export function PrivacyProvider({
 
   const update = useCallback(
     (patch: Partial<PrivacySettings>) => {
-      // Optimistic in-memory update. The updater stays pure — no side effects.
       setSettings(prev => ({ ...prev, ...patch }))
       if (persist) {
-        // Fire-and-forget: persist in the background, outside the state updater.
         void update_user_preferences(patch).catch(() => {})
       }
     },

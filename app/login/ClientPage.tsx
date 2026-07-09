@@ -8,11 +8,6 @@ import { Confetti } from '@/app/_components/Confetti'
 
 type Props = { user: Pick<user, 'id' | 'username'> | null }
 
-/**
- * A `?next=` target to return to after login (used by the OAuth authorize flow,
- * which may point at an /api route). Only same-origin relative paths are allowed
- * — rejects absolute URLs and protocol-relative `//host` to avoid open redirects.
- */
 function safe_next(): string | null {
   if (typeof window === 'undefined') return null
   const next = new URLSearchParams(window.location.search).get('next')
@@ -23,7 +18,6 @@ function safe_next(): string | null {
 export default function ClientPage({ user }: Props) {
   const router = useRouter()
 
-  // Already logged in but sent here with a `next` (e.g. OAuth re-auth) → go back.
   useEffect(() => {
     if (!user) return
     const next = safe_next()
@@ -147,7 +141,7 @@ export default function ClientPage({ user }: Props) {
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4 py-12 animate-fade-in">
       <div className="w-full max-w-md">
-        {/* Header */}
+        {}
         <div className="text-center mb-8 animate-slide-in-up">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br mb-4 shadow-lg transition-transform hover:scale-110 hover-wiggle">
             <Image src="/favicon.ico" alt="Ledger" width={40} height={40} className="animate-float" />
@@ -158,7 +152,7 @@ export default function ClientPage({ user }: Props) {
           <p className="text-slate-600 dark:text-slate-400">{isSignup ? 'Sign up to start managing your ledger' : 'Sign in to your account'}</p>
         </div>
 
-        {/* Form Card */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-8 transition-all animate-scale-in hover-lift">
           <form onSubmit={isSignup ? handleSignup : handleLogin} className="space-y-5">
             <div className="stagger-item">
@@ -297,13 +291,13 @@ export default function ClientPage({ user }: Props) {
           </div>
         </div>
 
-        {/* Footer */}
+        {}
         <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400 animate-fade-in" style={{ animationDelay: '0.3s' }}>
           Your personal ledger for managing finances
         </p>
       </div>
 
-      {/* Celebration Confetti */}
+      {}
       <Confetti active={showConfetti} />
     </div>
   )

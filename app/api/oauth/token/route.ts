@@ -1,6 +1,3 @@
-// OAuth 2.1 token endpoint. Exchanges an authorization code (with PKCE proof)
-// for an access + refresh token, and rotates refresh tokens. Returns errors in
-// the RFC 6749 §5.2 shape so MCP clients can react.
 import { consume_auth_code, issue_tokens, rotate_refresh_token, verify_client_secret, verify_pkce } from '@/lib/mcp/oauth'
 import { logger } from '@/lib/logger'
 
@@ -21,7 +18,6 @@ function token_response(t: { access_token: string; refresh_token: string; expire
   )
 }
 
-/** Read params from a form-encoded or JSON body, plus client creds from Basic auth. */
 async function read_params(req: Request): Promise<{ params: URLSearchParams; basic?: { id: string; secret: string } }> {
   const params = new URLSearchParams()
   const ct = req.headers.get('content-type') ?? ''

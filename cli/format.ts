@@ -1,4 +1,3 @@
-/** Tiny presentation helpers for the CLI. Reuses the app's IST/₹ formatters. */
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 import { get_indian_date_from_date_obj } from '@/app/_utils/date'
 
@@ -8,7 +7,6 @@ export function money(n: number): string {
 
 const qty_fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 4 })
 
-/** Format an asset quantity: grouped, up to 4 dp, trailing zeros trimmed. */
 export function qty(n: number): string {
   return qty_fmt.format(n)
 }
@@ -17,7 +15,6 @@ export function fmt_date(d: Date): string {
   return get_indian_date_from_date_obj(d)
 }
 
-/** Render an aligned text table. Numeric-looking cells are right-aligned. */
 export function table(headers: string[], rows: string[][]): string {
   const widths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => (r[i] ?? '').length)))
   const isNum = (s: string) => /^-?[\d,]+(\.\d+)?$/.test(s.trim()) || /^[₹]/.test(s.trim())

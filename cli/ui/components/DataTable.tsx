@@ -1,31 +1,21 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 
-/** A column definition for {@link DataTable}. */
 export type Column<T> = {
   header: string
-  /** Fixed column width in characters. */
+
   width: number
-  /** Right-align the cell + header (use for numeric columns). */
+
   align?: 'right'
   cell: (row: T) => string
-  /** Optional per-row text colour (e.g. red for negatives). */
+
   color?: (row: T) => string | undefined
-  /** Static colour applied to every cell in the column (e.g. dim ids). */
+
   fixedColor?: string
 }
 
 const GAP = 2
 
-/**
- * A small aligned table for the Ink UI: fixed-width columns, a rule whose width
- * tracks the columns, optional right alignment and per-cell colour.
- *
- * - `selectedIndex` highlights that row (an interactive cursor).
- * - `maxRows` caps how many rows render at once; the visible window follows the
- *   cursor and `↑/↓ N more` markers show what's scrolled off (so long lists like
- *   the accounting heads don't overflow the terminal).
- */
 export function DataTable<T>({
   columns,
   rows,
@@ -43,7 +33,7 @@ export function DataTable<T>({
   const n = rows.length
   const windowed = maxRows != null && n > maxRows
   const cursor = selectedIndex ?? 0
-  // Centre the cursor in the window, clamped to the list bounds.
+
   const start = windowed ? Math.min(Math.max(0, cursor - Math.floor(maxRows! / 2)), n - maxRows!) : 0
   const end = windowed ? start + maxRows! : n
   const aboveCount = start

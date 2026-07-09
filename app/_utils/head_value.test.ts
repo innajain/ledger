@@ -24,9 +24,9 @@ describe('compute_head_value', () => {
 
   it('sums priced and unpriced assets in one head', () => {
     const balances = new Map([
-      ['mf', { qty: 2, txn_value: 150 }], // 2 * 100 = 200
-      ['etf', { qty: 3, txn_value: 999 }], // 3 * 50 = 150
-      ['other', { qty: 1, txn_value: 75 }], // no price -> 75
+      ['mf', { qty: 2, txn_value: 150 }],
+      ['etf', { qty: 3, txn_value: 999 }],
+      ['other', { qty: 1, txn_value: 75 }],
     ])
     expect(compute_head_value(balances, prices).toNumber()).toBe(425)
   })

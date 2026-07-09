@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     siteName: 'Ledger App',
   },
   robots: {
-    index: false, // Set to true when ready for production
+    index: false,
     follow: false,
   },
 }
@@ -59,9 +59,6 @@ export const viewport = {
   userScalable: true,
 }
 
-// Synchronous head script: applies the dark class before first paint based on
-// data-theme on <html>. Server already sets the class for 'light'/'dark'; this
-// only runs the matchMedia check when the user is on 'system'.
 const THEME_INIT_SCRIPT = `(function(){try{var t=document.documentElement.getAttribute('data-theme');if(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.classList.add('dark');}}catch(e){}})();`
 
 export default async function RootLayout({
@@ -70,7 +67,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   const [user, prefs] = await Promise.all([get_current_user(), get_user_preferences()])
-  // `|| undefined` so an absent/empty header never renders `nonce=""`.
+
   const nonce = (await headers()).get('x-nonce') || undefined
   const [requestCount, isAdmin] = user ? await Promise.all([inbox_count(user.id), is_current_user_admin()]) : [0, false]
   const persist = !!user
@@ -78,8 +75,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" data-theme={prefs.theme} className={htmlClassName}>
       <head>
-        {/* The browser blanks the nonce attribute out of the DOM once CSP applies,
-            so it won't match React's vDOM on hydration — suppress that one diff. */}
+        {}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-900 transition-colors`}>
@@ -98,10 +94,10 @@ export default async function RootLayout({
               {DEV_QUERY_TOASTS_ENABLED && <DevQueryToaster />}
               <div className="min-h-screen flex flex-col">
                 <Navbar isLoggedIn={!!user} requestCount={requestCount} />
-                {/* Main Content */}
+                {}
                 <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">{children}</main>
 
-                {/* Footer */}
+                {}
                 <footer className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 mt-auto transition-colors">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-2">

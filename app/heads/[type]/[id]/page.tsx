@@ -13,13 +13,6 @@ import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_valu
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { profile } from '@/lib/metrics/profile'
 
-// All three head types share the same detail view (XIRR, value timeseries,
-// subtree rollup, parent nav). Two extras are genuinely head-specific:
-//   - FIFO remaining units: accounts hold asset lots; the other types tag flows
-//   - linked-user + UPI: only accounts can be linked / paid to
-// The timeseries valuation walk uses FIFO-lot mode for accounts and net
-// accumulation mode for the others (allocations and income/expense heads).
-
 type Props = { params: Promise<{ type: string; id: string }> }
 
 async function Page({ params }: Props) {
@@ -102,7 +95,6 @@ async function Page({ params }: Props) {
     })
   }
 
-  // FIFO remaining units per asset (non-rupees) — accounts only.
   if (isAccount) {
     const remaining_by_id = compute_fifo_remaining(
       lineItemsWithValues
@@ -139,12 +131,9 @@ async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
-  // Roll up value across descendants and list children/parent for navigation.
   const { subtree_total, children } = await compute_head_rollup(head.id, user.id)
   const parent: HeadData['parent'] = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
 
-  // A linked account derives both its notify target and its "Pay via UPI"
-  // address from the linked user's own profile (set once in their settings).
   const linked_user =
     isAccount && head.linked_user_id
       ? await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { id: true, username: true, upi_id: true } })

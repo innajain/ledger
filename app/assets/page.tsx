@@ -10,7 +10,6 @@ import { normalize_txn } from '../_utils/normalize_txn'
 import { calculate_xirr } from '../_utils/xirr_calculator'
 import { profile } from '@/lib/metrics/profile'
 
-// Route segment config for performance
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
@@ -44,7 +43,6 @@ async function Page() {
 
   const currValuesByAsset: Map<string, number> = new Map()
   for (const ass of assets) {
-    // One asset has a single price; sum its qty across all accounts holding it.
     const price = priceByAsset.get(ass.id)?.price ?? null
     const acc_qty_map = balances.get(ass.id) ?? new Map<string, { qty: number; txn_value: number }>()
 

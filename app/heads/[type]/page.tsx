@@ -9,7 +9,6 @@ import { get_or_compute_balances } from '@/app/_actions/compute_balances'
 import { compute_head_value } from '@/app/_utils/head_value'
 import { profile } from '@/lib/metrics/profile'
 
-// Route segment config for performance
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
@@ -53,7 +52,6 @@ async function Page({ params }: Props) {
 
   const totals = new Map(heads.map(h => [h.id, compute_head_value(balances.get(h.id) ?? new Map(), priceByAsset).toNumber()]))
 
-  // assetId → (asset name → signed qty), used to flag negative holdings on the list.
   const assetQuantities: Map<string, Map<string, number>> = new Map()
   balances.forEach((asset_qty_map, headId) => {
     const byName: Map<string, number> = new Map()

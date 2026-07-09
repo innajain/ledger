@@ -34,8 +34,6 @@ export function App() {
   const [focus, setFocus] = useState<'menu' | 'content'>('menu')
   const [navContext, setNavContext] = useState<string | null>(null)
 
-  // The menu owns the keyboard until you enter a screen; the focused screen
-  // owns it after that and returns here on Esc (via the onExit prop).
   useInput(
     (input, key) => {
       if (input === 'q' || key.escape) exit()

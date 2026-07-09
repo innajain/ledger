@@ -3,12 +3,6 @@ import { Box, Text, useInput } from 'ink'
 
 export type PickItem = { id: string; name: string; hint?: string }
 
-/**
- * A filterable single-choice picker driven by one `useInput` (so it never
- * fights a sibling TextInput/SelectInput for stdin). Type to filter, ↑↓ to move,
- * Enter to choose, Esc to cancel. Optionally offers a sentinel top row
- * (`extra`) — e.g. "finish" or "(none)".
- */
 export function Picker({
   label,
   items,
@@ -20,7 +14,7 @@ export function Picker({
   items: PickItem[]
   onSelect: (item: PickItem) => void
   onCancel?: () => void
-  /** A sentinel row shown first; selecting it calls `onPick` instead of `onSelect`. */
+
   extra?: { label: string; onPick: () => void }
 }) {
   const [filter, setFilter] = useState('')

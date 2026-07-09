@@ -3,9 +3,6 @@ import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 import { env, isDev } from '@/lib/env'
 
-// `/sw.js` and the manifest must be reachable without auth — the service worker
-// registers from any page (incl. /login) and the browser fetches the manifest
-// pre-auth; redirecting them to /login serves HTML and breaks both.
 const PUBLIC_PATHS = [
   '/login',
   '/favicon.ico',
@@ -13,7 +10,7 @@ const PUBLIC_PATHS = [
   '/sitemap.xml',
   '/sw.js',
   '/manifest.webmanifest',
-  // OAuth discovery metadata for the remote MCP server (RFC 8414 / RFC 9728).
+
   '/.well-known/oauth-authorization-server',
   '/.well-known/oauth-protected-resource',
 ]
@@ -23,8 +20,7 @@ const secret = new TextEncoder().encode(env.JWT_SECRET)
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true
   if (pathname.startsWith('/_next/') || pathname.startsWith('/public/') || pathname.startsWith('/api/cron/')) return true
-  // The MCP server and OAuth endpoints do their own bearer/cookie auth; the JWT
-  // cookie gate would wrongly redirect API/OAuth callers to /login.
+
   if (pathname === '/api/mcp' || pathname.startsWith('/api/oauth/')) return true
   return false
 }
@@ -41,23 +37,11 @@ async function verifyToken(token: string): Promise<{ uid: string; username: stri
   }
 }
 
-// Content-Security-Policy. A per-request nonce authorizes our one inline script
-// (the theme initializer in app/layout.tsx); 'strict-dynamic' lets Next's own
-// scripts load via that nonce. Enforced (not report-only) — verified free of
-// violations in prod. Switch back to 'Content-Security-Policy-Report-Only' when
-// trialing new directives before enforcing them.
 function buildCsp(nonce: string, formAction = `form-action 'self'`): string {
-  // The Vercel Blob client SDK uploads/downloads attachments straight from the
-  // browser, hitting the blob API + store host. In prod that's vercel.com plus
-  // the *.blob.vercel-storage.com store; in dev it's the local emulator origin
-  // (NEXT_PUBLIC_VERCEL_BLOB_API_URL, e.g. http://localhost:3100).
   const blobSrc = env.NEXT_PUBLIC_VERCEL_BLOB_API_URL
     ? new URL(env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin
     : 'https://vercel.com https://*.blob.vercel-storage.com'
-  // React/Turbopack dev mode needs eval() for debugging features (HMR, callstack
-  // reconstruction). 'unsafe-eval' is dev-only — prod uses no eval, so the strict
-  // policy stays there. ('strict-dynamic' ignores host/'unsafe-inline' but not
-  // 'unsafe-eval', so eval is still authorized.)
+
   const scriptSrc = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev() ? " 'unsafe-eval'" : ''}`
   return [
     `default-src 'self'`,
@@ -78,8 +62,7 @@ function buildCsp(nonce: string, formAction = `form-action 'self'`): string {
 function nextWithSecurity(requestHeaders: Headers, formAction?: string): NextResponse {
   const nonce = btoa(crypto.randomUUID())
   const csp = buildCsp(nonce, formAction)
-  // x-nonce is read by the layout to nonce the inline script; forwarding the CSP
-  // on the request lets Next attach the same nonce to its framework scripts.
+
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set('content-security-policy', csp)
   const res = NextResponse.next({ request: { headers: requestHeaders } })
@@ -90,19 +73,12 @@ function nextWithSecurity(requestHeaders: Headers, formAction?: string): NextRes
 export async function proxy(request: NextRequest) {
   const pathname = new URL(request.url).pathname
 
-  // Defense in depth: strip any client-supplied x-user-id / x-username / x-token-iat
-  // before trusting them downstream (x-token-iat gates session revocation).
   const requestHeaders = new Headers(request.headers)
   requestHeaders.delete('x-user-id')
   requestHeaders.delete('x-username')
   requestHeaders.delete('x-token-iat')
 
   if (isPublicPath(pathname)) {
-    // The OAuth consent page (app/api/oauth/authorize) submits a form that the
-    // server then 302-redirects to the client's callback. `form-action` is
-    // enforced on that redirect too, so a strict 'self' blocks the OAuth flow.
-    // Allow the registered (server-validated) redirect_uri's origin; the actual
-    // open-redirect guard is the redirect_uris allow-list check in the route.
     let formAction: string | undefined
     if (pathname === '/api/oauth/authorize') {
       let origin = ''

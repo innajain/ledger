@@ -126,7 +126,7 @@ export function Transactions({ uid, active, onExit }: ScreenProps) {
         case 'amount_desc':
           return b.total - a.total
         default:
-          return 0 // date_desc is already the DB order
+          return 0
       }
     })
   }, [allRows, search, sort])

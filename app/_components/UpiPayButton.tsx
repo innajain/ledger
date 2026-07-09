@@ -7,28 +7,22 @@ import { currency_fmt } from '../_utils/currency_formatter'
 type Props = {
   upi_id: string
   payee_name: string
-  /**
-   * Amount in INR. If omitted, the button opens an amount-entry modal first
-   * (used on the account page where the user picks the amount per payment).
-   */
+
   amount?: number
   note?: string
-  /**
-   * Called when the user confirms the payment went through.
-   * Receives the amount that was actually paid (useful in prompt-for-amount mode).
-   */
+
   on_mark_paid?: (amount: number, note: string) => void
-  /** Label on the confirm button in the post-payment dialog. */
+
   mark_paid_label?: string
-  /** Visible text on the trigger button. */
+
   button_label?: string
-  /** Optional override for the trigger button's class. */
+
   button_class?: string
-  /** Disable the trigger. */
+
   disabled?: boolean
-  /** Optional title shown on the confirm dialog. */
+
   confirm_title?: string
-  /** Pre-fill the amount input when opening the prompt modal. */
+
   initial_amount?: number
   /** Pre-fill the note input when opening the prompt modal. */
   initial_note?: string
@@ -48,18 +42,13 @@ const UPI_ICON = (
 function build_upi_url(upi_id: string, payee_name: string, amount: number, note?: string) {
   // UPI deep link spec: pa=address, pn=payee name, am=amount, cu=currency, tn=note.
   // IMPORTANT: `pa` (the VPA) must be passed LITERAL — its `@` must NOT be
-  // percent-encoded. Many UPI apps don't decode `%40` (BHIM shows the address as
-  // "name%40bank" → "request type not supported"; GPay mishandles it too). VPAs
-  // contain no URL-reserved characters, so the raw value is safe.
-  // pn/tn still use encodeURIComponent so spaces become `%20` (UPI apps don't
-  // decode `+`), which every app handles for display fields.
+
   const parts = [`pa=${upi_id}`, `pn=${encodeURIComponent(payee_name)}`, `am=${amount.toFixed(2)}`, 'cu=INR']
   if (note) parts.push(`tn=${encodeURIComponent(note)}`)
   return `upi://pay?${parts.join('&')}`
 }
 
 function ModalShell({ children, on_close }: { children: ReactNode; on_close: () => void }) {
-  // Close on escape; lock body scroll while open.
   useEffect(() => {
     const on_key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') on_close()
@@ -101,26 +90,22 @@ export function UpiPayButton({
 }: Props) {
   const prompt_for_amount = amount_prop === undefined
 
-  // State machine: idle → (amount?) → qr → confirm
   const [modal, set_modal] = useState<'amount' | 'qr' | 'confirm' | null>(null)
   const [qr_data_url, set_qr_data_url] = useState<string | null>(null)
 
-  // Form drafts for the amount modal (used only in prompt-for-amount mode).
   const [amount_input, set_amount_input] = useState('')
   const [note_input, set_note_input] = useState('')
-  // After the user commits the amount in prompt mode we stash it here so the
-  // QR / confirm dialogs can render the right number without re-prompting.
+
   const [prompted_amount, set_prompted_amount] = useState<number | null>(null)
   const [prompted_note, set_prompted_note] = useState<string>('')
 
   // Effective amount + note used for URL + dialog display. Props win in
-  // fixed-amount mode; in prompt mode we use the values the user just typed.
+
   const active_amount = prompt_for_amount ? prompted_amount : (amount_prop ?? null)
   const active_note = prompt_for_amount ? prompted_note : (note_prop ?? '')
 
   const url = active_amount && active_amount > 0 ? build_upi_url(upi_id, payee_name, active_amount, active_note || undefined) : ''
 
-  // Generate the QR code lazily, only when the QR modal opens.
   useEffect(() => {
     if (modal !== 'qr' || !url) return
     let cancelled = false
@@ -157,8 +142,7 @@ export function UpiPayButton({
     if (!Number.isFinite(n) || n <= 0) return
     set_prompted_amount(n)
     set_prompted_note(note_input.trim())
-    // prompted_* state is async, so defer the QR modal one tick so it renders
-    // with the amount the user just entered.
+
     setTimeout(() => set_modal('qr'), 0)
   }
 
@@ -175,9 +159,7 @@ export function UpiPayButton({
 
   return (
     <>
-      {/* Phones can't use this — UPI apps reject browser-launched payments and
-          you can't scan your own QR. Hide below the `sm` breakpoint (≈phones);
-          CSS so there's no first-paint flicker. The QR stays for desktop. */}
+      {}
       <span className="hidden sm:inline-flex">
         <button
           type="button"

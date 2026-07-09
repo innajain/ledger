@@ -3,13 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { MetricsContext } from './context'
 
-/**
- * Fire-and-forget persistence of a completed request's metrics.
- * Errors are logged but never thrown — profiling must not break the request.
- */
 export function persistMetrics(ctx: MetricsContext, totalMs: number): void {
-  // Don't await: let the response return immediately. The Node event loop
-  // keeps the function alive long enough on Vercel's runtime.
   void (async () => {
     try {
       await prisma.server_metric.create({

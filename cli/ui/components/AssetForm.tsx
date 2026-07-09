@@ -14,7 +14,6 @@ const needsTicker = (t: string) => t === 'mf' || t === 'etf' || t === 'shares'
 
 type Phase = 'name' | 'type' | 'ticker' | 'active' | 'saving'
 
-/** Add or edit a (global, admin-managed) asset. The caller gates on is_admin. */
 export function AssetForm({ edit, onDone, onCancel }: { edit?: AssetEdit; onDone: (r: ActionResult<unknown>) => void; onCancel: () => void }) {
   const [phase, setPhase] = useState<Phase>('name')
   const [name, setName] = useState(edit?.name ?? '')

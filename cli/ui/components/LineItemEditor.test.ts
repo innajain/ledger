@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
 
-// Mock the only DB-touching dependency so the editor renders with fake data
-// (no prisma / no env). Everything else is pure.
 vi.mock('../../shared', () => ({
   load_heads: vi.fn(async () => [{ id: 'h1', name: 'Cash', type: 'account', is_active: true, linked_user_id: null, parent_id: null }]),
   load_assets: vi.fn(async () => [{ id: 'as1', name: 'Money', type: 'rupees', ticker: null, is_active: true }]),
@@ -16,8 +14,7 @@ const ESC = String.fromCharCode(27)
 const UP = ESC + '[A'
 const DOWN = ESC + '[B'
 const ENTER = '\r'
-// ink-testing-library drops the first key after the async-load render swap; a
-// no-op Up arrow at the top of the list absorbs it so the real flow is reliable.
+
 const PRIME = UP
 
 describe('LineItemEditor', () => {

@@ -29,8 +29,6 @@ async function Page({ params }: Props) {
   const asset = await prisma.asset.findUnique({
     where: { id },
     include: {
-      // Assets are global, but their line items belong to individual users.
-      // Scope to the caller so one user can't see another user's positions.
       line_items: { where: { transaction: { user_id: user.id } }, include: { accounting_head: true, transaction: true } },
       parent: true,
       children: true,
@@ -54,7 +52,6 @@ async function Page({ params }: Props) {
   const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
   const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
 
-  // Aggregate per account
   let asset_total = new Prisma.Decimal(0)
   let book_total = new Prisma.Decimal(0)
   const acc_map: Record<string, { accounting_head_id: string; account_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
@@ -87,7 +84,6 @@ async function Page({ params }: Props) {
     })
   }
 
-  // Aggregate per allocation
   const alloc_map: Record<string, { allocation_id: string; allocation_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal }> = {}
   for (const li of allocation_line_items) {
     const n = normalizedById.get(li.id)!
@@ -122,7 +118,6 @@ async function Page({ params }: Props) {
     })
   }
 
-  // Per-line-item detail with FIFO remaining
   const items_with_meta = real_line_items.map(li => {
     const n = normalizedById.get(li.id)!
     const qty = n.quantity!
@@ -143,7 +138,6 @@ async function Page({ params }: Props) {
         )
       : new Map<string, Prisma.Decimal>()
 
-  // Current investment = proportional cost basis of remaining FIFO lots
   let current_investment = new Prisma.Decimal(0)
   for (const { li, qty, book } of items_with_meta) {
     if (qty.greaterThan(0)) {

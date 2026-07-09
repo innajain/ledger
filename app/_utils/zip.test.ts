@@ -1,13 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { build_zip, crc32, type ZipEntry } from './zip'
 
-// Parse our store-only archives back into name → bytes by walking the central
-// directory, so the tests prove real offsets/sizes rather than guessing at them.
 function extract(zip: Buffer): Record<string, Buffer> {
-  const eocd = zip.length - 22 // no archive comment, so EOCD is the final 22 bytes
+  const eocd = zip.length - 22
   expect(zip.readUInt32LE(eocd)).toBe(0x06054b50)
   const count = zip.readUInt16LE(eocd + 10)
-  let p = zip.readUInt32LE(eocd + 16) // start of central directory
+  let p = zip.readUInt32LE(eocd + 16)
   const out: Record<string, Buffer> = {}
   for (let i = 0; i < count; i++) {
     expect(zip.readUInt32LE(p)).toBe(0x02014b50)
@@ -40,7 +38,7 @@ describe('build_zip', () => {
     const zip = build_zip([{ name: 'a.txt', data: Buffer.from('hello') }])
     expect(zip.readUInt32LE(0)).toBe(0x04034b50)
     expect(zip.readUInt32LE(zip.length - 22)).toBe(0x06054b50)
-    expect(zip.readUInt16LE(zip.length - 22 + 10)).toBe(1) // one entry
+    expect(zip.readUInt16LE(zip.length - 22 + 10)).toBe(1)
   })
 
   it('round-trips multiple files, names, and contents', () => {

@@ -1,29 +1,18 @@
 import { build_zip, type ZipEntry } from './zip'
 
-// Minimal hand-rolled .xlsx (OOXML SpreadsheetML) writer — no dependency, built
-// on the store-only zip writer. One worksheet per table, inline strings, real
-// numeric cells, a frozen + auto-filtered header row, and internal hyperlinks
-// that turn foreign-key cells into clickable jumps to the referenced row.
-//
-// Scope is deliberately small: no shared-string table, no styled number formats,
-// no Excel Tables (ListObjects). Enough to produce a clean, navigable workbook
-// that Excel/LibreOffice/Sheets open without a repair prompt.
-
 export type XlsxColumn = {
   name: string
-  numeric?: boolean // render values as numbers rather than text
-  fkSheet?: string // values are ids into this sheet → hyperlink to that row
+  numeric?: boolean
+  fkSheet?: string
 }
 
 export type XlsxTable = {
-  name: string // becomes the sheet name
+  name: string
   columns: XlsxColumn[]
-  rows: string[][] // stringified cells, parallel to columns
-  idColumn?: string // primary key used as the hyperlink target (default 'id')
+  rows: string[][]
+  idColumn?: string
 }
 
-// Drop characters XML 1.0 forbids (C0 controls except tab/LF/CR) so stray
-// control bytes in a description can't corrupt the workbook.
 function strip_illegal(s: string): string {
   let out = ''
   for (const ch of s) {
@@ -38,18 +27,14 @@ function xml(s: string): string {
   return strip_illegal(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 }
 
-// 0-based column index → spreadsheet letters (0→A, 25→Z, 26→AA).
 export function col_letter(i: number): string {
   let s = ''
   for (i += 1; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + ((i - 1) % 26)) + s
   return s
 }
 
-// Excel sheet-name rules: ≤31 chars and none of : \ / ? * [ ]
 const sheet_name = (name: string) => name.replace(/[:\\/?*[\]]/g, '_').slice(0, 31)
 
-// A sheet reference inside a hyperlink location. Simple identifiers go unquoted;
-// anything else is wrapped in single quotes (doubling embedded ones).
 const sheet_ref = (name: string) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `'${name.replace(/'/g, "''")}'`)
 
 const NUMERIC_RE = /^-?\d+(\.\d+)?$/
@@ -128,8 +113,6 @@ const STYLES_XML =
   `</styleSheet>`
 
 export function build_xlsx(tables: XlsxTable[]): Buffer {
-  // Index every sheet's id column → Excel row number (1 is the header) so FK
-  // cells can resolve their link targets.
   const idRowOf = new Map<string, Map<string, number>>()
   const idColOf = new Map<string, number>()
   for (const t of tables) {

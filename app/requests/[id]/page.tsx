@@ -41,8 +41,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     }),
     get_line_item_defaults(),
   ])
-  // Tag linked (person) accounts so the editor only offers your own non-linked
-  // accounts for balancing, while still rendering the locked linked rows.
+
   const accounts = rawAccounts.map(a => ({ id: a.id, name: a.name, type: a.type, linked: a.linked_user_id !== null }))
 
   return <ClientPage ctx={ctx} accounts={accounts} assets={assets} defaults={defaults} />

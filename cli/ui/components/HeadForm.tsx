@@ -20,8 +20,6 @@ const TYPE_ITEMS: PickItem[] = [
 
 type Phase = 'type' | 'name' | 'parent' | 'active' | 'link' | 'saving'
 
-/** Add or edit an accounting head. Sequential: (add) type→name→parent→link;
- *  (edit) name→parent→active→link. Link step only for account-type heads. */
 export function HeadForm({
   uid,
   edit,
@@ -52,7 +50,6 @@ export function HeadForm({
     else onDone(await create_account_core(uid, name, type as accounting_head_type, parentId ?? null, link ?? null))
   }
 
-  // After parent (add) or active (edit): link step if account, else submit.
   const afterCore = (nextLinkPhase: boolean) => {
     if ((edit?.type ?? type) === 'account') setPhase('link')
     else if (nextLinkPhase) void submit(undefined)
@@ -66,8 +63,8 @@ export function HeadForm({
 
   const resolveLink = async (raw: string, keepAllowed: boolean) => {
     const v = raw.trim()
-    if (v === '' && keepAllowed) return void submit(undefined) // keep
-    if (v === '' || v === 'none' || v === '-') return void submit(null) // clear / none
+    if (v === '' && keepAllowed) return void submit(undefined)
+    if (v === '' || v === 'none' || v === '-') return void submit(null)
     const res = await find_user_by_username_core(uid, v)
     if (!res.success) return setErr(res.message)
     setErr(null)

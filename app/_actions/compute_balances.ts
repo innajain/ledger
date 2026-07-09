@@ -3,8 +3,6 @@ import { cache } from 'react'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { compute_balances_core } from '@/app/_core/balances_core'
 
-// invalidate_balances now lives in the framework-agnostic core (so the CLI can
-// call it too); re-exported here for the many existing importers.
 export { invalidate_balances } from '@/app/_core/balances_core'
 
 export const get_or_compute_balances = cache(async (invalidate_cache = false) => {

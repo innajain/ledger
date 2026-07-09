@@ -1,8 +1,3 @@
-/**
- * Framework-agnostic user-preference reads/writes, shared by the web actions
- * (`app/_actions/preferences.ts`, which add `revalidatePath`) and the CLI.
- * Takes an explicit `user_id`; no `next/cache`.
- */
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ActionResult, ok, err, fromError } from '@/app/_actions/_result'
@@ -53,7 +48,6 @@ const updateSchema = z.object({
   default_asset_id: z.string().min(1).nullable(),
 })
 
-// Basic VPA shape: handle@psp (e.g. name@oksbi, 9876543210@upi).
 const upiSchema = z
   .string()
   .trim()
@@ -87,7 +81,6 @@ export async function update_line_item_defaults_core(user_id: string, input: Lin
   try {
     const parsed = updateSchema.parse(input)
 
-    // Validate ownership and accounting_head_type for the chosen IDs.
     const accountIds = [
       { id: parsed.default_account_id, type: 'account' as const, label: 'account' },
       { id: parsed.default_allocation_id, type: 'allocation' as const, label: 'allocation' },

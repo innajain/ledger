@@ -1,19 +1,10 @@
 import { Prisma } from '@/generated/prisma/client'
 import { asset_type, accounting_head_type } from '@/generated/prisma/enums'
 
-/**
- * Raw transaction shape as fetched from Prisma — quantity and txn_value
- * may be null on the allocation/income-expense sides (and on txn_value for rupees).
- */
 export type TransactionFull = Prisma.transactionGetPayload<{
   include: { line_items: { include: { accounting_head: true; asset: true } } }
 }>
 
-/**
- * A transaction whose line items have been normalized: every quantity is
- * non-null, and every txn_value is non-null. This is what callers should
- * reason about; only the storage layer sees the raw form.
- */
 export type NormalizedLineItem = TransactionFull['line_items'][number] & {
   quantity: Prisma.Decimal
   txn_value: Prisma.Decimal
@@ -30,10 +21,6 @@ export type NormalizableLineItem = {
   txn_value: Prisma.Decimal | null
 }
 
-/**
- * Pure: fills null quantity / txn_value on copies of the provided line items
- * per the triple-entry invariants. The original items are not mutated.
- */
 export function normalize_line_items<T extends NormalizableLineItem>(
   line_items: T[],
 ): (T & { quantity: Prisma.Decimal; txn_value: Prisma.Decimal })[] {
@@ -98,10 +85,6 @@ export function normalize_line_items<T extends NormalizableLineItem>(
   return copies as (T & { quantity: Prisma.Decimal; txn_value: Prisma.Decimal })[]
 }
 
-/**
- * Pure: returns a new transaction with all null quantity / txn_value
- * filled per the triple-entry invariants. The input is not mutated.
- */
 export function normalize_txn(txn: TransactionFull): NormalizedTransaction {
   return { ...txn, line_items: normalize_line_items(txn.line_items) as NormalizedLineItem[] }
 }

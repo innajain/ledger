@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { build_xlsx, col_letter, type XlsxTable } from './xlsx'
 
-// Pull the package parts back out of the .xlsx (a store-only zip) by walking the
-// central directory, so we can assert on the actual OOXML we emit.
 function unzip(buf: Buffer): Record<string, string> {
   const eocd = buf.length - 22
   const count = buf.readUInt16LE(eocd + 10)
@@ -38,7 +36,7 @@ const sample: XlsxTable[] = [
     columns: [{ name: 'id' }, { name: 'transaction_id', fkSheet: 'transaction' }, { name: 'quantity', numeric: true }],
     rows: [
       ['li1', 't2', '-1500.5'],
-      ['li2', 'tX', '42'], // tX is absent from the transaction sheet → no link
+      ['li2', 'tX', '42'],
     ],
   },
 ]
@@ -81,10 +79,10 @@ describe('build_xlsx', () => {
 
   it('hyperlinks a foreign key to the referenced row, and only when present', () => {
     const sheet2 = parts['xl/worksheets/sheet2.xml']
-    // t2 is row 3 on the transaction sheet (header=1, t1=2, t2=3); FK cell is B2.
+
     expect(sheet2).toContain('<hyperlink ref="B2" location="transaction!A3"')
-    // The dangling FK (tX) produced no hyperlink.
-    expect(sheet2).not.toContain('tX</t>'.replace('tX', 'NONEXISTENT')) // sanity
+
+    expect(sheet2).not.toContain('tX</t>'.replace('tX', 'NONEXISTENT'))
     expect((sheet2.match(/<hyperlink /g) ?? []).length).toBe(1)
   })
 

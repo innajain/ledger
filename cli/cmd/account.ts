@@ -149,7 +149,7 @@ export async function cmd_passwd() {
     print_result(res)
     return
   }
-  // The core revoked all sessions; re-issue a fresh token so this CLI stays logged in.
+
   await save_token(await sign_token({ uid, username }))
   console.log('✓ Password changed')
 }

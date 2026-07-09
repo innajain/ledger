@@ -62,7 +62,7 @@ describe('Picker', () => {
     const onSelect = vi.fn()
     const { stdin, unmount } = render(h(Picker, { label: 'Head', items, onSelect, onCancel: vi.fn(), extra: { label: 'finish', onPick } }))
     await tick()
-    stdin.write(KEY.enter) // cursor 0 === extra row
+    stdin.write(KEY.enter)
     await tick()
     expect(onPick).toHaveBeenCalled()
     expect(onSelect).not.toHaveBeenCalled()

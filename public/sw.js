@@ -1,5 +1,3 @@
-// Ledger service worker — Web Push display + click handling.
-
 self.addEventListener('push', event => {
   let data = {}
   try {
@@ -38,6 +36,5 @@ self.addEventListener('notificationclick', event => {
   )
 })
 
-// Take control as soon as a new worker is installed.
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()))

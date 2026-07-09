@@ -2,7 +2,6 @@ import React from 'react'
 import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
 
-/** A labelled single-line text input. Calls `onSubmit` on Enter. */
 export function TextField({
   label,
   value,
@@ -26,7 +25,6 @@ export function TextField({
   )
 }
 
-/** A y/N confirmation. y → true; n / Esc → false. */
 export function Confirm({ message, onAnswer }: { message: string; onAnswer: (yes: boolean) => void }) {
   useInput((input, key) => {
     if (input === 'y' || input === 'Y') onAnswer(true)

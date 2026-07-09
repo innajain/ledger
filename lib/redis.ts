@@ -5,16 +5,15 @@ import { logger } from './logger'
 import { currentMetrics } from './metrics/context'
 import { publishQueryEvent } from './dev/query-bus'
 
-// Create a Redis client instance
 const baseRedis = new Redis(env.REDIS_URL, {
   maxRetriesPerRequest: 3,
   retryStrategy: times => {
     if (times > 3) {
-      return null // Stop retrying
+      return null
     }
-    return Math.min(times * 50, 2000) // Wait 50ms, 100ms, 150ms
+    return Math.min(times * 50, 2000)
   },
-  lazyConnect: true, // Don't connect immediately
+  lazyConnect: true,
 })
 
 baseRedis.on('error', err => {
@@ -25,8 +24,6 @@ baseRedis.on('connect', () => {
   logger.info('Redis connected')
 })
 
-// Wrap key read methods to record hit/miss + timing into the request context.
-// We only instrument the methods we actually use elsewhere in the codebase.
 function instrument<Fn extends (...args: never[]) => Promise<unknown>>(
   name: 'get' | 'mget' | 'set' | 'setex' | 'del' | 'incr' | 'pipeline_exec',
   fn: Fn,

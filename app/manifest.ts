@@ -1,7 +1,5 @@
 import type { MetadataRoute } from 'next'
 
-// Web app manifest (served at /manifest.webmanifest). Makes the app installable
-// — required for Web Push to work on iOS (Add to Home Screen, iOS 16.4+).
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Ledger',

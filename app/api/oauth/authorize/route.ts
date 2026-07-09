@@ -1,9 +1,3 @@
-// OAuth 2.1 authorization endpoint. Browser-facing: the MCP client opens this
-// URL, the user authenticates with their normal ledger login (the `ledger_token`
-// cookie) and consents, and we redirect back to the client with an auth code.
-//
-// Made public in proxy.ts, so this handler verifies the session cookie itself
-// rather than relying on the proxy's x-user-id header.
 import { randomBytes } from 'node:crypto'
 import { verify_token } from '@/app/_core/auth_core'
 import { get_client, create_auth_code, DEFAULT_SCOPE } from '@/lib/mcp/oauth'
@@ -34,7 +28,6 @@ async function current_user(req: Request): Promise<{ uid: string; username?: str
   }
 }
 
-/** Append OAuth error params to the client's redirect_uri (RFC 6749 §4.1.2.1). */
 function error_redirect(redirect_uri: string, error: string, state: string | null, description?: string) {
   const u = new URL(redirect_uri)
   u.searchParams.set('error', error)
@@ -47,10 +40,6 @@ function bad_request(message: string) {
   return new Response(message, { status: 400, headers: { 'Content-Type': 'text/plain' } })
 }
 
-/**
- * Validate the params common to GET (show consent) and POST (record decision).
- * Returns the resolved client + normalized params, or a Response to return early.
- */
 async function validate(params: URLSearchParams) {
   const client_id = params.get('client_id') ?? ''
   const redirect_uri = params.get('redirect_uri') ?? ''
@@ -63,9 +52,9 @@ async function validate(params: URLSearchParams) {
   if (!client_id || !redirect_uri) return { error: bad_request('Missing client_id or redirect_uri') }
   const client = await get_client(client_id)
   if (!client) return { error: bad_request('Unknown client_id') }
-  // redirect_uri must exactly match a registered value — prevents open redirects.
+
   if (!client.redirect_uris.includes(redirect_uri)) return { error: bad_request('redirect_uri not registered for this client') }
-  // From here, errors can safely go back to the (validated) redirect_uri.
+
   if (response_type !== 'code') return { error: error_redirect(redirect_uri, 'unsupported_response_type', state) }
   if (!code_challenge) return { error: error_redirect(redirect_uri, 'invalid_request', state, 'code_challenge required (PKCE)') }
   if (code_challenge_method !== 'S256') return { error: error_redirect(redirect_uri, 'invalid_request', state, 'only S256 supported') }
@@ -80,7 +69,6 @@ export async function GET(req: Request) {
 
   const user = await current_user(req)
   if (!user) {
-    // Send the user to log in, then straight back to this exact authorize URL.
     const next = encodeURIComponent(url.pathname + url.search)
     return Response.redirect(new URL(`/login?next=${next}`, url.origin).toString(), 302)
   }
@@ -135,7 +123,6 @@ export async function POST(req: Request) {
   const user = await current_user(req)
   if (!user) return new Response('Session expired — please retry', { status: 401 })
 
-  // CSRF: the value in the form must match the cookie we set when rendering.
   const cookieCsrf = parse_cookies(req.headers.get('cookie'))[CSRF_COOKIE]
   const formCsrf = params.get('csrf')
   if (!cookieCsrf || !formCsrf || cookieCsrf !== formCsrf) return new Response('Invalid CSRF token', { status: 403 })

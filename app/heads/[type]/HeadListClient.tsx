@@ -12,7 +12,7 @@ type Props = {
   type: accounting_head_type
   heads: Prisma.accounting_headGetPayload<{ include: { parent: true } }>[]
   totals: Map<string, number>
-  // assetId/name → signed quantity, per head. Used to flag negative holdings.
+
   assetQuantities: Map<string, Map<string, number>>
 }
 
@@ -67,7 +67,6 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
                       if (moneyQty > 1e-9) {
                         const nameLower = item.name.toLowerCase()
                         if (nameLower !== 'rent' && nameLower !== 'monthly expenses') {
-                          // Check if descendant of monthly expenses
                           let isDescendant = false
                           let current = item
                           while (current.parent_id) {

@@ -22,7 +22,6 @@ async function require_admin_cli(uid: string) {
   if (!rec?.is_admin) throw new Error('admin only — your user is not an admin')
 }
 
-/** Resolve --parent (a head #/name/id) to an id, or undefined. */
 async function resolve_parent(uid: string, ref: string | undefined): Promise<string | null | undefined> {
   if (ref === undefined) return undefined
   if (ref === 'none' || ref === '') return null
@@ -30,7 +29,6 @@ async function resolve_parent(uid: string, ref: string | undefined): Promise<str
   return resolve_ref(ref, heads, 'parent head').id
 }
 
-/** Resolve --link (a username, or "none") to a linked user id / null / undefined. */
 async function resolve_link(uid: string, ref: string | undefined): Promise<string | null | undefined> {
   if (ref === undefined) return undefined
   if (ref === 'none' || ref === '') return null

@@ -10,9 +10,6 @@ import { get_price_lookups_for_assets } from './historical_price_fetcher'
 import { asset_type } from '@/generated/prisma/client'
 import { build_events, walk_events, ist_date_key, type TimeseriesFilter, type ValuePoint } from './value_timeseries_core'
 
-// The pure valuation walk lives in ./value_timeseries_core (unit tested). This
-// module is the server-only shell: it fetches historical prices and caches the
-// frozen historical points in Redis.
 export { reconcile_timeseries_tail } from './value_timeseries_core'
 export type { ValuePoint, TimeseriesFilter } from './value_timeseries_core'
 
@@ -43,19 +40,6 @@ async function compute_value_timeseries_uncached(
 
 type FrozenCache = { version: number; upToDate: string; points: ValuePoint[] }
 
-/**
- * Indefinite-cache wrapper. Strategy:
- *   - Frozen historical points (everything before today) are stored in Redis
- *     at a stable (version-less) key, with the current user version embedded
- *     in the cached value. A version bump on mutation causes the embedded
- *     `version` to mismatch on the next read, forcing a recompute. This lets
- *     us fetch the version *and* the cache in a single MGET instead of two
- *     sequential GETs (the old per-version key required knowing the version
- *     first).
- *   - Today's point is recomputed each call (cheap). The chart's caller then
- *     overrides this with live values from the InfoCard.
- *   - On a stale cache (user skipped days), discard and recompute fully.
- */
 export async function compute_value_timeseries(
   transactions: TransactionFull[],
   filter: TimeseriesFilter,
@@ -75,11 +59,9 @@ export async function compute_value_timeseries(
     if (cachedRaw) {
       const cached = JSON.parse(cachedRaw) as FrozenCache
       if (cached.version === version && cached.upToDate === yesterdayKey) {
-        // Hot path: only recompute today.
         const todayPoints = await compute_value_timeseries_uncached(transactions, filter, assets, 'today-only')
         return [...cached.points, ...todayPoints]
       }
-      // Stale (either invalidated or user skipped days). Fall through.
     }
 
     const allPoints = await compute_value_timeseries_uncached(transactions, filter, assets, 'all')
@@ -91,7 +73,7 @@ export async function compute_value_timeseries(
           upToDate: allPoints[allPoints.length - 2].date,
           points: allPoints.slice(0, -1),
         }
-        // Indefinite cache: no TTL. Invalidated by version bump (mismatch on read).
+
         await redis.set(cacheKey, JSON.stringify(frozen))
       }
     }

@@ -68,8 +68,6 @@ export default function ClientPage({
   const [selectedPageSize] = useState(pageSize)
   const [deletingTemplate, setDeletingTemplate] = useState<{ id: string; x: number; y: number } | null>(null)
 
-  // Resync form drafts from URL on every URL change (e.g. browser back/forward,
-  // chip removal). Without this, the inputs would silently show stale values.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setSearchInput(searchParams.search || '')
@@ -88,7 +86,6 @@ export default function ClientPage({
     searchParams.accountId,
     searchParams.assetId,
   ])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const handleGlobalClick = () => setDeletingTemplate(null)
@@ -96,9 +93,6 @@ export default function ClientPage({
     return () => document.removeEventListener('click', handleGlobalClick)
   }, [])
 
-  // Debounced search: after 300ms of inactivity, push searchInput to the URL.
-  // Skips the push when the input already matches the URL (initial mount,
-  // back/forward, chip removal) to avoid feedback loops with the sync effect above.
   useEffect(() => {
     const current = searchParams.search || ''
     if (searchInput === current) return
@@ -118,7 +112,7 @@ export default function ClientPage({
   const changePageSize = (newSize: string) => {
     const query = new URLSearchParams(params.toString())
     query.set('pageSize', newSize)
-    query.delete('page') // Reset to page 1 when changing page size
+    query.delete('page')
     router.push(`/transactions?${query.toString()}`)
   }
 
@@ -263,7 +257,7 @@ export default function ClientPage({
         </div>
       )}
 
-      {/* Search and Filter Section */}
+      {}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 transition-colors">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
@@ -516,7 +510,7 @@ export default function ClientPage({
             </ul>
           </div>
 
-          {/* Pagination */}
+          {}
           {totalPages > 1 && !isShowingAll && (
             <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-4 transition-colors gap-2">
               <button

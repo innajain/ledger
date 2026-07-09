@@ -2,9 +2,6 @@ import type { ComponentType } from 'react'
 import { accounting_head_type } from '@/generated/prisma/enums'
 import { AccountEmptyIcon, AllocationEmptyIcon, IncomeExpenseEmptyIcon } from '@/app/_components/EmptyStateIcons'
 
-// The three head types are the only valid `[type]` segments. The path segment
-// is the enum value verbatim, so /heads/account, /heads/allocation,
-// /heads/income_expense map 1:1 to accounting_head_type.
 export function isHeadType(s: string): s is accounting_head_type {
   return s === 'account' || s === 'allocation' || s === 'income_expense'
 }
@@ -12,7 +9,6 @@ export function isHeadType(s: string): s is accounting_head_type {
 export const headBasePath = (type: accounting_head_type) => `/heads/${type}`
 
 export type HeadConfig = {
-  // List page
   title: string
   listDescription: string
   hierarchyTitle: string
@@ -22,9 +18,9 @@ export type HeadConfig = {
   emptyActionLabel: string
   emptyIcon: ComponentType
   accentBorderClass: string
-  // Income/expense heads don't surface per-asset negative badges on the list.
+
   showNegativeAssetBadges: boolean
-  // Detail / form page
+
   entityName: string
   backText: string
 }

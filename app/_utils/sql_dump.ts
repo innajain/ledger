@@ -1,13 +1,8 @@
-// Pure: render a set of tables as a data-only PostgreSQL dump — INSERT
-// statements with explicit column lists. The schema is owned by Prisma
-// migrations, so only data is emitted. Shared by the user-scoped dump
-// (/api/dump) and the admin-only complete dump (/api/admin/dump).
-
 export type SqlTable = {
   table: string
   columns: string[]
   rows: unknown[][]
-  numericColumns?: string[] // rendered as unquoted numeric literals
+  numericColumns?: string[]
 }
 
 const ident = (name: string) => `"${name.replace(/"/g, '""')}"`
@@ -16,8 +11,7 @@ function literal(v: unknown, numeric: boolean): string {
   if (v === null || v === undefined) return 'NULL'
   if (v instanceof Date) return `'${v.toISOString()}'`
   if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE'
-  // Numeric columns (incl. Decimals that arrive as strings) and JS numbers go
-  // unquoted; everything else is a single-quoted, quote-escaped string literal.
+
   if (numeric || typeof v === 'number' || typeof v === 'bigint') return String(v)
   return `'${String(v).replace(/'/g, "''")}'`
 }

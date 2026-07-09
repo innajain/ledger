@@ -7,12 +7,6 @@ import { toDecimal } from './decimal'
 import { ActionError } from '@/app/_actions/_result'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 
-// Helpers for the cross-user transaction approval workflow. Pure server logic
-// operating on a passed Prisma transaction client — see docs/linked-accounts-plan.md.
-// `pending_by` always names whoever must take the next action.
-
-// The interactive-transaction client type produced by our $extends-instrumented
-// client (Prisma.TransactionClient doesn't match the extended client).
 type Tx = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
 
 export function other_user(link: transaction_link, user_id: string): string {
@@ -25,7 +19,6 @@ export function their_txn_id(link: transaction_link, user_id: string): string | 
   return link.user_a_id === user_id ? link.txn_b_id : link.txn_a_id
 }
 
-// The caller's `account` head that represents `other_user_id` (the reciprocal link).
 async function reciprocal_head(tx: Tx, owner_id: string, other_user_id: string): Promise<{ id: string } | null> {
   return tx.accounting_head.findFirst({
     where: { user_id: owner_id, linked_user_id: other_user_id, type: 'account' },
@@ -33,7 +26,6 @@ async function reciprocal_head(tx: Tx, owner_id: string, other_user_id: string):
   })
 }
 
-// Distinct linked counterparties among a transaction's line items.
 export async function linked_counterparties(tx: Tx, transaction_id: string): Promise<string[]> {
   const lines = await tx.line_item.findMany({
     where: { transaction_id },
@@ -42,12 +34,6 @@ export async function linked_counterparties(tx: Tx, transaction_id: string): Pro
   return Array.from(new Set(lines.map(l => l.accounting_head.linked_user_id).filter((x): x is string => !!x)))
 }
 
-// Fingerprint of the SHARED part of a transaction: its transaction-level
-// description/datetime, plus the line items on the head linked to
-// `linked_user_id` (quantity/txn_value sign-flipped when comparing the
-// counterpart's copy; description/datetime mirrored verbatim). Any change here —
-// amounts, a line's description or datetime, or the transaction's own
-// description/datetime — re-opens the approval request.
 async function linked_signature(tx: Tx, transaction_id: string, linked_user_id: string, negate: boolean): Promise<string> {
   const txn = await tx.transaction.findUnique({
     where: { id: transaction_id },
@@ -69,12 +55,6 @@ async function linked_signature(tx: Tx, transaction_id: string, linked_user_id: 
   return `T:${txn.description ?? ''}:${txn.datetime.toISOString()}||${lineSig}`
 }
 
-// Build (or replace) the caller's own copy of a shared transaction from the OTHER
-// side's current linked lines (reversed onto the caller's reciprocal head) plus
-// the caller's own balancing lines, then mark the link approved. Used by both
-// approve (responder builds from the proposer) and revert (proposer rebuilds from
-// the anchor) — in both cases the actor is `pending_by` and the source is the
-// other side.
 export async function build_actor_copy(
   tx: Tx,
   link: transaction_link,
@@ -95,8 +75,6 @@ export async function build_actor_copy(
   })
   if (!source) throw new ActionError('NOT_FOUND', 'Counterpart transaction not found')
 
-  // Seeded (locked) lines: the source's lines on the head linked to the actor,
-  // mirrored onto the actor's reciprocal head with negated amounts.
   const seed: CreateLineItemInput[] = source.line_items
     .filter(li => li.accounting_head.linked_user_id === actor_id)
     .map(li => ({
@@ -104,19 +82,12 @@ export async function build_actor_copy(
       asset_id: li.asset_id,
       quantity: li.quantity === null ? undefined : li.quantity.neg().toNumber(),
       txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
-      // Description and datetime are mirrored verbatim (not flipped).
+
       description: li.description ?? null,
       datetime: li.datetime ?? null,
     }))
   if (seed.length === 0) throw new ActionError('VALIDATION', 'The counterpart transaction has no linked line items to mirror')
 
-  // Bulk "accept all" path: auto-balance onto one chosen account so the copy is
-  // an account-only transfer (per-asset account quantities sum to zero). Sum the
-  // source's linked lines per asset in Decimal — summing the float quantities
-  // would leave a residual the invariant checker rejects. The balancing line
-  // equals that sum (= −Σ seed). Assets whose linked lines already net to zero
-  // need no balancing line (the mirrored lines cancel themselves; a zero line
-  // would be rejected).
   if (auto_balance_account_id) {
     const sums = new Map<string, { q: Prisma.Decimal; tv: Prisma.Decimal | null }>()
     for (const li of source.line_items) {
@@ -139,9 +110,6 @@ export async function build_actor_copy(
     }
   }
 
-  // Preserve my existing lines on OTHER linked heads — they're shared with a
-  // different counterparty and must survive a rebuild for THIS one. (Skipped on
-  // the bulk auto-balance path, which only builds fresh single-party copies.)
   const my_txn = my_txn_id(link, actor_id)
   let preserved: CreateLineItemInput[] = []
   if (!auto_balance_account_id && my_txn) {
@@ -214,13 +182,9 @@ export async function build_actor_copy(
     },
   })
 
-  // Rebuilding my copy may have changed shared fields that OTHER counterparties
-  // on this transaction also mirror — re-open their links if so (the link just
-  // approved matches and is left alone; propagation never blocks).
   await sync_links_after_update(tx, actor_id, actor_txn_id, { propagate: true })
 }
 
-// On create: open one pending request per linked counterparty (awaiting them).
 export async function create_links_for_transaction(tx: Tx, user_id: string, transaction_id: string): Promise<string[]> {
   const counterparties = await linked_counterparties(tx, transaction_id)
   for (const cp of counterparties) {
@@ -238,9 +202,6 @@ export async function create_links_for_transaction(tx: Tx, user_id: string, tran
   return counterparties
 }
 
-// When an account is freshly linked to a counterparty, retroactively open a
-// pending request for every existing transaction of mine that touches it.
-// Skips transactions that already have a link with that counterparty.
 export async function backfill_links_for_account(tx: Tx, user_id: string, head_id: string, counterparty_id: string): Promise<number> {
   const rows = await tx.line_item.findMany({
     where: { accounting_head_id: head_id, transaction: { user_id } },
@@ -274,7 +235,6 @@ export async function backfill_links_for_account(tx: Tx, user_id: string, head_i
   return created
 }
 
-// Links where `user_id` owns `transaction_id` (it's their side of the pair).
 async function links_owned_by(tx: Tx, user_id: string, transaction_id: string): Promise<transaction_link[]> {
   return tx.transaction_link.findMany({
     where: {
@@ -286,20 +246,10 @@ async function links_owned_by(tx: Tx, user_id: string, transaction_id: string): 
   })
 }
 
-// Reconcile this user's links after their copy of a transaction changed.
-//
-// `propagate` distinguishes the two callers:
-//  - false (a user edit, from update_transaction): enforces the anchor
-//    hard-block and forbids removing a shared portion.
-//  - true (propagation, from build_actor_copy after an approval/revert): never
-//    throws and only re-opens already-approved siblings that diverged — pending
-//    or rejected siblings (and the link just approved) are left untouched, so
-//    approving one counterparty can't deadlock on another's open request.
 export async function sync_links_after_update(tx: Tx, user_id: string, transaction_id: string, opts: { propagate?: boolean } = {}): Promise<void> {
   const current = await linked_counterparties(tx, transaction_id)
   const existing = await links_owned_by(tx, user_id, transaction_id)
 
-  // Block removing the shared portion for an already-linked counterparty.
   if (!opts.propagate) {
     for (const link of existing) {
       const cp = other_user(link, user_id)
@@ -312,7 +262,6 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
   for (const cp of current) {
     const link = existing.find(l => other_user(l, user_id) === cp)
     if (!link) {
-      // A newly added counterparty → fresh pending request awaiting them.
       await tx.transaction_link.create({
         data: { user_a_id: user_id, user_b_id: cp, txn_a_id: transaction_id, pending_status: 'pending', pending_kind: 'change', pending_by: cp },
       })
@@ -320,10 +269,8 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
     }
 
     if (opts.propagate) {
-      // Only touch already-approved siblings; leave open/rejected rounds alone.
       if (link.pending_status !== 'approved') continue
     } else {
-      // Anchor hard-block: can't edit linked lines while their request awaits me.
       if (link.pending_status === 'pending' && link.pending_by === user_id) {
         throw new ActionError('VALIDATION', 'Resolve the pending request from this counterparty before editing the shared lines')
       }
@@ -331,12 +278,11 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
 
     const counterpart_txn = their_txn_id(link, user_id)
     if (counterpart_txn) {
-      // Did my linked lines actually change vs the counterpart's approved copy?
       const mine = await linked_signature(tx, transaction_id, cp, false)
       const theirs = await linked_signature(tx, counterpart_txn, user_id, true)
-      if (mine === theirs && link.pending_status === 'approved') continue // unchanged → leave anchor
+      if (mine === theirs && link.pending_status === 'approved') continue
     }
-    // Re-open (or refresh) the request toward the counterparty.
+
     await tx.transaction_link.update({
       where: { id: link.id },
       data: { pending_status: 'pending', pending_kind: 'change', pending_by: cp },
@@ -344,28 +290,23 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
   }
 }
 
-// ---- read helpers for the requests UI ----
-
 export type InboxItem = {
   link_id: string
   status: 'pending' | 'rejected'
   kind: 'change' | 'deletion'
   other_id: string
   other_username: string
-  // The lines I'd be approving (the counterpart's linked lines, mirrored).
+
   preview: { asset_name: string; quantity: number | null; txn_value: number | null }[]
   has_reciprocal: boolean
-  // A rejected round can only be reverted if there's an anchor to revert to
-  // (the other side has an approved copy). Rejected initial creates have none.
+
   can_revert: boolean
   datetime: string | null
   description: string | null
-  // My own copy of the transaction (present for rejected items so the user can navigate to it).
+
   my_txn_id: string | null
 }
 
-// Everything awaiting my action: pending requests (to approve/reject) and
-// rejected rounds where I'm the proposer (to revert / resolve).
 export async function get_inbox(user_id: string): Promise<InboxItem[]> {
   const links = await prisma.transaction_link.findMany({ where: { pending_by: user_id }, orderBy: { updated_at: 'desc' } })
   if (links.length === 0) return []
@@ -431,17 +372,14 @@ export type OutboxItem = {
   kind: 'change' | 'deletion'
   other_id: string
   other_username: string
-  // The shared lines I sent over (my linked lines, as I entered them).
+
   preview: { asset_name: string; quantity: number | null; txn_value: number | null }[]
-  // My copy of the shared transaction, so the UI can link to it (null for an
-  // outgoing deletion — my copy is already gone).
+
   my_txn_id: string | null
   datetime: string | null
   description: string | null
 }
 
-// My requests awaiting the other party: pending links where the next action is
-// theirs (I'm the proposer). The mirror of `get_inbox`.
 export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
   const links = await prisma.transaction_link.findMany({
     where: {
@@ -497,8 +435,6 @@ export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
   return items
 }
 
-// Pending requests I sent for this transaction that are awaiting the other side
-// — i.e. ones I can cancel (and revert).
 export async function get_cancellable_links(user_id: string, transaction_id: string): Promise<{ link_id: string; other_username: string }[]> {
   const links = await prisma.transaction_link.findMany({
     where: {
@@ -517,8 +453,6 @@ export async function get_cancellable_links(user_id: string, transaction_id: str
   return links.map(l => ({ link_id: l.id, other_username: name(other_user(l, user_id)) }))
 }
 
-// A one-line approval status for a transaction, from `user_id`'s perspective,
-// or null if it isn't a shared transaction.
 export type TransactionStatus = { text: string; severity: 'success' | 'warning' | 'error' | 'info' }
 
 export async function get_transaction_status(user_id: string, transaction_id: string): Promise<TransactionStatus | null> {
@@ -536,8 +470,6 @@ export async function get_transaction_status(user_id: string, transaction_id: st
   const name = (id: string) => users.find(u => u.id === id)?.username ?? 'user'
   const tag = (l: (typeof links)[number]) => '@' + name(other_user(l, user_id))
 
-  // Aggregate across all counterparties — a transaction can be shared with more
-  // than one user, each in its own state.
   const awaitingMe = links.filter(l => l.pending_status === 'pending' && l.pending_by === user_id)
   const awaitingThem = links.filter(l => l.pending_status === 'pending' && l.pending_by !== user_id)
   const rejectedMine = links.filter(l => l.pending_status === 'rejected' && l.pending_by === user_id)
@@ -549,7 +481,6 @@ export async function get_transaction_status(user_id: string, transaction_id: st
   if (rejectedMine.length) parts.push(`your change was rejected by ${rejectedMine.map(tag).join(', ')} — resolve in Requests`)
   if (rejectedTheirs.length) parts.push(`awaiting ${rejectedTheirs.map(tag).join(', ')} to resolve a rejected change`)
 
-  // Severity by precedence: rejected-mine (must act) > awaiting-me (must act) > info > approved
   const severity: TransactionStatus['severity'] = rejectedMine.length
     ? 'error'
     : awaitingMe.length
@@ -579,12 +510,11 @@ export type EditorContext = {
   mode: 'approve' | 'revert'
   other_username: string
   reciprocal_head: { id: string; name: string } | null
-  // Locked, server-derived mirrored lines (booked to my reciprocal head).
+
   mirrored_lines: SharedLine[]
-  // My existing NON-linked balancing lines (for re-approving an edit), or [].
+
   prefill_balancing: { accounting_head_id: string; asset_id: string; quantity: string | null; txn_value: string | null; description: string }[]
-  // Lines on my OTHER linked heads (shared with a different counterparty) — shown
-  // locked; preserved server-side on submit, not editable here.
+
   other_locked_lines: {
     accounting_head_id: string
     asset_id: string
@@ -595,18 +525,14 @@ export type EditorContext = {
   }[]
   datetime: string | null
   description: string | null
-  // Last-approved shared state — present when re-approving an edit, null on first approval.
+
   previous: { datetime: string | null; description: string | null; mirrored_lines: SharedLine[] } | null
 }
 
-// Context for the approve/revert editor. Returns null if the link isn't
-// awaiting me, or it's a deletion request (handled inline, no editor).
 export async function get_editor_context(user_id: string, link_id: string): Promise<EditorContext | null> {
   const link = await prisma.transaction_link.findUnique({ where: { id: link_id } })
   if (!link || link.pending_by !== user_id) return null
-  // Pending deletions are handled inline (approve/reject) with no editor; a
-  // *rejected* deletion, however, is reverted here (the proposer rebuilds their
-  // deleted copy from the anchor).
+
   if (link.pending_status === 'pending' && link.pending_kind === 'deletion') return null
 
   const other = other_user(link, user_id)
@@ -697,19 +623,14 @@ export async function get_editor_context(user_id: string, link_id: string): Prom
   }
 }
 
-// On delete: returns true if the transaction row should actually be deleted.
-// Never-approved links are dropped outright; approved links become deletion
-// requests (my copy is removed, the counterpart keeps theirs as the anchor).
 export async function prepare_links_for_delete(tx: Tx, user_id: string, transaction_id: string): Promise<void> {
   const links = await links_owned_by(tx, user_id, transaction_id)
   for (const link of links) {
     const counterpart_txn = their_txn_id(link, user_id)
     const isA = link.user_a_id === user_id
     if (!counterpart_txn) {
-      // No counterpart copy ever existed → just drop the link.
       await tx.transaction_link.delete({ where: { id: link.id } })
     } else {
-      // Propose deletion: null my pointer, hand the ball to the counterpart.
       await tx.transaction_link.update({
         where: { id: link.id },
         data: {

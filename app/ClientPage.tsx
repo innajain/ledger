@@ -51,7 +51,6 @@ export default function ClientPage({
   const [welcomeMessage, setWelcomeMessage] = useState(WELCOME_MESSAGES[0])
 
   useEffect(() => {
-    // Randomize client-side to avoid SSR/CSR hydration mismatch.
     const randomMessage = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)]
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWelcomeMessage(randomMessage)
@@ -59,13 +58,13 @@ export default function ClientPage({
 
   return (
     <div className="space-y-8">
-      {/* Welcome Header */}
+      {}
       <div className="animate-slide-in-up">
         <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">{welcomeMessage}</h1>
         <p className="text-slate-600 dark:text-slate-400">Your financial overview and quick actions</p>
       </div>
 
-      {/* Net Worth */}
+      {}
       {networth !== null && (
         <div className="animate-slide-in-up stagger-item bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex items-center justify-between transition-all hover-lift">
           <div>
@@ -87,9 +86,9 @@ export default function ClientPage({
         </div>
       )}
 
-      {/* Key Allocations */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Investment Allocation Card */}
+        {}
         {(() => {
           const cardClass =
             'block stagger-item bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800 p-6 transition-all hover-lift'
@@ -117,7 +116,7 @@ export default function ClientPage({
           )
         })()}
 
-        {/* Savings Allocation Card */}
+        {}
         {(() => {
           const cardClass =
             'block stagger-item bg-linear-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-xl shadow-sm border border-green-200 dark:border-green-800 p-6 transition-all hover-lift'
@@ -150,7 +149,7 @@ export default function ClientPage({
         })()}
       </div>
 
-      {/* Quick Actions */}
+      {}
       <div className="stagger-item bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

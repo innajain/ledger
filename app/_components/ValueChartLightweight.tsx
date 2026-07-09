@@ -78,7 +78,7 @@ export function ValueChartLightweight({ points, title }: Props) {
         vertLines: { color: 'transparent' },
         horzLines: { color: isDark ? '#334155' : '#e2e8f0' },
       },
-      // Right scale used for XIRR (percentage). Left scale for ₹ values.
+
       rightPriceScale: {
         visible: true,
         borderColor: isDark ? '#334155' : '#e2e8f0',
@@ -96,8 +96,7 @@ export function ValueChartLightweight({ points, title }: Props) {
         rightOffset: 0,
         lockVisibleTimeRangeOnResize: true,
       },
-      // Keep crosshair tracking for the hover tooltip but hide both lines and
-      // their axis labels — visual noise the user doesn't want.
+
       crosshair: {
         mode: CrosshairMode.Magnet,
         vertLine: { visible: false, labelVisible: false },
@@ -115,9 +114,6 @@ export function ValueChartLightweight({ points, title }: Props) {
       const pts = pointsRef.current
       if (!pts || pts.length === 0) return null
 
-      // xirr series only has entries where xirr IS NOT null.
-      // So logical indices for xirr might differ slightly from the full points array.
-      // For a robust approximation, we just scan the time range and filter.
       const fromIdx = Math.max(0, Math.floor(logicalRange.from))
       const toIdx = Math.min(pts.length - 1, Math.ceil(logicalRange.to))
       const visiblePoints = pts.slice(fromIdx, toIdx + 1)
@@ -134,12 +130,12 @@ export function ValueChartLightweight({ points, title }: Props) {
       topColor: 'rgba(59, 130, 246, 0.3)',
       bottomColor: 'rgba(59, 130, 246, 0)',
       lineWidth: 2,
-      // Attach to the left price scale so the axis renders on the left.
+
       priceScaleId: 'left',
-      // Suppress the persistent edge price label and its horizontal price line.
+
       lastValueVisible: false,
       priceLineVisible: false,
-      autoscaleInfoProvider: () => null, // Delegate autoscaling to currentSeries
+      autoscaleInfoProvider: () => null,
       priceFormat: {
         type: 'custom',
         formatter: (v: number) => compactFmt.format(v),
@@ -160,11 +156,11 @@ export function ValueChartLightweight({ points, title }: Props) {
         minMove: 0.01,
       },
     })
-    // XIRR as a thin line on its own scale (right side, percent units).
+
     const xirrSeries = chart.addSeries(LineSeries, {
       color: '#f59e0b',
       lineWidth: 2,
-      lineStyle: 2, // dashed
+      lineStyle: 2,
       priceScaleId: 'right',
       lastValueVisible: false,
       priceLineVisible: false,
@@ -241,8 +237,7 @@ export function ValueChartLightweight({ points, title }: Props) {
     if (!investedSeriesRef.current || !currentSeriesRef.current || !xirrSeriesRef.current) return
     investedSeriesRef.current.setData(points.map(p => ({ time: p.date as Time, value: p.invested })))
     currentSeriesRef.current.setData(points.map(p => ({ time: p.date as Time, value: p.current })))
-    // XIRR may be null on early days; lightweight-charts requires monotonic
-    // time but allows gaps — just drop the null entries.
+
     xirrSeriesRef.current.setData(points.filter(p => p.xirr !== null).map(p => ({ time: p.date as Time, value: p.xirr as number })))
     chartRef.current?.timeScale().fitContent()
   }, [points])
@@ -253,8 +248,6 @@ export function ValueChartLightweight({ points, title }: Props) {
   const gain = last.current - last.invested
   const gainPct = last.invested !== 0 ? (gain / last.invested) * 100 : null
 
-  // Position the tooltip just to one side of the cursor, clamped to the chart
-  // box so it doesn't get cut off near the edges.
   const tooltipStyle: React.CSSProperties | undefined = hover
     ? {
         position: 'absolute',

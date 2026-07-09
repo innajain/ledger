@@ -28,7 +28,6 @@ function li(
 }
 
 function check(items: LineItemShape[]) {
-  // Cast through unknown — the Prisma payload type is over-precise for tests.
   return validate_line_items(items as unknown as Parameters<typeof validate_line_items>[0])
 }
 

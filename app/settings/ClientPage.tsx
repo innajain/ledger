@@ -21,8 +21,6 @@ type Props = {
 }
 
 export default function ClientPage({ user, isAdmin, upiId, accounts, assets, defaults, inactiveAccounts, inactiveAssets }: Props) {
-  // Side-nav drives which section is rendered. Only one section is mounted at a
-  // time; the URL hash is kept in sync so reloads and back/forward work.
   const sectionLinks: { id: string; label: string }[] = [
     { id: 'account', label: 'Account' },
     { id: 'preferences', label: 'Preferences' },
@@ -33,7 +31,6 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
   const validIds = new Set(sectionLinks.map(s => s.id))
   const [activeSection, setActiveSection] = useState<string>(sectionLinks[0].id)
   useEffect(() => {
-    // Hydrate from URL hash on mount. Done in an effect to keep SSR stable.
     const hash = window.location.hash.replace(/^#/, '')
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (hash && validIds.has(hash)) setActiveSection(hash)
@@ -43,7 +40,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
-    // validIds is derived from sectionLinks which only changes with isAdmin.
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin])
   const goTo = (id: string) => {
@@ -85,7 +82,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
         </aside>
 
         <div className="space-y-6 min-w-0">
-          {/* Mobile section selector (hidden on lg+) */}
+          {}
           <div className="lg:hidden relative">
             <label htmlFor="settings-section" className="sr-only">
               Section

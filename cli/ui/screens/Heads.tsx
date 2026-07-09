@@ -89,7 +89,6 @@ export function Heads({ uid, active, onExit, initialType, navContext }: ScreenPr
       } else if (h.type === 'allocation' && moneyQty > 1e-9) {
         const nameLower = h.name.toLowerCase()
         if (nameLower !== 'rent' && nameLower !== 'monthly expenses') {
-          // Check ancestors
           let current = h
           let isDescendantOfMonthlyExpenses = false
           while (current.parent_id) {
@@ -237,7 +236,6 @@ function HeadDetail({ uid, head, onClose }: { uid: string; head: HeadRow; onClos
     })
     if (!h) throw new Error('Head not found')
 
-    // Fetch + normalize full transactions to fill null-remainder quantities
     const txIds = Array.from(new Set(h.line_items.map(li => li.transaction_id)))
     const rawTxns = txIds.length
       ? await prisma.transaction.findMany({
@@ -250,11 +248,9 @@ function HeadDetail({ uid, head, onClose }: { uid: string; head: HeadRow; onClos
       for (const li of tx.line_items) normById.set(li.id, { quantity: li.quantity, txn_value: li.txn_value })
     }
 
-    // Collect assets and prices
     const uniqueAssets = Array.from(new Map(h.line_items.map(li => [li.asset.id, li.asset])).values())
     const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
-    // Asset breakdown + XIRR cashflows
     const assetMap = new Map<string, { name: string; asset_type: asset_type; qty: Prisma.Decimal; cost: Prisma.Decimal }>()
     const cashflows: { amount: number; when: Date }[] = []
     let accTotal = new Prisma.Decimal(0)
@@ -277,7 +273,6 @@ function HeadDetail({ uid, head, onClose }: { uid: string; head: HeadRow; onClos
         fifoEntries.push({ id: li.id, group_key: li.asset_id, qty: q, date: li.datetime ?? li.transaction.datetime })
     }
 
-    // Sum FIFO remaining per asset
     const fifoRemaining = head.type === 'account' ? compute_fifo_remaining(fifoEntries) : new Map<string, Prisma.Decimal>()
     const fifoTotalByAsset = new Map<string, number>()
     for (const [liId, rem] of fifoRemaining) {
@@ -301,14 +296,12 @@ function HeadDetail({ uid, head, onClose }: { uid: string; head: HeadRow; onClos
     }
     breakdown.sort((a, b) => b.value - a.value)
 
-    // XIRR (accounts only)
     let xirr: number | null = null
     if (head.type === 'account' && cashflows.length > 0 && !accTotal.equals(0)) {
       cashflows.push({ amount: accTotal.toNumber(), when: new Date() })
       xirr = calculate_xirr(cashflows)
     }
 
-    // Line items for display (already ordered desc by transaction date)
     const liRows: LiRow[] = h.line_items.map(li => {
       const norm = normById.get(li.id)
       return {

@@ -1,9 +1,7 @@
-// components/FormComponents.tsx
 import Link from 'next/link'
 import type { accounting_head_type, Prisma } from '@/generated/prisma/client'
 import { Card } from './Card'
 
-// Page Header with Back Navigation
 interface PageHeaderProps {
   backLink: string
   backText: string
@@ -29,7 +27,6 @@ export function PageHeader({ backLink, backText, title, description }: PageHeade
   )
 }
 
-// Form Card Wrapper
 interface FormCardProps {
   title: string
   children: React.ReactNode
@@ -44,7 +41,6 @@ export function FormCard({ title, children }: FormCardProps) {
   )
 }
 
-// Text Input Field
 interface TextInputProps {
   label: string
   value: string
@@ -75,7 +71,6 @@ export function TextInput({ label, value, onChange, placeholder, required, helpT
   )
 }
 
-// Account Type Select
 interface HeadTypeSelectProps {
   label: string
   value: accounting_head_type
@@ -104,7 +99,6 @@ export function HeadTypeSelect({ label, value, onChange, disabled, restrictedTo 
   )
 }
 
-// Parent Account Select
 interface ParentSelectProps {
   label: string
   value: string | null
@@ -137,7 +131,6 @@ export function ParentSelect({ label, value, onChange, parents, excludeId, helpT
   )
 }
 
-// Asset Type Select
 interface AssetTypeSelectProps {
   label: string
   value: string
@@ -163,7 +156,6 @@ export function AssetTypeSelect({ label, value, onChange }: AssetTypeSelectProps
   )
 }
 
-// Parent Asset Select
 interface ParentAssetSelectProps {
   label: string
   value: string | null
@@ -196,7 +188,6 @@ export function ParentAssetSelect({ label, value, onChange, parents, excludeId, 
   )
 }
 
-// Error Alert Component
 interface ErrorAlertProps {
   message: string | null
   onDismiss?: () => void
@@ -228,7 +219,6 @@ export function ErrorAlert({ message, onDismiss }: ErrorAlertProps) {
   )
 }
 
-// Toggle Switch
 interface ToggleSwitchProps {
   label: string
   helpText?: string
@@ -260,7 +250,6 @@ export function ToggleSwitch({ label, helpText, value, onChange }: ToggleSwitchP
   )
 }
 
-// Form Action Buttons
 interface FormActionsProps {
   cancelLink: string
   submitText: string
@@ -272,7 +261,7 @@ interface FormActionsProps {
 export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText }: FormActionsProps) {
   return (
     <div className="pt-6 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3">
-      {/* Delete Button */}
+      {}
       {onDelete ? (
         <button
           type="button"
@@ -285,7 +274,7 @@ export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText
         <span />
       )}
 
-      {/* Submit/Cancel Buttons */}
+      {}
       <div className="flex gap-3">
         <Link
           href={cancelLink}

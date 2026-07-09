@@ -27,7 +27,6 @@ declare global {
   var __metricsStorage: AsyncLocalStorage<MetricsContext> | undefined
 }
 
-// Reuse across HMR cycles in dev so module reloads don't break context propagation.
 export const metricsStorage: AsyncLocalStorage<MetricsContext> = globalThis.__metricsStorage ?? new AsyncLocalStorage<MetricsContext>()
 if (!globalThis.__metricsStorage) globalThis.__metricsStorage = metricsStorage
 
@@ -35,6 +34,4 @@ export function currentMetrics(): MetricsContext | undefined {
   return metricsStorage.getStore()
 }
 
-// Slow query threshold in ms. Queries above this are recorded individually
-// in addition to being rolled up into db_query_ms.
 export const SLOW_QUERY_THRESHOLD_MS = 100

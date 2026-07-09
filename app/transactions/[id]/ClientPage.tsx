@@ -93,7 +93,6 @@ export default function ClientPage({
     }
   }
 
-  // Group line items by account type
   const groups: Record<string, typeof transaction.line_items> = {
     account: [],
     allocation: [],
@@ -179,7 +178,7 @@ export default function ClientPage({
         Transactions
       </Link>
 
-      {/* Header */}
+      {}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
@@ -205,7 +204,7 @@ export default function ClientPage({
           </div>
         </div>
 
-        {/* Total */}
+        {}
         <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
           <p className="text-sm text-blue-900 dark:text-blue-100 mb-1">Transaction Total</p>
           <p
@@ -217,7 +216,7 @@ export default function ClientPage({
           </p>
         </div>
 
-        {/* Actions */}
+        {}
         <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
           <Link
             href={`/transactions/${transaction.id}/update`}
@@ -251,7 +250,7 @@ export default function ClientPage({
         </div>
       </div>
 
-      {/* Error Display */}
+      {}
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
           <svg className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,7 +271,7 @@ export default function ClientPage({
         </div>
       )}
 
-      {/* Attachments */}
+      {}
       {transaction.attachments.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Attachments</h2>
@@ -303,7 +302,7 @@ export default function ClientPage({
         </div>
       )}
 
-      {/* Line Items */}
+      {}
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line Items</h2>
 

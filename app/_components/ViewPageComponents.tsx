@@ -1,16 +1,14 @@
-// components/ViewPageComponents.tsx
 import { asset_type } from '@/generated/prisma/enums'
 import Link from 'next/link'
 import { MaskedAmount } from './MaskedAmount'
 import { LocalDateTime } from './LocalDateTime'
 
-// View Page Header
 interface ViewPageHeaderProps {
   backLink: string
   backText: string
   title: string
   description: string
-  // Optional — omit to hide the edit button (e.g. non-admins on global resources).
+
   editLink?: string
   editText?: string
 }
@@ -54,7 +52,6 @@ export function ViewPageHeader({ backLink, backText, title, description, editLin
   )
 }
 
-// Info Card
 interface InfoField {
   label: string
   value: string | React.ReactNode
@@ -81,7 +78,6 @@ export function InfoCard({ title, fields }: InfoCardProps) {
   )
 }
 
-// Holdings Card Header
 interface HoldingsHeaderProps {
   title?: string
   count: number
@@ -98,7 +94,6 @@ export function HoldingsHeader({ title = 'Holdings', count }: HoldingsHeaderProp
   )
 }
 
-// Empty State
 interface EmptyStateProps {
   message?: string
   subMessage?: string
@@ -124,7 +119,6 @@ export function EmptyState({
   )
 }
 
-// Line Item Row
 interface LineItemRowProps {
   assetName: string
   assetLink?: string
@@ -170,7 +164,7 @@ export function LineItemRow({
             <span className="text-slate-900 dark:text-slate-100 font-semibold">{assetName}</span>
           )}
 
-          {/* Line Item Description */}
+          {}
           {lineItemDescription && <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{lineItemDescription}</p>}
 
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
@@ -198,7 +192,7 @@ export function LineItemRow({
             )}
           </div>
 
-          {/* Transaction Info */}
+          {}
           <div className="mt-2 space-y-1">
             <Link
               href={`/transactions/${transactionId}`}

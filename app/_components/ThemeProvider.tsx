@@ -33,14 +33,13 @@ export function ThemeProvider({
   children,
 }: {
   initial: ThemeChoice
-  // When false (logged-out), changes stay in-memory and never hit the DB.
+
   persist: boolean
   children: ReactNode
 }) {
   const [theme, setThemeState] = useState<ThemeChoice>(initial)
   const [resolved, setResolvedState] = useState<'light' | 'dark'>(() => (theme === 'system' ? 'light' : theme))
 
-  // Resolve theme + apply dark class whenever the choice changes.
   useEffect(() => {
     const r = resolve(theme)
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -48,7 +47,6 @@ export function ThemeProvider({
     apply_class(r)
   }, [theme])
 
-  // Track OS preference changes while we're in 'system' mode.
   useEffect(() => {
     if (theme !== 'system') return
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
@@ -65,7 +63,7 @@ export function ThemeProvider({
     (next: ThemeChoice) => {
       setThemeState(next)
       if (!persist) return
-      // Fire-and-forget: optimistic update; on failure the state still holds locally.
+
       void update_user_preferences({ theme: next }).catch(() => {})
     },
     [persist],

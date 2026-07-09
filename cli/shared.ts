@@ -1,4 +1,3 @@
-/** Loaders, reference resolution, result printing, and the line-item builder shared across CLI commands. */
 import { prisma } from '@/lib/prisma'
 import { get_date_obj_from_indian_date } from '@/app/_utils/date'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
@@ -20,7 +19,6 @@ export const load_assets = () =>
     select: { id: true, name: true, type: true, ticker: true, is_active: true },
   })
 
-/** Resolve a head/asset reference that may be a 1-based list index, an exact id, or a (case-insensitive) name. */
 export function resolve_ref<T extends { id: string; name: string }>(ref: string, list: T[], kind: string): T {
   const r = ref.trim()
   const asIndex = Number(r)
@@ -45,7 +43,6 @@ export async function ask_datetime(label: string, fallback: Date): Promise<Date>
   return s ? get_date_obj_from_indian_date(s) : fallback
 }
 
-/** Interactively build a list of line items, listing heads/assets for reference. */
 export async function build_line_items(uid: string): Promise<CreateLineItemInput[]> {
   const [heads, assets, defaults] = await Promise.all([load_heads(uid), load_assets(), get_line_item_defaults_core(uid)])
 

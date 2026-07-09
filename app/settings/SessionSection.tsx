@@ -14,8 +14,7 @@ export function SessionSection() {
     setLoggingOut(true)
     try {
       await log_out()
-      // Full reload: clears the auth cookie's client state and lets the proxy
-      // redirect to /login on the next request.
+
       window.location.href = '/login'
     } catch (err: unknown) {
       showToast('Logout failed: ' + (err instanceof Error ? err.message : String(err)), 'error')

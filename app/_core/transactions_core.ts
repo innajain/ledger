@@ -1,10 +1,3 @@
-/**
- * Framework-agnostic transaction write logic, shared by the web server actions
- * (`app/_actions/transactions.ts`, `app/transactions/[id]/update/transactions_update.ts`)
- * and the CLI. Each function takes an explicit `user_id` and returns the same
- * `ActionResult<T>` the actions always have. All cross-user approval side-effects
- * (links.ts) and balance invalidation live here, so both surfaces stay identical.
- */
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { asset_type } from '@/generated/prisma/enums'
@@ -71,7 +64,6 @@ export async function create_transaction_core(
     const parsed = createTransactionSchema.safeParse({ line_items, description })
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
 
-    // safeParse can't cleanly overwrite the function arguments with identical types nicely when nullish is involved so we take what we need
     line_items = parsed.data.line_items
     description = parsed.data.description
 
@@ -101,7 +93,6 @@ export async function create_transaction_core(
 
       if (!is_valid) throw new ActionError('VALIDATION', message)
 
-      // All checks passed — create the transaction with nested line_items
       const created = await prisma.transaction.create({
         data: {
           datetime,
@@ -119,13 +110,13 @@ export async function create_transaction_core(
           },
         },
       })
-      // Open an approval request per linked-account counterparty (if any).
+
       const counterparties = await create_links_for_transaction(prisma, user_id, created.id)
       return { id: created.id, counterparties }
     })
 
     await invalidate_balances(user_id)
-    // Ping each counterparty whose approval the new transaction now awaits.
+
     for (const cp of counterparties) void notify_request_pending(cp, user_id, { description })
     return ok({ id }, 'Transaction created successfully')
   } catch (error) {
@@ -149,7 +140,6 @@ export async function update_transaction_core(
     description = parsed.data.description
 
     await prisma.$transaction(async prisma => {
-      // ensure transaction exists and belongs to user
       const existing = await prisma.transaction.findUnique({
         where: { id, user_id },
       })
@@ -179,7 +169,7 @@ export async function update_transaction_core(
       )
 
       if (!is_valid) throw new ActionError('VALIDATION', message)
-      // Replace line items: delete existing then add new ones, and update transaction
+
       await prisma.line_item.deleteMany({ where: { transaction_id: id } })
 
       await prisma.transaction.update({
@@ -200,15 +190,11 @@ export async function update_transaction_core(
         },
       })
 
-      // Reconcile cross-user approval links: re-open requests for counterparties
-      // whose linked lines changed, add links for new ones (throws on the anchor
-      // hard-block or on removing a shared portion).
       await sync_links_after_update(prisma, user_id, id)
     })
 
     await invalidate_balances(user_id)
 
-    // Notify counterparties whose approval this edit now awaits (re-opened links).
     const pending_links = await prisma.transaction_link.findMany({
       where: {
         pending_status: 'pending',
@@ -240,7 +226,6 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
     id = parsed.data.id
 
     await prisma.$transaction(async tx => {
-      // Approved shared copies become deletion requests; never-approved links drop.
       await prepare_links_for_delete(tx, user_id, id)
       await tx.transaction.delete({ where: { id, user_id } })
     })
@@ -262,11 +247,6 @@ const upiPaymentSchema = z.object({
     .nullish(),
 })
 
-/**
- * Convenience: "I just paid X via UPI". Builds a minimal two-line rupees
- * transaction — −amount on the user's default account, +amount on the payee
- * account. Returns NOT_FOUND if no default account / no rupees asset.
- */
 export async function create_upi_payment_core(
   user_id: string,
   input: { payee_account_id: string; amount: number; description?: string | null | undefined },

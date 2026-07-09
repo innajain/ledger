@@ -48,7 +48,7 @@ export function AdminSection() {
     <section>
       <SectionHeading id="admin">Admin</SectionHeading>
       <div className="space-y-6">
-        {/* Flush Redis */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
@@ -67,7 +67,7 @@ export function AdminSection() {
           </div>
         </div>
 
-        {/* Validate Transactions */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
@@ -86,7 +86,7 @@ export function AdminSection() {
           </div>
         </div>
 
-        {/* Complete DB Dump (all users) */}
+        {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>

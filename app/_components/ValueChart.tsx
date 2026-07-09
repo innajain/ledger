@@ -11,7 +11,7 @@ const ValueChartBrush = dynamic(() => import('./ValueChartBrush').then(m => ({ d
 })
 
 export type ValuePoint = {
-  date: string // 'yyyy-MM-dd'
+  date: string
   invested: number
   current: number
   xirr: number | null
@@ -29,7 +29,6 @@ export function ValueChart({ points, title }: Props) {
   const [view, setView] = useState<View>('lightweight')
   const { graphs_visible, set_graphs_visible } = usePrivacy()
 
-  // Load saved preference on mount. SSR-safe: initial state matches server render.
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)

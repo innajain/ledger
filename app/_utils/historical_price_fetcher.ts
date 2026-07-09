@@ -6,31 +6,20 @@ import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
 import { asset_type } from '@/generated/prisma/client'
 
-// Use IST date as the canonical lookup key. Indian NAVs and Indian stock
-// closes are published once per Indian calendar day; aligning everything to
-// IST avoids off-by-one from UTC midnight crossings.
 function ist_date_key(date: Date): string {
   return formatInTimeZone(date, USER_TIMEZONE, 'yyyy-MM-dd')
 }
 
 const yf = new yahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] })
 
-// Cache TTLs. Historical price data is immutable for past dates; only "today"
-// can be in flux. The chart's last point is overridden with the live price by
-// the detail page anyway, so a slightly stale full-history cache is fine.
-const SCHEME_MAP_TTL = 30 * 24 * 60 * 60 // 30 days (AMFI master changes rarely)
-const NAV_HISTORY_TTL = 7 * 24 * 60 * 60 // 7 days
-const ETF_HISTORY_TTL = 7 * 24 * 60 * 60 // 7 days
+const SCHEME_MAP_TTL = 30 * 24 * 60 * 60
+const NAV_HISTORY_TTL = 7 * 24 * 60 * 60
+const ETF_HISTORY_TTL = 7 * 24 * 60 * 60
 
-// In-flight dedup
 const inFlightSchemeMap = new Map<string, Promise<Record<string, string>>>()
 const inFlightNavHistory = new Map<string, Promise<Map<string, number>>>()
 const inFlightEtfHistory = new Map<string, Promise<Map<string, number>>>()
 
-/**
- * Build a map of ISIN → AMFI scheme code by parsing AMFI's NAVAll.txt.
- * Cached in Redis. Used to bridge our ticker (ISIN) with mfapi.in (scheme code).
- */
 async function get_isin_to_scheme_code_map(): Promise<Record<string, string>> {
   const cacheKey = 'amfi:isin_to_scheme_code'
   const cached = await redis.get(cacheKey)
@@ -64,10 +53,6 @@ async function get_isin_to_scheme_code_map(): Promise<Record<string, string>> {
   return fetchPromise
 }
 
-/**
- * Fetch the full NAV history for a single MF scheme from mfapi.in.
- * Returns a Map keyed by 'yyyy-MM-dd' (in user timezone) → NAV.
- */
 async function get_full_nav_history(isin: string): Promise<Map<string, number> | null> {
   const cacheKey = `price:nav_history:${isin}`
   const cached = await redis.get(cacheKey)
@@ -97,7 +82,6 @@ async function get_full_nav_history(isin: string): Promise<Map<string, number> |
 
       const map = new Map<string, number>()
       for (const entry of json.data) {
-        // mfapi returns date as 'DD-MM-YYYY' in IST; flip to 'yyyy-MM-dd' string-only.
         const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(entry.date)
         if (!m) continue
         const dateKey = `${m[3]}-${m[2]}-${m[1]}`
@@ -116,10 +100,6 @@ async function get_full_nav_history(isin: string): Promise<Map<string, number> |
   return fetchPromise
 }
 
-/**
- * Fetch the daily price history for an ETF/share from yahoo.
- * Returns a Map keyed by 'yyyy-MM-dd' → close price.
- */
 async function get_full_etf_history(symbol: string, from: Date): Promise<Map<string, number>> {
   const cacheKey = `price:etf_history:${symbol}:${ist_date_key(from)}`
   const cached = await redis.get(cacheKey)
@@ -134,8 +114,7 @@ async function get_full_etf_history(symbol: string, from: Date): Promise<Map<str
   const fetchPromise = (async () => {
     try {
       const today = new Date()
-      // Use chart() directly (historical() is deprecated and trips on partial-null rows
-      // — chart() returns the same shape under `quotes` and we filter nulls ourselves).
+
       const result = await yf.chart(symbol, { period1: from, period2: today, interval: '1d' })
       const map = new Map<string, number>()
       for (const row of result.quotes ?? []) {
@@ -155,19 +134,11 @@ async function get_full_etf_history(symbol: string, from: Date): Promise<Map<str
   return fetchPromise
 }
 
-/**
- * Returns a price-lookup function for the given asset that can resolve
- * the price on any given date. For dates without a recorded price (weekends,
- * holidays), the most recent prior price is returned.
- *
- * For rupees, always returns 1.
- * For non-rupees with no ticker or fetch failure, returns null.
- */
 export type PriceLookup = (date: Date) => number | null
 
 function build_lookup_from_history(history: Map<string, number> | null): PriceLookup {
   if (!history || history.size === 0) return () => null
-  // Build a sorted array of [dateKey, price] for fallback (last-known) lookups.
+
   const sortedKeys = Array.from(history.keys()).sort()
   const prices = sortedKeys.map(k => history.get(k)!)
 
@@ -175,7 +146,7 @@ function build_lookup_from_history(history: Map<string, number> | null): PriceLo
     const dateKey = ist_date_key(date)
     const exact = history.get(dateKey)
     if (exact !== undefined) return exact
-    // Binary search for the largest key ≤ dateKey.
+
     let lo = 0
     let hi = sortedKeys.length - 1
     let result = -1
@@ -205,11 +176,6 @@ export async function get_price_lookup_for_asset(type: asset_type, ticker: strin
   return build_lookup_from_history(history)
 }
 
-/**
- * Batch convenience: build price lookups for many assets at once.
- * Dedups by (type, ticker) and uses a single MGET for the history blobs so
- * an N-asset call costs one Redis round-trip on the happy path instead of N.
- */
 export async function get_price_lookups_for_assets(
   assets: { id: string; type: asset_type; ticker: string | null }[],
   earliestDate: Date,
@@ -256,7 +222,6 @@ export async function get_price_lookups_for_assets(
         continue
       }
       if (raw === 'null') {
-        // Cached "no data" sentinel (written by get_full_nav_history for unknown ISINs).
         lookups.set(c.dedupKey, () => null)
         continue
       }
@@ -269,7 +234,6 @@ export async function get_price_lookups_for_assets(
       }
     }
 
-    // Misses fall through to the per-asset path, which repopulates the cache.
     await Promise.all(
       misses.map(async c => {
         lookups.set(c.dedupKey, await get_price_lookup_for_asset(c.type, c.ticker, earliestDate))

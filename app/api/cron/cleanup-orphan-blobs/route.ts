@@ -4,9 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { check_cron_auth } from '@/lib/cron'
 import { logger } from '@/lib/logger'
 
-// Grace period: don't delete a blob that's been uploaded within this window —
-// covers the race between client uploading and the server action saving the DB row.
-const GRACE_MS = 60 * 60 * 1000 // 1 hour
+const GRACE_MS = 60 * 60 * 1000
 
 export async function GET(request: Request) {
   const denied = check_cron_auth(request, '/api/cron/cleanup-orphan-blobs')

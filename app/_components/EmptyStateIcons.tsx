@@ -1,6 +1,3 @@
-// Reusable empty-state icons. Pulled out so each ClientPage doesn't
-// need to inline the same 8-line SVG.
-
 const baseClasses = 'w-8 h-8 text-slate-400'
 const baseProps = { fill: 'none' as const, stroke: 'currentColor' as const, viewBox: '0 0 24 24' }
 const pathProps = { strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, strokeWidth: 2 }

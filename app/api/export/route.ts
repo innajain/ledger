@@ -5,10 +5,6 @@ import { build_user_csv_zip } from '@/app/_utils/db_export'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
 
-// One CSV per table, each scoped to the signed-in user's own rows — raw columns,
-// as stored. The per-user counterpart to the user-scoped SQL dump at /api/dump.
-// See the linked Excel variant at /api/export/xlsx. Scoping lives in db_export.ts.
-
 export async function GET() {
   try {
     const user = await get_current_user()

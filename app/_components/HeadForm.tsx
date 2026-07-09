@@ -9,8 +9,8 @@ import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert,
 
 type HeadFormConfig = {
   headType: accounting_head_type
-  entityName: string // "Account", "Allocation", "Income / Expense"
-  basePath: string // "/heads/account", "/heads/allocation", "/heads/income_expense"
+  entityName: string
+  basePath: string
   backText: string
   parentLabel: string
   parentHelpText: string
@@ -47,9 +47,6 @@ export function headFormConfig(type: accounting_head_type): HeadFormConfig {
   return HEAD_FORM_CONFIGS[type]
 }
 
-// Picker for linking this account to another user. Resolves a username to a
-// user id via find_user_by_username; transactions touching a linked head
-// become approval-gated in the other user's ledger.
 function LinkedUserField({
   linkedUserId,
   linkedUsername,
@@ -126,8 +123,7 @@ function LinkedUserField({
 
 type CreateHeadFormProps = {
   parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
-  // The head type is passed (not the resolved config) because headFormConfig
-  // lives in this 'use client' module and can't be called from a server page.
+
   headType: accounting_head_type
 }
 
@@ -136,7 +132,7 @@ type UpdateHeadFormProps = {
   parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
   headType: accounting_head_type
   deleteHead?: (id: string) => Promise<ActionResult>
-  // Username of the currently linked user (resolved server-side for display).
+
   linkedUsername?: string | null
 }
 
@@ -145,8 +141,7 @@ export function CreateHeadForm({ parents, headType }: CreateHeadFormProps) {
   const config = headFormConfig(headType)
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState<string | null>(null)
-  // Only account-type heads can be linked to another user (and thereby derive
-  // that user's UPI). Allocations / income_expenses can't.
+
   const isLinkable = config.headType === 'account'
   const [linkedUserId, setLinkedUserId] = useState<string | null>(null)
   const [linkedUsername, setLinkedUsername] = useState<string | null>(null)

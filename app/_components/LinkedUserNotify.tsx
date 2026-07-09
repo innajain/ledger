@@ -4,8 +4,6 @@ import { useState } from 'react'
 import { notify_linked_user } from '@/app/_actions/notifications'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 
-// Send a push notification to the user this account is linked to: a free-form
-// message, or a one-tap payment reminder when they owe you (positive balance).
 export function LinkedUserNotify({ targetUserId, username, owedAmount }: { targetUserId: string; username: string; owedAmount: number }) {
   const owes = owedAmount > 0
   const [message, setMessage] = useState('')

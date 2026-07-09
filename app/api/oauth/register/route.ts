@@ -1,6 +1,3 @@
-// RFC 7591 — OAuth 2.0 Dynamic Client Registration. MCP clients self-register
-// here (no pre-shared client id needed) and get back a client_id, plus a secret
-// for confidential clients. Public clients (PKCE, auth method "none") get none.
 import { z } from 'zod'
 import { register_client, DEFAULT_SCOPE } from '@/lib/mcp/oauth'
 import { logger } from '@/lib/logger'

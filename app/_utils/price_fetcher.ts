@@ -23,8 +23,6 @@ type PriceData = {
 
 const yf = new yahooFinance({ suppressNotices: ['yahooSurvey'] })
 
-// In-flight dedup: when several callers race for the same uncached symbol,
-// only one Yahoo request fires and everyone shares its result.
 const inFlightQuotes = new Map<string, Promise<{ date: Date; close: number } | null>>()
 
 export async function get_latest_etf_or_shares_price(symbol: string) {
@@ -44,7 +42,7 @@ export async function get_latest_etf_or_shares_price(symbol: string) {
       try {
         const result = await yf.quote(symbol)
         let date = result.regularMarketTime as Date
-        date.setHours(0, 0, 0, 0) // Normalize to start of the day
+        date.setHours(0, 0, 0, 0)
         date = fromZonedTime(date, USER_TIMEZONE)
         const priceData = { price: result.regularMarketPrice!, date }
 
@@ -136,7 +134,6 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
   const cacheKey = `price:nav:${code}`
 
   try {
-    // Check Redis cache (populated by a daily cron job)
     const cached = await redis.get(cacheKey)
     if (cached) {
       if (cached === 'null') return null
@@ -159,7 +156,6 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
         const data = JSON.parse(cachedRetry) as NAVData
         return { ...data, date: new Date(data.date) }
       } else {
-        // Code is invalid or not in AMFI. Cache the miss for 1 hour to prevent spamming
         await redis.setex(cacheKey, 60 * 60, 'null')
       }
     } catch (retryError) {
@@ -173,9 +169,6 @@ export async function get_nav({ code }: { code: string }): Promise<NAVData | nul
   }
 }
 
-// Dedups by (type, ticker) and fetches all unique prices in a single MGET round-trip
-// for the cache hits, falling back to per-asset fetch only on misses.
-// Returns a Map keyed by asset.id, so callers can look up O(1) inside loops.
 export async function get_prices_for_assets(
   assets: { id: string; type: asset_type; ticker: string | null }[],
 ): Promise<Map<string, { price: number; date: Date } | null>> {

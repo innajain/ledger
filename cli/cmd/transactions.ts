@@ -63,8 +63,6 @@ export async function cmd_delete(rest: string[]) {
   print_result(await delete_transaction_core(uid, id))
 }
 
-// --- JSON payload helpers (non-interactive `add --json`) ---------------------
-
 type JsonLine = {
   accounting_head_id?: string
   head?: string

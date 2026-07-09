@@ -1,14 +1,3 @@
-/**
- * Remote MCP server for the ledger. External AI clients (Claude, ChatGPT,
- * Gemini) connect here over Streamable HTTP after the OAuth 2.1 flow in
- * app/api/oauth/* and app/.well-known/*. Every tool calls the same
- * `app/_core/*` functions the web app and CLI use, scoped to the authenticated
- * user — so reads and writes (incl. cross-user approval side-effects) stay
- * identical across all surfaces.
- *
- * Read tools are annotated `readOnlyHint: true`; write tools are not, so clients
- * (e.g. ChatGPT) prompt for confirmation before they run.
- */
 import { createMcpHandler, withMcpAuth } from 'mcp-handler'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
@@ -38,10 +27,6 @@ import { get_subtree_head_ids, compute_subtree_total } from '@/app/_utils/subtre
 import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/app/_utils/date'
 import type { ActionResult } from '@/app/_actions/_result'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 type ToolExtra = { authInfo?: { extra?: { userId?: string } } }
 
@@ -75,7 +60,6 @@ const load_assets = () =>
     select: { id: true, name: true, type: true, ticker: true, is_active: true, parent_id: true },
   })
 
-/** Active candidate names, grouped by `type` when present, for a not-found error hint. */
 function format_candidates<T extends { name: string; type?: string; is_active?: boolean }>(list: T[]): string {
   const active = list.filter(x => x.is_active !== false)
   if (!active.some(x => x.type)) return active.map(x => x.name).join(', ') || 'none'
@@ -88,7 +72,6 @@ function format_candidates<T extends { name: string; type?: string; is_active?: 
   return [...groups].map(([k, names]) => `${k}: ${names.join(', ')}`).join('; ') || 'none'
 }
 
-/** Resolve a head/asset reference that is either an exact id or a (case-insensitive) name. */
 function resolve_ref<T extends { id: string; name: string; type?: string; is_active?: boolean }>(ref: string, list: T[], kind: string): T {
   const r = ref.trim()
   const byId = list.find(x => x.id === r)
@@ -98,12 +81,6 @@ function resolve_ref<T extends { id: string; name: string; type?: string; is_act
   throw new Error(`No ${kind} matching "${ref}". Valid options — ${format_candidates(list)}`)
 }
 
-/**
- * A transaction's net inflow/outflow = signed sum of txn_value over its account
- * lines — the same per-transaction total the web UI shows (positive = net in,
- * negative = net out, ~0 = transfer). Accepts raw or normalized lines: on account
- * lines txn_value is set for non-rupee assets and quantity carries the rupee value.
- */
 function net_account_flow(
   line_items: { accounting_head: { type: string }; quantity: Prisma.Decimal | null; txn_value: Prisma.Decimal | null }[],
 ): number {
@@ -113,12 +90,6 @@ function net_account_flow(
   return Math.round(n * 100) / 100
 }
 
-/**
- * Subtree value + immediate-children totals for a head — the same rollup the
- * head detail page shows, but driven by the explicit-uid balances core (the
- * page's compute_head_rollup resolves the user from request context, which MCP
- * bearer auth doesn't populate).
- */
 async function head_rollup(uid: string, root_id: string): Promise<{ subtree_total: number | null; children: { name: string; total: number }[] }> {
   const all_heads = await prisma.accounting_head.findMany({ where: { user_id: uid }, select: { id: true, parent_id: true, name: true } })
   const subtree_ids = get_subtree_head_ids(root_id, all_heads)
@@ -140,7 +111,6 @@ async function head_rollup(uid: string, root_id: string): Promise<{ subtree_tota
   return { subtree_total, children }
 }
 
-/** Accept dd-MM-yyyy (IST) or an ISO string; default to now. */
 function parse_date(s?: string): Date {
   if (!s) return new Date()
   if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return get_date_obj_from_indian_date(s)
@@ -171,7 +141,6 @@ const lineItemShape = z
   )
   .min(1, 'At least one line item is required')
 
-/** Map MCP line-item inputs (account/asset by id-or-name) to core inputs. */
 async function build_line_items(uid: string, items: z.infer<typeof lineItemShape>): Promise<CreateLineItemInput[]> {
   const [heads, assets] = await Promise.all([load_heads(uid), load_assets()])
   return items.map(li => ({
@@ -183,16 +152,7 @@ async function build_line_items(uid: string, items: z.infer<typeof lineItemShape
   }))
 }
 
-// ---------------------------------------------------------------------------
-// Tool registration
-// ---------------------------------------------------------------------------
-
 function register_tools(server: McpServer) {
-  // Route every tool handler through a try/catch that logs unexpected throws before
-  // mcp-handler turns them into a JSON-RPC error. Write tools surface failures via
-  // ActionResult (logged inside the *_core functions), but read tools throw raw —
-  // without this a DB/price-fetch fault in a read tool would fail silently in our logs.
-  // We patch registerTool once so every call site keeps its zod-inferred handler types.
   const base_register = server.registerTool.bind(server)
   server.registerTool = ((name: string, config: Parameters<typeof base_register>[1], handler: (...a: unknown[]) => unknown) =>
     base_register(
@@ -297,7 +257,6 @@ function register_tools(server: McpServer) {
       const asset = await prisma.asset.findUnique({
         where: { id: ref.id },
         include: {
-          // Assets are global; their line items belong to individual users — scope to the caller.
           line_items: { where: { transaction: { user_id: uid } }, include: { accounting_head: true, transaction: true } },
           parent: true,
           children: true,
@@ -312,7 +271,6 @@ function register_tools(server: McpServer) {
       const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
       const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
 
-      // Aggregate per account
       let asset_total = new Prisma.Decimal(0)
       let book_total = new Prisma.Decimal(0)
       const acc_map = new Map<string, { name: string; qty: Prisma.Decimal; book: Prisma.Decimal }>()
@@ -332,7 +290,6 @@ function register_tools(server: McpServer) {
         by_account.push({ account: e.name, quantity: e.qty.toNumber(), txn_value: e.book.toNumber(), current_value: cv.toNumber() })
       }
 
-      // Aggregate per allocation
       const alloc_map = new Map<string, { name: string; qty: Prisma.Decimal; book: Prisma.Decimal }>()
       for (const li of allocation_line_items) {
         const n = normalizedById.get(li.id)!
@@ -353,7 +310,6 @@ function register_tools(server: McpServer) {
         })
       }
 
-      // FIFO remaining per account line (non-rupee only) + current investment
       const items = real_line_items.map(li => {
         const n = normalizedById.get(li.id)!
         return { li, qty: n.quantity, book: n.txn_value, sortDate: li.datetime ?? li.transaction.datetime }
@@ -368,7 +324,6 @@ function register_tools(server: McpServer) {
         if (rem.greaterThan(0)) current_investment = current_investment.add(book.mul(rem).div(qty))
       }
 
-      // XIRR (non-rupee): each account line an outflow, current value an inflow today
       let xirr: number | null = null
       if (!is_rupees && real_line_items.length > 0) {
         const cashflows = real_line_items.map(li => ({
@@ -522,7 +477,6 @@ function register_tools(server: McpServer) {
         })
       }
 
-      // FIFO remaining units per asset (non-rupees) — accounts only
       if (is_account) {
         const lineById = new Map(head.line_items.map(li => [li.id, li]))
         const remaining_by_id = compute_fifo_remaining(
@@ -812,7 +766,7 @@ function register_tools(server: McpServer) {
 
       const { assetsToAccounts } = await compute_balances_core(uid)
       const priceByAsset = await get_prices_for_assets(assets)
-      // Normalized account-line txn_values, for per-asset XIRR (same cashflows as the assets page).
+
       const account_lines = await prisma.line_item.findMany({
         where: { accounting_head: { type: 'account' }, transaction: { user_id: uid } },
         include: { transaction: true },
@@ -918,8 +872,6 @@ function register_tools(server: McpServer) {
     },
   )
 
-  // --- Write tools (no readOnlyHint → clients confirm before running) ---
-
   server.registerTool(
     'create_transaction',
     {
@@ -1003,10 +955,6 @@ function register_tools(server: McpServer) {
     },
   )
 }
-
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
 
 const handler = createMcpHandler(
   register_tools,

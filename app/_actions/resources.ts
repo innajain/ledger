@@ -58,8 +58,6 @@ export async function create_asset(
   ticker?: string | null | undefined,
   parent_id?: string | null | undefined,
 ): Promise<ActionResult> {
-  // Authorize before any user-controlled ticker triggers an external price
-  // fetch / NAV sync — those have side effects and must not be reachable by non-admins.
   try {
     await require_admin()
   } catch (error) {
@@ -111,8 +109,6 @@ export async function update_hierarchy_order(input: {
 
     const { scope, parent_id, ordered_ids } = parsed.data
 
-    // Verify all rows are siblings under the same parent. Accounts are
-    // user-scoped; assets are global and admin-managed.
     if (scope === 'account') {
       const user_id = await get_current_user_id()
       if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
@@ -134,8 +130,6 @@ export async function update_hierarchy_order(input: {
       }
     }
 
-    // Reassign order_index sequentially. Wrap in a transaction so partial
-    // failures don't leave the ordering inconsistent.
     await prisma.$transaction(
       ordered_ids.map((id, i) =>
         scope === 'account'

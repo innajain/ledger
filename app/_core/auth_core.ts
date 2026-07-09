@@ -1,8 +1,3 @@
-/**
- * Framework-agnostic auth primitives shared by the web server actions
- * (`app/_actions/auth.ts`) and the CLI (`cli/`). Nothing here touches
- * `next/headers` or cookies, so it runs in a plain Node process too.
- */
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 import { z } from 'zod'
@@ -28,11 +23,6 @@ export async function verify_token(token: string): Promise<{ uid: string; userna
   return { uid: payload.uid, username, iat }
 }
 
-/**
- * Verify a username/password against the stored bcrypt hash. Returns the user's
- * identity on success, or null on unknown user / bad password (callers should
- * not distinguish the two — same as the web login).
- */
 export async function authenticate(username: string, password: string): Promise<{ id: string; username: string } | null> {
   const rec = await prisma.user.findUnique({
     where: { username },
@@ -43,8 +33,6 @@ export async function authenticate(username: string, password: string): Promise<
   if (!matched) return null
   return { id: rec.id, username: rec.username }
 }
-
-// --- Credential schemas (shared so web + CLI enforce the same rules) ----------
 
 export const UsernameSchema = z
   .string()
@@ -58,16 +46,12 @@ const SignUpSchema = z.object({ username: UsernameSchema, password: StrongPasswo
 const ChangePasswordSchema = z.object({ current_password: z.string().min(1, 'Current password is required'), new_password: StrongPasswordSchema })
 const ChangeUsernameSchema = z.object({ new_username: UsernameSchema, password: z.string().min(1, 'Password is required') })
 
-// --- Session revocation -------------------------------------------------------
-// Tokens for a user whose issued-at predates `auth:revoke_before:<uid>` (unix
-// seconds) are treated as logged out. Set on password change.
 export const revoke_key = (uid: string) => `auth:revoke_before:${uid}`
 
 export async function revoke_sessions_before(uid: string, when_seconds: number): Promise<void> {
   await redis.setex(revoke_key(uid), JWT_EXPIRY_SECONDS, String(when_seconds))
 }
 
-/** Create a new user (with the strong credential policy). Returns the new identity. */
 export async function sign_up_core(payload: { username: string; password: string }): Promise<ActionResult<{ id: string; username: string }>> {
   try {
     const parsed = SignUpSchema.safeParse(payload)
@@ -85,7 +69,6 @@ export async function sign_up_core(payload: { username: string; password: string
   }
 }
 
-/** Verify the current password, set a new one, and revoke all existing sessions. */
 export async function change_password_core(user_id: string, payload: { current_password: string; new_password: string }): Promise<ActionResult> {
   try {
     const parsed = ChangePasswordSchema.safeParse(payload)
@@ -100,8 +83,6 @@ export async function change_password_core(user_id: string, payload: { current_p
     const new_password_hash = await bcrypt.hash(new_password, 10)
     await prisma.user.update({ where: { id: user_id }, data: { password_hash: new_password_hash } })
 
-    // Invalidate every existing session (all devices). Callers that want to stay
-    // logged in re-issue a fresh token afterwards (its iat survives the cutoff).
     await revoke_sessions_before(user_id, Math.floor(Date.now() / 1000))
     return ok(undefined, 'Password changed successfully')
   } catch (error) {
@@ -109,7 +90,6 @@ export async function change_password_core(user_id: string, payload: { current_p
   }
 }
 
-/** Verify the password and change the username (must be unique and different). */
 export async function change_username_core(
   user_id: string,
   payload: { new_username: string; password: string },

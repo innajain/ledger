@@ -5,7 +5,7 @@ type EmptyStateProps = {
   icon: React.ReactNode
   title: string
   description: string
-  // Optional — omit to render the empty state without a call-to-action button.
+
   actionUrl?: string
   actionLabel?: string
 }

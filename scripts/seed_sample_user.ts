@@ -1,14 +1,3 @@
-/**
- * Seed a single realistic sample user (modeled on a real user's chart of
- * accounts: Indian banks, UPI apps, credit cards, a Groww demat, and people).
- * Creates ~6 months of believable transactions. Does NOT touch any other user.
- *
- * Idempotent: if the sample user exists, its data is wiped and recreated.
- *
- * Local:  pnpm dlx tsx scripts/seed_sample_user.ts
- * Prod:   DATABASE_URL="$NEON_DIRECT" pnpm dlx tsx scripts/seed_sample_user.ts
- */
-
 import { PrismaClient } from '../generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
@@ -22,7 +11,6 @@ const USERNAME = 'rahul'
 const PASSWORD = 'rahul1234'
 const UPI_ID = 'rahul.verma@okhdfcbank'
 
-// Deterministic PRNG so re-runs produce stable data.
 let _seed = 1337
 function rand() {
   _seed = (_seed * 1664525 + 1013904223) & 0xffffffff
@@ -38,17 +26,14 @@ function randFloat(lo: number, hi: number, decimals = 2) {
   const v = rand() * (hi - lo) + lo
   return Math.round(v * 10 ** decimals) / 10 ** decimals
 }
-// IST midday for the given calendar day (UTC+5:30 → subtract 5:30).
+
 function makeDate(year: number, month: number, day: number, hour = 12, minute = 0) {
   return new Date(Date.UTC(year, month - 1, day, hour - 5, minute - 30))
 }
 
-// ---------- chart of accounts ----------
-
 type AccountSpec = { type: 'account' | 'income_expense' | 'allocation'; name: string; parent?: string; is_placeholder?: boolean }
 
 const ACCOUNTS: AccountSpec[] = [
-  // --- Accounts (where money lives) ---
   { type: 'account', name: 'Bank', is_placeholder: true },
   { type: 'account', name: 'HDFC', parent: 'Bank' },
   { type: 'account', name: 'ICICI', parent: 'Bank' },
@@ -72,7 +57,6 @@ const ACCOUNTS: AccountSpec[] = [
   { type: 'account', name: 'Karan', parent: 'People' },
   { type: 'account', name: 'Sneha', parent: 'People' },
 
-  // --- Income / Expense ---
   { type: 'income_expense', name: 'Income', is_placeholder: true },
   { type: 'income_expense', name: 'Salary', parent: 'Income' },
   { type: 'income_expense', name: 'Cashbacks', parent: 'Income' },
@@ -82,7 +66,6 @@ const ACCOUNTS: AccountSpec[] = [
   { type: 'income_expense', name: 'Opening Balance' },
   { type: 'income_expense', name: 'Trading Account' },
 
-  // --- Allocation (budget buckets) ---
   { type: 'allocation', name: 'Monthly Expenses', is_placeholder: true },
   { type: 'allocation', name: 'Rent', parent: 'Monthly Expenses' },
   { type: 'allocation', name: 'Groceries', parent: 'Monthly Expenses' },
@@ -108,8 +91,6 @@ const ASSETS: AssetSpec[] = [
   { type: 'mf', name: 'HDFC Flexicap Fund', ticker: 'INF179K01UT0' },
   { type: 'etf', name: 'Mirae Gold ETF', ticker: 'GOLDETF.NS' },
 ]
-
-// ---------- transaction builders (triple-entry, null-remainder) ----------
 
 type Line = { account: string; asset?: string; quantity: number | null; txn_value?: number | null; description?: string }
 type Txn = { datetime: Date; description?: string; lines: Line[] }
@@ -178,7 +159,6 @@ function generateTxns(): Txn[] {
     [2026, 5],
   ]
 
-  // Opening balances
   txns.push(
     income(makeDate(2025, 12, 1, 9), 'HDFC', 'Opening Balance', 'Savings', 120000, 'opening balance'),
     income(makeDate(2025, 12, 1, 9), 'ICICI', 'Opening Balance', 'Emergency Fund', 60000, 'opening balance'),
@@ -195,7 +175,6 @@ function generateTxns(): Txn[] {
     if (m === 12 || m === 4) txns.push(expense(makeDate(y, m, 12, 8), 'HDFC Millennia', 'Subscriptions', 649, 'netflix'))
     if (m === 1 || m === 5) txns.push(expense(makeDate(y, m, 20, 8), 'HDFC Millennia', 'Subscriptions', 119, 'spotify'))
 
-    // SIPs on the 5th
     txns.push(buyAsset(makeDate(y, m, 5, 11), 'HDFC', 'MF Holdings', 'Parag Parikh Flexi Cap', randFloat(75, 95, 3), 10000, 'sip ppfas'))
     txns.push(buyAsset(makeDate(y, m, 5, 11), 'HDFC', 'MF Holdings', 'HDFC Flexicap Fund', randFloat(45, 55, 3), 7500, 'sip hdfc flexi'))
 
@@ -252,11 +231,9 @@ function generateTxns(): Txn[] {
         ),
       )
 
-    // Credit card bill payments
     if (rand() < 0.9) txns.push(transfer(makeDate(y, m, 18, 11), 'HDFC', 'HDFC Millennia', randFloat(3000, 9000, 0), 'hdfc card bill'))
     if (rand() < 0.6) txns.push(transfer(makeDate(y, m, 19, 11), 'HDFC', 'Amazon Pay ICICI', randFloat(1500, 6000, 0), 'amazon pay card bill'))
 
-    // Splitting with friends: paid for a friend, expect them to settle
     if (rand() < 0.5) {
       const amt = randFloat(150, 800, 0)
       const friend = pick(['Karan', 'Sneha'])
@@ -279,7 +256,6 @@ function generateTxns(): Txn[] {
     }
   }
 
-  // One-offs
   txns.push(expense(makeDate(2026, 3, 14, 11), 'HDFC', 'Insurance', 13500, 'term insurance premium'))
   txns.push(buyAsset(makeDate(2026, 2, 17, 10, 30), 'HDFC', 'ETF Holdings', 'Mirae Gold ETF', 60, 8600, 'bought gold etf'))
   txns.push(income(makeDate(2026, 3, 31, 20), 'ICICI', 'Interest', 'Emergency Fund', 642, 'savings interest q4'))
@@ -288,16 +264,11 @@ function generateTxns(): Txn[] {
   return txns
 }
 
-// ---------- write ----------
-
 async function main() {
   console.log(`Connecting to ${process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] ?? 'db'}`)
 
-  // Generate the transaction set ONCE (the PRNG is module-global, so calling
-  // generateTxns again would yield a different list).
   const txns = generateTxns()
 
-  // Sanity: every account/asset referenced by a transaction must be defined.
   const accNames = new Set(ACCOUNTS.map(a => a.name))
   const assetNames = new Set(ASSETS.map(a => a.name))
   for (const t of txns) {
@@ -307,7 +278,6 @@ async function main() {
     }
   }
 
-  // 1. Wipe existing sample user (only this user)
   const existing = await prisma.user.findUnique({ where: { username: USERNAME } })
   if (existing) {
     console.log(`Deleting existing user ${USERNAME} (${existing.id})...`)
@@ -317,12 +287,10 @@ async function main() {
     await prisma.user.delete({ where: { id: existing.id } })
   }
 
-  // 2. Create user
   const password_hash = await bcrypt.hash(PASSWORD, 10)
   const user = await prisma.user.create({ data: { username: USERNAME, password_hash, upi_id: UPI_ID, theme: 'system' } })
   console.log(`Created user ${user.username} (${user.id}) — password: ${PASSWORD}`)
 
-  // 3. Accounts (parents first, then children)
   const accId = new Map<string, string>()
   for (const a of ACCOUNTS.filter(a => !a.parent)) {
     const row = await prisma.accounting_head.create({
@@ -345,7 +313,6 @@ async function main() {
   }
   console.log(`Created ${accId.size} accounting heads`)
 
-  // 4. Assets are global — reuse by name, else create.
   const assetId = new Map<string, string>()
   for (const a of ASSETS) {
     const row = await prisma.asset.upsert({
@@ -356,7 +323,6 @@ async function main() {
     assetId.set(a.name, row.id)
   }
 
-  // 5. Defaults for the create-transaction form
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -367,7 +333,6 @@ async function main() {
     },
   })
 
-  // 6. Transactions
   for (const t of txns) {
     await prisma.transaction.create({
       data: {

@@ -1,9 +1,3 @@
-/**
- * Framework-agnostic accounting-head (account) and asset CRUD, shared by the
- * web actions (`app/_actions/resources.ts`) and the CLI. Account cores take an
- * explicit `user_id`; asset cores are global (admin-managed) — the admin check
- * stays with the caller (the web action's `require_admin`, the CLI's own gate).
- */
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import type { accounting_head_type, asset_type } from '@/generated/prisma/client'
@@ -13,8 +7,6 @@ import { backfill_links_for_account } from '@/app/_utils/links'
 import { notify_request_pending } from '@/app/_utils/notify_events'
 import { ActionResult, ok, err, fromError, ActionError } from '@/app/_actions/_result'
 
-// Validate and normalize a cross-user account link. Returns the linked user id
-// to store (or null to clear), or throws with a user-facing message.
 async function resolve_linked_user(
   user_id: string,
   type: accounting_head_type | undefined,
@@ -183,8 +175,6 @@ export async function delete_account_core(user_id: string, id: string): Promise<
     return fromError(error)
   }
 }
-
-// --- Assets (global / admin-managed — caller enforces admin) ------------------
 
 const createAssetSchema = z.object({
   name: z.string().trim().min(1, 'name cannot be empty string').max(120, 'name is too long'),

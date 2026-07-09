@@ -1,6 +1,3 @@
-// RFC 9728 — OAuth 2.0 Protected Resource Metadata. Points MCP clients at this
-// app as its own authorization server. Reached when /api/mcp answers 401 with a
-// `WWW-Authenticate` header naming this URL.
 import { generateProtectedResourceMetadata, getPublicOrigin, metadataCorsOptionsRequestHandler } from 'mcp-handler'
 import { SUPPORTED_SCOPES } from '@/lib/mcp/oauth'
 

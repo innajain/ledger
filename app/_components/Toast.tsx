@@ -66,7 +66,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         borderColor: toast.type === 'success' ? '#10b981' : toast.type === 'error' ? '#ef4444' : toast.type === 'warning' ? '#f59e0b' : '#3b82f6',
       }}
     >
-      {/* Icon */}
+      {}
       <div className="shrink-0">
         {toast.type === 'success' && (
           <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,10 +95,10 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         )}
       </div>
 
-      {/* Message */}
+      {}
       <p className="flex-1 text-sm text-slate-900 dark:text-slate-100">{toast.message}</p>
 
-      {/* Close button */}
+      {}
       <button onClick={onDismiss} className="shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

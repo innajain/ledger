@@ -33,7 +33,6 @@ export async function cmd_requests() {
     )
 }
 
-/** Resolve the --account flag (or interactively prompt) to one of the user's own (non-linked) accounts. */
 async function resolve_balancing_account(uid: string, accountRef: string | undefined): Promise<string | undefined> {
   if (!accountRef) return undefined
   const accounts = (await load_heads(uid)).filter(h => h.type === 'account' && !h.linked_user_id)
@@ -50,9 +49,6 @@ export async function cmd_approve(rest: string[]) {
   const link_id = positionals[0]
   if (!link_id) throw new Error('Usage: approve <link_id> [--account <ref> | --lines]')
 
-  // For a `change` request you must say how to balance your own copy: either
-  // auto-balance onto one account (--account) or enter balancing lines (--lines).
-  // For a `deletion` request no balancing is needed.
   const auto = await resolve_balancing_account(uid, values.account)
   const balancing = values.lines ? await build_line_items(uid) : []
   print_result(await approve_request_core(uid, link_id, balancing, auto))

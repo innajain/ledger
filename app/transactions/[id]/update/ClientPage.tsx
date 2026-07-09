@@ -110,7 +110,7 @@ export default function ClientPage({
       const copy = [...prev]
       const v: string = field === 'quantity' || field === 'txn_value' ? (value === null ? '' : value) : (value ?? '')
       copy[idx] = { ...copy[idx], [field]: v }
-      // Clear txn_value when switching to rupees asset
+
       if (field === 'asset_id') {
         const sel = assets.find(a => a.id === v)
         if (sel?.type === asset_type.rupees) copy[idx].txn_value = null
@@ -156,7 +156,7 @@ export default function ClientPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {}
       <div>
         <Link
           href={`/transactions/${transaction.id}`}
@@ -172,7 +172,7 @@ export default function ClientPage({
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
-        {/* Basic Info Card */}
+        {}
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Transaction Details</h2>
 
@@ -216,7 +216,7 @@ export default function ClientPage({
           </div>
         </div>
 
-        {/* Line Items */}
+        {}
         <TransactionLineItems
           items={items}
           accounts={accounts}
@@ -226,10 +226,10 @@ export default function ClientPage({
           onUpdateItem={updateItem}
         />
 
-        {/* Error Display */}
+        {}
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
-        {/* Submit Button */}
+        {}
         <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
           <Link
             href={`/transactions/${transaction.id}`}
