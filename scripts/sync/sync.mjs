@@ -24,6 +24,27 @@ for (const k of required) {
 
 // ----------------------------- Postgres -----------------------------
 console.log('--- Postgres ---')
+
+// Parse the destination URL to extract host, port, user, and database name
+// for dropdb/createdb (they don't accept a full URI).
+const dest_url = new URL(env.PG_DEST)
+const pg_host = dest_url.hostname
+const pg_port = dest_url.port || '5432'
+const pg_user = dest_url.username || 'postgres'
+const pg_db = dest_url.pathname.replace(/^\//, '')
+
+// Drop and recreate the database so pg_restore doesn't fight FK ordering.
+console.log(`Dropping database ${pg_db}...`)
+execSync(`dropdb --host=${pg_host} --port=${pg_port} --username=${pg_user} --if-exists ${pg_db}`, {
+  stdio: 'inherit',
+  shell: '/bin/bash',
+})
+console.log(`Creating database ${pg_db}...`)
+execSync(`createdb --host=${pg_host} --port=${pg_port} --username=${pg_user} ${pg_db}`, {
+  stdio: 'inherit',
+  shell: '/bin/bash',
+})
+
 console.log('Syncing Postgres from prod...')
 // Point libpq at Debian's system CA bundle so pg_dump can verify Neon's cert
 // (the URL uses sslmode=verify-full, channel_binding=require). The "system"
@@ -32,7 +53,7 @@ console.log('Syncing Postgres from prod...')
 // Applied only to pg_dump; the local pg_restore connection doesn't use SSL.
 execSync(
   `PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt pg_dump "${env.PG_SRC}" --format=custom --no-owner --no-privileges | ` +
-    `pg_restore -d "${env.PG_DEST}" --clean --if-exists --no-owner --no-privileges`,
+    `pg_restore -d "${env.PG_DEST}" --no-owner --no-privileges`,
   { stdio: 'inherit', shell: '/bin/bash' },
 )
 
