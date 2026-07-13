@@ -277,7 +277,7 @@ export async function create_upi_payment_core(
     const description = parsed.data.description ?? null
     const datetime = new Date()
 
-    const { id } = await prisma.$transaction(async prisma => {
+    const { id, counterparties } = await prisma.$transaction(async prisma => {
       const line_items = [
         {
           accounting_head_id: user_row.default_account_id!,
@@ -310,10 +310,14 @@ export async function create_upi_payment_core(
       )
       if (!is_valid) throw new ActionError('VALIDATION', message)
 
-      return await prisma.transaction.create({ data: { datetime, description, user_id, line_items: { create: line_items } } })
+      const created = await prisma.transaction.create({ data: { datetime, description, user_id, line_items: { create: line_items } } })
+      const counterparties = await create_links_for_transaction(prisma, user_id, created.id)
+      return { id: created.id, counterparties }
     })
 
     await invalidate_balances(user_id)
+
+    for (const cp of counterparties) void notify_request_pending(cp, user_id, { description })
     return ok({ id }, 'Payment recorded')
   } catch (error) {
     logger.error({ err: error, action: 'create_upi_payment' }, 'Error creating UPI payment')
