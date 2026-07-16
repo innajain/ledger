@@ -490,17 +490,15 @@ export default function ClientPage({
                         </div>
                         <div className="ml-4 shrink-0 flex items-center gap-2">
                           {badge}
-                          <span
-                            className={`text-lg font-semibold transition-transform group-hover:scale-110 inline-block ${
-                              tx.total_book > 0
-                                ? 'text-green-600 dark:text-green-400'
-                                : tx.total_book < 0
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-gray-500 dark:text-gray-400'
-                            }`}
-                          >
-                            <MaskedAmount value={tx.total_book} />
-                          </span>
+                          {tx.total_book !== 0 && (
+                            <span
+                              className={`text-lg font-semibold transition-transform group-hover:scale-110 inline-block ${
+                                tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                              }`}
+                            >
+                              <MaskedAmount value={tx.total_book} />
+                            </span>
+                          )}
                         </div>
                       </div>
                     </Link>
