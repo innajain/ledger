@@ -47,7 +47,7 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
             onReorderToggle={setReorderEnabled}
             accentBorderClass={cfg.accentBorderClass}
             renderExtraInfo={
-              cfg.showNegativeAssetBadges || type === 'allocation'
+              cfg.showNegativeAssetBadges
                 ? item => {
                     const assetQtys = assetQuantities.get(item.id) || new Map<string, number>()
 
@@ -61,31 +61,7 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
                         ]
                       : []
 
-                    let showPositiveMoney = false
-                    if (type === 'allocation') {
-                      const moneyQty = assetQtys.get('Money') || 0
-                      if (moneyQty > 1e-9) {
-                        const nameLower = item.name.toLowerCase()
-                        if (nameLower !== 'rent' && nameLower !== 'monthly expenses') {
-                          let isDescendant = false
-                          let current = item
-                          while (current.parent_id) {
-                            const parent = heads.find(h => h.id === current.parent_id)
-                            if (!parent) break
-                            if (parent.name.toLowerCase() === 'monthly expenses') {
-                              isDescendant = true
-                              break
-                            }
-                            current = parent
-                          }
-                          if (!isDescendant) {
-                            showPositiveMoney = true
-                          }
-                        }
-                      }
-                    }
-
-                    if (negativeAssets.length === 0 && !showPositiveMoney) return null
+                    if (negativeAssets.length === 0) return null
 
                     return (
                       <div className="flex flex-wrap gap-2">
@@ -105,11 +81,6 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
                             {assetName}
                           </span>
                         ))}
-                        {showPositiveMoney && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                            ● Money
-                          </span>
-                        )}
                       </div>
                     )
                   }
