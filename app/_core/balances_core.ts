@@ -109,3 +109,42 @@ export async function compute_balances_core(user_id: string, invalidate_cache = 
 
   return { accountsToAssets: clientAccountsToAssets, assetsToAccounts: clientAssetsToAccounts }
 }
+
+export type ClosingBalanceRow = { head_id: string; asset_id: string; qty: number; value: number }
+
+// Historical closing balance strictly before `cutoff`, computed from normalized
+// transactions so derived-remainder lines count — correct for every head type,
+// not just accounts. Values are book values (txn_value), not marked to market.
+// head_id null = all account-type heads; a specific head_id can be any type.
+export async function closing_balance_core(user_id: string, head_id: string | null, cutoff: Date): Promise<ClosingBalanceRow[]> {
+  const [txns, heads] = await Promise.all([
+    prisma.transaction.findMany({
+      where: {
+        user_id,
+        ...(head_id ? { line_items: { some: { accounting_head_id: head_id } } } : {}),
+      },
+      include: { line_items: { include: { accounting_head: true, asset: true } } },
+    }),
+    prisma.accounting_head.findMany({ where: { user_id }, select: { id: true, type: true } }),
+  ])
+  const head_type_by_id = new Map(heads.map(h => [h.id, h.type]))
+
+  const acc = new Map<string, { qty: number; value: number }>()
+  for (const raw of txns) {
+    const t = normalize_txn(raw)
+    for (const li of t.line_items) {
+      if ((li.datetime ?? t.datetime) >= cutoff) continue
+      if (head_id ? li.accounting_head_id !== head_id : head_type_by_id.get(li.accounting_head_id) !== 'account') continue
+      const key = `${li.accounting_head_id}:${li.asset_id}`
+      const e = acc.get(key) ?? { qty: 0, value: 0 }
+      e.qty += li.quantity.toNumber()
+      e.value += li.txn_value.toNumber()
+      acc.set(key, e)
+    }
+  }
+
+  return [...acc].map(([key, bal]) => {
+    const [hid, asset_id] = key.split(':')
+    return { head_id: hid, asset_id, qty: Math.round(bal.qty * 10000) / 10000, value: Math.round(bal.value * 100) / 100 }
+  })
+}

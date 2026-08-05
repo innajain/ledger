@@ -12,6 +12,7 @@ const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/heads/allocation', label: 'Allocations' },
   { href: '/heads/income_expense', label: 'Income / Expenses' },
   { href: '/transactions', label: 'Transactions' },
+  { href: '/reconcile', label: 'Reconcile' },
   { href: '/requests', label: 'Requests' },
   { href: '/settings', label: 'Settings' },
 ]

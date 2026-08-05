@@ -23,6 +23,7 @@ async function Page({ params }: Props) {
     id: tx.id,
     date: tx.datetime,
     description: tx.description,
+    external_ref: tx.external_ref,
     total: tx.line_items.reduce((s, li) => s + (li.txn_value ? Number(li.txn_value.toString()) : 0), 0),
     line_items: tx.line_items.map(li => ({
       id: li.id,

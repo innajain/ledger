@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { asset_type } from '@/generated/prisma/enums'
@@ -57,7 +58,10 @@ type AssetForClient = {
   value_timeseries?: ValuePoint[]
 }
 
+const LINE_ITEMS_PAGE = 100
+
 export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; isAdmin: boolean }) {
+  const [visibleLineItems, setVisibleLineItems] = useState(LINE_ITEMS_PAGE)
   return (
     <div className="space-y-6">
       <ViewPageHeader
@@ -336,7 +340,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         ) : (
           <div className="divide-y divide-slate-200">
             <div className="max-h-96 overflow-y-auto">
-              {(asset.line_items ?? []).map(li => {
+              {(asset.line_items ?? []).slice(0, visibleLineItems).map(li => {
                 const is_depleted = li.remaining_quantity !== null && li.remaining_quantity === 0
                 const remaining_txn_value =
                   li.remaining_quantity !== null && li.txn_value !== null && li.quantity !== 0
@@ -410,6 +414,18 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                   </div>
                 )
               })}
+              {(asset.line_items ?? []).length > visibleLineItems && (
+                <div className="p-3 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleLineItems(v => v + LINE_ITEMS_PAGE)}
+                    className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  >
+                    Show {Math.min(LINE_ITEMS_PAGE, (asset.line_items ?? []).length - visibleLineItems)} more (
+                    {(asset.line_items ?? []).length - visibleLineItems} remaining)
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

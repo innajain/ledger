@@ -449,3 +449,43 @@ export async function create_upi_payment_core(
     return fromError(error)
   }
 }
+
+export type PossibleDuplicate = { id: string; datetime: Date; description: string | null; amount: number }
+
+// Near-duplicate guard for creates: an existing transaction within ±36h that
+// touches one of the same account heads with the same net account flow.
+export async function find_possible_duplicate(user_id: string, datetime: Date, line_items: CreateLineItemInput[]): Promise<PossibleDuplicate | null> {
+  const heads = await prisma.accounting_head.findMany({
+    where: { id: { in: [...new Set(line_items.map(li => li.accounting_head_id))] }, user_id },
+    select: { id: true, type: true },
+  })
+  const account_ids = heads.filter(h => h.type === 'account').map(h => h.id)
+  if (account_ids.length === 0) return null
+  const account_id_set = new Set(account_ids)
+  const flow =
+    Math.round(
+      line_items.filter(li => account_id_set.has(li.accounting_head_id)).reduce((s, li) => s + (li.txn_value ?? li.quantity ?? 0), 0) * 100,
+    ) / 100
+  if (flow === 0) return null
+
+  const window_ms = 36 * 60 * 60 * 1000
+  const candidates = await prisma.transaction.findMany({
+    where: {
+      user_id,
+      datetime: { gte: new Date(datetime.getTime() - window_ms), lte: new Date(datetime.getTime() + window_ms) },
+      line_items: { some: { accounting_head_id: { in: account_ids } } },
+    },
+    include: { line_items: { select: { quantity: true, txn_value: true, accounting_head: { select: { type: true } } } } },
+    orderBy: { datetime: 'desc' },
+    take: 50,
+  })
+  for (const t of candidates) {
+    const candidate_flow = t.line_items
+      .filter(li => li.accounting_head.type === 'account')
+      .reduce((s, li) => s + (li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0), 0)
+    if (Math.abs(Math.round(candidate_flow * 100) / 100 - flow) <= 0.01) {
+      return { id: t.id, datetime: t.datetime, description: t.description, amount: flow }
+    }
+  }
+  return null
+}

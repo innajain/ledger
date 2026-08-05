@@ -42,13 +42,20 @@ export default function ClientPage({
     id: string
     date: Date
     description: string | null
+    external_ref: string | null
     total: number
     line_items: LineItem[]
   }
   accounts: { id: string; name: string; type: string }[]
   assets: { id: string; name: string; type: asset_type }[]
   defaults: LineItemDefaults
-  updateTransaction: (id: string, line_items: CreateLineItemInput[], datetime?: Date, description?: string | null) => Promise<ActionResult>
+  updateTransaction: (
+    id: string,
+    line_items: CreateLineItemInput[],
+    datetime?: Date,
+    description?: string | null,
+    opts?: { external_ref?: string | null },
+  ) => Promise<ActionResult>
   existingAttachments?: ExistingAttachment[]
   attachmentsEnabled?: boolean
 }) {
@@ -66,6 +73,7 @@ export default function ClientPage({
   const router = useRouter()
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(transaction.date))
   const [description, setDescription] = useState(transaction.description ?? '')
+  const [externalRef, setExternalRef] = useState(transaction.external_ref ?? '')
   const [items, setItems] = useState<LineItemData[]>(
     transaction.line_items.map(li => ({
       accounting_head_id: li.accounting_head_id,
@@ -138,7 +146,9 @@ export default function ClientPage({
         description: it.description === '' ? null : it.description,
         datetime: it.datetime === '' ? null : new Date(it.datetime),
       }))
-      const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null)
+      const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null, {
+        external_ref: externalRef.trim() === '' ? null : externalRef.trim(),
+      })
       if (result.success) {
         if (pendingAttachments.length > 0) {
           await save_attachments(transaction.id, pendingAttachments)
@@ -201,6 +211,20 @@ export default function ClientPage({
                 placeholder="Enter transaction description"
                 className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Reference <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={externalRef}
+                onChange={e => setExternalRef(e.target.value)}
+                placeholder="Bank / UPI reference, e.g. UPI-621663575718"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent font-mono text-sm"
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Used to match this entry against bank statements when reconciling</p>
             </div>
 
             {attachmentsEnabled && (

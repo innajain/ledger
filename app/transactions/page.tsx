@@ -29,6 +29,7 @@ type TxForClient = {
   id: string
   date: Date
   description: string | null
+  external_ref: string | null
   total_book: number
   link_severity: 'error' | 'warning' | 'info' | null
 }
@@ -42,6 +43,7 @@ async function Page({
   searchParams: Promise<{
     page?: string
     search?: string
+    ref?: string
     dateFrom?: string
     dateTo?: string
     minAmount?: string
@@ -125,6 +127,7 @@ async function Page({
         },
       ],
     }),
+    ...(params.ref && { external_ref: { contains: params.ref, mode: 'insensitive' as Prisma.QueryMode } }),
     ...((dateFrom || dateTo) && {
       datetime: {
         ...(dateFrom && { gte: dateFrom }),
@@ -167,6 +170,7 @@ async function Page({
       id: t.id,
       date: t.datetime,
       description: t.description,
+      external_ref: t.external_ref,
       total_book: txTotal(t),
       link_severity: null as TxForClient['link_severity'],
     }))
@@ -183,6 +187,7 @@ async function Page({
       id: t.id,
       date: t.datetime,
       description: t.description,
+      external_ref: t.external_ref,
       total_book: txTotal(t),
       link_severity: null as TxForClient['link_severity'],
     }))

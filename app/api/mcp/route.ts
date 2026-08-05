@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { resolve_access_token } from '@/lib/mcp/oauth'
 import { compute_net_worth, subtree_total, compute_xirr_for_accounts } from '@/app/_core/valuation_core'
-import { compute_balances_core } from '@/app/_core/balances_core'
+import { compute_balances_core, closing_balance_core } from '@/app/_core/balances_core'
 import {
   create_transaction_core,
   update_transaction_core,
@@ -343,40 +343,16 @@ function register_tools(server: McpServer) {
       const rows: Record<string, unknown>[] = []
 
       if (args.as_of) {
-        // Historical closing balance at end of the given IST day, computed from
-        // normalized transactions so derived-remainder lines count — this makes
-        // as_of correct for allocation / income_expense heads too, not just
-        // accounts. Values are book values (txn_value), not marked to market.
         const cutoff = parse_day(args.as_of)
         cutoff.setDate(cutoff.getDate() + 1)
-        const txns = await prisma.transaction.findMany({
-          where: {
-            user_id: uid,
-            ...(filter_head ? { line_items: { some: { accounting_head_id: filter_head.id } } } : {}),
-          },
-          include: { line_items: { include: { accounting_head: true, asset: true } } },
-        })
-        const acc = new Map<string, { qty: number; value: number }>()
-        for (const raw of txns) {
-          const t = normalize_txn(raw)
-          for (const li of t.line_items) {
-            if ((li.datetime ?? t.datetime) >= cutoff) continue
-            if (filter_head ? li.accounting_head_id !== filter_head.id : li.accounting_head.type !== 'account') continue
-            const key = `${li.accounting_head_id}:${li.asset_id}`
-            const e = acc.get(key) ?? { qty: 0, value: 0 }
-            e.qty += li.quantity.toNumber()
-            e.value += li.txn_value.toNumber()
-            acc.set(key, e)
-          }
-        }
-        for (const [key, bal] of acc) {
-          const [headId, assetId] = key.split(':')
-          if (Math.abs(bal.qty) < 1e-9 && Math.abs(bal.value) < 1e-9 && !filter_head) continue
+        const closing = await closing_balance_core(uid, filter_head?.id ?? null, cutoff)
+        for (const r of closing) {
+          if (Math.abs(r.qty) < 1e-9 && Math.abs(r.value) < 1e-9 && !filter_head) continue
           rows.push({
-            account: headById.get(headId)?.name ?? headId,
-            asset: assetById.get(assetId)?.name ?? assetId,
-            qty: Math.round(bal.qty * 10000) / 10000,
-            value: Math.round(bal.value * 100) / 100,
+            account: headById.get(r.head_id)?.name ?? r.head_id,
+            asset: assetById.get(r.asset_id)?.name ?? r.asset_id,
+            qty: r.qty,
+            value: r.value,
           })
         }
         rows.sort((a, b) => String(a.account).localeCompare(String(b.account)))

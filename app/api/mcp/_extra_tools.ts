@@ -4,8 +4,7 @@ import { put, del } from '@vercel/blob'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
 import { validate_line_items } from '@/app/_utils/validate_line_items'
-import { normalize_txn } from '@/app/_utils/normalize_txn'
-import { match_bank_rows, type LedgerEntry } from '@/app/_utils/reconcile'
+import { reconcile_ledger_core } from '@/app/_core/reconcile_core'
 import {
   find_user_by_username_core,
   create_account_core,
@@ -519,38 +518,18 @@ export function register_extra_tools(server: McpServer) {
         'account',
       )
       const rows = args.rows.map(r => ({ date: parse_day(r.date), amount: r.amount, ref: r.ref ?? null, desc: r.desc ?? null }))
-      const DAY = 24 * 60 * 60 * 1000
-      const fromDate = args.from ? parse_day(args.from) : new Date(Math.min(...rows.map(r => r.date.getTime())) - 2 * DAY)
-      let toDate: Date
+      let to_exclusive: Date | undefined
       if (args.to) {
-        toDate = parse_day(args.to)
-        toDate.setDate(toDate.getDate() + 1)
-      } else {
-        toDate = new Date(Math.max(...rows.map(r => r.date.getTime())) + 3 * DAY)
+        to_exclusive = parse_day(args.to)
+        to_exclusive.setDate(to_exclusive.getDate() + 1)
       }
-
-      const txns = await prisma.transaction.findMany({
-        where: { user_id: uid, datetime: { gte: fromDate, lt: toDate }, line_items: { some: { accounting_head_id: head.id } } },
-        include: { line_items: { include: { accounting_head: true, asset: true } } },
-        orderBy: { datetime: 'asc' },
-      })
-      const ledger: LedgerEntry[] = txns.map(raw => {
-        const t = normalize_txn(raw)
-        const delta = t.line_items.filter(li => li.accounting_head_id === head.id).reduce((s, li) => s + li.txn_value.toNumber(), 0)
-        return { id: t.id, datetime: t.datetime, delta: Math.round(delta * 100) / 100, external_ref: t.external_ref, description: t.description }
-      })
-      const result = match_bank_rows(rows, ledger)
-
-      const closing_lines = await prisma.line_item.findMany({
-        where: { accounting_head_id: head.id, transaction: { user_id: uid } },
-        select: { quantity: true, txn_value: true, datetime: true, transaction: { select: { datetime: true } } },
-      })
-      const closing_balance =
-        Math.round(
-          closing_lines
-            .filter(li => (li.datetime ?? li.transaction.datetime) < toDate)
-            .reduce((s, li) => s + (li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0), 0) * 100,
-        ) / 100
+      const {
+        from: fromDate,
+        to_exclusive: toDate,
+        ledger,
+        result,
+        closing_balance,
+      } = await reconcile_ledger_core(uid, head.id, rows, { from: args.from ? parse_day(args.from) : undefined, to_exclusive })
 
       const ledger_by_id = new Map(ledger.map(e => [e.id, e]))
       const echo_row = (i: number) => ({

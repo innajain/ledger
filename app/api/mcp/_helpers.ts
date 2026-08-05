@@ -191,44 +191,9 @@ export async function resolve_counterparty(me: string, ref: string): Promise<{ i
   throw new Error(`No user matching "${ref}" — pass their exact username`)
 }
 
-// Near-duplicate guard for creates: an existing transaction within ±36h that
-// touches one of the same account heads with the same net account flow.
-export async function find_possible_duplicate(
-  uid: string,
-  datetime: Date,
-  line_items: CreateLineItemInput[],
-): Promise<{ id: string; datetime: Date; description: string | null; amount: number } | null> {
-  const heads = await prisma.accounting_head.findMany({
-    where: { id: { in: [...new Set(line_items.map(li => li.accounting_head_id))] }, user_id: uid },
-    select: { id: true, type: true },
-  })
-  const account_ids = heads.filter(h => h.type === 'account').map(h => h.id)
-  if (account_ids.length === 0) return null
-  const account_id_set = new Set(account_ids)
-  const flow =
-    Math.round(
-      line_items.filter(li => account_id_set.has(li.accounting_head_id)).reduce((s, li) => s + (li.txn_value ?? li.quantity ?? 0), 0) * 100,
-    ) / 100
-  if (flow === 0) return null
-
-  const window_ms = 36 * 60 * 60 * 1000
-  const candidates = await prisma.transaction.findMany({
-    where: {
-      user_id: uid,
-      datetime: { gte: new Date(datetime.getTime() - window_ms), lte: new Date(datetime.getTime() + window_ms) },
-      line_items: { some: { accounting_head_id: { in: account_ids } } },
-    },
-    include: { line_items: { select: { quantity: true, txn_value: true, accounting_head: { select: { type: true } } } } },
-    orderBy: { datetime: 'desc' },
-    take: 50,
-  })
-  for (const t of candidates) {
-    if (Math.abs(net_account_flow(t.line_items) - flow) <= 0.01) {
-      return { id: t.id, datetime: t.datetime, description: t.description, amount: flow }
-    }
-  }
-  return null
-}
+// The near-duplicate guard lives in transactions_core (shared with the web
+// create form); re-exported here for the tool files.
+export { find_possible_duplicate } from '@/app/_core/transactions_core'
 
 // Post-write state: current balances of the given heads (account type only),
 // so a mutating tool can echo the resulting balances in its response.

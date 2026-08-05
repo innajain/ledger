@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { asset_type } from '@/generated/prisma/enums'
-import { delete_transaction } from '@/app/_actions/transactions'
+import { delete_transaction_with_snapshot } from '@/app/_actions/transactions'
 import { cancel_request } from '@/app/_actions/approvals'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { TransactionStatus } from '@/app/_utils/links'
@@ -41,6 +41,7 @@ export default function ClientPage({
     id: string
     date: string
     description: string | null
+    external_ref: string | null
     total: number
     attachments: Attachment[]
     line_items: {
@@ -64,12 +65,16 @@ export default function ClientPage({
   const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
-    if (!confirm('Delete this transaction? This action cannot be undone.')) return
+    if (!confirm('Delete this transaction?')) return
     setIsDeleting(true)
     setError(null)
     try {
-      const result = await delete_transaction(transaction.id)
+      const result = await delete_transaction_with_snapshot(transaction.id)
       if (!result.success) throw new Error(result.message)
+      // Stash the snapshot so the transactions list can offer an Undo toast
+      try {
+        sessionStorage.setItem('ledger_undo_delete', JSON.stringify(result.data!.snapshot))
+      } catch {}
       router.push('/transactions')
     } catch (err: unknown) {
       setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
@@ -201,6 +206,14 @@ export default function ClientPage({
               </div>
             </div>
             {transaction.description && <p className="text-slate-700 dark:text-slate-300 mt-2">{transaction.description}</p>}
+            {transaction.external_ref && (
+              <p className="mt-2">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-xs font-mono text-slate-600 dark:text-slate-300">
+                  <span className="text-slate-400 dark:text-slate-500 font-sans">Ref</span>
+                  {transaction.external_ref}
+                </span>
+              </p>
+            )}
           </div>
         </div>
 

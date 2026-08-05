@@ -11,7 +11,10 @@ import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 import { UpiPayButton } from '@/app/_components/UpiPayButton'
 import { LinkedUserNotify } from '@/app/_components/LinkedUserNotify'
+import { AsOfBalance } from '@/app/_components/AsOfBalance'
 import { create_upi_payment } from '@/app/_actions/transactions'
+import type { ActionResult } from '@/app/_actions/_result'
+import type { ClosingBalance } from '@/app/heads/[type]/[id]/closing_balance'
 
 export type LineItem = {
   id: string
@@ -65,11 +68,15 @@ type HeadDetailConfig = {
 type HeadDetailPageProps = {
   head: HeadData
   config: HeadDetailConfig
+  closingBalanceAction?: (head_id: string, date: string) => Promise<ActionResult<ClosingBalance>>
 }
 
-export function HeadDetailPage({ head, config }: HeadDetailPageProps) {
+const LINE_ITEMS_PAGE = 100
+
+export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetailPageProps) {
   const router = useRouter()
   const [pay_status, set_pay_status] = useState<{ kind: 'ok'; txn_id: string } | { kind: 'err'; message: string } | null>(null)
+  const [visibleLineItems, setVisibleLineItems] = useState(LINE_ITEMS_PAGE)
 
   const holdingsItems: HoldingItem[] = head.breakdown.map(b => ({
     id: b.asset_id,
@@ -228,6 +235,8 @@ export function HeadDetailPage({ head, config }: HeadDetailPageProps) {
 
       {head.linked_user && <LinkedUserNotify targetUserId={head.linked_user.id} username={head.linked_user.username} owedAmount={head.total} />}
 
+      {closingBalanceAction && <AsOfBalance headId={head.id} getClosingBalance={closingBalanceAction} />}
+
       {head.children && head.children.length > 0 && (
         <Card>
           <div className="p-6 border-b border-slate-200 dark:border-slate-700">
@@ -274,7 +283,7 @@ export function HeadDetailPage({ head, config }: HeadDetailPageProps) {
           <EmptyState />
         ) : (
           <div className="max-h-96 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-700">
-            {head.line_items.map(li => (
+            {head.line_items.slice(0, visibleLineItems).map(li => (
               <LineItemRow
                 key={li.id}
                 assetName={li.asset_name}
@@ -289,6 +298,18 @@ export function HeadDetailPage({ head, config }: HeadDetailPageProps) {
                 remainingQuantity={li.remaining_quantity}
               />
             ))}
+            {head.line_items.length > visibleLineItems && (
+              <div className="p-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => setVisibleLineItems(v => v + LINE_ITEMS_PAGE)}
+                  className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                >
+                  Show {Math.min(LINE_ITEMS_PAGE, head.line_items.length - visibleLineItems)} more ({head.line_items.length - visibleLineItems}{' '}
+                  remaining)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </Card>

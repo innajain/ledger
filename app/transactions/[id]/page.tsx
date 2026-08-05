@@ -26,6 +26,7 @@ async function Page({ params }: Props) {
     id: tx.id,
     date: tx.datetime.toISOString(),
     description: tx.description,
+    external_ref: tx.external_ref,
     total: tx.line_items
       .filter(li => li.accounting_head.type === 'account')
       .reduce((sum, li) => sum.add(li.txn_value), new Prisma.Decimal(0))

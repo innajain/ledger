@@ -7,6 +7,8 @@ import { asset_type } from '@/generated/prisma/enums'
 import { create_transaction } from '@/app/_actions/transactions'
 import { save_attachments, type AttachmentInput } from '@/app/_actions/attachments'
 import { create_transaction_template, update_transaction_template } from '@/app/_actions/templates'
+import { check_possible_duplicate } from './check_duplicate'
+import type { CreateLineItemInput, PossibleDuplicate } from '@/app/_core/transactions_core'
 import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
 import { AttachmentUpload } from '@/app/_components/AttachmentUpload'
 import { ErrorAlert } from '@/app/_components/FormComponents'
@@ -70,9 +72,11 @@ export default function ClientPage({
       datetime: '',
     },
   ])
+  const [externalRef, setExternalRef] = useState('')
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentInput[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dupWarning, setDupWarning] = useState<PossibleDuplicate | null>(null)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateError, setTemplateError] = useState<string | null>(null)
   const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null)
@@ -202,31 +206,61 @@ export default function ClientPage({
     }
   }
 
+  function buildLineItems(): CreateLineItemInput[] {
+    return items.map(it => ({
+      accounting_head_id: it.accounting_head_id,
+      asset_id: it.asset_id,
+      quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
+      txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),
+      description: it.description === '' ? null : it.description,
+      datetime: it.datetime === '' ? null : new Date(it.datetime),
+    }))
+  }
+
+  async function doCreate(line_items: CreateLineItemInput[]) {
+    const result = await create_transaction(new Date(date), line_items, description || null, {
+      external_ref: externalRef.trim() === '' ? null : externalRef.trim(),
+    })
+    if (result.success) {
+      if (pendingAttachments.length > 0) {
+        await save_attachments(result.data!.id, pendingAttachments)
+      }
+      router.push(`/transactions/${result.data!.id}`)
+    } else {
+      setError(result.message)
+      setBusy(false)
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setDupWarning(null)
     setBusy(true)
     try {
-      const line_items = items.map(it => ({
-        accounting_head_id: it.accounting_head_id,
-        asset_id: it.asset_id,
-        quantity: it.quantity === null || it.quantity === '' ? undefined : Number(it.quantity),
-        txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),
-        description: it.description === '' ? null : it.description,
-        datetime: it.datetime === '' ? null : new Date(it.datetime),
-      }))
-      const result = await create_transaction(new Date(date), line_items, description || null)
-      if (result.success) {
-        if (pendingAttachments.length > 0) {
-          await save_attachments(result.data!.id, pendingAttachments)
-        }
-        router.push(`/transactions/${result.data!.id}`)
-      } else {
-        setError(result.message)
+      const line_items = buildLineItems()
+      // Best-effort near-duplicate check; a failed check never blocks creating
+      const chk = await check_possible_duplicate(new Date(date), line_items).catch(() => null)
+      if (chk?.success && chk.data!.duplicate) {
+        setDupWarning(chk.data!.duplicate)
+        setBusy(false)
+        return
       }
+      await doCreate(line_items)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
-    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onCreateAnyway() {
+    setError(null)
+    setDupWarning(null)
+    setBusy(true)
+    try {
+      await doCreate(buildLineItems())
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
       setBusy(false)
     }
   }
@@ -280,6 +314,20 @@ export default function ClientPage({
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Reference <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={externalRef}
+                onChange={e => setExternalRef(e.target.value)}
+                placeholder="Bank / UPI reference, e.g. UPI-621663575718"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent font-mono text-sm"
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Used to match this entry against bank statements when reconciling</p>
+            </div>
+
             {attachmentsEnabled && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Attachments</label>
@@ -300,6 +348,48 @@ export default function ClientPage({
         />
 
         {}
+        {dupWarning && (
+          <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg space-y-3">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+              <div className="flex-1 text-sm text-amber-800 dark:text-amber-200">
+                <p className="font-semibold">This looks like a duplicate</p>
+                <p className="mt-1">
+                  An existing transaction{dupWarning.description ? ` (“${dupWarning.description}”)` : ''} already moves{' '}
+                  <span className="font-semibold">{dupWarning.amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span> on the
+                  same account within a day of this one.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 pl-8">
+              <Link
+                href={`/transactions/${dupWarning.id}`}
+                target="_blank"
+                className="text-sm font-medium text-amber-800 dark:text-amber-200 underline hover:no-underline"
+              >
+                View the existing transaction
+              </Link>
+              <button
+                type="button"
+                onClick={onCreateAnyway}
+                disabled={busy}
+                className="px-4 py-1.5 text-sm font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+              >
+                {busy ? 'Creating…' : 'Create anyway'}
+              </button>
+              <button type="button" onClick={() => setDupWarning(null)} className="text-sm text-amber-700 dark:text-amber-300 hover:underline">
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
         {templateError && <ErrorAlert message={templateError} onDismiss={() => setTemplateError(null)} />}
 

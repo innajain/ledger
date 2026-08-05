@@ -6,6 +6,7 @@ import type { AccountOpt, AssetOpt, InactiveAccount, InactiveAsset } from './typ
 import { AccountSection } from './AccountSection'
 import { PreferencesSection } from './PreferencesSection'
 import { DataSection } from './DataSection'
+import { ValidationSection } from './ValidationSection'
 import { AdminSection } from './AdminSection'
 import { SessionSection } from './SessionSection'
 
@@ -25,6 +26,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
     { id: 'account', label: 'Account' },
     { id: 'preferences', label: 'Preferences' },
     { id: 'data', label: 'Data' },
+    { id: 'validation', label: 'Validation' },
     ...(isAdmin ? [{ id: 'admin', label: 'Admin' }] : []),
     { id: 'session', label: 'Session' },
   ]
@@ -113,6 +115,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
           {activeSection === 'account' && <AccountSection username={user.username} upiId={upiId} />}
           {activeSection === 'preferences' && <PreferencesSection accounts={accounts} assets={assets} defaults={defaults} />}
           {activeSection === 'data' && <DataSection inactiveAccounts={inactiveAccounts} inactiveAssets={inactiveAssets} />}
+          {activeSection === 'validation' && <ValidationSection />}
           {isAdmin && activeSection === 'admin' && <AdminSection />}
           {activeSection === 'session' && <SessionSection />}
         </div>

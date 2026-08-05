@@ -10,11 +10,13 @@ import { EmptyState } from '../_components/EmptyState'
 import { TransactionEmptyIcon } from '../_components/EmptyStateIcons'
 import { LocalDateTime } from '../_components/LocalDateTime'
 import { delete_transaction_template } from '../_actions/templates'
+import { create_transaction, type DeletedTransactionSnapshot } from '../_actions/transactions'
 
 type Transaction = {
   id: string
   date: Date
   description: string | null
+  external_ref: string | null
   total_book: number
   link_severity: 'error' | 'warning' | 'info' | null
 }
@@ -59,6 +61,7 @@ export default function ClientPage({
   const params = useSearchParams()
   const [showFilters, setShowFilters] = useState(false)
   const [searchInput, setSearchInput] = useState(searchParams.search || '')
+  const [refInput, setRefInput] = useState(searchParams.ref || '')
   const [dateFrom, setDateFrom] = useState(searchParams.dateFrom || '')
   const [dateTo, setDateTo] = useState(searchParams.dateTo || '')
   const [minAmount, setMinAmount] = useState(searchParams.minAmount || '')
@@ -67,10 +70,14 @@ export default function ClientPage({
   const [assetId, setAssetId] = useState(searchParams.assetId || '')
   const [selectedPageSize] = useState(pageSize)
   const [deletingTemplate, setDeletingTemplate] = useState<{ id: string; x: number; y: number } | null>(null)
+  const [undoSnapshot, setUndoSnapshot] = useState<DeletedTransactionSnapshot | null>(null)
+  const [undoBusy, setUndoBusy] = useState(false)
+  const [undoDone, setUndoDone] = useState<string | null>(null)
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setSearchInput(searchParams.search || '')
+    setRefInput(searchParams.ref || '')
     setDateFrom(searchParams.dateFrom || '')
     setDateTo(searchParams.dateTo || '')
     setMinAmount(searchParams.minAmount || '')
@@ -79,6 +86,7 @@ export default function ClientPage({
     setAssetId(searchParams.assetId || '')
   }, [
     searchParams.search,
+    searchParams.ref,
     searchParams.dateFrom,
     searchParams.dateTo,
     searchParams.minAmount,
@@ -86,6 +94,37 @@ export default function ClientPage({
     searchParams.accountId,
     searchParams.assetId,
   ])
+
+  // A just-deleted transaction stashes a snapshot for one-click undo
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('ledger_undo_delete')
+      if (!raw) return
+      sessionStorage.removeItem('ledger_undo_delete')
+      setUndoSnapshot(JSON.parse(raw) as DeletedTransactionSnapshot)
+    } catch {}
+  }, [])
+
+  async function handleUndoDelete() {
+    if (!undoSnapshot || undoBusy) return
+    setUndoBusy(true)
+    try {
+      const result = await create_transaction(
+        new Date(undoSnapshot.datetime),
+        undoSnapshot.line_items.map(li => ({ ...li, datetime: li.datetime ? new Date(li.datetime) : null })),
+        undoSnapshot.description,
+        { external_ref: undoSnapshot.external_ref },
+      )
+      if (!result.success) throw new Error(result.message)
+      setUndoSnapshot(null)
+      setUndoDone(result.data!.id)
+      router.refresh()
+    } catch (e) {
+      alert('Could not restore the transaction: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setUndoBusy(false)
+    }
+  }
 
   useEffect(() => {
     const handleGlobalClick = () => setDeletingTemplate(null)
@@ -127,6 +166,7 @@ export default function ClientPage({
   const applyFilters = () => {
     const query = new URLSearchParams()
     if (searchInput) query.set('search', searchInput)
+    if (refInput) query.set('ref', refInput)
     if (dateFrom) query.set('dateFrom', dateFrom)
     if (dateTo) query.set('dateTo', dateTo)
     if (minAmount) query.set('minAmount', minAmount)
@@ -139,6 +179,7 @@ export default function ClientPage({
 
   const clearFilters = () => {
     setSearchInput('')
+    setRefInput('')
     setDateFrom('')
     setDateTo('')
     setMinAmount('')
@@ -164,6 +205,7 @@ export default function ClientPage({
 
   const hasFilters = !!(
     searchParams.search ||
+    searchParams.ref ||
     searchParams.dateFrom ||
     searchParams.dateTo ||
     searchParams.minAmount ||
@@ -181,6 +223,7 @@ export default function ClientPage({
 
   const activeChips: { key: string; label: string }[] = []
   if (searchParams.search) activeChips.push({ key: 'search', label: `Search: "${searchParams.search}"` })
+  if (searchParams.ref) activeChips.push({ key: 'ref', label: `Ref: ${searchParams.ref}` })
   if (searchParams.dateFrom) activeChips.push({ key: 'dateFrom', label: `From: ${formatChipDate(searchParams.dateFrom)}` })
   if (searchParams.dateTo) activeChips.push({ key: 'dateTo', label: `To: ${formatChipDate(searchParams.dateTo)}` })
   if (searchParams.minAmount) activeChips.push({ key: 'minAmount', label: `Min: ${currency_fmt.format(parseFloat(searchParams.minAmount))}` })
@@ -380,6 +423,17 @@ export default function ClientPage({
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Reference</label>
+              <input
+                type="text"
+                value={refInput}
+                onChange={e => setRefInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && applyFilters()}
+                placeholder="Bank / UPI ref"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-mono text-sm"
+              />
+            </div>
             <div className="md:col-span-2 flex gap-2 justify-end">
               <button
                 onClick={clearFilters}
@@ -482,8 +536,13 @@ export default function ClientPage({
                               <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                 {tx.description || 'No description'}
                               </p>
-                              <p className="text-sm text-slate-500 dark:text-slate-400">
+                              <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 min-w-0">
                                 <LocalDateTime value={tx.date} />
+                                {tx.external_ref && (
+                                  <span className="hidden sm:inline text-xs font-mono text-slate-400 dark:text-slate-500 truncate">
+                                    {tx.external_ref}
+                                  </span>
+                                )}
                               </p>
                             </div>
                           </div>
@@ -564,6 +623,45 @@ export default function ClientPage({
           actionUrl="/transactions/create"
           actionLabel="Create Transaction"
         />
+      )}
+
+      {undoSnapshot && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-xl bg-slate-900 dark:bg-slate-700 text-white shadow-xl animate-slide-in-up max-w-[calc(100vw-2rem)]">
+          <div className="text-sm min-w-0">
+            <p className="font-medium truncate">Transaction deleted{undoSnapshot.description ? ` — “${undoSnapshot.description}”` : ''}</p>
+            {undoSnapshot.had_attachments && <p className="text-xs text-slate-300 dark:text-slate-400">Attachments can’t be restored</p>}
+          </div>
+          <button
+            type="button"
+            onClick={handleUndoDelete}
+            disabled={undoBusy}
+            className="shrink-0 px-3 py-1.5 text-sm font-semibold rounded-lg bg-white/15 hover:bg-white/25 disabled:opacity-50 transition-colors"
+          >
+            {undoBusy ? 'Restoring…' : 'Undo'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setUndoSnapshot(null)}
+            className="shrink-0 text-slate-300 hover:text-white transition-colors"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {undoDone && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-xl bg-green-700 text-white shadow-xl animate-slide-in-up">
+          <p className="text-sm font-medium">
+            Transaction restored.{' '}
+            <Link href={`/transactions/${undoDone}`} className="underline hover:no-underline">
+              View it
+            </Link>
+          </p>
+          <button type="button" onClick={() => setUndoDone(null)} className="shrink-0 text-green-200 hover:text-white" aria-label="Dismiss">
+            ✕
+          </button>
+        </div>
       )}
     </div>
   )

@@ -11,6 +11,7 @@ import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
 import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_value'
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
+import { get_closing_balance } from './closing_balance'
 import { profile } from '@/lib/metrics/profile'
 
 type Props = { params: Promise<{ type: string; id: string }> }
@@ -168,6 +169,7 @@ async function Page({ params }: Props) {
         value_timeseries,
       }}
       config={{ backLink: headBasePath(type), backText: cfg.backText, entityName: cfg.entityName }}
+      closingBalanceAction={type === 'income_expense' ? undefined : get_closing_balance}
     />
   )
 }
