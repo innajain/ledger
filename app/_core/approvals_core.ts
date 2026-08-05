@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { build_actor_copy, other_user, my_txn_id, their_txn_id } from '@/app/_utils/links'
+import { assert_no_locked_lines } from '@/app/_utils/lock_date'
 import { notify_request_rejected } from '@/app/_utils/notify_events'
 import { invalidate_balances } from '@/app/_core/balances_core'
 import { logger } from '@/lib/logger'
@@ -22,7 +23,14 @@ export async function approve_request_core(
       const other_id = other_user(link, me)
       if (link.pending_kind === 'deletion') {
         const mine = my_txn_id(link, me)
-        if (mine) await tx.transaction.delete({ where: { id: mine } })
+        if (mine) {
+          const doomed = await tx.transaction.findUnique({
+            where: { id: mine },
+            select: { datetime: true, line_items: { select: { datetime: true, accounting_head: { select: { name: true, lock_date: true } } } } },
+          })
+          if (doomed) assert_no_locked_lines('approve the deletion of', doomed.datetime, doomed.line_items)
+          await tx.transaction.delete({ where: { id: mine } })
+        }
         await tx.transaction_link.delete({ where: { id: link.id } })
       } else {
         await build_actor_copy(tx, link, me, balancing_lines, auto_balance_account_id)

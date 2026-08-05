@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
-import { get_date_obj_from_indian_date } from '@/app/_utils/date'
+import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/app/_utils/date'
 import { validate_line_items } from '@/app/_utils/validate_line_items'
+import { find_locked_line } from '@/app/_utils/lock_date'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
 import { toDecimal } from '@/app/_utils/decimal'
 import { find_user_by_username_core } from '@/app/_core/resources_core'
@@ -38,7 +39,7 @@ export const load_heads = (uid: string) =>
   prisma.accounting_head.findMany({
     where: { user_id: uid },
     orderBy: [{ type: 'asc' }, { order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-    select: { id: true, name: true, type: true, is_active: true, linked_user_id: true, parent_id: true },
+    select: { id: true, name: true, type: true, is_active: true, linked_user_id: true, parent_id: true, lock_date: true },
   })
 
 export const load_assets = () =>
@@ -232,8 +233,16 @@ export async function account_balances_for(
 
 // Validate + normalize a proposed transaction without writing anything, echoing
 // the server-derived remainder lines so the caller can confirm before creating.
-export async function dry_run_check(uid: string, datetime: Date, line_items: CreateLineItemInput[], description?: string | null): Promise<Content> {
-  const head_ids = [...new Set(line_items.map(li => li.accounting_head_id))]
+// old_state (updates only) is the transaction's current datetime + lines, so the
+// dry run also predicts the real path's you-cannot-touch-a-locked-txn rejection.
+export async function dry_run_check(
+  uid: string,
+  datetime: Date,
+  line_items: CreateLineItemInput[],
+  description?: string | null,
+  old_state?: { datetime: Date; line_items: { datetime: Date | null; accounting_head_id: string }[] },
+): Promise<Content> {
+  const head_ids = [...new Set([...line_items, ...(old_state?.line_items ?? [])].map(li => li.accounting_head_id))]
   const asset_ids = [...new Set(line_items.map(li => li.asset_id))]
   const [heads, assets] = await Promise.all([
     prisma.accounting_head.findMany({ where: { id: { in: head_ids }, user_id: uid } }),
@@ -241,6 +250,18 @@ export async function dry_run_check(uid: string, datetime: Date, line_items: Cre
   ])
   if (heads.length !== head_ids.length) return error_text('One or more accounts not found or do not belong to your user')
   if (assets.length !== asset_ids.length) return error_text('One or more assets not found')
+
+  const to_lock_line = (li: { datetime?: Date | null; accounting_head_id: string }) => ({
+    datetime: li.datetime,
+    accounting_head: heads.find(h => h.id === li.accounting_head_id)!,
+  })
+  const locked =
+    (old_state ? find_locked_line(old_state.datetime, old_state.line_items.map(to_lock_line)) : null) ??
+    find_locked_line(datetime, line_items.map(to_lock_line))
+  if (locked)
+    return error_text(
+      `Dry run — the real call would be rejected: account "${locked.head_name}" is reconciled and locked through ${get_indian_date_from_date_obj(locked.lock_date)}. Move the account's lock date back first if this change is intentional.`,
+    )
 
   const enriched = line_items.map(li => ({
     quantity: toDecimal(li.quantity),

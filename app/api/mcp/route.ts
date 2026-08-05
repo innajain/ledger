@@ -496,6 +496,7 @@ function register_tools(server: McpServer) {
         children,
         parent: head.parent ? head.parent.name : null,
         linked_user: linked_user ? { username: linked_user.username, upi_id: linked_user.upi_id } : null,
+        lock_date: head.lock_date ? get_indian_date_from_date_obj(head.lock_date) : null,
         xirr,
         by_asset,
       }
@@ -785,8 +786,14 @@ function register_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
+      // lock_date is a day-precision IST field — serialize as dd-MM-yyyy (raw
+      // Date would JSON-ify to a UTC instant reading one day early)
+      const as_ist_day = <T extends { lock_date: Date | null }>(h: T) => ({
+        ...h,
+        lock_date: h.lock_date ? get_indian_date_from_date_obj(h.lock_date) : null,
+      })
       const heads = (await load_heads(uid)).filter(h => !args.type || h.type === args.type)
-      if (!args.include_values) return text(heads.filter(h => args.include_inactive || h.is_active))
+      if (!args.include_values) return text(heads.filter(h => args.include_inactive || h.is_active).map(as_ist_day))
 
       const [{ accountsToAssets }, assets] = await Promise.all([compute_balances_core(uid), load_assets()])
       const priceByAsset = await get_prices_for_assets(assets)
@@ -797,7 +804,7 @@ function register_tools(server: McpServer) {
           return { head: h, value: compute_head_value(assetMap, priceByAsset).toNumber(), nonzero }
         })
         .filter(r => args.include_inactive || r.head.is_active || r.nonzero)
-        .map(r => ({ ...r.head, value: r.value }))
+        .map(r => ({ ...as_ist_day(r.head), value: r.value }))
       return text(rows)
     },
   )
@@ -1015,7 +1022,11 @@ function register_tools(server: McpServer) {
       const line_items: CreateLineItemInput[] = args.line_items
         ? await build_line_items(uid, args.line_items)
         : stored_lines_to_input(existing.line_items)
-      if (args.dry_run) return dry_run_check(uid, args.datetime ? parse_date(args.datetime) : existing.datetime, line_items, args.description)
+      if (args.dry_run)
+        return dry_run_check(uid, args.datetime ? parse_date(args.datetime) : existing.datetime, line_items, args.description, {
+          datetime: existing.datetime,
+          line_items: existing.line_items.map(li => ({ datetime: li.datetime, accounting_head_id: li.accounting_head_id })),
+        })
       const res = await update_transaction_core(
         uid,
         args.id,

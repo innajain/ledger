@@ -41,10 +41,11 @@ export async function update_account(
   is_active?: boolean | undefined,
   is_placeholder?: boolean | undefined,
   linked_user_id?: string | null | undefined,
+  lock_date?: Date | null | undefined,
 ): Promise<ActionResult> {
   const user_id = await get_current_user_id()
   if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
-  return update_account_core(user_id, id, name, type, parent_id, is_active, is_placeholder, linked_user_id)
+  return update_account_core(user_id, id, name, type, parent_id, is_active, is_placeholder, linked_user_id, lock_date)
 }
 
 export async function delete_account(id: string): Promise<ActionResult> {

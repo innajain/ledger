@@ -161,7 +161,7 @@ export function register_extra_tools(server: McpServer) {
     'update_head',
     {
       description:
-        'Update an accounting head: rename, move under a new parent (or clear_parent for top level), enable/disable via is_active (false archives it — hidden from pickers, history kept; this is the right way to retire a head), mark as placeholder (grouping-only), or link/unlink another user (accounts only; unlinking is blocked while shared transactions exist).',
+        'Update an accounting head: rename, move under a new parent (or clear_parent for top level), enable/disable via is_active (false archives it — hidden from pickers, history kept; this is the right way to retire a head), mark as placeholder (grouping-only), link/unlink another user (accounts only; unlinking is blocked while shared transactions exist), or set/clear a reconciliation lock_date (accounts only: line items dated on/before that IST day are verified against the real account and every write touching them is rejected until the lock is moved back).',
       inputSchema: {
         head: z.string().describe('Head id or name'),
         name: z.string().optional(),
@@ -171,6 +171,11 @@ export function register_extra_tools(server: McpServer) {
         is_placeholder: z.boolean().optional().describe('Placeholder heads only group children'),
         linked_username: z.string().optional().describe('Link this account head to a user by username'),
         clear_linked_user: z.boolean().optional().describe('Remove the cross-user link'),
+        lock_date: z
+          .string()
+          .optional()
+          .describe('account only: reconciliation lock (dd-MM-yyyy or yyyy-MM-dd) — writes touching line items on/before this day are rejected'),
+        clear_lock_date: z.boolean().optional().describe('Remove the reconciliation lock'),
       },
     },
     async (args, extra) => {
@@ -179,6 +184,8 @@ export function register_extra_tools(server: McpServer) {
       const target = resolve_ref(args.head, heads, 'accounting head')
       if (args.parent && args.clear_parent) return error_text('Give either parent or clear_parent, not both')
       if (args.linked_username && args.clear_linked_user) return error_text('Give either linked_username or clear_linked_user, not both')
+      if (args.lock_date && args.clear_lock_date) return error_text('Give either lock_date or clear_lock_date, not both')
+      const lock_date = args.clear_lock_date ? null : args.lock_date ? parse_day(args.lock_date) : undefined
       const parent_id = args.clear_parent
         ? null
         : args.parent
@@ -195,7 +202,7 @@ export function register_extra_tools(server: McpServer) {
         linked_user_id = found.data!.id
       }
       return action_result(
-        await update_account_core(uid, target.id, args.name, undefined, parent_id, args.is_active, args.is_placeholder, linked_user_id),
+        await update_account_core(uid, target.id, args.name, undefined, parent_id, args.is_active, args.is_placeholder, linked_user_id, lock_date),
       )
     },
   )

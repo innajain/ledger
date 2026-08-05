@@ -70,6 +70,10 @@ model accounting_head {
   is_placeholder Boolean              @default(false)
   order_index    Int?
 
+  // Reconciliation lock (account type only): line items dated on/before this
+  // IST day are verified against the real account and cannot be touched.
+  lock_date DateTime?
+
   // --- Hierarchy Implementation ---
   parent_id String?
   parent    accounting_head?  @relation("AccountingHeadHierarchy", fields: [parent_id], references: [id])

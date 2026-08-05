@@ -3,6 +3,7 @@ import { Prisma } from '@/generated/prisma/client'
 import type { transaction_link } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validate_line_items } from './validate_line_items'
+import { assert_no_locked_lines } from './lock_date'
 import { toDecimal } from './decimal'
 import { ActionError } from '@/app/_actions/_result'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
@@ -145,6 +146,21 @@ export async function build_actor_copy(
     })),
   )
   if (!is_valid) throw new ActionError('VALIDATION', message)
+
+  // the actor's reconciliation lock also gates approval-driven rewrites — both
+  // the rebuilt copy and whatever it replaces must be outside every lock
+  assert_no_locked_lines(
+    'apply this request to',
+    source.datetime,
+    all_lines.map(li => ({ datetime: li.datetime, accounting_head: heads.find(h => h.id === li.accounting_head_id)! })),
+  )
+  if (my_txn) {
+    const current = await tx.transaction.findUnique({
+      where: { id: my_txn },
+      select: { datetime: true, line_items: { select: { datetime: true, accounting_head: { select: { name: true, lock_date: true } } } } },
+    })
+    if (current) assert_no_locked_lines('apply this request to', current.datetime, current.line_items)
+  }
 
   const data_lines = all_lines.map(li => ({
     quantity: toDecimal(li.quantity),

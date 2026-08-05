@@ -88,6 +88,7 @@ export async function update_account_core(
   is_active?: boolean | undefined,
   is_placeholder?: boolean | undefined,
   linked_user_id?: string | null | undefined,
+  lock_date?: Date | null | undefined,
 ): Promise<ActionResult> {
   try {
     const parsed = updateAccountSchema.safeParse({ id, name })
@@ -97,6 +98,12 @@ export async function update_account_core(
 
     const existing = await prisma.accounting_head.findUnique({ where: { id, user_id } })
     if (!existing) throw new ActionError('NOT_FOUND', 'account not found')
+
+    // guard the post-update state, not just the argument — a type change away
+    // from 'account' must not strand a live lock on a non-account head
+    const effective_lock = lock_date === undefined ? existing.lock_date : lock_date
+    if (effective_lock != null && (type ?? existing.type) !== 'account')
+      throw new ActionError('VALIDATION', 'lock date applies to account heads only — clear it before changing the type')
 
     if (parent_id) {
       if (parent_id === id) throw new ActionError('VALIDATION', 'parent cannot be the account itself')
@@ -146,6 +153,7 @@ export async function update_account_core(
             ...(is_active !== undefined ? { is_active } : {}),
             ...(is_placeholder !== undefined ? { is_placeholder } : {}),
             ...(linked_update !== undefined ? { linked_user_id: linked_update } : {}),
+            ...(lock_date !== undefined ? { lock_date } : {}),
           },
         })
         return newly_linked ? await backfill_links_for_account(tx, user_id, id, linked_update!) : 0

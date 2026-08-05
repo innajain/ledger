@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { asset_type } from '@/generated/prisma/enums'
 import { validate_line_items } from '@/app/_utils/validate_line_items'
+import { assert_no_locked_lines } from '@/app/_utils/lock_date'
 import { toDecimal } from '@/app/_utils/decimal'
 import { invalidate_balances } from '@/app/_core/balances_core'
 import { create_links_for_transaction, sync_links_after_update, prepare_links_for_delete } from '@/app/_utils/links'
@@ -122,6 +123,12 @@ async function create_transaction_in_tx(
     where: { id: { in: asset_ids } },
   })
   if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets not found')
+
+  assert_no_locked_lines(
+    'create',
+    datetime,
+    line_items.map(li => ({ datetime: li.datetime, accounting_head: accounts.find(a => a.id === li.accounting_head_id)! })),
+  )
 
   const { is_valid, message } = validate_line_items(
     line_items.map(li => ({
@@ -305,8 +312,13 @@ export async function update_transaction_core(
     await prisma.$transaction(async prisma => {
       const existing = await prisma.transaction.findUnique({
         where: { id, user_id },
+        include: { line_items: { select: { datetime: true, accounting_head: { select: { name: true, lock_date: true } } } } },
       })
       if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found or does not belong to your user')
+
+      // both the transaction's current lines and its would-be lines must be
+      // outside every lock — moving a txn out of a locked period is also a change
+      assert_no_locked_lines('update', existing.datetime, existing.line_items)
 
       const accounting_head_ids = Array.from(new Set(line_items.map(li => li.accounting_head_id)))
       const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
@@ -321,6 +333,12 @@ export async function update_transaction_core(
         where: { id: { in: asset_ids } },
       })
       if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets not found')
+
+      assert_no_locked_lines(
+        'update',
+        datetime ?? existing.datetime,
+        line_items.map(li => ({ datetime: li.datetime, accounting_head: accounts.find(a => a.id === li.accounting_head_id)! })),
+      )
 
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
@@ -392,6 +410,13 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
     id = parsed.data.id
 
     await prisma.$transaction(async tx => {
+      const existing = await tx.transaction.findUnique({
+        where: { id, user_id },
+        select: { datetime: true, line_items: { select: { datetime: true, accounting_head: { select: { name: true, lock_date: true } } } } },
+      })
+      if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found or does not belong to your user')
+      assert_no_locked_lines('delete', existing.datetime, existing.line_items)
+
       await prepare_links_for_delete(tx, user_id, id)
       await tx.transaction.delete({ where: { id, user_id } })
     })
@@ -475,6 +500,12 @@ export async function create_upi_payment_core(
         })),
       )
       if (!is_valid) throw new ActionError('VALIDATION', message)
+
+      assert_no_locked_lines(
+        'create',
+        datetime,
+        line_items.map(li => ({ datetime: li.datetime, accounting_head: accounts.find(a => a.id === li.accounting_head_id)! })),
+      )
 
       const created = await prisma.transaction.create({ data: { datetime, description, user_id, line_items: { create: line_items } } })
       const counterparties = await create_links_for_transaction(prisma, user_id, created.id)

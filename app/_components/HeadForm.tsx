@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatInTimeZone } from 'date-fns-tz'
+import { USER_TIMEZONE } from '@/lib/config'
+import { get_date_obj_from_indian_date } from '@/app/_utils/date'
 import { create_account, update_account, find_user_by_username } from '@/app/_actions/resources'
 import type { Prisma, accounting_head_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
@@ -214,6 +217,8 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
   const isLinkable = config.headType === 'account'
   const [linkedUserId, setLinkedUserId] = useState<string | null>(head.linked_user_id ?? null)
   const [linkedUsername, setLinkedUsername] = useState<string | null>(initialLinkedUsername ?? null)
+  const initialLockDate = head.lock_date ? formatInTimeZone(head.lock_date, USER_TIMEZONE, 'yyyy-MM-dd') : ''
+  const [lockDate, setLockDate] = useState(initialLockDate)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -222,7 +227,21 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
     setError(null)
     setBusy(true)
     try {
-      const result = await update_account(head.id, name, config.headType, parentId, isActive, isPlaceholder, isLinkable ? linkedUserId : undefined)
+      const result = await update_account(
+        head.id,
+        name,
+        config.headType,
+        parentId,
+        isActive,
+        isPlaceholder,
+        isLinkable ? linkedUserId : undefined,
+        // undefined = untouched, so a stale tab doesn't clobber a lock set elsewhere
+        !isLinkable || lockDate === initialLockDate
+          ? undefined
+          : lockDate
+            ? get_date_obj_from_indian_date(lockDate.split('-').reverse().join('-'))
+            : null,
+      )
       if (!result.success) throw new Error(result.message)
       router.push(config.basePath)
     } catch (err: unknown) {
@@ -294,6 +313,22 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
             value={isPlaceholder}
             onChange={setIsPlaceholder}
           />
+
+          {isLinkable && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Reconciliation Lock (Optional)</label>
+              <input
+                type="date"
+                value={lockDate}
+                onChange={e => setLockDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Line items on or before this day are verified against the real account — creating, editing or deleting them is blocked until the lock
+                is moved back. Clear to unlock.
+              </p>
+            </div>
+          )}
         </FormCard>
 
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
