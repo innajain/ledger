@@ -25,6 +25,7 @@ type LineItem = {
   txn_value: number | null
   description?: string | null
   datetime?: Date | null
+  external_ref?: string | null
 }
 
 type ExistingAttachment = { id: string; url: string; filename: string; content_type: string | null; size: number | null }
@@ -82,6 +83,7 @@ export default function ClientPage({
       txn_value: li.txn_value == null ? null : String(li.txn_value),
       description: li.description ?? '',
       datetime: li.datetime ? toLocalDateTimeInputValue(li.datetime) : '',
+      external_ref: li.external_ref ?? null,
     })),
   )
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentInput[]>([])
@@ -145,10 +147,18 @@ export default function ClientPage({
         txn_value: it.txn_value === null || it.txn_value === '' ? null : Number(it.txn_value),
         description: it.description === '' ? null : it.description,
         datetime: it.datetime === '' ? null : new Date(it.datetime),
+        external_ref: it.external_ref ?? null,
       }))
-      const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null, {
-        external_ref: externalRef.trim() === '' ? null : externalRef.trim(),
-      })
+      // Only touch refs when the field actually changed — carried per-line
+      // refs (incl. multi-account-line transactions) pass through untouched
+      const refChanged = externalRef.trim() !== (transaction.external_ref ?? '')
+      const result = await updateTransaction(
+        transaction.id,
+        line_items,
+        new Date(date),
+        description || null,
+        refChanged ? { external_ref: externalRef.trim() === '' ? null : externalRef.trim() } : undefined,
+      )
       if (result.success) {
         if (pendingAttachments.length > 0) {
           await save_attachments(transaction.id, pendingAttachments)

@@ -309,7 +309,6 @@ model transaction {
   user_id         String
   datetime        DateTime
   description     String?
-  external_ref    String?                  // Bank/UPI reference for statement reconciliation (indexed, not unique)
   idempotency_key String?                  // Client dedup token; unique per user — replays return the existing txn
   line_items      line_item[]
   attachments     transaction_attachment[]
@@ -327,6 +326,7 @@ model transaction_attachment {
 }
 
 model line_item {
+  external_ref        String?   // Bank/UPI ref of this money movement — line items are the actual bank rows (indexed)
   id                  String    @id @default(cuid())
   transaction_id      String
   accounting_head_id  String

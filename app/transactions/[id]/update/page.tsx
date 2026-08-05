@@ -23,7 +23,7 @@ async function Page({ params }: Props) {
     id: tx.id,
     date: tx.datetime,
     description: tx.description,
-    external_ref: tx.external_ref,
+    external_ref: tx.line_items.find(li => li.accounting_head.type === 'account' && li.external_ref)?.external_ref ?? null,
     total: tx.line_items.reduce((s, li) => s + (li.txn_value ? Number(li.txn_value.toString()) : 0), 0),
     line_items: tx.line_items.map(li => ({
       id: li.id,
@@ -36,6 +36,7 @@ async function Page({ params }: Props) {
       datetime: li.datetime,
       quantity: li.quantity === null ? null : li.quantity.toNumber(),
       txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
+      external_ref: li.external_ref,
     })),
   }
   const [accounts, assets, defaults] = await Promise.all([

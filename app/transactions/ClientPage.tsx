@@ -113,7 +113,6 @@ export default function ClientPage({
         new Date(undoSnapshot.datetime),
         undoSnapshot.line_items.map(li => ({ ...li, datetime: li.datetime ? new Date(li.datetime) : null })),
         undoSnapshot.description,
-        { external_ref: undoSnapshot.external_ref },
       )
       if (!result.success) throw new Error(result.message)
       setUndoSnapshot(null)

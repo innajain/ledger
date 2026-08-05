@@ -120,6 +120,10 @@ export const lineItemShape = z
         .string()
         .nullish()
         .describe('Optional per-line datetime override (dd-MM-yyyy or ISO) for when this leg settled on a different date (affects FIFO/XIRR)'),
+      external_ref: z
+        .string()
+        .nullish()
+        .describe('Bank/UPI ref of this specific money movement (account lines) — line items are the actual bank rows, so refs live here'),
     }),
   )
   .min(1, 'At least one line item is required')
@@ -143,6 +147,7 @@ type LineItemArg = {
   txn_value?: number | null
   description?: string | null
   datetime?: string | null
+  external_ref?: string | null
 }
 
 export async function build_line_items(uid: string, items: LineItemArg[]): Promise<CreateLineItemInput[]> {
@@ -154,6 +159,7 @@ export async function build_line_items(uid: string, items: LineItemArg[]): Promi
     txn_value: li.txn_value,
     description: li.description,
     datetime: li.datetime ? parse_date(li.datetime) : undefined,
+    external_ref: li.external_ref,
   }))
 }
 
@@ -165,6 +171,7 @@ export function stored_lines_to_input(
     txn_value: Prisma.Decimal | null
     description: string | null
     datetime: Date | null
+    external_ref: string | null
   }[],
 ): CreateLineItemInput[] {
   return lines.map(li => ({
@@ -174,6 +181,7 @@ export function stored_lines_to_input(
     txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
     description: li.description,
     datetime: li.datetime,
+    external_ref: li.external_ref,
   }))
 }
 

@@ -17,7 +17,7 @@ describe('match_bank_rows', () => {
     const rows: BankRow[] = [{ date: day('2026-07-01'), amount: -500, ref: 'UPI-111' }]
     const ledger = [entry('t1', at('2026-07-20', '10:00:00'), -500, 'UPI-111')]
     const res = match_bank_rows(rows, ledger)
-    expect(res.matched).toEqual([{ row_index: 0, transaction_id: 't1', matched_by: 'ref' }])
+    expect(res.matched).toEqual([{ row_index: 0, entry_id: 't1', matched_by: 'ref' }])
     expect(res.missing_in_ledger).toEqual([])
     expect(res.missing_in_bank).toEqual([])
   })
@@ -27,7 +27,23 @@ describe('match_bank_rows', () => {
     const ledger = [entry('t1', day('2026-07-01'), -650, 'UPI-111')]
     const res = match_bank_rows(rows, ledger)
     expect(res.matched).toEqual([])
-    expect(res.amount_mismatch).toEqual([{ row_index: 0, transaction_id: 't1', row_amount: -500, ledger_delta: -650 }])
+    expect(res.amount_mismatch).toEqual([{ row_index: 0, entry_id: 't1', row_amount: -500, ledger_delta: -650 }])
+    expect(res.missing_in_ledger).toEqual([])
+    expect(res.missing_in_bank).toEqual([])
+  })
+
+  it('resolves several entries sharing one ref (lines of one transaction) by amount', () => {
+    // e.g. two account lines in one transaction whose ref both inherit
+    const rows: BankRow[] = [
+      { date: day('2026-07-31'), amount: 9443.22, ref: 'UPI-777' },
+      { date: day('2026-07-31'), amount: -8493, ref: 'UPI-777' },
+    ]
+    const ledger = [entry('line-in', day('2026-07-31'), 9443.22, 'UPI-777'), entry('line-out', day('2026-07-31'), -8493, 'UPI-777')]
+    const res = match_bank_rows(rows, ledger)
+    expect(res.matched).toEqual([
+      { row_index: 0, entry_id: 'line-in', matched_by: 'ref' },
+      { row_index: 1, entry_id: 'line-out', matched_by: 'ref' },
+    ])
     expect(res.missing_in_ledger).toEqual([])
     expect(res.missing_in_bank).toEqual([])
   })
@@ -36,7 +52,7 @@ describe('match_bank_rows', () => {
     const rows: BankRow[] = [{ date: day('2026-07-10'), amount: -1840 }]
     const ledger = [entry('t1', at('2026-07-11', '22:15:00'), -1840)]
     const res = match_bank_rows(rows, ledger)
-    expect(res.matched).toEqual([{ row_index: 0, transaction_id: 't1', matched_by: 'amount_date' }])
+    expect(res.matched).toEqual([{ row_index: 0, entry_id: 't1', matched_by: 'amount_date' }])
   })
 
   it('does not match by amount outside the date window', () => {
@@ -56,8 +72,8 @@ describe('match_bank_rows', () => {
     const ledger = [entry('near', at('2026-07-10', '09:00:00'), -100), entry('far', at('2026-07-11', '21:00:00'), -100)]
     const res = match_bank_rows(rows, ledger)
     expect(res.matched).toEqual([
-      { row_index: 0, transaction_id: 'near', matched_by: 'amount_date' },
-      { row_index: 1, transaction_id: 'far', matched_by: 'amount_date' },
+      { row_index: 0, entry_id: 'near', matched_by: 'amount_date' },
+      { row_index: 1, entry_id: 'far', matched_by: 'amount_date' },
     ])
   })
 

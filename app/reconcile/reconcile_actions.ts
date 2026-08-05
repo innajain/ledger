@@ -20,7 +20,7 @@ export type ReconcileView = {
   account_name: string
   counts: {
     bank_rows: number
-    ledger_entries: number
+    ledger_flows: number
     matched: number
     amount_mismatch: number
     missing_in_ledger: number
@@ -29,6 +29,7 @@ export type ReconcileView = {
   matched: (StatementRow & { transaction_id: string; matched_by: 'ref' | 'amount_date' })[]
   amount_mismatch: (StatementRow & { transaction_id: string; ledger_delta: number })[]
   missing_in_ledger: StatementRow[]
+  // one entry per unmatched ledger flow (account line item), not per transaction
   missing_in_bank: { transaction_id: string; datetime: string; delta: number; external_ref: string | null; description: string | null }[]
   ledger_closing_balance: number
 }
@@ -53,30 +54,30 @@ export async function run_reconcile(account_id: string, rows: StatementRow[]): P
     if (!account) return err('NOT_FOUND', 'Account not found')
 
     const bank_rows = rows.map(r => ({ date: ist_day(r.date), amount: r.amount, ref: r.ref, desc: r.desc }))
-    const { ledger, result, closing_balance } = await reconcile_ledger_core(user_id, account.id, bank_rows)
-    const ledger_by_id = new Map(ledger.map(e => [e.id, e]))
+    const { flows, result, flow_by_id, closing_balance } = await reconcile_ledger_core(user_id, account.id, bank_rows)
+    const txn_of = (entry_id: string) => flow_by_id.get(entry_id)!.transaction_id
 
     return ok({
       account_name: account.name,
       counts: {
         bank_rows: rows.length,
-        ledger_entries: ledger.length,
+        ledger_flows: flows.length,
         matched: result.matched.length,
         amount_mismatch: result.amount_mismatch.length,
         missing_in_ledger: result.missing_in_ledger.length,
         missing_in_bank: result.missing_in_bank.length,
       },
-      matched: result.matched.map(m => ({ ...rows[m.row_index], transaction_id: m.transaction_id, matched_by: m.matched_by })),
-      amount_mismatch: result.amount_mismatch.map(m => ({ ...rows[m.row_index], transaction_id: m.transaction_id, ledger_delta: m.ledger_delta })),
+      matched: result.matched.map(m => ({ ...rows[m.row_index], transaction_id: txn_of(m.entry_id), matched_by: m.matched_by })),
+      amount_mismatch: result.amount_mismatch.map(m => ({ ...rows[m.row_index], transaction_id: txn_of(m.entry_id), ledger_delta: m.ledger_delta })),
       missing_in_ledger: result.missing_in_ledger.map(i => rows[i]),
       missing_in_bank: result.missing_in_bank.map(id => {
-        const e = ledger_by_id.get(id)!
+        const f = flow_by_id.get(id)!
         return {
-          transaction_id: id,
-          datetime: e.datetime.toISOString(),
-          delta: e.delta,
-          external_ref: e.external_ref,
-          description: e.description,
+          transaction_id: f.transaction_id,
+          datetime: f.datetime.toISOString(),
+          delta: f.amount,
+          external_ref: f.external_ref,
+          description: f.description,
         }
       }),
       ledger_closing_balance: closing_balance,
@@ -122,10 +123,9 @@ export async function create_missing_transactions(
     const items: BulkTransactionInput[] = rows.map(r => ({
       datetime: ist_day(r.date),
       description: r.desc || (r.ref ? `Statement entry ${r.ref}` : 'Statement entry'),
-      external_ref: r.ref,
       idempotency_key: r.ref ? `recon:${account.id}:${r.ref}` : `recon:${account.id}:${r.date}:${r.amount}:${r.index}`,
       line_items: [
-        { accounting_head_id: account.id, asset_id: rupee_asset_id, quantity: r.amount },
+        { accounting_head_id: account.id, asset_id: rupee_asset_id, quantity: r.amount, external_ref: r.ref },
         { accounting_head_id: alloc.id, asset_id: rupee_asset_id },
         { accounting_head_id: ie.id, asset_id: rupee_asset_id },
       ],

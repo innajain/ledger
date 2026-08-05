@@ -127,7 +127,7 @@ async function Page({
         },
       ],
     }),
-    ...(params.ref && { external_ref: { contains: params.ref, mode: 'insensitive' as Prisma.QueryMode } }),
+    ...(params.ref && { line_items: { some: { external_ref: { contains: params.ref, mode: 'insensitive' as Prisma.QueryMode } } } }),
     ...((dateFrom || dateTo) && {
       datetime: {
         ...(dateFrom && { gte: dateFrom }),
@@ -170,7 +170,7 @@ async function Page({
       id: t.id,
       date: t.datetime,
       description: t.description,
-      external_ref: t.external_ref,
+      external_ref: t.line_items.find(li => li.external_ref)?.external_ref ?? null,
       total_book: txTotal(t),
       link_severity: null as TxForClient['link_severity'],
     }))
@@ -187,7 +187,7 @@ async function Page({
       id: t.id,
       date: t.datetime,
       description: t.description,
-      external_ref: t.external_ref,
+      external_ref: t.line_items.find(li => li.external_ref)?.external_ref ?? null,
       total_book: txTotal(t),
       link_severity: null as TxForClient['link_severity'],
     }))

@@ -395,14 +395,14 @@ export function register_extra_tools(server: McpServer) {
     'create_transactions',
     {
       description:
-        'Create up to 50 transactions atomically — all commit or none do (one failure aborts the whole batch with the failing index). Same line-item rules as create_transaction. For statement imports set external_ref and idempotency_key per item: items whose key already exists are replayed (returned, not re-created), so re-running a partially failed import is safe. The near-duplicate guard runs per item without a key unless force is true. The response echoes the resulting balances of all touched accounts.',
+        'Create up to 50 transactions atomically — all commit or none do (one failure aborts the whole batch with the failing index). Same line-item rules as create_transaction. For statement imports set external_ref on each account line (or the per-item convenience field, which stamps the single account line) and idempotency_key per item: items whose key already exists are replayed (returned, not re-created), so re-running a partially failed import is safe. The near-duplicate guard runs per item without a key unless force is true. The response echoes the resulting balances of all touched accounts.',
       inputSchema: {
         transactions: z
           .array(
             z.object({
               description: z.string().nullish(),
               datetime: z.string().optional().describe('dd-MM-yyyy or ISO; default now'),
-              external_ref: z.string().nullish(),
+              external_ref: z.string().nullish().describe('Convenience: stamped onto the single account line; use per-line external_ref otherwise'),
               idempotency_key: z.string().nullish(),
               line_items: lineItemShape,
             }),
@@ -430,6 +430,7 @@ export function register_extra_tools(server: McpServer) {
                 txn_value: li.txn_value,
                 description: li.description,
                 datetime: li.datetime ? parse_date(li.datetime) : undefined,
+                external_ref: li.external_ref,
               }),
             ),
           }
@@ -461,26 +462,39 @@ export function register_extra_tools(server: McpServer) {
     'find_by_external_ref',
     {
       description:
-        'Check which external references (bank/UPI refs) already exist in the ledger. Returns matched refs with their transactions and the refs with no match — use before importing a statement to skip already-recorded rows.',
+        'Check which external references (bank/UPI refs) already exist in the ledger. Refs live on line items — the actual bank rows — so each match reports the line item and its parent transaction. Use before importing a statement to skip already-recorded rows.',
       inputSchema: { refs: z.array(z.string().min(1)).min(1).max(500) },
       annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const refs = [...new Set(args.refs)]
-      const txns = await prisma.transaction.findMany({
-        where: { user_id: uid, external_ref: { in: refs } },
-        select: { id: true, external_ref: true, datetime: true, description: true },
-        orderBy: { datetime: 'desc' },
+      const lines = await prisma.line_item.findMany({
+        where: { external_ref: { in: refs }, transaction: { user_id: uid } },
+        select: {
+          id: true,
+          external_ref: true,
+          quantity: true,
+          txn_value: true,
+          datetime: true,
+          transaction: { select: { id: true, datetime: true, description: true } },
+        },
+        orderBy: { transaction: { datetime: 'desc' } },
       })
-      const by_ref = new Map<string, { id: string; datetime: Date; description: string | null }[]>()
-      for (const t of txns) {
-        const list = by_ref.get(t.external_ref!) ?? []
-        list.push({ id: t.id, datetime: t.datetime, description: t.description })
-        by_ref.set(t.external_ref!, list)
+      const by_ref = new Map<string, { transaction_id: string; line_item_id: string; datetime: Date; amount: number; description: string | null }[]>()
+      for (const li of lines) {
+        const list = by_ref.get(li.external_ref!) ?? []
+        list.push({
+          transaction_id: li.transaction.id,
+          line_item_id: li.id,
+          datetime: li.datetime ?? li.transaction.datetime,
+          amount: li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0,
+          description: li.transaction.description,
+        })
+        by_ref.set(li.external_ref!, list)
       }
       return text({
-        matched: [...by_ref].map(([ref, transactions]) => ({ ref, transactions })),
+        matched: [...by_ref].map(([ref, flows]) => ({ ref, flows })),
         missing: refs.filter(r => !by_ref.has(r)),
       })
     },
@@ -490,7 +504,7 @@ export function register_extra_tools(server: McpServer) {
     'reconcile',
     {
       description:
-        'Reconcile bank-statement rows against one account head. Rows are matched one-to-one: first by ref against transaction external_ref, then by amount (±0.01) within ±1 day. Amounts are signed in ledger convention: negative = money out of the account. Returns matched pairs, ref matches whose amounts disagree, rows missing from the ledger (create them with create_transaction + external_ref + idempotency_key), ledger entries missing from the statement, and the ledger closing balance at the window end.',
+        "Reconcile bank-statement rows against one account head's individual line items — the atomic flows, so one transaction netting several bank events (wallet top-ups, refunds, splits) still matches row-by-row. Matching is one-to-one per line: first by ref against the parent transaction's external_ref (the amount check picks the right line when several share a ref), then by amount (±0.01) within ±1 day of the line's effective date. Amounts are signed in ledger convention: negative = money out of the account. Returns matched pairs (with transaction_id + line_item_id), ref matches whose amounts disagree, rows missing from the ledger (create them with create_transaction + external_ref + idempotency_key), ledger flows missing from the statement, and the ledger closing balance at the window end.",
       inputSchema: {
         account: z.string().describe('Account head id or name'),
         rows: z
@@ -526,12 +540,12 @@ export function register_extra_tools(server: McpServer) {
       const {
         from: fromDate,
         to_exclusive: toDate,
-        ledger,
+        flows,
         result,
+        flow_by_id,
         closing_balance,
       } = await reconcile_ledger_core(uid, head.id, rows, { from: args.from ? parse_day(args.from) : undefined, to_exclusive })
 
-      const ledger_by_id = new Map(ledger.map(e => [e.id, e]))
       const echo_row = (i: number) => ({
         index: i,
         date: args.rows[i].date,
@@ -544,22 +558,31 @@ export function register_extra_tools(server: McpServer) {
         window: { from: fromDate, to_exclusive: toDate },
         counts: {
           bank_rows: rows.length,
-          ledger_entries: ledger.length,
+          ledger_flows: flows.length,
           matched: result.matched.length,
           amount_mismatch: result.amount_mismatch.length,
           missing_in_ledger: result.missing_in_ledger.length,
           missing_in_bank: result.missing_in_bank.length,
         },
-        matched: result.matched.map(m => ({ ...echo_row(m.row_index), transaction_id: m.transaction_id, matched_by: m.matched_by })),
-        amount_mismatch: result.amount_mismatch.map(m => ({
-          ...echo_row(m.row_index),
-          transaction_id: m.transaction_id,
-          ledger_delta: m.ledger_delta,
-        })),
+        matched: result.matched.map(m => {
+          const f = flow_by_id.get(m.entry_id)!
+          return { ...echo_row(m.row_index), transaction_id: f.transaction_id, line_item_id: f.line_item_id, matched_by: m.matched_by }
+        }),
+        amount_mismatch: result.amount_mismatch.map(m => {
+          const f = flow_by_id.get(m.entry_id)!
+          return { ...echo_row(m.row_index), transaction_id: f.transaction_id, line_item_id: f.line_item_id, ledger_delta: m.ledger_delta }
+        }),
         missing_in_ledger: result.missing_in_ledger.map(echo_row),
         missing_in_bank: result.missing_in_bank.map(id => {
-          const e = ledger_by_id.get(id)!
-          return { transaction_id: id, datetime: e.datetime, delta: e.delta, external_ref: e.external_ref, description: e.description }
+          const f = flow_by_id.get(id)!
+          return {
+            transaction_id: f.transaction_id,
+            line_item_id: f.line_item_id,
+            datetime: f.datetime,
+            delta: f.amount,
+            external_ref: f.external_ref,
+            description: f.description,
+          }
         }),
         ledger_closing_balance: closing_balance,
       })

@@ -349,8 +349,8 @@ export default function ClientPage({
                 </p>
               </div>
               <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-                {view.missing_in_bank.map(e => (
-                  <li key={e.transaction_id} className="px-6 py-3 flex items-center gap-4">
+                {view.missing_in_bank.map((e, i) => (
+                  <li key={`${e.transaction_id}-${i}`} className="px-6 py-3 flex items-center gap-4">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{e.description || 'No description'}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">

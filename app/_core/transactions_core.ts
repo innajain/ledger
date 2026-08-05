@@ -16,14 +16,27 @@ export type CreateLineItemInput = {
   txn_value?: number | null | undefined
   description?: string | null | undefined
   datetime?: Date | null | undefined
+  // bank/UPI ref of the underlying money movement — line items on account
+  // heads are the atomic flows, so refs live here
+  external_ref?: string | null | undefined
 }
 
 export type CreateTransactionOpts = {
+  // convenience: stamped onto the transaction's single account-head line
+  // (errors when several account lines make that ambiguous — use per-line
+  // external_ref on the line items instead)
   external_ref?: string | null | undefined
   idempotency_key?: string | null | undefined
 }
 
 type Tx = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
+
+const externalRefLineSchema = z
+  .string()
+  .trim()
+  .max(120, 'external_ref is too long')
+  .transform(val => (val === '' ? null : val))
+  .nullish()
 
 const lineItemSchema = z.object({
   accounting_head_id: z.string(),
@@ -37,6 +50,7 @@ const lineItemSchema = z.object({
     .transform(val => (val === '' ? null : val))
     .nullish(),
   datetime: z.date().nullish(),
+  external_ref: externalRefLineSchema,
 })
 
 const descriptionSchema = z
@@ -120,12 +134,13 @@ async function create_transaction_in_tx(
 
   if (!is_valid) throw new ActionError('VALIDATION', message)
 
+  line_items = apply_ref_to_account_line(line_items, accounts, opts?.external_ref)
+
   const created = await tx.transaction.create({
     data: {
       datetime,
       description,
       user_id,
-      external_ref: opts?.external_ref ?? null,
       idempotency_key: opts?.idempotency_key ?? null,
       line_items: {
         create: line_items.map(li => ({
@@ -135,6 +150,7 @@ async function create_transaction_in_tx(
           asset_id: li.asset_id,
           description: li.description,
           datetime: li.datetime,
+          external_ref: li.external_ref ?? null,
         })),
       },
     },
@@ -142,6 +158,29 @@ async function create_transaction_in_tx(
 
   const counterparties = await create_links_for_transaction(tx, user_id, created.id)
   return { id: created.id, counterparties, replayed: false }
+}
+
+// Resolve the transaction-level external_ref convenience onto line items: a
+// string stamps the single account-head line, overriding any carried ref
+// (ambiguous with several account lines — use per-line refs then); null
+// explicitly clears every line's ref; undefined leaves per-line refs alone.
+function apply_ref_to_account_line(
+  line_items: CreateLineItemInput[],
+  accounts: { id: string; type: string }[],
+  external_ref: string | null | undefined,
+): CreateLineItemInput[] {
+  if (external_ref === undefined) return line_items
+  if (external_ref === null) return line_items.map(li => ({ ...li, external_ref: null }))
+
+  const type_by_id = new Map(accounts.map(a => [a.id, a.type]))
+  const account_indexes = line_items.flatMap((li, i) => (type_by_id.get(li.accounting_head_id) === 'account' ? [i] : []))
+  if (account_indexes.length === 0) throw new ActionError('VALIDATION', 'external_ref given but the transaction has no account line to attach it to')
+  if (account_indexes.length > 1)
+    throw new ActionError(
+      'VALIDATION',
+      'external_ref is ambiguous — this transaction has several account lines; set external_ref on the individual line items instead',
+    )
+  return line_items.map((li, i) => (i === account_indexes[0] ? { ...li, external_ref } : li))
 }
 
 export async function create_transaction_core(
@@ -294,6 +333,8 @@ export async function update_transaction_core(
 
       if (!is_valid) throw new ActionError('VALIDATION', message)
 
+      line_items = apply_ref_to_account_line(line_items, accounts, external_ref)
+
       await prisma.line_item.deleteMany({ where: { transaction_id: id } })
 
       await prisma.transaction.update({
@@ -301,7 +342,6 @@ export async function update_transaction_core(
         data: {
           datetime,
           description,
-          external_ref,
           line_items: {
             create: line_items.map(li => ({
               quantity: toDecimal(li.quantity),
@@ -310,6 +350,7 @@ export async function update_transaction_core(
               asset_id: li.asset_id,
               description: li.description,
               datetime: li.datetime,
+              external_ref: li.external_ref ?? null,
             })),
           },
         },

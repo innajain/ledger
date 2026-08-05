@@ -41,7 +41,7 @@ export default function ClientPage({
     id: string
     date: string
     description: string | null
-    external_ref: string | null
+    refs: string[]
     total: number
     attachments: Attachment[]
     line_items: {
@@ -56,6 +56,7 @@ export default function ClientPage({
       txn_value: number | null
       description: string | null
       datetime: Date | null
+      external_ref: string | null
     }[]
   }
 }) {
@@ -206,12 +207,17 @@ export default function ClientPage({
               </div>
             </div>
             {transaction.description && <p className="text-slate-700 dark:text-slate-300 mt-2">{transaction.description}</p>}
-            {transaction.external_ref && (
-              <p className="mt-2">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-xs font-mono text-slate-600 dark:text-slate-300">
-                  <span className="text-slate-400 dark:text-slate-500 font-sans">Ref</span>
-                  {transaction.external_ref}
-                </span>
+            {transaction.refs.length > 0 && (
+              <p className="mt-2 flex flex-wrap gap-1.5">
+                {transaction.refs.map(ref => (
+                  <span
+                    key={ref}
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-xs font-mono text-slate-600 dark:text-slate-300"
+                  >
+                    <span className="text-slate-400 dark:text-slate-500 font-sans">Ref</span>
+                    {ref}
+                  </span>
+                ))}
               </p>
             )}
           </div>
@@ -374,6 +380,7 @@ export default function ClientPage({
                         </div>
 
                         {li.description && <p className="text-sm italic text-slate-500 dark:text-slate-400 mt-2">{li.description}</p>}
+                        {li.external_ref && <p className="text-xs font-mono text-slate-400 dark:text-slate-500 mt-1">{li.external_ref}</p>}
                         {li.datetime && (
                           <p className="text-xs text-slate-400 mt-1">
                             <LocalDateTime value={li.datetime} />

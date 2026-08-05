@@ -1,17 +1,20 @@
 // Pure matching logic for reconciling bank-statement rows against ledger
-// entries on one account head. Matching is one-to-one: pass 1 pairs by
-// external reference, pass 2 pairs the rest by amount + nearest date.
+// entries on one account head. Entries are whatever granularity the caller
+// feeds in — the core feeds individual account line items (the atomic flows).
+// Matching is one-to-one: pass 1 pairs by external reference (with the amount
+// check selecting among entries that share a ref), pass 2 pairs the rest by
+// amount + nearest date.
 
 export type BankRow = { date: Date; amount: number; ref?: string | null; desc?: string | null }
 
 export type LedgerEntry = { id: string; datetime: Date; delta: number; external_ref: string | null; description: string | null }
 
-export type ReconcileMatch = { row_index: number; transaction_id: string; matched_by: 'ref' | 'amount_date' }
+export type ReconcileMatch = { row_index: number; entry_id: string; matched_by: 'ref' | 'amount_date' }
 
 export type ReconcileResult = {
   matched: ReconcileMatch[]
   // ref matched but the amounts disagree — needs human attention, counted in neither matched nor missing
-  amount_mismatch: { row_index: number; transaction_id: string; row_amount: number; ledger_delta: number }[]
+  amount_mismatch: { row_index: number; entry_id: string; row_amount: number; ledger_delta: number }[]
   missing_in_ledger: number[]
   missing_in_bank: string[]
 }
@@ -40,11 +43,11 @@ export function match_bank_rows(
     if (candidates.length === 0) continue
     const exact = candidates.find(e => Math.abs(e.delta - rows[i].amount) <= tol)
     if (exact) {
-      matched.push({ row_index: i, transaction_id: exact.id, matched_by: 'ref' })
+      matched.push({ row_index: i, entry_id: exact.id, matched_by: 'ref' })
       row_done.add(i)
       ledger_done.add(exact.id)
     } else {
-      amount_mismatch.push({ row_index: i, transaction_id: candidates[0].id, row_amount: rows[i].amount, ledger_delta: candidates[0].delta })
+      amount_mismatch.push({ row_index: i, entry_id: candidates[0].id, row_amount: rows[i].amount, ledger_delta: candidates[0].delta })
       row_done.add(i)
       ledger_done.add(candidates[0].id)
     }
@@ -64,7 +67,7 @@ export function match_bank_rows(
       best_gap = gap
     }
     if (best) {
-      matched.push({ row_index: i, transaction_id: best.id, matched_by: 'amount_date' })
+      matched.push({ row_index: i, entry_id: best.id, matched_by: 'amount_date' })
       row_done.add(i)
       ledger_done.add(best.id)
     }

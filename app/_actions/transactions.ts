@@ -31,7 +31,6 @@ export async function delete_transaction(id: string): Promise<ActionResult> {
 export type DeletedTransactionSnapshot = {
   datetime: string
   description: string | null
-  external_ref: string | null
   had_attachments: boolean
   line_items: CreateLineItemInput[]
 }
@@ -50,7 +49,6 @@ export async function delete_transaction_with_snapshot(id: string): Promise<Acti
     const snapshot: DeletedTransactionSnapshot = {
       datetime: existing.datetime.toISOString(),
       description: existing.description,
-      external_ref: existing.external_ref,
       had_attachments: existing.attachments.length > 0,
       line_items: existing.line_items.map(li => ({
         accounting_head_id: li.accounting_head_id,
@@ -59,6 +57,7 @@ export async function delete_transaction_with_snapshot(id: string): Promise<Acti
         txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
         description: li.description,
         datetime: li.datetime,
+        external_ref: li.external_ref,
       })),
     }
     const res = await delete_transaction_core(user_id, id)

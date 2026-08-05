@@ -73,6 +73,11 @@ async function head_ids_of_txn(txn_id: string): Promise<string[]> {
   return lines.map(l => l.accounting_head_id)
 }
 
+function refs_of(t: { line_items: { external_ref: string | null }[] }): string[] | null {
+  const refs = [...new Set(t.line_items.map(li => li.external_ref).filter((r): r is string => r !== null))]
+  return refs.length > 0 ? refs : null
+}
+
 function register_tools(server: McpServer) {
   const base_register = server.registerTool.bind(server)
   server.registerTool = ((name: string, config: Parameters<typeof base_register>[1], handler: (...a: unknown[]) => unknown) =>
@@ -541,7 +546,7 @@ function register_tools(server: McpServer) {
     'list_transactions',
     {
       description:
-        "List recent transactions (newest first) as a compact index: id, datetime, description, external_ref, and amount (net inflow/outflow in INR — signed sum over the account lines, matching the web UI: positive = net in, negative = net out, ~0 = transfer). Optional text search, IST date range, and head/asset filters; when a head filter is given each row also carries head_delta (that head's own signed movement — use this for account statements, since amount nets across ALL accounts). " +
+        "List recent transactions (newest first) as a compact index: id, datetime, description, refs (bank refs on its line items), and amount (net inflow/outflow in INR — signed sum over the account lines, matching the web UI: positive = net in, negative = net out, ~0 = transfer). Optional text search, IST date range, and head/asset filters; when a head filter is given each row also carries head_delta (that head's own signed movement — use this for account statements, since amount nets across ALL accounts). " +
         "Set include_line_items to attach each transaction's full normalized line items (head, head_type, asset, quantity, txn_value) — use that to inspect specific transactions. Do NOT sum amount across rows to total spending/income (transfers, EMIs and investments net through here too); use get_income_expense for period totals.",
       inputSchema: {
         limit: z.number().int().positive().max(200).optional().describe('Default 20'),
@@ -549,7 +554,7 @@ function register_tools(server: McpServer) {
         search: z.string().optional().describe('Case-insensitive match on the transaction description'),
         head: z.string().optional().describe('Only transactions touching this accounting head (id or name)'),
         asset: z.string().optional().describe('Only transactions touching this asset (id or name)'),
-        external_ref: z.string().optional().describe('Only transactions with this exact external reference'),
+        external_ref: z.string().optional().describe('Only transactions with a line item carrying this exact bank ref'),
         from: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST)'),
         to: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST), inclusive'),
         include_line_items: z.boolean().optional().describe("Attach each transaction's full normalized line items (default false; larger payload)"),
@@ -573,7 +578,7 @@ function register_tools(server: McpServer) {
       const where = {
         user_id: uid,
         ...(args.search ? { description: { contains: args.search, mode: 'insensitive' as const } } : {}),
-        ...(args.external_ref ? { external_ref: args.external_ref } : {}),
+        ...(args.external_ref ? { line_items: { some: { external_ref: args.external_ref } } } : {}),
         ...(fromDate || toDate ? { datetime: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lt: toDate } : {}) } } : {}),
         ...(and.length > 0 ? { AND: and } : {}),
       }
@@ -606,7 +611,7 @@ function register_tools(server: McpServer) {
               id: t.id,
               datetime: t.datetime,
               description: t.description,
-              ...(t.external_ref ? { external_ref: t.external_ref } : {}),
+              ...(refs_of(t) ? { refs: refs_of(t) } : {}),
               ...(filter_head ? { head_delta: deltas.get(t.id) } : {}),
               line_items: t.line_items.map(li => ({
                 head: li.accounting_head.name,
@@ -615,6 +620,7 @@ function register_tools(server: McpServer) {
                 quantity: li.quantity.toNumber(),
                 txn_value: li.txn_value.toNumber(),
                 description: li.description,
+                ...(li.external_ref ? { external_ref: li.external_ref } : {}),
               })),
             }
           }),
@@ -626,7 +632,7 @@ function register_tools(server: McpServer) {
           id: t.id,
           datetime: t.datetime,
           description: t.description,
-          ...(t.external_ref ? { external_ref: t.external_ref } : {}),
+          ...(refs_of(t) ? { refs: refs_of(t) } : {}),
           amount: net_account_flow(t.line_items),
           ...(filter_head ? { head_delta: deltas.get(t.id) } : {}),
         })),
@@ -719,7 +725,7 @@ function register_tools(server: McpServer) {
     'get_transaction',
     {
       description:
-        'Show one transaction: its total value (net inflow/outflow), all normalized line items (with head_type so they can be grouped account / allocation / income_expense), external_ref, attachments (fetch content via get_attachment), and any cross-user approval links with their pending state.',
+        'Show one transaction: its total value (net inflow/outflow), all normalized line items (with head_type so they can be grouped account / allocation / income_expense; account lines carry their bank external_ref), attachments (fetch content via get_attachment), and any cross-user approval links with their pending state.',
       inputSchema: { id: z.string() },
       annotations: ro,
     },
@@ -739,7 +745,7 @@ function register_tools(server: McpServer) {
         id: t.id,
         datetime: t.datetime,
         description: t.description,
-        external_ref: t.external_ref,
+        refs: refs_of(t),
         total: net_account_flow(t.line_items),
         line_items: t.line_items.map(li => ({
           head: li.accounting_head.name,
@@ -748,6 +754,7 @@ function register_tools(server: McpServer) {
           quantity: li.quantity.toNumber(),
           txn_value: li.txn_value.toNumber(),
           description: li.description,
+          ...(li.external_ref ? { external_ref: li.external_ref } : {}),
         })),
         attachments: raw.attachments.map(a => ({ id: a.id, filename: a.filename, content_type: a.content_type, size: a.size })),
         links: links.map(l => ({
@@ -932,7 +939,7 @@ function register_tools(server: McpServer) {
         'Null-remainder rule, applied per asset: every account line needs an explicit signed quantity; then omit quantity on exactly one allocation line AND on exactly one income/expense line (both auto-derived as the balancing remainder — do not also fill them). ' +
         'For rupee assets never set txn_value. ' +
         'Example — spend ₹150 from Kotak on Barber: [{account:"Kotak", asset:"Money", quantity:-150}, {account:"Expenses", asset:"Money"}, {account:"Barber", asset:"Money"}]. ' +
-        'When importing from a statement, always pass external_ref (the bank/UPI ref) and idempotency_key (e.g. the same ref) so retries and re-imports can never double-post. ' +
+        'When importing from a statement, always set external_ref on the account line (the bank/UPI ref of that money movement — a top-level external_ref is a convenience that stamps the single account line) and idempotency_key (e.g. the same ref) so retries and re-imports can never double-post. ' +
         'The response echoes the resulting balances of the touched accounts — sanity-check them. A near-duplicate (same account, same net amount, within ±1 day) is rejected with the matching id unless force is true.',
       inputSchema: {
         description: z.string().nullish(),
@@ -941,7 +948,9 @@ function register_tools(server: McpServer) {
         external_ref: z
           .string()
           .nullish()
-          .describe('Reference from the source system, e.g. a bank/UPI ref — queryable via list_transactions/find_by_external_ref'),
+          .describe(
+            'Convenience: bank/UPI ref stamped onto the single account line (errors if several account lines — set external_ref per line item then). Queryable via list_transactions/find_by_external_ref',
+          ),
         idempotency_key: z
           .string()
           .nullish()
@@ -984,13 +993,18 @@ function register_tools(server: McpServer) {
     'update_transaction',
     {
       description:
-        'Update a transaction. line_items REPLACE the existing ones wholesale when given; omit line_items to keep them and change only description/datetime/external_ref. Attachments are preserved either way. Editing lines shared with a linked user re-opens their approval. Pass dry_run to validate replacement lines without writing. The response echoes the resulting balances of the touched accounts.',
+        'Update a transaction. line_items REPLACE the existing ones wholesale when given; omit line_items to keep them (refs included) and change only description/datetime/external_ref. Attachments are preserved either way. Editing lines shared with a linked user re-opens their approval. Pass dry_run to validate replacement lines without writing. The response echoes the resulting balances of the touched accounts.',
       inputSchema: {
         id: z.string(),
         description: z.string().nullish(),
         datetime: z.string().optional().describe('dd-MM-yyyy or ISO'),
         line_items: lineItemShape.optional().describe('Omit to keep the existing line items unchanged'),
-        external_ref: z.string().nullish().describe('Set or change the external reference (null clears it)'),
+        external_ref: z
+          .string()
+          .nullish()
+          .describe(
+            'Set the bank ref on the single account line (null clears refs from all lines); for several account lines set external_ref per line item',
+          ),
         dry_run: z.boolean().optional().describe('Validate the replacement line items without writing anything'),
       },
     },
@@ -1034,7 +1048,6 @@ function register_tools(server: McpServer) {
       const snapshot = {
         datetime: existing.datetime,
         description: existing.description,
-        external_ref: existing.external_ref,
         line_items: existing.line_items.map(li => ({
           account: li.accounting_head.name,
           asset: li.asset.name,
@@ -1042,6 +1055,7 @@ function register_tools(server: McpServer) {
           ...(li.txn_value !== null ? { txn_value: li.txn_value.toNumber() } : {}),
           ...(li.description ? { description: li.description } : {}),
           ...(li.datetime ? { datetime: li.datetime.toISOString() } : {}),
+          ...(li.external_ref ? { external_ref: li.external_ref } : {}),
         })),
       }
       const head_ids = existing.line_items.map(li => li.accounting_head_id)
@@ -1119,7 +1133,7 @@ const handler = createMcpHandler(
       'Before creating or updating a transaction — and whenever the user gives a terse instruction or asks how something should be categorized — call find_similar_transactions (or list_transactions with search + include_line_items) to see how they recorded comparable entries, and reuse the same account, allocation and income/expense heads instead of guessing or asking. ' +
       "Prefer matching the user's own past structure over inventing new heads; when a genuinely new category is needed you can create/rename/archive heads with create_head/update_head (archive with is_active:false instead of deleting). " +
       'Use get_income_expense (never a sum of transaction amounts) for period spending/income totals. ' +
-      'When importing bank/UPI statements: pass external_ref and idempotency_key on every create so retries and re-imports never double-post, use reconcile to diff a statement against the ledger, find_by_external_ref to check which refs already exist, get_balances with as_of to verify closing balances, and create_transactions for atomic bulk inserts. ' +
+      'When importing bank/UPI statements: set external_ref on each account line item (line items are the actual bank rows) and idempotency_key on every create so retries and re-imports never double-post, use reconcile to diff a statement against the ledger, find_by_external_ref to check which refs already exist, get_balances with as_of to verify closing balances, and create_transactions for atomic bulk inserts. ' +
       'Mutating tools echo the resulting account balances — sanity-check them against what the user expects. ' +
       "Approval tools (approve/reject/cancel/revert/accept_all_from) change a linked counterparty's ledger too — state clearly what will happen before acting. " +
       'Dates accept dd-MM-yyyy or yyyy-MM-dd (IST) everywhere; datetimes also accept ISO.',

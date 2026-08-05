@@ -10,6 +10,9 @@ export type LineItemData = {
   txn_value: string | null
   description: string
   datetime: string
+  // carried through edits invisibly; the form's single Reference field edits
+  // the single-account-line case, per-line refs survive round trips
+  external_ref?: string | null
 }
 
 type Account = { id: string; name: string; type: string; linked?: boolean }
