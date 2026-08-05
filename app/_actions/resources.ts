@@ -1,7 +1,6 @@
 'use server'
 
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
 import { get_current_user_id, require_admin } from '@/app/_actions/auth'
 import type { accounting_head_type, asset_type } from '@/generated/prisma/client'
 import {
@@ -12,8 +11,10 @@ import {
   create_asset_core,
   update_asset_core,
   delete_asset_core,
+  reorder_heads_core,
+  reorder_assets_core,
 } from '@/app/_core/resources_core'
-import { ActionResult, ok, err, fromError } from './_result'
+import { ActionResult, err, fromError } from './_result'
 
 export async function find_user_by_username(username: string): Promise<ActionResult<{ id: string; username: string }>> {
   const me = await get_current_user_id()
@@ -112,32 +113,10 @@ export async function update_hierarchy_order(input: {
     if (scope === 'account') {
       const user_id = await get_current_user_id()
       if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
-      const rows = await prisma.accounting_head.findMany({
-        where: { id: { in: ordered_ids }, user_id, parent_id },
-        select: { id: true },
-      })
-      if (rows.length !== ordered_ids.length) {
-        return err('VALIDATION', 'One or more items are not siblings under this parent or do not belong to you')
-      }
-    } else {
-      await require_admin()
-      const rows = await prisma.asset.findMany({
-        where: { id: { in: ordered_ids }, parent_id },
-        select: { id: true },
-      })
-      if (rows.length !== ordered_ids.length) {
-        return err('VALIDATION', 'One or more items are not siblings under this parent')
-      }
+      return reorder_heads_core(user_id, parent_id, ordered_ids)
     }
-
-    await prisma.$transaction(
-      ordered_ids.map((id, i) =>
-        scope === 'account'
-          ? prisma.accounting_head.update({ where: { id }, data: { order_index: i } })
-          : prisma.asset.update({ where: { id }, data: { order_index: i } }),
-      ),
-    )
-    return ok()
+    await require_admin()
+    return reorder_assets_core(parent_id, ordered_ids)
   } catch (error) {
     return fromError(error)
   }

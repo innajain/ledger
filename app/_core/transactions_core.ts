@@ -18,6 +18,13 @@ export type CreateLineItemInput = {
   datetime?: Date | null | undefined
 }
 
+export type CreateTransactionOpts = {
+  external_ref?: string | null | undefined
+  idempotency_key?: string | null | undefined
+}
+
+type Tx = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
+
 const lineItemSchema = z.object({
   accounting_head_id: z.string(),
   asset_id: z.string(),
@@ -39,9 +46,25 @@ const descriptionSchema = z
   .transform(val => (val === '' ? null : val))
   .nullish()
 
+const externalRefSchema = z
+  .string()
+  .trim()
+  .max(120, 'external_ref is too long')
+  .transform(val => (val === '' ? null : val))
+  .nullish()
+
+const idempotencyKeySchema = z
+  .string()
+  .trim()
+  .max(200, 'idempotency_key is too long')
+  .transform(val => (val === '' ? null : val))
+  .nullish()
+
 const createTransactionSchema = z.object({
   line_items: z.array(lineItemSchema).min(1, 'At least one line item is required'),
   description: descriptionSchema,
+  external_ref: externalRefSchema,
+  idempotency_key: idempotencyKeySchema,
 })
 
 const updateTransactionSchema = z.object({
@@ -54,73 +77,172 @@ const deleteTransactionSchema = z.object({
   id: z.string().min(1, 'id is required'),
 })
 
+// Runs inside an existing $transaction. Replays (same user + idempotency_key)
+// return the existing transaction id instead of inserting a duplicate.
+async function create_transaction_in_tx(
+  tx: Tx,
+  user_id: string,
+  datetime: Date,
+  line_items: CreateLineItemInput[],
+  description: string | null | undefined,
+  opts?: CreateTransactionOpts,
+): Promise<{ id: string; counterparties: string[]; replayed: boolean }> {
+  if (opts?.idempotency_key) {
+    const existing = await tx.transaction.findUnique({
+      where: { user_id_idempotency_key: { user_id, idempotency_key: opts.idempotency_key } },
+      select: { id: true },
+    })
+    if (existing) return { id: existing.id, counterparties: [], replayed: true }
+  }
+
+  const accounting_head_ids = Array.from(new Set(line_items.map(li => li.accounting_head_id)))
+  const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
+
+  const accounts = await tx.accounting_head.findMany({
+    where: { id: { in: accounting_head_ids }, user_id },
+  })
+  if (accounts.length !== accounting_head_ids.length)
+    throw new ActionError('VALIDATION', 'One or more accounts not found or do not belong to your user')
+
+  const assets = await tx.asset.findMany({
+    where: { id: { in: asset_ids } },
+  })
+  if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets not found')
+
+  const { is_valid, message } = validate_line_items(
+    line_items.map(li => ({
+      quantity: toDecimal(li.quantity),
+      txn_value: toDecimal(li.txn_value),
+      asset: assets.find(a => a.id === li.asset_id)!,
+      accounting_head: accounts.find(a => a.id === li.accounting_head_id)!,
+    })),
+  )
+
+  if (!is_valid) throw new ActionError('VALIDATION', message)
+
+  const created = await tx.transaction.create({
+    data: {
+      datetime,
+      description,
+      user_id,
+      external_ref: opts?.external_ref ?? null,
+      idempotency_key: opts?.idempotency_key ?? null,
+      line_items: {
+        create: line_items.map(li => ({
+          quantity: toDecimal(li.quantity),
+          txn_value: toDecimal(li.txn_value),
+          accounting_head_id: li.accounting_head_id,
+          asset_id: li.asset_id,
+          description: li.description,
+          datetime: li.datetime,
+        })),
+      },
+    },
+  })
+
+  const counterparties = await create_links_for_transaction(tx, user_id, created.id)
+  return { id: created.id, counterparties, replayed: false }
+}
+
 export async function create_transaction_core(
   user_id: string,
   datetime: Date,
   line_items: CreateLineItemInput[],
   description?: string | null | undefined,
-): Promise<ActionResult<{ id: string }>> {
+  opts?: CreateTransactionOpts,
+): Promise<ActionResult<{ id: string; replayed?: boolean }>> {
   try {
-    const parsed = createTransactionSchema.safeParse({ line_items, description })
+    const parsed = createTransactionSchema.safeParse({ line_items, description, ...opts })
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
 
-    line_items = parsed.data.line_items
-    description = parsed.data.description
+    const { id, counterparties, replayed } = await prisma.$transaction(async prisma =>
+      create_transaction_in_tx(prisma, user_id, datetime, parsed.data.line_items, parsed.data.description, {
+        external_ref: parsed.data.external_ref,
+        idempotency_key: parsed.data.idempotency_key,
+      }),
+    )
 
-    const { id, counterparties } = await prisma.$transaction(async prisma => {
-      const accounting_head_ids = Array.from(new Set(line_items.map(li => li.accounting_head_id)))
-      const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
-
-      const accounts = await prisma.accounting_head.findMany({
-        where: { id: { in: accounting_head_ids }, user_id },
-      })
-      if (accounts.length !== accounting_head_ids.length)
-        throw new ActionError('VALIDATION', 'One or more accounts not found or do not belong to your user')
-
-      const assets = await prisma.asset.findMany({
-        where: { id: { in: asset_ids } },
-      })
-      if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets not found')
-
-      const { is_valid, message } = validate_line_items(
-        line_items.map(li => ({
-          quantity: toDecimal(li.quantity),
-          txn_value: toDecimal(li.txn_value),
-          asset: assets.find(a => a.id === li.asset_id)!,
-          accounting_head: accounts.find(a => a.id === li.accounting_head_id)!,
-        })),
-      )
-
-      if (!is_valid) throw new ActionError('VALIDATION', message)
-
-      const created = await prisma.transaction.create({
-        data: {
-          datetime,
-          description,
-          user_id,
-          line_items: {
-            create: line_items.map(li => ({
-              quantity: toDecimal(li.quantity),
-              txn_value: toDecimal(li.txn_value),
-              accounting_head_id: li.accounting_head_id,
-              asset_id: li.asset_id,
-              description: li.description,
-              datetime: li.datetime,
-            })),
-          },
-        },
-      })
-
-      const counterparties = await create_links_for_transaction(prisma, user_id, created.id)
-      return { id: created.id, counterparties }
-    })
+    if (replayed) return ok({ id, replayed: true }, 'Already recorded — an existing transaction matches this idempotency_key; nothing was created')
 
     await invalidate_balances(user_id)
 
-    for (const cp of counterparties) void notify_request_pending(cp, user_id, { description })
+    for (const cp of counterparties) void notify_request_pending(cp, user_id, { description: parsed.data.description })
     return ok({ id }, 'Transaction created successfully')
   } catch (error) {
+    // Concurrent create with the same idempotency_key: the unique constraint is
+    // the backstop — resolve the race to a replay instead of an error.
+    const key = opts?.idempotency_key?.trim()
+    if (key && error && typeof error === 'object' && 'code' in error && (error as { code: unknown }).code === 'P2002') {
+      const existing = await prisma.transaction.findUnique({
+        where: { user_id_idempotency_key: { user_id, idempotency_key: key } },
+        select: { id: true },
+      })
+      if (existing)
+        return ok({ id: existing.id, replayed: true }, 'Already recorded — an existing transaction matches this idempotency_key; nothing was created')
+    }
     logger.error({ err: error, action: 'create_transaction' }, 'Error creating transaction')
+    return fromError(error)
+  }
+}
+
+export type BulkTransactionInput = {
+  datetime: Date
+  line_items: CreateLineItemInput[]
+  description?: string | null | undefined
+  external_ref?: string | null | undefined
+  idempotency_key?: string | null | undefined
+}
+
+// All-or-nothing bulk create: every transaction commits or none do. Items whose
+// idempotency_key already exists are replayed (skipped), not treated as errors.
+export async function create_transactions_core(
+  user_id: string,
+  items: BulkTransactionInput[],
+): Promise<ActionResult<{ ids: string[]; replayed_ids: string[] }>> {
+  try {
+    if (items.length === 0) return err('VALIDATION', 'At least one transaction is required')
+
+    const { results, counterparties } = await prisma.$transaction(
+      async tx => {
+        const results: { id: string; replayed: boolean }[] = []
+        const cps = new Set<string>()
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i]
+          const parsed = createTransactionSchema.safeParse({
+            line_items: item.line_items,
+            description: item.description,
+            external_ref: item.external_ref,
+            idempotency_key: item.idempotency_key,
+          })
+          if (!parsed.success) throw new ActionError('VALIDATION', `transaction ${i + 1}: ${parsed.error.issues[0].message}`)
+          try {
+            const r = await create_transaction_in_tx(tx, user_id, item.datetime, parsed.data.line_items, parsed.data.description, {
+              external_ref: parsed.data.external_ref,
+              idempotency_key: parsed.data.idempotency_key,
+            })
+            for (const cp of r.counterparties) cps.add(cp)
+            results.push({ id: r.id, replayed: r.replayed })
+          } catch (error) {
+            if (error instanceof ActionError) throw new ActionError(error.code, `transaction ${i + 1}: ${error.message}`)
+            throw error
+          }
+        }
+        return { results, counterparties: [...cps] }
+      },
+      { timeout: 60_000 },
+    )
+
+    const created = results.filter(r => !r.replayed)
+    if (created.length > 0) {
+      await invalidate_balances(user_id)
+      for (const cp of counterparties) void notify_request_pending(cp, user_id, {})
+    }
+    return ok(
+      { ids: results.map(r => r.id), replayed_ids: results.filter(r => r.replayed).map(r => r.id) },
+      `Created ${created.length} transaction${created.length === 1 ? '' : 's'}${results.length > created.length ? ` (${results.length - created.length} replayed via idempotency_key)` : ''}`,
+    )
+  } catch (error) {
+    logger.error({ err: error, action: 'create_transactions' }, 'Error creating transactions in bulk')
     return fromError(error)
   }
 }
@@ -131,6 +253,7 @@ export async function update_transaction_core(
   line_items: CreateLineItemInput[],
   datetime?: Date | undefined,
   description?: string | null | undefined,
+  opts?: { external_ref?: string | null | undefined },
 ): Promise<ActionResult> {
   try {
     const parsed = updateTransactionSchema.safeParse({ id, line_items, description })
@@ -138,6 +261,7 @@ export async function update_transaction_core(
     id = parsed.data.id
     line_items = parsed.data.line_items
     description = parsed.data.description
+    const external_ref = opts && 'external_ref' in opts ? externalRefSchema.parse(opts.external_ref) : undefined
 
     await prisma.$transaction(async prisma => {
       const existing = await prisma.transaction.findUnique({
@@ -177,6 +301,7 @@ export async function update_transaction_core(
         data: {
           datetime,
           description,
+          external_ref,
           line_items: {
             create: line_items.map(li => ({
               quantity: toDecimal(li.quantity),

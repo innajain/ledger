@@ -295,3 +295,45 @@ export async function delete_asset_core(id: string): Promise<ActionResult> {
     return fromError(error)
   }
 }
+
+const reorderSchema = z.object({ parent_id: z.string().nullable(), ordered_ids: z.array(z.string().min(1)).min(1) })
+
+export async function reorder_heads_core(user_id: string, parent_id: string | null, ordered_ids: string[]): Promise<ActionResult> {
+  try {
+    const parsed = reorderSchema.safeParse({ parent_id, ordered_ids })
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
+
+    const rows = await prisma.accounting_head.findMany({
+      where: { id: { in: parsed.data.ordered_ids }, user_id, parent_id: parsed.data.parent_id },
+      select: { id: true },
+    })
+    if (rows.length !== parsed.data.ordered_ids.length) {
+      return err('VALIDATION', 'One or more items are not siblings under this parent or do not belong to you')
+    }
+
+    await prisma.$transaction(parsed.data.ordered_ids.map((id, i) => prisma.accounting_head.update({ where: { id }, data: { order_index: i } })))
+    return ok()
+  } catch (error) {
+    return fromError(error)
+  }
+}
+
+export async function reorder_assets_core(parent_id: string | null, ordered_ids: string[]): Promise<ActionResult> {
+  try {
+    const parsed = reorderSchema.safeParse({ parent_id, ordered_ids })
+    if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
+
+    const rows = await prisma.asset.findMany({
+      where: { id: { in: parsed.data.ordered_ids }, parent_id: parsed.data.parent_id },
+      select: { id: true },
+    })
+    if (rows.length !== parsed.data.ordered_ids.length) {
+      return err('VALIDATION', 'One or more items are not siblings under this parent')
+    }
+
+    await prisma.$transaction(parsed.data.ordered_ids.map((id, i) => prisma.asset.update({ where: { id }, data: { order_index: i } })))
+    return ok()
+  } catch (error) {
+    return fromError(error)
+  }
+}

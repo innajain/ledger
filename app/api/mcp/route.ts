@@ -25,70 +25,27 @@ import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { get_subtree_head_ids, compute_subtree_total } from '@/app/_utils/subtree_value'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
-import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/app/_utils/date'
-import type { ActionResult } from '@/app/_actions/_result'
-
-type ToolExtra = { authInfo?: { extra?: { userId?: string } } }
-
-function get_uid(extra: ToolExtra): string {
-  const uid = extra.authInfo?.extra?.userId
-  if (typeof uid !== 'string') throw new Error('Unauthorized')
-  return uid
-}
-
-type Content = { content: { type: 'text'; text: string }[]; isError?: boolean }
-
-function text(value: unknown): Content {
-  return { content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }] }
-}
-
-function action_result(res: ActionResult<unknown>): Content {
-  if (res.success) return text({ ok: true, message: res.message ?? 'Done', ...(res.data ? { data: res.data } : {}) })
-  return { content: [{ type: 'text', text: `Error [${res.code}]: ${res.message}` }], isError: true }
-}
-
-const load_heads = (uid: string) =>
-  prisma.accounting_head.findMany({
-    where: { user_id: uid },
-    orderBy: [{ type: 'asc' }, { order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-    select: { id: true, name: true, type: true, is_active: true, linked_user_id: true, parent_id: true },
-  })
-
-const load_assets = () =>
-  prisma.asset.findMany({
-    orderBy: [{ type: 'asc' }, { order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-    select: { id: true, name: true, type: true, ticker: true, is_active: true, parent_id: true },
-  })
-
-function format_candidates<T extends { name: string; type?: string; is_active?: boolean }>(list: T[]): string {
-  const active = list.filter(x => x.is_active !== false)
-  if (!active.some(x => x.type)) return active.map(x => x.name).join(', ') || 'none'
-  const groups = new Map<string, string[]>()
-  for (const x of active) {
-    const k = x.type ?? 'other'
-    if (!groups.has(k)) groups.set(k, [])
-    groups.get(k)!.push(x.name)
-  }
-  return [...groups].map(([k, names]) => `${k}: ${names.join(', ')}`).join('; ') || 'none'
-}
-
-function resolve_ref<T extends { id: string; name: string; type?: string; is_active?: boolean }>(ref: string, list: T[], kind: string): T {
-  const r = ref.trim()
-  const byId = list.find(x => x.id === r)
-  if (byId) return byId
-  const byName = list.find(x => x.name.toLowerCase() === r.toLowerCase())
-  if (byName) return byName
-  throw new Error(`No ${kind} matching "${ref}". Valid options — ${format_candidates(list)}`)
-}
-
-function net_account_flow(
-  line_items: { accounting_head: { type: string }; quantity: Prisma.Decimal | null; txn_value: Prisma.Decimal | null }[],
-): number {
-  const n = line_items
-    .filter(li => li.accounting_head.type === 'account')
-    .reduce((s, li) => s + (li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0), 0)
-  return Math.round(n * 100) / 100
-}
+import { get_indian_date_from_date_obj } from '@/app/_utils/date'
+import {
+  type ToolExtra,
+  get_uid,
+  text,
+  error_text,
+  action_result,
+  load_heads,
+  load_assets,
+  resolve_ref,
+  net_account_flow,
+  parse_date,
+  parse_day,
+  lineItemShape,
+  build_line_items,
+  stored_lines_to_input,
+  find_possible_duplicate,
+  account_balances_for,
+  dry_run_check,
+} from './_helpers'
+import { register_extra_tools } from './_extra_tools'
 
 async function head_rollup(uid: string, root_id: string): Promise<{ subtree_total: number | null; children: { name: string; total: number }[] }> {
   const all_heads = await prisma.accounting_head.findMany({ where: { user_id: uid }, select: { id: true, parent_id: true, name: true } })
@@ -111,45 +68,9 @@ async function head_rollup(uid: string, root_id: string): Promise<{ subtree_tota
   return { subtree_total, children }
 }
 
-function parse_date(s?: string): Date {
-  if (!s) return new Date()
-  if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return get_date_obj_from_indian_date(s)
-  const d = new Date(s)
-  if (isNaN(d.getTime())) throw new Error(`Invalid date "${s}" — use dd-MM-yyyy or ISO`)
-  return d
-}
-
-const lineItemShape = z
-  .array(
-    z.object({
-      account: z.string().describe('Accounting head: exact id or name'),
-      asset: z.string().describe('Asset: exact id or name'),
-      quantity: z
-        .number()
-        .optional()
-        .describe(
-          'Signed quantity. REQUIRED on every account head. On allocation heads omit it on exactly one line, and on income/expense heads omit it on exactly one line — those are auto-derived as the balancing remainder.',
-        ),
-      txn_value: z
-        .number()
-        .nullish()
-        .describe(
-          'Non-rupee assets only: signed rupee value, required on account lines and auto-derived on the one omitted line per side. Omit entirely for rupee assets.',
-        ),
-      description: z.string().nullish(),
-    }),
-  )
-  .min(1, 'At least one line item is required')
-
-async function build_line_items(uid: string, items: z.infer<typeof lineItemShape>): Promise<CreateLineItemInput[]> {
-  const [heads, assets] = await Promise.all([load_heads(uid), load_assets()])
-  return items.map(li => ({
-    accounting_head_id: resolve_ref(li.account, heads, 'account').id,
-    asset_id: resolve_ref(li.asset, assets, 'asset').id,
-    quantity: li.quantity,
-    txn_value: li.txn_value,
-    description: li.description,
-  }))
+async function head_ids_of_txn(txn_id: string): Promise<string[]> {
+  const lines = await prisma.line_item.findMany({ where: { transaction_id: txn_id }, select: { accounting_head_id: true } })
+  return lines.map(l => l.accounting_head_id)
 }
 
 function register_tools(server: McpServer) {
@@ -246,8 +167,15 @@ function register_tools(server: McpServer) {
         'Full detail for one asset (by id or name), mirroring its web page: type, ticker, live price, XIRR, parent/children, total current value, total book (txn) value, current investment (FIFO cost basis of remaining lots), and holdings aggregated by account and by allocation. Pass include_line_items for every account line (with FIFO remaining_quantity and the book value of that remainder); include_timeseries for the value-over-time series (priced assets only).',
       inputSchema: {
         asset: z.string().describe('Asset id or name'),
-        include_line_items: z.boolean().optional().describe('Attach per-account line items with FIFO remaining (default false)'),
+        include_line_items: z
+          .boolean()
+          .optional()
+          .describe('Attach per-account line items with FIFO remaining (default false; newest first, paginated)'),
         include_timeseries: z.boolean().optional().describe('Attach the value-over-time series for priced assets (default false)'),
+        from: z.string().optional().describe('With include_line_items: only lines on/after this day (dd-MM-yyyy or yyyy-MM-dd, IST)'),
+        to: z.string().optional().describe('With include_line_items: only lines on/before this day (inclusive)'),
+        line_items_limit: z.number().int().positive().max(1000).optional().describe('Max line items returned (default 200)'),
+        line_items_offset: z.number().int().nonnegative().optional().describe('Skip this many line items (newest first)'),
       },
       annotations: ro,
     },
@@ -351,7 +279,13 @@ function register_tools(server: McpServer) {
       }
 
       if (args.include_line_items) {
-        out.line_items = items
+        const fromDate = args.from ? parse_day(args.from) : null
+        let toDate: Date | null = null
+        if (args.to) {
+          toDate = parse_day(args.to)
+          toDate.setDate(toDate.getDate() + 1)
+        }
+        const all_items = items
           .map(({ li, qty, book }) => {
             const rem = remaining_by_id.has(li.id) ? remaining_by_id.get(li.id)! : null
             return {
@@ -367,6 +301,13 @@ function register_tools(server: McpServer) {
             }
           })
           .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime())
+          .filter(l => (!fromDate || l.datetime >= fromDate) && (!toDate || l.datetime < toDate))
+        const offset = args.line_items_offset ?? 0
+        const limit = args.line_items_limit ?? 200
+        out.line_items_total = all_items.length
+        if (offset > 0 || all_items.length > offset + limit)
+          out.line_items_note = `showing ${Math.max(0, Math.min(limit, all_items.length - offset))} of ${all_items.length} — page with line_items_offset/line_items_limit or narrow with from/to`
+        out.line_items = all_items.slice(offset, offset + limit)
       }
 
       if (args.include_timeseries && (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares')) {
@@ -383,18 +324,72 @@ function register_tools(server: McpServer) {
 
   server.registerTool(
     'get_balances',
-    { description: 'Per-account asset balances (quantity and value).', inputSchema: {}, annotations: ro },
-    async (_args, extra) => {
+    {
+      description:
+        'Per-account asset balances (quantity and book value). Optional head filter (id or name) and as_of date — as_of gives the closing balance at the END of that IST day (e.g. "Kotak at 30 Apr close" to check against a bank statement). With a head filter, as_of works for any head type, including allocations.',
+      inputSchema: {
+        head: z.string().optional().describe('Only this head (id or name); any type when combined with as_of, accounts otherwise'),
+        as_of: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST) — closing balance at the END of that day; default: now'),
+      },
+      annotations: ro,
+    },
+    async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const [{ accountsToAssets }, heads, assets] = await Promise.all([compute_balances_core(uid), load_heads(uid), load_assets()])
+      const heads = await load_heads(uid)
+      const filter_head = args.head ? resolve_ref(args.head, heads, 'accounting head') : null
       const headById = new Map(heads.map(h => [h.id, h]))
+      const assets = await load_assets()
       const assetById = new Map(assets.map(a => [a.id, a]))
       const rows: Record<string, unknown>[] = []
+
+      if (args.as_of) {
+        // Historical closing balance at end of the given IST day, computed from
+        // normalized transactions so derived-remainder lines count — this makes
+        // as_of correct for allocation / income_expense heads too, not just
+        // accounts. Values are book values (txn_value), not marked to market.
+        const cutoff = parse_day(args.as_of)
+        cutoff.setDate(cutoff.getDate() + 1)
+        const txns = await prisma.transaction.findMany({
+          where: {
+            user_id: uid,
+            ...(filter_head ? { line_items: { some: { accounting_head_id: filter_head.id } } } : {}),
+          },
+          include: { line_items: { include: { accounting_head: true, asset: true } } },
+        })
+        const acc = new Map<string, { qty: number; value: number }>()
+        for (const raw of txns) {
+          const t = normalize_txn(raw)
+          for (const li of t.line_items) {
+            if ((li.datetime ?? t.datetime) >= cutoff) continue
+            if (filter_head ? li.accounting_head_id !== filter_head.id : li.accounting_head.type !== 'account') continue
+            const key = `${li.accounting_head_id}:${li.asset_id}`
+            const e = acc.get(key) ?? { qty: 0, value: 0 }
+            e.qty += li.quantity.toNumber()
+            e.value += li.txn_value.toNumber()
+            acc.set(key, e)
+          }
+        }
+        for (const [key, bal] of acc) {
+          const [headId, assetId] = key.split(':')
+          if (Math.abs(bal.qty) < 1e-9 && Math.abs(bal.value) < 1e-9 && !filter_head) continue
+          rows.push({
+            account: headById.get(headId)?.name ?? headId,
+            asset: assetById.get(assetId)?.name ?? assetId,
+            qty: Math.round(bal.qty * 10000) / 10000,
+            value: Math.round(bal.value * 100) / 100,
+          })
+        }
+        rows.sort((a, b) => String(a.account).localeCompare(String(b.account)))
+        return text({ as_of: args.as_of, note: 'closing balance at end of that IST day; value is book value (not marked to market)', rows })
+      }
+
+      const { accountsToAssets } = await compute_balances_core(uid)
       for (const [headId, assetMap] of accountsToAssets) {
         const head = headById.get(headId)
         if (!head || head.type !== 'account') continue
+        if (filter_head && head.id !== filter_head.id) continue
         for (const [assetId, bal] of assetMap) {
-          if (Math.abs(bal.qty) < 1e-9 && Math.abs(bal.txn_value) < 1e-9) continue
+          if (Math.abs(bal.qty) < 1e-9 && Math.abs(bal.txn_value) < 1e-9 && !filter_head) continue
           rows.push({ account: head.name, asset: assetById.get(assetId)?.name ?? assetId, qty: bal.qty, value: bal.txn_value })
         }
       }
@@ -410,8 +405,12 @@ function register_tools(server: McpServer) {
         'Full detail for one accounting head (account / allocation / income_expense, by id or name), mirroring its web page: current value, subtree rollup total + immediate children, XIRR, parent, linked user (accounts), and holdings aggregated by asset. Pass include_line_items for every line touching the head (with FIFO remaining_quantity for accounts); include_timeseries for the value-over-time series (priced holdings only).',
       inputSchema: {
         head: z.string().describe('Accounting head id or name'),
-        include_line_items: z.boolean().optional().describe('Attach every line item touching the head (default false)'),
+        include_line_items: z.boolean().optional().describe('Attach line items touching the head (default false; newest first, paginated)'),
         include_timeseries: z.boolean().optional().describe('Attach the value-over-time series (default false)'),
+        from: z.string().optional().describe('With include_line_items: only lines on/after this day (dd-MM-yyyy or yyyy-MM-dd, IST)'),
+        to: z.string().optional().describe('With include_line_items: only lines on/before this day (inclusive)'),
+        line_items_limit: z.number().int().positive().max(1000).optional().describe('Max line items returned (default 200)'),
+        line_items_offset: z.number().int().nonnegative().optional().describe('Skip this many line items (newest first)'),
       },
       annotations: ro,
     },
@@ -521,19 +520,31 @@ function register_tools(server: McpServer) {
       }
 
       if (args.include_line_items) {
-        out.line_items = lines
+        const fromDate = args.from ? parse_day(args.from) : null
+        let toDate: Date | null = null
+        if (args.to) {
+          toDate = parse_day(args.to)
+          toDate.setDate(toDate.getDate() + 1)
+        }
+        const filtered = lines
           .slice()
           .sort((a, b) => b.datetime.getTime() - a.datetime.getTime())
-          .map(l => ({
-            asset: l.asset,
-            quantity: l.quantity,
-            txn_value: l.txn_value,
-            current_value: l.current_value,
-            transaction_id: l.transaction_id,
-            datetime: l.datetime,
-            description: l.description,
-            remaining_quantity: l.remaining_quantity,
-          }))
+          .filter(l => (!fromDate || l.datetime >= fromDate) && (!toDate || l.datetime < toDate))
+        const offset = args.line_items_offset ?? 0
+        const limit = args.line_items_limit ?? 200
+        out.line_items_total = filtered.length
+        if (offset > 0 || filtered.length > offset + limit)
+          out.line_items_note = `showing ${Math.max(0, Math.min(limit, filtered.length - offset))} of ${filtered.length} — page with line_items_offset/line_items_limit or narrow with from/to`
+        out.line_items = filtered.slice(offset, offset + limit).map(l => ({
+          asset: l.asset,
+          quantity: l.quantity,
+          txn_value: l.txn_value,
+          current_value: l.current_value,
+          transaction_id: l.transaction_id,
+          datetime: l.datetime,
+          description: l.description,
+          remaining_quantity: l.remaining_quantity,
+        }))
       }
 
       if (args.include_timeseries && uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')) {
@@ -554,13 +565,17 @@ function register_tools(server: McpServer) {
     'list_transactions',
     {
       description:
-        'List recent transactions (newest first) as a compact index: id, datetime, description, and amount (net inflow/outflow in INR — signed sum over the account lines, matching the web UI: positive = net in, negative = net out, ~0 = transfer). Optional text search and IST date range (dd-MM-yyyy). ' +
+        "List recent transactions (newest first) as a compact index: id, datetime, description, external_ref, and amount (net inflow/outflow in INR — signed sum over the account lines, matching the web UI: positive = net in, negative = net out, ~0 = transfer). Optional text search, IST date range, and head/asset filters; when a head filter is given each row also carries head_delta (that head's own signed movement — use this for account statements, since amount nets across ALL accounts). " +
         "Set include_line_items to attach each transaction's full normalized line items (head, head_type, asset, quantity, txn_value) — use that to inspect specific transactions. Do NOT sum amount across rows to total spending/income (transfers, EMIs and investments net through here too); use get_income_expense for period totals.",
       inputSchema: {
-        limit: z.number().int().positive().max(200).optional(),
-        search: z.string().optional(),
-        from: z.string().optional().describe('dd-MM-yyyy'),
-        to: z.string().optional().describe('dd-MM-yyyy'),
+        limit: z.number().int().positive().max(200).optional().describe('Default 20'),
+        offset: z.number().int().nonnegative().optional().describe('Skip this many rows (pagination)'),
+        search: z.string().optional().describe('Case-insensitive match on the transaction description'),
+        head: z.string().optional().describe('Only transactions touching this accounting head (id or name)'),
+        asset: z.string().optional().describe('Only transactions touching this asset (id or name)'),
+        external_ref: z.string().optional().describe('Only transactions with this exact external reference'),
+        from: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST)'),
+        to: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST), inclusive'),
         include_line_items: z.boolean().optional().describe("Attach each transaction's full normalized line items (default false; larger payload)"),
       },
       annotations: ro,
@@ -568,50 +583,78 @@ function register_tools(server: McpServer) {
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const take = args.limit ?? 20
-      const fromDate = args.from ? get_date_obj_from_indian_date(args.from) : undefined
+      const fromDate = args.from ? parse_day(args.from) : undefined
       let toDate: Date | undefined
       if (args.to) {
-        toDate = get_date_obj_from_indian_date(args.to)
+        toDate = parse_day(args.to)
         toDate.setDate(toDate.getDate() + 1)
       }
+      const filter_head = args.head ? resolve_ref(args.head, await load_heads(uid), 'accounting head') : null
+      const filter_asset = args.asset ? resolve_ref(args.asset, await load_assets(), 'asset') : null
+      const and: Prisma.transactionWhereInput[] = []
+      if (filter_head) and.push({ line_items: { some: { accounting_head_id: filter_head.id } } })
+      if (filter_asset) and.push({ line_items: { some: { asset_id: filter_asset.id } } })
       const where = {
         user_id: uid,
         ...(args.search ? { description: { contains: args.search, mode: 'insensitive' as const } } : {}),
+        ...(args.external_ref ? { external_ref: args.external_ref } : {}),
         ...(fromDate || toDate ? { datetime: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lt: toDate } : {}) } } : {}),
+        ...(and.length > 0 ? { AND: and } : {}),
       }
       const orderBy = { datetime: 'desc' as const }
-
-      if (args.include_line_items) {
-        const txns = await prisma.transaction.findMany({
-          where,
-          orderBy,
-          take,
-          include: { line_items: { include: { accounting_head: true, asset: true } } },
-        })
-        return text(
-          txns.map(normalize_txn).map(t => ({
-            id: t.id,
-            datetime: t.datetime,
-            description: t.description,
-            line_items: t.line_items.map(li => ({
-              head: li.accounting_head.name,
-              head_type: li.accounting_head.type,
-              asset: li.asset.name,
-              quantity: li.quantity.toNumber(),
-              txn_value: li.txn_value.toNumber(),
-              description: li.description,
-            })),
-          })),
-        )
-      }
+      const skip = args.offset ?? 0
 
       const txns = await prisma.transaction.findMany({
         where,
         orderBy,
         take,
-        include: { line_items: { select: { quantity: true, txn_value: true, accounting_head: { select: { type: true } } } } },
+        skip,
+        include: { line_items: { include: { accounting_head: true, asset: true } } },
       })
-      return text(txns.map(t => ({ id: t.id, datetime: t.datetime, description: t.description, amount: net_account_flow(t.line_items) })))
+      // Signed INR movement on the filtered head, from normalized lines (so
+      // derived-remainder lines on allocation/income_expense heads count too).
+      const deltas = new Map<string, number>()
+      if (filter_head) {
+        for (const raw of txns) {
+          const t = normalize_txn(raw)
+          const d = t.line_items.filter(li => li.accounting_head_id === filter_head.id).reduce((s, li) => s + li.txn_value.toNumber(), 0)
+          deltas.set(t.id, Math.round(d * 100) / 100)
+        }
+      }
+
+      if (args.include_line_items) {
+        return text(
+          txns.map(raw => {
+            const t = normalize_txn(raw)
+            return {
+              id: t.id,
+              datetime: t.datetime,
+              description: t.description,
+              ...(t.external_ref ? { external_ref: t.external_ref } : {}),
+              ...(filter_head ? { head_delta: deltas.get(t.id) } : {}),
+              line_items: t.line_items.map(li => ({
+                head: li.accounting_head.name,
+                head_type: li.accounting_head.type,
+                asset: li.asset.name,
+                quantity: li.quantity.toNumber(),
+                txn_value: li.txn_value.toNumber(),
+                description: li.description,
+              })),
+            }
+          }),
+        )
+      }
+
+      return text(
+        txns.map(t => ({
+          id: t.id,
+          datetime: t.datetime,
+          description: t.description,
+          ...(t.external_ref ? { external_ref: t.external_ref } : {}),
+          amount: net_account_flow(t.line_items),
+          ...(filter_head ? { head_delta: deltas.get(t.id) } : {}),
+        })),
+      )
     },
   )
 
@@ -645,6 +688,7 @@ function register_tools(server: McpServer) {
           user_id: uid,
           OR: tokens.flatMap(tok => [
             { description: { contains: tok, mode: 'insensitive' as const } },
+            { line_items: { some: { description: { contains: tok, mode: 'insensitive' as const } } } },
             { line_items: { some: { accounting_head: { name: { contains: tok, mode: 'insensitive' as const } } } } },
           ]),
         },
@@ -652,12 +696,28 @@ function register_tools(server: McpServer) {
         take: 200,
         include: { line_items: { include: { accounting_head: true, asset: true } } },
       })
-      const scored = txns.map(raw => {
-        const t = normalize_txn(raw)
-        const haystack = [t.description ?? '', ...t.line_items.map(li => li.accounting_head.name)].join(' ').toLowerCase()
-        const score = tokens.filter(tok => haystack.includes(tok)).length
-        return { t, score }
-      })
+      const MAX_LINES = 12
+      const scored = txns
+        // Allocation-only transactions (monthly bucket moves etc.) are noise as
+        // categorization templates — they carry no account or income/expense lines.
+        .filter(raw => raw.line_items.some(li => li.accounting_head.type !== 'allocation'))
+        .map(raw => {
+          const t = normalize_txn(raw)
+          const descs = [t.description ?? '', ...t.line_items.map(li => li.description ?? '')].join(' ').toLowerCase()
+          const head_names = t.line_items
+            .map(li => li.accounting_head.name)
+            .join(' ')
+            .toLowerCase()
+          // Description hits outrank head-name hits so merchant matches beat
+          // incidental matches on head names like "Dinner Tiffin".
+          let score = 0
+          for (const tok of tokens) {
+            if (descs.includes(tok)) score += 2
+            else if (head_names.includes(tok)) score += 1
+          }
+          return { t, score }
+        })
+        .filter(x => x.score > 0)
       scored.sort((a, b) => b.score - a.score || new Date(b.t.datetime).getTime() - new Date(a.t.datetime).getTime())
       return text(
         scored.slice(0, take).map(({ t }) => ({
@@ -665,7 +725,8 @@ function register_tools(server: McpServer) {
           datetime: t.datetime,
           description: t.description,
           total: net_account_flow(t.line_items),
-          line_items: t.line_items.map(li => ({
+          ...(t.line_items.length > MAX_LINES ? { line_items_truncated: `showing ${MAX_LINES} of ${t.line_items.length}` } : {}),
+          line_items: t.line_items.slice(0, MAX_LINES).map(li => ({
             head: li.accounting_head.name,
             head_type: li.accounting_head.type,
             asset: li.asset.name,
@@ -682,7 +743,7 @@ function register_tools(server: McpServer) {
     'get_transaction',
     {
       description:
-        'Show one transaction: its total value (net inflow/outflow) and all normalized line items, with head_type so they can be grouped account / allocation / income_expense.',
+        'Show one transaction: its total value (net inflow/outflow), all normalized line items (with head_type so they can be grouped account / allocation / income_expense), external_ref, attachments (fetch content via get_attachment), and any cross-user approval links with their pending state.',
       inputSchema: { id: z.string() },
       annotations: ro,
     },
@@ -690,14 +751,19 @@ function register_tools(server: McpServer) {
       const uid = get_uid(extra as ToolExtra)
       const raw = await prisma.transaction.findFirst({
         where: { id: args.id, user_id: uid },
-        include: { line_items: { include: { accounting_head: true, asset: true } } },
+        include: { line_items: { include: { accounting_head: true, asset: true } }, attachments: true, txn_a_links: true, txn_b_links: true },
       })
-      if (!raw) return { content: [{ type: 'text', text: 'Transaction not found' }], isError: true }
+      if (!raw) return error_text('Transaction not found')
       const t = normalize_txn(raw)
+      const links = [...raw.txn_a_links, ...raw.txn_b_links]
+      const other_ids = [...new Set(links.map(l => (l.user_a_id === uid ? l.user_b_id : l.user_a_id)))]
+      const others = other_ids.length ? await prisma.user.findMany({ where: { id: { in: other_ids } }, select: { id: true, username: true } }) : []
+      const username_by_id = new Map(others.map(u => [u.id, u.username]))
       return text({
         id: t.id,
         datetime: t.datetime,
         description: t.description,
+        external_ref: t.external_ref,
         total: net_account_flow(t.line_items),
         line_items: t.line_items.map(li => ({
           head: li.accounting_head.name,
@@ -706,6 +772,14 @@ function register_tools(server: McpServer) {
           quantity: li.quantity.toNumber(),
           txn_value: li.txn_value.toNumber(),
           description: li.description,
+        })),
+        attachments: raw.attachments.map(a => ({ id: a.id, filename: a.filename, content_type: a.content_type, size: a.size })),
+        links: links.map(l => ({
+          link_id: l.id,
+          counterparty: username_by_id.get(l.user_a_id === uid ? l.user_b_id : l.user_a_id) ?? 'unknown',
+          status: l.pending_status,
+          kind: l.pending_kind,
+          awaiting: l.pending_by === null ? null : l.pending_by === uid ? 'me' : 'them',
         })),
       })
     },
@@ -840,8 +914,8 @@ function register_tools(server: McpServer) {
         'Net income and expense by accounting head over an IST date range. This is the CORRECT way to total spending or income for a period — never sum list_transactions debit/credit for that, as those gross account flows include transfers, reimbursements, EMIs, card payments and investments that are neither income nor spend. ' +
         'Every income/expense line is included (e.g. a ₹35 lunch posts −35 to the "Expenses" head; a transfer or EMI posts nothing here). Returns one row per income/expense head with its net INR in ledger convention: spending is negative (e.g. "Expenses"), income positive (e.g. "Salary", "Interest", "Cashbacks"). Defaults to the current calendar month.',
       inputSchema: {
-        from: z.string().optional().describe('dd-MM-yyyy (IST). Default: first day of the current month'),
-        to: z.string().optional().describe('dd-MM-yyyy (IST), inclusive. Default: today'),
+        from: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST). Default: first day of the current month'),
+        to: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST), inclusive. Default: today'),
       },
       annotations: ro,
     },
@@ -850,8 +924,8 @@ function register_tools(server: McpServer) {
       const today = get_indian_date_from_date_obj(new Date())
       const from = args.from ?? `01-${today.slice(3)}`
       const to = args.to ?? today
-      const fromDate = get_date_obj_from_indian_date(from)
-      const toDate = get_date_obj_from_indian_date(to)
+      const fromDate = parse_day(from)
+      const toDate = parse_day(to)
       toDate.setDate(toDate.getDate() + 1)
       const txns = await prisma.transaction.findMany({
         where: { user_id: uid, datetime: { gte: fromDate, lt: toDate }, line_items: { some: { accounting_head: { type: 'income_expense' } } } },
@@ -881,59 +955,157 @@ function register_tools(server: McpServer) {
         'A simple cash expense is three lines: the account you paid from, one allocation head, and one income/expense head. ' +
         'Null-remainder rule, applied per asset: every account line needs an explicit signed quantity; then omit quantity on exactly one allocation line AND on exactly one income/expense line (both auto-derived as the balancing remainder — do not also fill them). ' +
         'For rupee assets never set txn_value. ' +
-        'Example — spend ₹150 from Kotak on Barber: [{account:"Kotak", asset:"Money", quantity:-150}, {account:"Expenses", asset:"Money"}, {account:"Barber", asset:"Money"}].',
+        'Example — spend ₹150 from Kotak on Barber: [{account:"Kotak", asset:"Money", quantity:-150}, {account:"Expenses", asset:"Money"}, {account:"Barber", asset:"Money"}]. ' +
+        'When importing from a statement, always pass external_ref (the bank/UPI ref) and idempotency_key (e.g. the same ref) so retries and re-imports can never double-post. ' +
+        'The response echoes the resulting balances of the touched accounts — sanity-check them. A near-duplicate (same account, same net amount, within ±1 day) is rejected with the matching id unless force is true.',
       inputSchema: {
         description: z.string().nullish(),
         datetime: z.string().optional().describe('dd-MM-yyyy or ISO; default now'),
         line_items: lineItemShape,
+        external_ref: z
+          .string()
+          .nullish()
+          .describe('Reference from the source system, e.g. a bank/UPI ref — queryable via list_transactions/find_by_external_ref'),
+        idempotency_key: z
+          .string()
+          .nullish()
+          .describe(
+            'Stable dedup token: re-creating with the same key returns the existing transaction instead of double-posting. Use on any retry-prone or imported entry.',
+          ),
+        dry_run: z.boolean().optional().describe('Validate and echo the derived remainder lines without writing anything'),
+        force: z.boolean().optional().describe('Create even if a possible duplicate exists'),
       },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const line_items = await build_line_items(uid, args.line_items)
-      return action_result(await create_transaction_core(uid, parse_date(args.datetime), line_items, args.description))
+      const datetime = parse_date(args.datetime)
+      if (args.dry_run) return dry_run_check(uid, datetime, line_items, args.description)
+      // With an idempotency_key the exact dedup in the core supersedes the
+      // heuristic guard (which would otherwise block legitimate replays).
+      if (!args.force && !args.idempotency_key) {
+        const dupe = await find_possible_duplicate(uid, datetime, line_items)
+        if (dupe)
+          return error_text(
+            `Possible duplicate — not created. Existing transaction ${dupe.id} (${dupe.datetime.toISOString()}, "${dupe.description ?? ''}") already moves ${dupe.amount} on the same account within ±1 day. ` +
+              'Inspect it with get_transaction; pass force:true to create anyway, or use an idempotency_key for exact dedup.',
+          )
+      }
+      const res = await create_transaction_core(uid, datetime, line_items, args.description, {
+        external_ref: args.external_ref,
+        idempotency_key: args.idempotency_key,
+      })
+      if (!res.success) return action_result(res)
+      const balances = await account_balances_for(
+        uid,
+        line_items.map(li => li.accounting_head_id),
+      )
+      return text({ ok: true, message: res.message, ...res.data, account_balances: balances })
     },
   )
 
   server.registerTool(
     'update_transaction',
     {
-      description: "Replace a transaction's line items (and optionally description/datetime).",
-      inputSchema: { id: z.string(), description: z.string().nullish(), datetime: z.string().optional(), line_items: lineItemShape },
+      description:
+        'Update a transaction. line_items REPLACE the existing ones wholesale when given; omit line_items to keep them and change only description/datetime/external_ref. Attachments are preserved either way. Editing lines shared with a linked user re-opens their approval. Pass dry_run to validate replacement lines without writing. The response echoes the resulting balances of the touched accounts.',
+      inputSchema: {
+        id: z.string(),
+        description: z.string().nullish(),
+        datetime: z.string().optional().describe('dd-MM-yyyy or ISO'),
+        line_items: lineItemShape.optional().describe('Omit to keep the existing line items unchanged'),
+        external_ref: z.string().nullish().describe('Set or change the external reference (null clears it)'),
+        dry_run: z.boolean().optional().describe('Validate the replacement line items without writing anything'),
+      },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const line_items = await build_line_items(uid, args.line_items)
-      return action_result(
-        await update_transaction_core(uid, args.id, line_items, args.datetime ? parse_date(args.datetime) : undefined, args.description),
+      const existing = await prisma.transaction.findFirst({ where: { id: args.id, user_id: uid }, include: { line_items: true } })
+      if (!existing) return error_text('Transaction not found')
+      const line_items: CreateLineItemInput[] = args.line_items
+        ? await build_line_items(uid, args.line_items)
+        : stored_lines_to_input(existing.line_items)
+      if (args.dry_run) return dry_run_check(uid, args.datetime ? parse_date(args.datetime) : existing.datetime, line_items, args.description)
+      const res = await update_transaction_core(
+        uid,
+        args.id,
+        line_items,
+        args.datetime ? parse_date(args.datetime) : undefined,
+        args.description,
+        'external_ref' in args ? { external_ref: args.external_ref } : undefined,
       )
+      if (!res.success) return action_result(res)
+      const touched = [...new Set([...existing.line_items.map(li => li.accounting_head_id), ...line_items.map(li => li.accounting_head_id)])]
+      const balances = await account_balances_for(uid, touched)
+      return text({ ok: true, message: res.message, account_balances: balances })
     },
   )
 
-  server.registerTool('delete_transaction', { description: 'Delete a transaction by id.', inputSchema: { id: z.string() } }, async (args, extra) => {
-    const uid = get_uid(extra as ToolExtra)
-    return action_result(await delete_transaction_core(uid, args.id))
-  })
+  server.registerTool(
+    'delete_transaction',
+    {
+      description:
+        'Permanently delete a transaction by id. There is no undo — the response returns a full snapshot of what was deleted (line items in create_transaction format) so it can be re-created with create_transaction if this was a mistake. Deleting a transaction shared with a linked user sends them a deletion request. The response echoes the resulting balances of the touched accounts.',
+      inputSchema: { id: z.string() },
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const existing = await prisma.transaction.findFirst({
+        where: { id: args.id, user_id: uid },
+        include: { line_items: { include: { accounting_head: true, asset: true } } },
+      })
+      if (!existing) return error_text('Transaction not found')
+      const snapshot = {
+        datetime: existing.datetime,
+        description: existing.description,
+        external_ref: existing.external_ref,
+        line_items: existing.line_items.map(li => ({
+          account: li.accounting_head.name,
+          asset: li.asset.name,
+          ...(li.quantity !== null ? { quantity: li.quantity.toNumber() } : {}),
+          ...(li.txn_value !== null ? { txn_value: li.txn_value.toNumber() } : {}),
+          ...(li.description ? { description: li.description } : {}),
+          ...(li.datetime ? { datetime: li.datetime.toISOString() } : {}),
+        })),
+      }
+      const head_ids = existing.line_items.map(li => li.accounting_head_id)
+      const res = await delete_transaction_core(uid, args.id)
+      if (!res.success) return action_result(res)
+      const balances = await account_balances_for(uid, head_ids)
+      return text({ ok: true, message: 'Transaction deleted', deleted: snapshot, account_balances: balances })
+    },
+  )
 
   server.registerTool(
     'pay',
     {
-      description: 'Record a UPI-style payment: −amount on your default account, +amount on the payee account.',
+      description:
+        'Record a UPI-style payment: −amount on your default account, +amount on the payee account. The response echoes the resulting balances of both accounts.',
       inputSchema: { payee_account: z.string().describe('Payee account id or name'), amount: z.number().positive(), note: z.string().nullish() },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const accounts = (await load_heads(uid)).filter(h => h.type === 'account')
       const payee = resolve_ref(args.payee_account, accounts, 'account')
-      return action_result(await create_upi_payment_core(uid, { payee_account_id: payee.id, amount: args.amount, description: args.note }))
+      const res = await create_upi_payment_core(uid, { payee_account_id: payee.id, amount: args.amount, description: args.note })
+      if (!res.success || !res.data) return action_result(res)
+      const balances = await account_balances_for(uid, await head_ids_of_txn(res.data.id))
+      return text({ ok: true, message: res.message, ...res.data, account_balances: balances })
     },
   )
 
   server.registerTool(
     'approve_request',
     {
-      description: 'Approve an inbox request. For a change request, give an account (id or name) to auto-balance your own copy onto.',
-      inputSchema: { link_id: z.string(), account: z.string().nullish().describe('Your own account to balance onto (for change requests)') },
+      description:
+        'Approve an inbox request (this rebuilds your copy of the shared transaction — the mirrored lines are server-derived). For a change request give either account (id or name, auto-balances your copy onto it) or balancing_lines (your own explicit lines beside the locked mirrored ones). This also affects the counterparty — tell the user what will happen before acting.',
+      inputSchema: {
+        link_id: z.string(),
+        account: z.string().nullish().describe('Your own (non-linked) account to auto-balance onto (for change requests)'),
+        balancing_lines: lineItemShape
+          .optional()
+          .describe('Alternative to account: your own balancing line items (the mirrored linked-account lines are added automatically)'),
+      },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -942,18 +1114,24 @@ function register_tools(server: McpServer) {
         const own = (await load_heads(uid)).filter(h => h.type === 'account' && !h.linked_user_id)
         account_id = resolve_ref(args.account, own, 'account').id
       }
-      return action_result(await approve_request_core(uid, args.link_id, [], account_id))
+      const balancing = args.balancing_lines ? await build_line_items(uid, args.balancing_lines) : []
+      return action_result(await approve_request_core(uid, args.link_id, balancing, account_id))
     },
   )
 
   server.registerTool(
     'reject_request',
-    { description: 'Reject an inbox request by link id.', inputSchema: { link_id: z.string() } },
+    {
+      description: 'Reject an inbox request by link id. The counterparty is notified and can revert their copy.',
+      inputSchema: { link_id: z.string() },
+    },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       return action_result(await reject_request_core(uid, args.link_id))
     },
   )
+
+  register_extra_tools(server)
 }
 
 const handler = createMcpHandler(
@@ -963,7 +1141,12 @@ const handler = createMcpHandler(
     instructions:
       "This is the user's personal finance ledger (triple-entry bookkeeping). The user categorizes things consistently over time, so don't make the user re-specify details you can infer from their history. " +
       'Before creating or updating a transaction — and whenever the user gives a terse instruction or asks how something should be categorized — call find_similar_transactions (or list_transactions with search + include_line_items) to see how they recorded comparable entries, and reuse the same account, allocation and income/expense heads instead of guessing or asking. ' +
-      "Prefer matching the user's own past structure over inventing new heads. Use get_income_expense (never a sum of transaction amounts) for period spending/income totals.",
+      "Prefer matching the user's own past structure over inventing new heads; when a genuinely new category is needed you can create/rename/archive heads with create_head/update_head (archive with is_active:false instead of deleting). " +
+      'Use get_income_expense (never a sum of transaction amounts) for period spending/income totals. ' +
+      'When importing bank/UPI statements: pass external_ref and idempotency_key on every create so retries and re-imports never double-post, use reconcile to diff a statement against the ledger, find_by_external_ref to check which refs already exist, get_balances with as_of to verify closing balances, and create_transactions for atomic bulk inserts. ' +
+      'Mutating tools echo the resulting account balances — sanity-check them against what the user expects. ' +
+      "Approval tools (approve/reject/cancel/revert/accept_all_from) change a linked counterparty's ledger too — state clearly what will happen before acting. " +
+      'Dates accept dd-MM-yyyy or yyyy-MM-dd (IST) everywhere; datetimes also accept ISO.',
   },
   { streamableHttpEndpoint: '/api/mcp', disableSse: true },
 )

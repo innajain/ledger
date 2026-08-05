@@ -157,13 +157,25 @@ model transaction {
   datetime    DateTime
   description String?
 
+  // External reference from the source system (e.g. a bank/UPI ref like
+  // "UPI-621663575718"). Not unique — one payment may span several ledger
+  // entries — but indexed for statement reconciliation lookups.
+  external_ref String?
+
+  // Client-supplied dedup token (unique per user; NULLs don't collide).
+  // Re-creating with the same key returns the existing transaction instead of
+  // inserting a duplicate — lets API/MCP clients retry interrupted calls safely.
+  idempotency_key String?
+
   user        user                     @relation(fields: [user_id], references: [id])
   line_items  line_item[]
   attachments transaction_attachment[]
   txn_a_links transaction_link[]       @relation("txn_a_links")
   txn_b_links transaction_link[]       @relation("txn_b_links")
 
+  @@unique([user_id, idempotency_key])
   @@index([user_id, datetime])
+  @@index([user_id, external_ref])
 }
 
 model transaction_attachment {
