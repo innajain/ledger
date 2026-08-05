@@ -1,4 +1,6 @@
 import { notFound } from 'next/navigation'
+import { formatInTimeZone } from 'date-fns-tz'
+import { USER_TIMEZONE } from '@/lib/config'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
@@ -162,6 +164,7 @@ async function Page({ params }: Props) {
         children,
         parent,
         linked_user,
+        lock_date: head.lock_date ? formatInTimeZone(head.lock_date, USER_TIMEZONE, 'd MMM yyyy') : null,
         xirr: xirr_value,
         upi_id: linked_user?.upi_id ?? null,
         breakdown,

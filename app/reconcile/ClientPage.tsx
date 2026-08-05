@@ -4,10 +4,11 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { parse_statement, type ParsedStatementRow } from '@/app/_utils/statement_parser'
-import { run_reconcile, create_missing_transactions, type ReconcileView, type StatementRow } from './reconcile_actions'
+import { run_reconcile, create_missing_transactions, set_reconciliation_lock, type ReconcileView, type StatementRow } from './reconcile_actions'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
 
 type HeadOpt = { id: string; name: string }
+type AccountOpt = HeadOpt & { lock_date: string | null } // yyyy-MM-dd
 
 const inputCls =
   'w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100'
@@ -31,7 +32,7 @@ export default function ClientPage({
   incomeExpenses,
   defaults,
 }: {
-  accounts: HeadOpt[]
+  accounts: AccountOpt[]
   allocations: HeadOpt[]
   incomeExpenses: HeadOpt[]
   defaults: LineItemDefaults
@@ -48,7 +49,12 @@ export default function ClientPage({
   const [incomeExpenseId, setIncomeExpenseId] = useState(defaults.default_income_expense_id ?? '')
   const [creating, setCreating] = useState(false)
   const [createNote, setCreateNote] = useState<string | null>(null)
+  const [locking, setLocking] = useState(false)
+  // account_id -> yyyy-MM-dd, set after advancing a lock here (fresher than the server-rendered props)
+  const [lockOverrides, setLockOverrides] = useState<Record<string, string>>({})
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const lockedThrough = accountId ? (lockOverrides[accountId] ?? accounts.find(a => a.id === accountId)?.lock_date ?? null) : null
 
   function handleFile(file: File | undefined) {
     if (!file) return
@@ -124,6 +130,35 @@ export default function ClientPage({
 
   const selectedCount = view ? view.missing_in_ledger.filter(r => selected.has(r.index)).length : 0
 
+  const windowEnd = parsed && parsed.rows.length > 0 ? parsed.rows.reduce((max, r) => (r.date > max ? r.date : max), parsed.rows[0].date) : null
+  // only the account this view was actually run for can be locked from it
+  const viewMatchesAccount = view !== null && view.account_id === accountId
+  // every statement row parsed, every one matched, and no unexplained ledger
+  // flow in the window — anything less means something in here is still unverified
+  const cleanMatch =
+    viewMatchesAccount &&
+    parsed !== null &&
+    parsed.errors.length === 0 &&
+    view.counts.missing_in_ledger === 0 &&
+    view.counts.amount_mismatch === 0 &&
+    view.counts.missing_in_bank === 0
+  const canAdvanceLock = cleanMatch && windowEnd !== null && (lockedThrough === null || windowEnd > lockedThrough)
+
+  async function handleAdvanceLock() {
+    if (!canAdvanceLock || !windowEnd || !view) return
+    setError(null)
+    setLocking(true)
+    try {
+      const res = await set_reconciliation_lock(view.account_id, windowEnd)
+      if (!res.success) throw new Error(res.message)
+      setLockOverrides(prev => ({ ...prev, [view.account_id]: windowEnd }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLocking(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -137,7 +172,16 @@ export default function ClientPage({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account</label>
-            <select value={accountId} onChange={e => setAccountId(e.target.value)} className={inputCls}>
+            <select
+              value={accountId}
+              onChange={e => {
+                // results belong to the account they were run for — drop them
+                setAccountId(e.target.value)
+                setView(null)
+                setCreateNote(null)
+              }}
+              className={inputCls}
+            >
               <option value="">Select the statement&apos;s account…</option>
               {accounts.map(a => (
                 <option key={a.id} value={a.id}>
@@ -145,6 +189,11 @@ export default function ClientPage({
                 </option>
               ))}
             </select>
+            {lockedThrough && (
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                🔒 Reconciled &amp; locked through {fmtDate(lockedThrough)} — entries on or before that day can&apos;t be changed
+              </p>
+            )}
           </div>
           <div className="flex items-end">
             <button
@@ -230,6 +279,47 @@ export default function ClientPage({
               <MaskedAmount value={view.ledger_closing_balance} />
             </span>
           </div>
+
+          {windowEnd && viewMatchesAccount && (
+            <div
+              className={`rounded-lg border p-4 flex flex-wrap items-center justify-between gap-3 transition-colors ${
+                cleanMatch
+                  ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'
+              }`}
+            >
+              <div>
+                <p className={`text-sm font-medium ${cleanMatch ? 'text-green-800 dark:text-green-200' : 'text-slate-700 dark:text-slate-300'}`}>
+                  {cleanMatch
+                    ? `Clean match — if the closing balance above equals the statement's, ${view.account_name} is verified through ${fmtDate(windowEnd)}`
+                    : `Every row must be accounted for before locking — ${[
+                        view.counts.missing_in_ledger > 0 && `${view.counts.missing_in_ledger} missing in ledger`,
+                        view.counts.amount_mismatch > 0 && `${view.counts.amount_mismatch} amount mismatch`,
+                        view.counts.missing_in_bank > 0 && `${view.counts.missing_in_bank} not on statement`,
+                        parsed &&
+                          parsed.errors.length > 0 &&
+                          `${parsed.errors.length} row${parsed.errors.length === 1 ? '' : 's'} skipped by the parser`,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')} still open`}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {lockedThrough ? `Currently locked through ${fmtDate(lockedThrough)}` : 'No reconciliation lock set yet'} — locking makes entries on
+                  or before the day immutable
+                </p>
+              </div>
+              {canAdvanceLock && (
+                <button
+                  type="button"
+                  onClick={handleAdvanceLock}
+                  disabled={locking}
+                  className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 transition-colors font-medium text-sm"
+                >
+                  {locking ? 'Locking…' : `🔒 Lock through ${fmtDate(windowEnd)}`}
+                </button>
+              )}
+            </div>
+          )}
 
           {createNote && (
             <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-3 text-sm text-green-800 dark:text-green-200">

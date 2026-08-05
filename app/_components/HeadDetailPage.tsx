@@ -43,6 +43,8 @@ export type HeadData = {
   parent?: { name: string; link: string } | null
 
   linked_user?: { id: string; username: string } | null
+  // humanized IST day (e.g. "4 Aug 2026") — accounts only
+  lock_date?: string | null
   xirr?: number | null
 
   upi_id?: string | null
@@ -124,6 +126,16 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
             Part of <span className="font-medium">{head.parent.name}</span>
           </span>
         </Link>
+      )}
+
+      {head.lock_date && (
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2.5 flex items-center gap-2.5">
+          <span aria-hidden>🔒</span>
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            Reconciled &amp; locked through <span className="font-semibold">{head.lock_date}</span> — entries on or before this day can&apos;t be
+            changed. Adjust on the edit page.
+          </p>
+        </div>
       )}
 
       {head.upi_id && (

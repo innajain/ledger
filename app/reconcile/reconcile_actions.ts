@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { reconcile_ledger_core } from '@/app/_core/reconcile_core'
 import { create_transactions_core, type BulkTransactionInput } from '@/app/_core/transactions_core'
+import { update_account_core } from '@/app/_core/resources_core'
 import { get_date_obj_from_indian_date } from '@/app/_utils/date'
 import { asset_type } from '@/generated/prisma/enums'
 import { ActionResult, ok, err, fromError } from '@/app/_actions/_result'
@@ -17,6 +18,7 @@ export type StatementRow = {
 }
 
 export type ReconcileView = {
+  account_id: string
   account_name: string
   counts: {
     bank_rows: number
@@ -58,6 +60,7 @@ export async function run_reconcile(account_id: string, rows: StatementRow[]): P
     const txn_of = (entry_id: string) => flow_by_id.get(entry_id)!.transaction_id
 
     return ok({
+      account_id: account.id,
       account_name: account.name,
       counts: {
         bank_rows: rows.length,
@@ -135,6 +138,20 @@ export async function create_missing_transactions(
     if (!res.success) return res
     const replayed = res.data!.replayed_ids.length
     return ok({ created: res.data!.ids.length - replayed, replayed }, res.message)
+  } catch (error) {
+    return fromError(error)
+  }
+}
+
+// Advance the account's reconciliation lock after a clean match — everything on
+// or before this day is verified against the bank and becomes immutable.
+export async function set_reconciliation_lock(account_id: string, date: string): Promise<ActionResult> {
+  const user_id = await get_current_user_id()
+  if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
+  try {
+    const account = await owned_account(user_id, account_id)
+    if (!account) return err('NOT_FOUND', 'Account not found')
+    return await update_account_core(user_id, account.id, undefined, undefined, undefined, undefined, undefined, undefined, ist_day(date))
   } catch (error) {
     return fromError(error)
   }
