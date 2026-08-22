@@ -5,6 +5,7 @@ import { redis } from '@/lib/redis'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
 import { asset_type } from '@/generated/prisma/client'
+import { AMFI_NAVALL_URL, parse_navall } from './amfi_nav'
 
 function ist_date_key(date: Date): string {
   return formatInTimeZone(date, USER_TIMEZONE, 'yyyy-MM-dd')
@@ -29,21 +30,15 @@ async function get_isin_to_scheme_code_map(): Promise<Record<string, string>> {
   if (existing) return existing
 
   const fetchPromise = (async () => {
-    const url = 'https://www.amfiindia.com/spages/NAVAll.txt'
-    const response = await fetch(url)
+    const response = await fetch(AMFI_NAVALL_URL)
     if (!response.ok) throw new Error(`AMFI NAVAll fetch failed: ${response.status}`)
     const text = await response.text()
-    const lines = text.split('\n')
+    const { rows } = parse_navall(text)
+    if (rows.length === 0) throw new Error(`AMFI NAVAll parse yielded no rows (${text.length} bytes)`)
     const map: Record<string, string> = {}
-    for (const line of lines) {
-      const parts = line.split(';')
-      if (parts.length >= 6 && parts[0] && !isNaN(Number(parts[0]))) {
-        const schemeCode = parts[0].trim()
-        const isinGrowth = parts[1]?.trim()
-        const isinReinvestment = parts[2]?.trim()
-        if (isinGrowth && isinGrowth !== '-') map[isinGrowth] = schemeCode
-        if (isinReinvestment && isinReinvestment !== '-') map[isinReinvestment] = schemeCode
-      }
+    for (const row of rows) {
+      if (row.isin_growth) map[row.isin_growth] = row.scheme_code
+      if (row.isin_reinvestment) map[row.isin_reinvestment] = row.scheme_code
     }
     await redis.setex(cacheKey, SCHEME_MAP_TTL, JSON.stringify(map))
     return map

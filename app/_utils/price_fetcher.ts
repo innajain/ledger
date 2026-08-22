@@ -7,7 +7,8 @@ import { redis } from '@/lib/redis'
 import { prisma } from '@/lib/prisma'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
-import { asset_type, Prisma } from '@/generated/prisma/client'
+import { asset_type } from '@/generated/prisma/client'
+import { AMFI_NAVALL_URL, parse_navall } from './amfi_nav'
 
 type NAVData = {
   isin: string
@@ -72,53 +73,37 @@ export async function sync_nav() {
   })
   const isinSet = new Set(assets.map(a => a.ticker))
 
-  const url = 'https://www.amfiindia.com/spages/NAVAll.txt'
-  const response = await fetch(url)
+  const response = await fetch(AMFI_NAVALL_URL)
   if (!response.ok) throw new Error(`AMFI NAV fetch failed: ${response.status}`)
 
   const text = await response.text()
-  const lines = text.split('\n')
+  const { rows, skipped } = parse_navall(text)
+
+  // A layout change upstream shows up as zero parsed rows; fail loudly rather
+  // than quietly caching nothing and serving null prices for every fund.
+  if (rows.length === 0) throw new Error(`AMFI NAV parse yielded no rows (${text.length} bytes, ${skipped} skipped)`)
+  if (skipped > 0) logger.warn({ skipped, parsed: rows.length }, 'Skipped malformed rows in AMFI NAV feed')
 
   let pipeline = redis.pipeline()
   let count = 0
   let queuedCount = 0
 
-  for (const line of lines) {
-    const parts = line.split(';')
-    if (parts.length >= 6 && parts[0] && !isNaN(Number(parts[0]))) {
-      const isinGrowth = parts[1]?.trim()
-      const isinReinvestment = parts[2]?.trim()
-      const schemeName = parts[3]?.trim()
-      const navStr = parts[4]?.trim()
-      const nav = navStr ? new Prisma.Decimal(parseFloat(navStr) || navStr).toNumber() : 0
-      const dateStr = parts[5]?.trim()
+  for (const row of rows) {
+    const localDate = parse(row.date, 'dd-MMM-yyyy', new Date())
+    const istDate = fromZonedTime(localDate, USER_TIMEZONE)
 
-      if (dateStr) {
-        const localDate = parse(dateStr, 'dd-MMM-yyyy', new Date())
-        const istDate = fromZonedTime(localDate, USER_TIMEZONE)
+    for (const isin of [row.isin_growth, row.isin_reinvestment]) {
+      if (!isin || !isinSet.has(isin)) continue
+      const navData = { isin, schemeName: row.scheme_name, nav: row.nav, date: istDate }
+      pipeline.setex(`price:nav:${isin}`, 2 * 24 * 60 * 60, JSON.stringify(navData))
+      count++
+      queuedCount++
+    }
 
-        if (isinGrowth && isinGrowth !== '-' && isinSet.has(isinGrowth)) {
-          const navData = { isin: isinGrowth, schemeName, nav, date: istDate }
-          const cacheKey = `price:nav:${isinGrowth}`
-          pipeline.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(navData))
-          count++
-          queuedCount++
-        }
-
-        if (isinReinvestment && isinReinvestment !== '-' && isinSet.has(isinReinvestment)) {
-          const navData = { isin: isinReinvestment, schemeName, nav, date: istDate }
-          const cacheKey = `price:nav:${isinReinvestment}`
-          pipeline.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(navData))
-          count++
-          queuedCount++
-        }
-
-        if (queuedCount >= 1000) {
-          await pipeline.exec()
-          pipeline = redis.pipeline()
-          queuedCount = 0
-        }
-      }
+    if (queuedCount >= 1000) {
+      await pipeline.exec()
+      pipeline = redis.pipeline()
+      queuedCount = 0
     }
   }
 
