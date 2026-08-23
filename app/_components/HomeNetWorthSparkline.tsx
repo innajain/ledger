@@ -34,13 +34,18 @@ function build_path(points: SparkPoint[]): { line: string; area: string } {
 }
 
 export function HomeNetWorthSparkline({ points, days }: Props) {
-  const { graphs_visible } = usePrivacy()
+  const { graphs_visible, masking_enabled, mask_threshold, reveal_all } = usePrivacy()
   if (points.length < 2) return null
 
   const first = points[0].value
   const last = points[points.length - 1].value
   const change = last - first
-  const pct = first !== 0 ? (change / Math.abs(first)) * 100 : null
+  // The absolute change is often small enough to sit under the mask threshold and show in
+  // the clear — that's fine on its own, but pairing it with a percentage lets anyone solve
+  // `base = change / pct` and recover the masked total above. Hide the percentage whenever
+  // either endpoint is itself something the mask would hide, even though the delta isn't.
+  const total_masked = masking_enabled && !reveal_all && (Math.abs(first) > mask_threshold || Math.abs(last) > mask_threshold)
+  const pct = !total_masked && first !== 0 ? (change / Math.abs(first)) * 100 : null
   const tone =
     change > 0 ? 'text-green-600 dark:text-green-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'
   const { line, area } = build_path(points)

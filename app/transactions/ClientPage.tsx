@@ -615,45 +615,43 @@ export default function ClientPage({
                         </span>
                       ) : null
                     return (
-                      <li key={tx.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${borderCls}`}>
-                        <Link href={`/transactions/${tx.id}`} className="block px-6 py-3.5 group">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                {tx.description || 'No description'}
-                              </p>
-                              <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 min-w-0">
-                                <span>
-                                  {up_ampm(group.label === null ? full_datetime_fmt.format(new Date(tx.date)) : time_fmt.format(new Date(tx.date)))}
-                                </span>
-                                {tx.external_ref && (
-                                  <span className="hidden sm:inline text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
-                                    {tx.external_ref}
-                                  </span>
-                                )}
-                              </p>
-                            </div>
-                            <div className="ml-4 shrink-0 flex items-center gap-2">
-                              {badge}
-                              {/* Direction rides on the sign (kept even while masked), not on a wall of
-                                  red: money in is green, money out is plain ink. */}
-                              {tx.total_book !== 0 ? (
-                                <span
-                                  className={`text-lg font-semibold inline-block tabular-nums ${
-                                    tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
-                                  }`}
-                                >
-                                  <MaskedAmount value={tx.total_book} keep_sign interactive={false} />
-                                </span>
-                              ) : (
-                                /* a zero net flow (e.g. a transfer) still deserves a figure, not a blank cell */
-                                <span className="text-lg font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
-                                  {currency_fmt.format(0)}
+                      // Stretched-link treatment (see the home cards): the amount needs its own
+                      // click-to-reveal, so it can't nest inside the row's <Link>. The Link fills
+                      // the row invisibly; only the amount opts back into pointer events.
+                      <li key={tx.id} className={`relative hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${borderCls}`}>
+                        <Link href={`/transactions/${tx.id}`} className="absolute inset-0 z-0" aria-label={tx.description || 'View transaction'} />
+                        <div className="relative z-10 pointer-events-none px-6 py-3.5 flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{tx.description || 'No description'}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 min-w-0">
+                              <span>
+                                {up_ampm(group.label === null ? full_datetime_fmt.format(new Date(tx.date)) : time_fmt.format(new Date(tx.date)))}
+                              </span>
+                              {tx.external_ref && (
+                                <span className="hidden sm:inline text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
+                                  {tx.external_ref}
                                 </span>
                               )}
-                            </div>
+                            </p>
                           </div>
-                        </Link>
+                          <div className="ml-4 shrink-0 flex items-center gap-2">
+                            {badge}
+                            {/* Direction rides on the sign (kept even while masked), not on a wall of
+                                red: money in is green, money out is plain ink. */}
+                            {tx.total_book !== 0 ? (
+                              <span
+                                className={`text-lg font-semibold inline-block tabular-nums pointer-events-auto ${
+                                  tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
+                                }`}
+                              >
+                                <MaskedAmount value={tx.total_book} keep_sign />
+                              </span>
+                            ) : (
+                              /* a zero net flow (e.g. a transfer) still deserves a figure, not a blank cell */
+                              <span className="text-lg font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{currency_fmt.format(0)}</span>
+                            )}
+                          </div>
+                        </div>
                       </li>
                     )
                   })}

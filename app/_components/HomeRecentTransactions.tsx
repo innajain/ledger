@@ -33,14 +33,16 @@ export function HomeRecentTransactions({ transactions }: { transactions: HomeRec
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-700 border-t border-slate-200 dark:border-slate-700">
+        <ul className="divide-y divide-slate-200 dark:divide-slate-700 border-t border-slate-200 dark:border-slate-700 max-h-56 overflow-y-auto">
           {transactions.map(tx => (
-            <li key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-              <Link href={`/transactions/${tx.id}`} className="flex items-center justify-between gap-3 px-6 py-3 group">
+            // Same stretched-link treatment as the home allocation cards: the amount needs its
+            // own click-to-reveal, so it can't be nested inside the row's <Link>. The Link fills
+            // the row invisibly behind the content; only the amount opts back into pointer events.
+            <li key={tx.id} className="relative hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+              <Link href={`/transactions/${tx.id}`} className="absolute inset-0 z-0" aria-label={tx.description || 'View transaction'} />
+              <div className="relative z-10 pointer-events-none flex items-center justify-between gap-3 px-6 py-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {tx.description || 'No description'}
-                  </p>
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{tx.description || 'No description'}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     <LocalDateTime value={tx.date} />
                   </p>
@@ -49,14 +51,14 @@ export function HomeRecentTransactions({ transactions }: { transactions: HomeRec
                   /* Direction rides on the kept sign; money in is green, money out plain ink —
                      same treatment as the transactions list. */
                   <span
-                    className={`shrink-0 text-sm font-semibold tabular-nums ${
+                    className={`shrink-0 text-sm font-semibold tabular-nums pointer-events-auto ${
                       tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
                     }`}
                   >
-                    <MaskedAmount value={tx.total_book} interactive={false} keep_sign />
+                    <MaskedAmount value={tx.total_book} keep_sign />
                   </span>
                 )}
-              </Link>
+              </div>
             </li>
           ))}
         </ul>

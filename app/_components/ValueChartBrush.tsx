@@ -78,7 +78,10 @@ export function ValueChartBrush({ points, title }: Props) {
 
   const last = points[points.length - 1]
   const gain = last.current - last.invested
-  const gainPct = last.invested !== 0 ? (gain / last.invested) * 100 : null
+  // Same leak as the net-worth sparkline: a masked gain paired with an unmasked percentage
+  // lets anyone solve `invested = gain / pct` and recover the masked totals. Hide the
+  // percentage whenever the underlying amounts are themselves masked.
+  const gainPct = !amountsHidden && last.invested !== 0 ? (gain / last.invested) * 100 : null
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">

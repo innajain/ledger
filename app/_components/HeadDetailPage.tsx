@@ -298,23 +298,22 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
           </div>
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             {head.children.map(child => (
-              <Link
-                key={child.id}
-                href={child.link}
-                className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors group"
-              >
-                <span className="font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {child.name}
-                </span>
-                <span className="flex items-center gap-2 shrink-0">
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    <MaskedAmount value={child.total} interactive={false} />
+              // Stretched-link treatment (see the home cards): the amount needs its own
+              // click-to-reveal, so it can't nest inside the row's <Link>.
+              <div key={child.id} className="relative hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
+                <Link href={child.link} aria-label={child.name} className="absolute inset-0 z-0" />
+                <div className="relative z-10 pointer-events-none flex items-center justify-between gap-4 p-4">
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{child.name}</span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100 pointer-events-auto">
+                      <MaskedAmount value={child.total} />
+                    </span>
+                    <span aria-hidden="true" className="text-slate-400">
+                      →
+                    </span>
                   </span>
-                  <span aria-hidden="true" className="text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    →
-                  </span>
-                </span>
-              </Link>
+                </div>
+              </div>
             ))}
           </div>
         </Card>
@@ -335,7 +334,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
         {head.line_items.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+          <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
             {head.line_items.slice(0, visibleLineItems).map(li => (
               <LineItemRow
                 key={li.id}

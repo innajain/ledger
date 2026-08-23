@@ -3,8 +3,6 @@
 import React from 'react'
 import Link from 'next/link'
 import { MaskedAmount } from './_components/MaskedAmount'
-import { HomeQuickActions } from './_components/HomeQuickActions'
-import { HomeTemplateChips, type HomeTemplate } from './_components/HomeTemplateChips'
 import { HomeMonthSummary, type HomeMonthData } from './_components/HomeMonthSummary'
 import { HomeRecentTransactions, type HomeRecentTransaction } from './_components/HomeRecentTransactions'
 
@@ -18,8 +16,6 @@ export default function ClientPage({
   networthTrendSlot,
   month = null,
   recent = [],
-  templates = [],
-  requestCount = 0,
 }: {
   welcomeMessage: string
   loggedIn?: boolean
@@ -30,8 +26,6 @@ export default function ClientPage({
   networthTrendSlot?: React.ReactNode
   month?: HomeMonthData | null
   recent?: HomeRecentTransaction[]
-  templates?: HomeTemplate[]
-  requestCount?: number
 }) {
   return (
     <div className="space-y-6">
@@ -68,29 +62,16 @@ export default function ClientPage({
         </div>
       )}
 
-      {/* The actual daily actions (the navbar already covers navigation). */}
-      {loggedIn && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-          <HomeQuickActions requestCount={requestCount} />
-          <HomeTemplateChips templates={templates} />
-        </div>
-      )}
-
-      {/* How am I doing this month, and what did I just post? */}
-      {loggedIn && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {month && <HomeMonthSummary month={month} />}
-          <HomeRecentTransactions transactions={recent} />
-        </div>
-      )}
-
       {/* Allocation roll-ups. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Investments */}
+        {/* Investments. The amount needs its own click-to-reveal, so it can't sit inside the
+            card's <Link> (nesting an interactive control inside an anchor is invalid and was
+            exactly what silently broke the toggle — every click hit the link, not the amount).
+            Instead the Link is an invisible layer stretched behind the whole card; everything
+            except the amount forwards clicks through to it via pointer-events-none, and the
+            amount sits on top as the one real interactive island. */}
         {(() => {
-          const cardClass =
-            'block bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/40'
-          const inner = (
+          const content = (
             <>
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center">
@@ -102,25 +83,36 @@ export default function ClientPage({
               </div>
               <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Investment allocation</h2>
               <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-                {invest ? <MaskedAmount value={invest.total} interactive={false} /> : '—'}
+                {invest ? (
+                  <span className="pointer-events-auto inline-block">
+                    <MaskedAmount value={invest.total} />
+                  </span>
+                ) : (
+                  '—'
+                )}
               </p>
               {invest && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{invest.name}</p>}
             </>
           )
           return invest ? (
-            <Link href={`/heads/allocation/${invest.id}`} className={cardClass}>
-              {inner}
-            </Link>
+            <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+              <Link
+                href={`/heads/allocation/${invest.id}`}
+                aria-label={`View ${invest.name} allocation`}
+                className="absolute inset-0 z-0 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+              />
+              <div className="relative z-10 pointer-events-none">{content}</div>
+            </div>
           ) : (
-            <div className={cardClass}>{inner}</div>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+              {content}
+            </div>
           )
         })()}
 
-        {/* Savings */}
+        {/* Savings — same stretched-link treatment as Investments above. */}
         {(() => {
-          const cardClass =
-            'block bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/40'
-          const inner = (
+          const content = (
             <>
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-green-600 dark:bg-green-500 rounded-lg flex items-center justify-center">
@@ -136,20 +128,44 @@ export default function ClientPage({
               </div>
               <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Savings allocation</h2>
               <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-                {savings ? <MaskedAmount value={savings.total} interactive={false} /> : '—'}
+                {savings ? (
+                  <span className="pointer-events-auto inline-block">
+                    <MaskedAmount value={savings.total} />
+                  </span>
+                ) : (
+                  '—'
+                )}
               </p>
               {savings && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{savings.name}</p>}
             </>
           )
           return savings ? (
-            <Link href={`/heads/allocation/${savings.id}`} className={cardClass}>
-              {inner}
-            </Link>
+            <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+              <Link
+                href={`/heads/allocation/${savings.id}`}
+                aria-label={`View ${savings.name} allocation`}
+                className="absolute inset-0 z-0 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+              />
+              <div className="relative z-10 pointer-events-none">{content}</div>
+            </div>
           ) : (
-            <div className={cardClass}>{inner}</div>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+              {content}
+            </div>
           )
         })()}
       </div>
+
+      {/* How am I doing this month, and what did I just post? This month's content is
+          fixed-size (at most a handful of top-spending rows), so Recent transactions caps
+          its own scroll area to roughly match rather than stretching the shorter card into
+          empty space. */}
+      {loggedIn && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {month && <HomeMonthSummary month={month} />}
+          <HomeRecentTransactions transactions={recent} />
+        </div>
+      )}
     </div>
   )
 }

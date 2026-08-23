@@ -2,29 +2,20 @@ import { Suspense } from 'react'
 import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
-import { get_transaction_templates } from '@/app/_actions/templates'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { Prisma } from '@/generated/prisma/client'
 import { get_or_compute_balances } from './_actions/compute_balances'
 import { compute_head_value } from '@/app/_utils/head_value'
 import { normalize_txn, type TransactionFull } from '@/app/_utils/normalize_txn'
-import { inbox_count } from '@/app/_utils/links'
 import { pick_welcome_message } from '@/app/_utils/home_welcome'
-import {
-  month_to_date_window,
-  previous_month_to_date_window,
-  summarize_income_expense,
-  window_label,
-  pct_change,
-  type SummaryLine,
-} from '@/app/_utils/home_month_summary'
+import { month_to_date_window, summarize_income_expense, window_label, type SummaryLine } from '@/app/_utils/home_month_summary'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
 import { HomeNetWorthTrend, HomeNetWorthTrendFallback } from '@/app/_components/HomeNetWorthTrend'
 import type { AssetBalance } from '@/app/_utils/home_networth_series'
 import type { HomeRecentTransaction } from '@/app/_components/HomeRecentTransactions'
 import { profile } from '@/lib/metrics/profile'
 
-const RECENT_TRANSACTION_COUNT = 5
+const RECENT_TRANSACTION_COUNT = 15
 const TOP_SPEND_CATEGORIES = 4
 
 const txn_include = { line_items: { include: { asset: true, accounting_head: true } } }
@@ -59,18 +50,17 @@ async function Home() {
 
   const now = new Date()
   const this_month = month_to_date_window(now)
-  const last_month = previous_month_to_date_window(now)
 
-  const [allocations, assets, { accountsToAssets: balances }, month_txns, recent_txns, templates, request_count] = await Promise.all([
+  const [allocations, assets, { accountsToAssets: balances }, month_txns, recent_txns] = await Promise.all([
     prisma.accounting_head.findMany({ where: { user_id: user.id, type: 'allocation' } }),
     prisma.asset.findMany(),
     get_or_compute_balances(),
-    // Both comparison windows in one scan; income_expense lines are what makes a
-    // transaction income or spend at all (transfers/EMIs/investments carry none).
+    // income_expense lines are what makes a transaction income or spend at all
+    // (transfers/EMIs/investments carry none).
     prisma.transaction.findMany({
       where: {
         user_id: user.id,
-        datetime: { gte: last_month.from, lt: this_month.to },
+        datetime: { gte: this_month.from, lt: this_month.to },
         line_items: { some: { accounting_head: { type: 'income_expense' } } },
       },
       include: txn_include,
@@ -81,8 +71,6 @@ async function Home() {
       orderBy: { datetime: 'desc' },
       take: RECENT_TRANSACTION_COUNT,
     }),
-    get_transaction_templates(),
-    inbox_count(user.id),
   ])
 
   const priceByAsset = await get_prices_for_assets(assets)
@@ -170,17 +158,13 @@ async function Home() {
       </Suspense>
     ) : null
 
-  const this_month_summary = summarize_income_expense(summary_lines(month_txns.filter(t => t.datetime >= this_month.from)), TOP_SPEND_CATEGORIES)
-  const last_month_summary = summarize_income_expense(summary_lines(month_txns.filter(t => t.datetime < last_month.to)), TOP_SPEND_CATEGORIES)
+  const this_month_summary = summarize_income_expense(summary_lines(month_txns), TOP_SPEND_CATEGORIES)
 
   const month = {
     spend: this_month_summary.spend,
     income: this_month_summary.income,
-    spend_change: pct_change(this_month_summary.spend, last_month_summary.spend),
-    income_change: pct_change(this_month_summary.income, last_month_summary.income),
     categories: this_month_summary.categories,
     label: window_label(this_month),
-    compare_label: window_label(last_month),
   }
 
   const recent: HomeRecentTransaction[] = recent_txns.map(txn => ({
@@ -201,18 +185,6 @@ async function Home() {
       networthTrendSlot={networthTrendSlot}
       month={month}
       recent={recent}
-      templates={templates.map(t => ({
-        id: t.id,
-        description: t.description,
-        line_items: t.line_items.map(li => ({
-          accounting_head_id: li.accounting_head_id,
-          asset_id: li.asset_id,
-          description: li.description,
-          quantity: li.quantity ? Number(li.quantity) : null,
-          txn_value: li.txn_value ? Number(li.txn_value) : null,
-        })),
-      }))}
-      requestCount={request_count}
     />
   )
 }
