@@ -12,6 +12,7 @@ import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 import { UpiPayButton } from '@/app/_components/UpiPayButton'
 import { LinkedUserNotify } from '@/app/_components/LinkedUserNotify'
 import { AsOfBalance } from '@/app/_components/AsOfBalance'
+import { LockIcon, CloseIcon } from '@/app/_components/icons'
 import { create_upi_payment } from '@/app/_actions/transactions'
 import type { ActionResult } from '@/app/_actions/_result'
 import type { ClosingBalance } from '@/app/heads/[type]/[id]/closing_balance'
@@ -133,7 +134,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
 
       {head.lock_date && (
         <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2.5 flex items-center gap-2.5">
-          <span aria-hidden>🔒</span>
+          <LockIcon className="w-4 h-4 text-amber-700 dark:text-amber-300 shrink-0" />
           <p className="text-sm text-amber-800 dark:text-amber-200">
             Reconciled &amp; locked through <span className="font-semibold">{head.lock_date}</span> — entries on or before this day can&apos;t be
             changed.{' '}
@@ -149,7 +150,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
       )}
 
       {head.upi_id && (
-        <div className="bg-linear-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-green-900 dark:text-green-100">
               Send money via UPI{head.linked_user ? ` to @${head.linked_user.username}` : ''}
@@ -190,7 +191,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
             className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 text-sm"
             aria-label="Dismiss"
           >
-            ✕
+            <CloseIcon className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -204,7 +205,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
             className="text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 text-sm"
             aria-label="Dismiss"
           >
-            ✕
+            <CloseIcon className="w-4 h-4" />
           </button>
         </div>
       )}

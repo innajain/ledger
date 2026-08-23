@@ -21,7 +21,7 @@ export function ListSkeleton({
       {variant === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: itemCount }, (_, i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 space-y-3 stagger-item">
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 space-y-3">
               <div className="h-5 w-2/3 skeleton rounded" />
               <div className="h-4 w-1/2 skeleton rounded" />
               <div className="h-6 w-3/4 skeleton rounded" />
@@ -31,7 +31,7 @@ export function ListSkeleton({
       ) : (
         <div className="space-y-2">
           {Array.from({ length: itemCount }, (_, i) => (
-            <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 stagger-item">
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   {variant === 'hierarchy' && <div className="h-6 w-6 skeleton rounded shrink-0" />}

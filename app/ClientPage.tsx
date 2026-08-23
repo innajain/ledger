@@ -41,11 +41,11 @@ export default function ClientPage({
       <h1 className="sr-only">Dashboard</h1>
 
       {/* The quip — kept, just no longer the biggest thing on the page. */}
-      <p className="animate-slide-in-up text-base sm:text-lg text-slate-600 dark:text-slate-400">{welcomeMessage}</p>
+      <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400">{welcomeMessage}</p>
 
       {/* Hero: the number people open this page for. */}
       {networth !== null && (
-        <div className="animate-slide-in-up stagger-item bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-all hover-lift">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total Net Worth</p>
@@ -70,7 +70,7 @@ export default function ClientPage({
 
       {/* The actual daily actions (the navbar already covers navigation). */}
       {loggedIn && (
-        <div className="stagger-item bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <HomeQuickActions requestCount={requestCount} />
           <HomeTemplateChips templates={templates} />
         </div>
@@ -89,20 +89,20 @@ export default function ClientPage({
         {/* Investments */}
         {(() => {
           const cardClass =
-            'block stagger-item bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-lg shadow-sm border border-blue-200 dark:border-blue-800 p-6 transition-all hover-lift'
+            'block bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/40'
           const inner = (
             <>
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center transition-transform hover:scale-110">
+                <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                 </div>
                 {investXirrSlot}
               </div>
-              <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Investment Allocation</h3>
-              <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">{invest ? <MaskedAmount value={invest.total} /> : '—'}</p>
-              {invest && <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">{invest.name}</p>}
+              <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Investment Allocation</h3>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{invest ? <MaskedAmount value={invest.total} /> : '—'}</p>
+              {invest && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{invest.name}</p>}
             </>
           )
           return invest ? (
@@ -117,11 +117,11 @@ export default function ClientPage({
         {/* Savings */}
         {(() => {
           const cardClass =
-            'block stagger-item bg-linear-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-lg shadow-sm border border-green-200 dark:border-green-800 p-6 transition-all hover-lift'
+            'block bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/40'
           const inner = (
             <>
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-green-600 dark:bg-green-500 rounded-lg flex items-center justify-center transition-transform hover:scale-110">
+                <div className="w-12 h-12 bg-green-600 dark:bg-green-500 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -132,9 +132,9 @@ export default function ClientPage({
                   </svg>
                 </div>
               </div>
-              <h3 className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">Savings Allocation</h3>
-              <p className="text-3xl font-bold text-green-900 dark:text-green-100">{savings ? <MaskedAmount value={savings.total} /> : '—'}</p>
-              {savings && <p className="text-sm text-green-700 dark:text-green-300 mt-2">{savings.name}</p>}
+              <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Savings Allocation</h3>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{savings ? <MaskedAmount value={savings.total} /> : '—'}</p>
+              {savings && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{savings.name}</p>}
             </>
           )
           return savings ? (

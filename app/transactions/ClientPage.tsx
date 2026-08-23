@@ -312,7 +312,7 @@ export default function ClientPage({
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-medium hover-lift w-full md:w-auto"
+            className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium w-full md:w-auto"
           >
             Filters {hasFilters && <span className="ml-1 text-blue-600 dark:text-blue-400">●</span>}
           </button>
@@ -441,7 +441,7 @@ export default function ClientPage({
               </button>
               <button
                 onClick={applyFilters}
-                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all ripple hover-lift"
+                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 Apply Filters
               </button>
@@ -487,7 +487,7 @@ export default function ClientPage({
               </div>
             </div>
             <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-              {transactions.map((tx, index) => {
+              {transactions.map(tx => {
                 const borderCls =
                   tx.link_severity === 'error'
                     ? 'border-l-4 border-l-red-400 dark:border-l-red-500'
@@ -511,16 +511,12 @@ export default function ClientPage({
                     </span>
                   ) : null
                 return (
-                  <li
-                    key={tx.id}
-                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all stagger-item ${borderCls}`}
-                    style={{ animationDelay: `${index * 0.03}s` }}
-                  >
+                  <li key={tx.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${borderCls}`}>
                     <Link href={`/transactions/${tx.id}`} className="block px-6 py-4 group">
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3">
-                            <div className="shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <div className="shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                               <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path
                                   strokeLinecap="round"
@@ -549,7 +545,7 @@ export default function ClientPage({
                           {badge}
                           {tx.total_book !== 0 ? (
                             <span
-                              className={`text-lg font-semibold transition-transform group-hover:scale-110 inline-block ${
+                              className={`text-lg font-semibold inline-block ${
                                 tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                               }`}
                             >

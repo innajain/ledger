@@ -4,7 +4,6 @@ import Image from 'next/image'
 import type { user } from '@/generated/prisma/client'
 import { log_in, sign_up, log_out } from '@/app/_actions/auth'
 import { useRouter } from 'next/navigation'
-import { Confetti } from '@/app/_components/Confetti'
 
 type Props = { user: Pick<user, 'id' | 'username'> | null }
 
@@ -36,7 +35,6 @@ export default function ClientPage({ user }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [showConfetti, setShowConfetti] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -47,7 +45,6 @@ export default function ClientPage({ user }: Props) {
       const result = await log_in({ username, password })
       if (!result.success) throw new Error(result.message)
       setSuccess('Login successful! Redirecting...')
-      setShowConfetti(true)
       setTimeout(go_next_or_home, 500)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
@@ -65,7 +62,6 @@ export default function ClientPage({ user }: Props) {
       const result = await sign_up({ username, password })
       if (!result.success) throw new Error(result.message)
       setSuccess('Account created! Redirecting...')
-      setShowConfetti(true)
       setTimeout(go_next_or_home, 500)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
@@ -139,12 +135,12 @@ export default function ClientPage({ user }: Props) {
   }
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4 py-12 animate-fade-in">
+    <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {}
-        <div className="text-center mb-8 animate-slide-in-up">
+        <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 mb-4 shadow-lg">
-            <Image src="/favicon.ico" alt="Ledger" width={40} height={40} className="animate-float" />
+            <Image src="/favicon.ico" alt="Ledger" width={40} height={40} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
             {isSignup ? 'Create Account' : 'Welcome To Ledger'}
@@ -153,9 +149,9 @@ export default function ClientPage({ user }: Props) {
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-8 transition-all animate-scale-in hover-lift">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-8 transition-colors">
           <form onSubmit={isSignup ? handleSignup : handleLogin} className="space-y-5">
-            <div className="stagger-item">
+            <div>
               <label htmlFor="username" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Username
               </label>
@@ -172,7 +168,7 @@ export default function ClientPage({ user }: Props) {
               />
             </div>
 
-            <div className="stagger-item">
+            <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Password
               </label>
@@ -191,7 +187,7 @@ export default function ClientPage({ user }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all hover:scale-110"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                 >
                   {showPassword ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,13 +215,8 @@ export default function ClientPage({ user }: Props) {
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3 animate-shake">
-                <svg
-                  className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5 animate-wobble"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+                <svg className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
@@ -233,13 +224,8 @@ export default function ClientPage({ user }: Props) {
             )}
 
             {success && (
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3 animate-bounce-in">
-                <svg
-                  className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5 animate-heart-beat"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3">
+                <svg className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm text-green-700 dark:text-green-400">{success}</p>
@@ -249,7 +235,7 @@ export default function ClientPage({ user }: Props) {
             <button
               type="submit"
               disabled={loading || !username || !password}
-              className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all font-medium shadow-sm flex items-center justify-center gap-2 ripple hover-lift fun-button"
+              className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all font-medium shadow-sm flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -292,13 +278,8 @@ export default function ClientPage({ user }: Props) {
         </div>
 
         {}
-        <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-          Your personal ledger for managing finances
-        </p>
+        <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">Your personal ledger for managing finances</p>
       </div>
-
-      {}
-      <Confetti active={showConfetti} />
     </div>
   )
 }

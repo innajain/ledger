@@ -9,7 +9,7 @@ import { ErrorAlert } from '@/app/_components/FormComponents'
 import { EmptyState } from '@/app/_components/EmptyState'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { Button, ButtonLink } from '@/app/_components/Button'
-import { CloseIcon } from '@/app/_components/icons'
+import { CloseIcon, CheckCircleIcon } from '@/app/_components/icons'
 
 const qty_fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 4 })
 
@@ -239,7 +239,7 @@ export default function ClientPage({
 
       {items.length === 0 && outbox.length === 0 ? (
         <EmptyState
-          icon={<span className="text-2xl">✅</span>}
+          icon={<CheckCircleIcon className="w-8 h-8 text-slate-400 dark:text-slate-500" />}
           title="Nothing awaiting you"
           description="Approval requests from linked accounts will show up here."
         />

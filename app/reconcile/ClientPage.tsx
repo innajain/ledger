@@ -191,7 +191,7 @@ export default function ClientPage({
             </select>
             {lockedThrough && (
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                🔒 Reconciled &amp; locked through {format_day(lockedThrough)} — entries on or before that day can&apos;t be changed
+                Reconciled &amp; locked through {format_day(lockedThrough)} — entries on or before that day can&apos;t be changed
               </p>
             )}
           </div>
@@ -301,7 +301,7 @@ export default function ClientPage({
               </div>
               {canAdvanceLock && (
                 <Button variant="primary" onClick={handleAdvanceLock} disabled={locking}>
-                  {locking ? 'Locking…' : `🔒 Lock through ${format_day(windowEnd)}`}
+                  {locking ? 'Locking…' : `Lock through ${format_day(windowEnd)}`}
                 </Button>
               )}
             </div>

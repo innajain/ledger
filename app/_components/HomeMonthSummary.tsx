@@ -31,7 +31,7 @@ export function HomeMonthSummary({ month }: { month: HomeMonthData }) {
   const biggest = month.categories.length > 0 ? month.categories[0].amount : 0
 
   return (
-    <div className="stagger-item bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">This month</h2>

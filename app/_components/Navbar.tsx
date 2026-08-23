@@ -74,7 +74,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
             className="flex items-center space-x-2 text-slate-900 dark:text-slate-100 hover:text-slate-700 dark:hover:text-slate-300 transition-all shrink-0 group"
             onClick={closeMenu}
           >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
               <Image src="/favicon.ico" alt="Ledger" width={24} height={24} />
             </div>
             <span className="font-semibold text-lg">Ledger</span>
@@ -103,7 +103,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
             {isLoggedIn && <RevealToggle />}
             {isLoggedIn && (
               <button
-                className="xl:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all hover:scale-110"
+                className="xl:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 onClick={toggleMenu}
                 aria-label="Toggle menu"
                 aria-expanded={isMenuOpen}

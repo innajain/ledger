@@ -14,7 +14,7 @@ export type HomeRecentTransaction = {
 
 export function HomeRecentTransactions({ transactions }: { transactions: HomeRecentTransaction[] }) {
   return (
-    <div className="stagger-item bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors flex flex-col">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors flex flex-col">
       <div className="flex items-center justify-between gap-3 px-6 pt-6 pb-3">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent transactions</h2>
         <Link href="/transactions" className="shrink-0 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap">
