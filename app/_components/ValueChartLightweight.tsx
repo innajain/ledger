@@ -99,6 +99,10 @@ export function ValueChartLightweight({ points, title }: Props) {
         visible: true,
         borderColor: isDark ? '#334155' : '#e2e8f0',
       },
+      // Initial value only — toggling the reveal state afterwards updates this via
+      // applyOptions() in the effect below rather than recreating the chart, which would
+      // tear down the series and, since the data-loading effect only depends on `points`,
+      // leave the rebuilt chart with axes but no data.
       leftPriceScale: {
         visible: !amountsHidden,
         borderColor: isDark ? '#334155' : '#e2e8f0',
@@ -250,7 +254,10 @@ export function ValueChartLightweight({ points, title }: Props) {
       investedSeriesRef.current = null
       currentSeriesRef.current = null
     }
-  }, [resolved_theme, amountsHidden])
+    // amountsHidden intentionally excluded: it only seeds the initial leftPriceScale.visible —
+    // later changes apply via the effect below instead of recreating the chart (see comment above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolved_theme])
 
   useEffect(() => {
     if (!investedSeriesRef.current || !currentSeriesRef.current || !xirrSeriesRef.current) return
@@ -260,6 +267,12 @@ export function ValueChartLightweight({ points, title }: Props) {
     xirrSeriesRef.current.setData(points.filter(p => p.xirr !== null).map(p => ({ time: p.date as Time, value: p.xirr as number })))
     chartRef.current?.timeScale().fitContent()
   }, [points])
+
+  // Toggling the reveal state updates just this option — recreating the whole chart (see
+  // above) would silently drop the series data.
+  useEffect(() => {
+    chartRef.current?.applyOptions({ leftPriceScale: { visible: !amountsHidden } })
+  }, [amountsHidden])
 
   if (points.length === 0) return null
 
