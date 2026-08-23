@@ -5,12 +5,14 @@ import { useTheme } from '@/app/_components/ThemeProvider'
 import { usePrivacy } from '@/app/_components/PrivacyProvider'
 import { NotificationToggle } from '@/app/_components/NotificationToggle'
 import { update_line_item_defaults, type LineItemDefaults } from '@/app/_actions/preferences'
+import { Button } from '@/app/_components/Button'
+import { Spinner } from '@/app/_components/icons'
 import { SectionHeading } from './SectionHeading'
 import type { AccountOpt, AssetOpt } from './types'
 
 const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
 const selectCls =
-  'block w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors'
+  'block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors'
 
 export function PreferencesSection({ accounts, assets, defaults }: { accounts: AccountOpt[]; assets: AssetOpt[]; defaults: LineItemDefaults }) {
   const { theme, set_theme } = useTheme()
@@ -63,8 +65,8 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
         <NotificationToggle />
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Appearance</h3>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Appearance</h3>
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Theme</p>
@@ -84,8 +86,8 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Privacy</h3>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Privacy</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Hide amounts above a threshold. Masked amounts can be revealed individually by clicking them.
           </p>
@@ -134,7 +136,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
                     setThresholdInput(String(mask_threshold))
                   }
                 }}
-                className="block w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
               <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Amounts strictly above this value will be hidden by default.</p>
             </div>
@@ -142,8 +144,8 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Transaction Line Item Defaults</h3>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Transaction Line Item Defaults</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Pre-selected account and asset for new line items on the Create / Edit Transaction pages. Leave blank to fall back to the first
             account/asset of that type.
@@ -215,27 +217,18 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={defaultsLoading}
-              className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium shadow-sm flex items-center justify-center gap-2"
-            >
-              {defaultsLoading ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <span>Save Defaults</span>
-              )}
-            </button>
+            <div className="flex justify-end">
+              <Button type="submit" variant="primary" size="lg" disabled={defaultsLoading}>
+                {defaultsLoading ? (
+                  <>
+                    <Spinner />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Save Defaults</span>
+                )}
+              </Button>
+            </div>
           </form>
         </div>
       </div>

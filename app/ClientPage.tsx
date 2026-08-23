@@ -45,7 +45,7 @@ export default function ClientPage({
 
       {/* Hero: the number people open this page for. */}
       {networth !== null && (
-        <div className="animate-slide-in-up stagger-item bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-all hover-lift">
+        <div className="animate-slide-in-up stagger-item bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-all hover-lift">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total Net Worth</p>
@@ -70,7 +70,7 @@ export default function ClientPage({
 
       {/* The actual daily actions (the navbar already covers navigation). */}
       {loggedIn && (
-        <div className="stagger-item bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+        <div className="stagger-item bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <HomeQuickActions requestCount={requestCount} />
           <HomeTemplateChips templates={templates} />
         </div>
@@ -89,7 +89,7 @@ export default function ClientPage({
         {/* Investments */}
         {(() => {
           const cardClass =
-            'block stagger-item bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800 p-6 transition-all hover-lift'
+            'block stagger-item bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-lg shadow-sm border border-blue-200 dark:border-blue-800 p-6 transition-all hover-lift'
           const inner = (
             <>
               <div className="flex items-start justify-between mb-4">
@@ -117,7 +117,7 @@ export default function ClientPage({
         {/* Savings */}
         {(() => {
           const cardClass =
-            'block stagger-item bg-linear-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-xl shadow-sm border border-green-200 dark:border-green-800 p-6 transition-all hover-lift'
+            'block stagger-item bg-linear-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-lg shadow-sm border border-green-200 dark:border-green-800 p-6 transition-all hover-lift'
           const inner = (
             <>
               <div className="flex items-start justify-between mb-4">

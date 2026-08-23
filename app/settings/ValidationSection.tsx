@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Button } from '@/app/_components/Button'
+import { format_day } from '@/app/_utils/format_date'
 import { SectionHeading } from './SectionHeading'
 import { validate_my_txns, type MyTxnValidation } from './validate_my_txns'
 
@@ -28,22 +30,17 @@ export function ValidationSection() {
   return (
     <section>
       <SectionHeading id="validation">Validation</SectionHeading>
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors space-y-4">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors space-y-4">
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-1">Check my ledger</h3>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Check my ledger</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             Re-runs the balancing invariant over every transaction in your ledger and lists any that fail — useful after bulk edits or imports.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={run}
-          disabled={busy}
-          className="px-5 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 transition-colors font-medium"
-        >
+        <Button variant="primary" size="lg" onClick={run} disabled={busy}>
           {busy ? 'Checking…' : 'Run check'}
-        </button>
+        </Button>
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
@@ -67,9 +64,7 @@ export function ValidationSection() {
                       >
                         <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                           {t.description || 'No description'}{' '}
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            · {new Date(t.datetime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">· {format_day(t.datetime)}</span>
                         </span>
                         <span className="block text-xs text-red-700 dark:text-red-300 mt-1">{t.message}</span>
                       </Link>

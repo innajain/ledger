@@ -2,7 +2,9 @@
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
+import { Button } from '@/app/_components/Button'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
+import { format_day } from '@/app/_utils/format_date'
 import { parse_statement, type ParsedStatementRow } from '@/app/_utils/statement_parser'
 import { run_reconcile, create_missing_transactions, set_reconciliation_lock, type ReconcileView, type StatementRow } from './reconcile_actions'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
@@ -12,11 +14,6 @@ type AccountOpt = HeadOpt & { lock_date: string | null } // yyyy-MM-dd
 
 const inputCls =
   'w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100'
-
-function fmtDate(s: string) {
-  const [y, m, d] = s.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-}
 
 function Amount({ value }: { value: number }) {
   return (
@@ -194,18 +191,14 @@ export default function ClientPage({
             </select>
             {lockedThrough && (
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                🔒 Reconciled &amp; locked through {fmtDate(lockedThrough)} — entries on or before that day can&apos;t be changed
+                🔒 Reconciled &amp; locked through {format_day(lockedThrough)} — entries on or before that day can&apos;t be changed
               </p>
             )}
           </div>
           <div className="flex items-end">
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium"
-            >
+            <Button variant="secondary" onClick={() => fileRef.current?.click()}>
               Upload CSV…
-            </button>
+            </Button>
             <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={e => handleFile(e.target.files?.[0])} />
           </div>
         </div>
@@ -230,14 +223,9 @@ export default function ClientPage({
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleReconcile}
-            disabled={busy || rawText.trim() === ''}
-            className="px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 transition-colors font-medium"
-          >
+          <Button variant="primary" onClick={handleReconcile} disabled={busy || rawText.trim() === ''}>
             {busy ? 'Reconciling…' : 'Reconcile'}
-          </button>
+          </Button>
           {parsed && (
             <span className="text-sm text-slate-500 dark:text-slate-400">
               {parsed.rows.length} row{parsed.rows.length === 1 ? '' : 's'} parsed
@@ -294,7 +282,7 @@ export default function ClientPage({
               <div>
                 <p className={`text-sm font-medium ${cleanMatch ? 'text-green-800 dark:text-green-200' : 'text-slate-700 dark:text-slate-300'}`}>
                   {cleanMatch
-                    ? `Clean match — if the closing balance above equals the statement's, ${view.account_name} is verified through ${fmtDate(windowEnd)}`
+                    ? `Clean match — if the closing balance above equals the statement's, ${view.account_name} is verified through ${format_day(windowEnd)}`
                     : `Every row must be accounted for before locking — ${[
                         view.counts.missing_in_ledger > 0 && `${view.counts.missing_in_ledger} missing in ledger`,
                         view.counts.amount_mismatch > 0 && `${view.counts.amount_mismatch} amount mismatch`,
@@ -307,19 +295,14 @@ export default function ClientPage({
                         .join(', ')} still open`}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {lockedThrough ? `Currently locked through ${fmtDate(lockedThrough)}` : 'No reconciliation lock set yet'} — locking makes entries on
-                  or before the day immutable
+                  {lockedThrough ? `Currently locked through ${format_day(lockedThrough)}` : 'No reconciliation lock set yet'} — locking makes entries
+                  on or before the day immutable
                 </p>
               </div>
               {canAdvanceLock && (
-                <button
-                  type="button"
-                  onClick={handleAdvanceLock}
-                  disabled={locking}
-                  className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 transition-colors font-medium text-sm"
-                >
-                  {locking ? 'Locking…' : `🔒 Lock through ${fmtDate(windowEnd)}`}
-                </button>
+                <Button variant="primary" onClick={handleAdvanceLock} disabled={locking}>
+                  {locking ? 'Locking…' : `🔒 Lock through ${format_day(windowEnd)}`}
+                </Button>
               )}
             </div>
           )}
@@ -350,7 +333,7 @@ export default function ClientPage({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{r.desc || r.ref || 'No description'}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {fmtDate(r.date)}
+                        {format_day(r.date)}
                         {r.ref && <span className="font-mono"> · {r.ref}</span>}
                       </p>
                     </div>
@@ -381,14 +364,9 @@ export default function ClientPage({
                     ))}
                   </select>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCreateMissing}
-                  disabled={creating || selectedCount === 0}
-                  className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
-                >
+                <Button variant="primary" onClick={handleCreateMissing} disabled={creating || selectedCount === 0}>
                   {creating ? 'Adding…' : `Add ${selectedCount} to ledger`}
-                </button>
+                </Button>
               </div>
               <p className="px-6 pb-4 text-xs text-slate-500 dark:text-slate-400">
                 Each entry is created with its bank reference and an idempotency key, so re-running this import can never double-post. Re-categorize
@@ -409,7 +387,7 @@ export default function ClientPage({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{r.desc || r.ref}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {fmtDate(r.date)}
+                        {format_day(r.date)}
                         {r.ref && <span className="font-mono"> · {r.ref}</span>}
                       </p>
                     </div>
@@ -447,7 +425,7 @@ export default function ClientPage({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{e.description || 'No description'}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {new Date(e.datetime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {format_day(e.datetime)}
                         {e.external_ref && <span className="font-mono"> · {e.external_ref}</span>}
                       </p>
                     </div>
@@ -475,7 +453,7 @@ export default function ClientPage({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{r.desc || r.ref || 'Row'}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {fmtDate(r.date)}
+                        {format_day(r.date)}
                         {r.ref && <span className="font-mono"> · {r.ref}</span>}
                         <span> · matched by {r.matched_by === 'ref' ? 'reference' : 'amount + date'}</span>
                       </p>

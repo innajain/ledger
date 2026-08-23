@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { approve_request, reject_request, accept_all_from } from '@/app/_actions/approvals'
 import type { InboxItem, OutboxItem } from '@/app/_utils/links'
@@ -9,6 +8,8 @@ import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { EmptyState } from '@/app/_components/EmptyState'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
+import { Button, ButtonLink } from '@/app/_components/Button'
+import { CloseIcon } from '@/app/_components/icons'
 
 const qty_fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 4 })
 
@@ -109,17 +110,15 @@ export default function ClientPage({
         ? `@${item.other_username} wants to delete a shared transaction`
         : `@${item.other_username} sent a transaction for your approval`
 
-    const borderAccent = isRejected ? 'border-l-4 border-l-red-400 dark:border-l-red-500' : 'border-l-4 border-l-yellow-400 dark:border-l-yellow-500'
+    const borderAccent = isRejected ? 'border-l-4 border-l-red-400 dark:border-l-red-500' : 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
 
     const badge = isRejected ? (
       <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <CloseIcon className="w-3 h-3" />
         Rejected
       </span>
     ) : (
-      <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+      <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -128,7 +127,7 @@ export default function ClientPage({
     )
 
     return (
-      <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 ${borderAccent} p-5`}>
+      <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 ${borderAccent} p-6`}>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
@@ -144,7 +143,7 @@ export default function ClientPage({
         </div>
 
         {!item.has_reciprocal && item.kind === 'change' && (
-          <p className="mt-3 text-sm text-yellow-600 dark:text-yellow-400">
+          <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
             Link an account back to @{item.other_username} before you can approve this.
           </p>
         )}
@@ -153,20 +152,14 @@ export default function ClientPage({
           {isRejected ? (
             <>
               {item.can_revert && item.has_reciprocal && (
-                <Link
-                  href={`/requests/${item.link_id}`}
-                  className="px-4 py-1.5 text-sm bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 font-medium"
-                >
+                <ButtonLink href={`/requests/${item.link_id}`} variant="primary" size="sm">
                   {item.kind === 'deletion' ? 'Restore (undo deletion)' : 'Revert to approved'}
-                </Link>
+                </ButtonLink>
               )}
               {item.my_txn_id && (
-                <Link
-                  href={`/transactions/${item.my_txn_id}`}
-                  className="px-4 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 font-medium"
-                >
+                <ButtonLink href={`/transactions/${item.my_txn_id}`} variant="secondary" size="sm">
                   View transaction
-                </Link>
+                </ButtonLink>
               )}
               {item.kind !== 'deletion' && !item.my_txn_id && (
                 <span className="text-sm text-slate-500 dark:text-slate-400 self-center">
@@ -176,38 +169,23 @@ export default function ClientPage({
             </>
           ) : item.kind === 'deletion' ? (
             <>
-              <button
-                onClick={() => run(item.link_id, () => approve_request(item.link_id))}
-                disabled={busy}
-                className="px-4 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 font-medium disabled:opacity-50"
-              >
+              <Button onClick={() => run(item.link_id, () => approve_request(item.link_id))} disabled={busy} variant="danger" size="sm">
                 {busy ? '…' : 'Approve deletion'}
-              </button>
-              <button
-                onClick={() => run(item.link_id, () => reject_request(item.link_id))}
-                disabled={busy}
-                className="px-4 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 font-medium disabled:opacity-50"
-              >
+              </Button>
+              <Button onClick={() => run(item.link_id, () => reject_request(item.link_id))} disabled={busy} variant="secondary" size="sm">
                 Reject
-              </button>
+              </Button>
             </>
           ) : (
             <>
               {item.has_reciprocal && (
-                <Link
-                  href={`/requests/${item.link_id}`}
-                  className="px-4 py-1.5 text-sm bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 font-medium"
-                >
+                <ButtonLink href={`/requests/${item.link_id}`} variant="primary" size="sm">
                   Review &amp; Approve
-                </Link>
+                </ButtonLink>
               )}
-              <button
-                onClick={() => run(item.link_id, () => reject_request(item.link_id))}
-                disabled={busy}
-                className="px-4 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 font-medium disabled:opacity-50"
-              >
+              <Button onClick={() => run(item.link_id, () => reject_request(item.link_id))} disabled={busy} variant="secondary" size="sm">
                 Reject
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -222,7 +200,7 @@ export default function ClientPage({
         : `Awaiting @${item.other_username}’s approval of your change`
 
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
@@ -234,19 +212,16 @@ export default function ClientPage({
             )}
             <PreviewLines preview={item.preview} />
           </div>
-          <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+          <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
             Pending
           </span>
         </div>
 
         {item.my_txn_id && (
           <div className="mt-4">
-            <Link
-              href={`/transactions/${item.my_txn_id}`}
-              className="px-4 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 font-medium inline-block"
-            >
+            <ButtonLink href={`/transactions/${item.my_txn_id}`} variant="secondary" size="sm">
               View transaction
-            </Link>
+            </ButtonLink>
           </div>
         )}
       </div>
@@ -274,7 +249,7 @@ export default function ClientPage({
             <section className="space-y-2">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Accept all</h2>
               {accounts.length === 0 ? (
-                <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                <p className="text-sm text-amber-600 dark:text-amber-400">
                   Create one of your own accounts (e.g. “Cash”) to bulk-approve these against — a linked account can’t be the balancing account.
                 </p>
               ) : (
@@ -296,7 +271,7 @@ export default function ClientPage({
                     <select
                       value={balancingByOther[otherId] ?? defaultAccountId ?? accounts[0].id}
                       onChange={e => setBalancingByOther(prev => ({ ...prev, [otherId]: e.target.value }))}
-                      className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                      className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                     >
                       {accounts.map(a => (
                         <option key={a.id} value={a.id}>
@@ -304,13 +279,9 @@ export default function ClientPage({
                         </option>
                       ))}
                     </select>
-                    <button
-                      onClick={() => bulkAccept(otherId)}
-                      disabled={bulkBusy === otherId}
-                      className="px-4 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 font-medium disabled:opacity-50 ml-auto"
-                    >
+                    <Button onClick={() => bulkAccept(otherId)} disabled={bulkBusy === otherId} variant="primary" size="sm" className="ml-auto">
                       {bulkBusy === otherId ? 'Approving…' : `Accept all ${g.count}`}
-                    </button>
+                    </Button>
                   </div>
                 ))}
             </section>

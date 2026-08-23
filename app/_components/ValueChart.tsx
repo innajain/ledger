@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
+import { Button } from '@/app/_components/Button'
 import { ValueChartLightweight } from './ValueChartLightweight'
 import { usePrivacy } from './PrivacyProvider'
 
@@ -51,13 +52,9 @@ export function ValueChart({ points, title }: Props) {
           {title && <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h2>}
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Graph hidden for privacy.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => set_graphs_visible(true)}
-          className="px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
-        >
+        <Button size="sm" variant="primary" onClick={() => set_graphs_visible(true)}>
           Show graph
-        </button>
+        </Button>
       </div>
     )
   }
@@ -65,13 +62,9 @@ export function ValueChart({ points, title }: Props) {
   return (
     <div className="space-y-2">
       <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => set_graphs_visible(false)}
-          className="px-3 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
-        >
+        <Button size="sm" variant="secondary" onClick={() => set_graphs_visible(false)}>
           Hide graph
-        </button>
+        </Button>
         <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
           <button
             type="button"

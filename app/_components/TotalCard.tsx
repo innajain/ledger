@@ -37,7 +37,7 @@ export function TotalCard({ title, total, colorScheme, icon }: TotalCardProps) {
 
   return (
     <div
-      className={`bg-linear-to-br ${colors.bg} rounded-xl shadow-sm border ${colors.border} p-4 sm:p-6 transition-all hover-lift animate-scale-in`}
+      className={`bg-linear-to-br ${colors.bg} rounded-lg shadow-sm border ${colors.border} p-4 sm:p-6 transition-all hover-lift animate-scale-in`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">

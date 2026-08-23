@@ -8,22 +8,18 @@ import { asset_type } from '@/generated/prisma/enums'
 import { delete_transaction_with_snapshot } from '@/app/_actions/transactions'
 import { cancel_request } from '@/app/_actions/approvals'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
+import { Button, ButtonLink } from '@/app/_components/Button'
+import { ChevronLeftIcon, PencilIcon, TrashIcon, CloseIcon, ErrorCircleIcon } from '@/app/_components/icons'
+import { format_bytes } from '@/app/_utils/format_bytes'
 import type { TransactionStatus } from '@/app/_utils/links'
 
 type Attachment = { id: string; url: string; filename: string; content_type: string | null; size: number | null }
 
-function fmt_size(bytes: number | null) {
-  if (!bytes) return ''
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
 const statusBannerCls: Record<TransactionStatus['severity'], string> = {
   error: 'rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 px-4 py-3 text-sm text-red-800 dark:text-red-200',
   warning:
-    'rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/30 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200',
-  info: 'rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/30 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200',
+    'rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200',
+  info: 'rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200',
   success:
     'rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30 px-4 py-3 text-sm text-green-800 dark:text-green-200',
 }
@@ -176,9 +172,7 @@ export default function ClientPage({
         href="/transactions"
         className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
+        <ChevronLeftIcon />
         Transactions
       </Link>
 
@@ -239,55 +233,31 @@ export default function ClientPage({
 
         {}
         <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-          <Link
-            href={`/transactions/${transaction.id}/update`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
+          <ButtonLink href={`/transactions/${transaction.id}/update`} variant="primary">
+            <PencilIcon />
             Edit
-          </Link>
-          <button
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
+          </ButtonLink>
+          <Button variant="dangerOutline" onClick={handleDelete} disabled={isDeleting}>
+            <TrashIcon />
             {isDeleting ? 'Deleting...' : 'Delete'}
-          </button>
+          </Button>
         </div>
       </div>
 
       {}
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-          <svg className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <ErrorCircleIcon className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
           </div>
           <button
+            type="button"
             onClick={() => setError(null)}
             className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
             aria-label="Dismiss error"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <CloseIcon />
           </button>
         </div>
       )}
@@ -315,7 +285,7 @@ export default function ClientPage({
                   >
                     {att.filename}
                   </a>
-                  {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{fmt_size(att.size)}</p>}
+                  {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{format_bytes(att.size)}</p>}
                 </div>
               </div>
             ))}

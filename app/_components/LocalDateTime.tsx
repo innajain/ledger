@@ -1,41 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { format_datetime } from '@/app/_utils/format_date'
 
-function ordinal(n: number): string {
-  const k = n % 100
-  if (k >= 11 && k <= 13) return n + 'th'
-  switch (n % 10) {
-    case 1:
-      return n + 'st'
-    case 2:
-      return n + 'nd'
-    case 3:
-      return n + 'rd'
-    default:
-      return n + 'th'
-  }
-}
-
-function format(d: Date): string {
-  const day = ordinal(d.getDate())
-  const month = d.toLocaleString('en-US', { month: 'long' })
-  const year = d.getFullYear()
-  const h = d.getHours()
-  const minutes = d.getMinutes().toString().padStart(2, '0')
-  const period = h < 12 ? 'AM' : 'PM'
-
-  const hour12 = h === 0 ? 0 : h <= 12 ? h : h - 12
-  return `${day} ${month} ${year}, ${hour12}:${minutes} ${period}`
-}
-
+/**
+ * Hydration-safe client rendering of the app's one date style ("23 Aug 2026, 5:40 PM"):
+ * the text is filled in after mount so the server never guesses the viewer's clock.
+ */
 export function LocalDateTime({ value }: { value: string | Date }) {
   const [text, setText] = useState('')
 
   useEffect(() => {
-    const d = new Date(value)
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setText(isNaN(d.getTime()) ? '' : format(d))
+    setText(format_datetime(value))
   }, [value])
 
   return <span>{text}</span>

@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import type { accounting_head_type, Prisma } from '@/generated/prisma/client'
 import { Card } from './Card'
+import { Button, ButtonLink } from './Button'
+import { ChevronLeftIcon } from './icons'
 
 interface PageHeaderProps {
   backLink: string
@@ -16,12 +18,10 @@ export function PageHeader({ backLink, backText, title, description }: PageHeade
         href={backLink}
         className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
+        <ChevronLeftIcon />
         {backText}
       </Link>
-      <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
       <p className="text-slate-600 dark:text-slate-400 mt-1">{description}</p>
     </div>
   )
@@ -270,32 +270,21 @@ export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText
     <div className="pt-6 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3">
       {}
       {onDelete ? (
-        <button
-          type="button"
-          onClick={onDelete}
-          className="px-6 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors font-medium border border-red-200 dark:border-red-800 w-full sm:w-auto"
-        >
+        <Button variant="dangerOutline" size="lg" onClick={onDelete} className="w-full sm:w-auto">
           {deleteText || 'Delete'}
-        </button>
+        </Button>
       ) : (
         <span />
       )}
 
       {}
       <div className="flex gap-3">
-        <Link
-          href={cancelLink}
-          className="flex-1 sm:flex-none text-center px-6 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
-        >
+        <ButtonLink href={cancelLink} size="lg" className="flex-1 sm:flex-none">
           Cancel
-        </Link>
-        <button
-          type="submit"
-          disabled={busy}
-          className="flex-1 sm:flex-none px-6 py-2.5 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-        >
+        </ButtonLink>
+        <Button type="submit" variant="primary" size="lg" disabled={busy} className="flex-1 sm:flex-none">
           {submitText}
-        </button>
+        </Button>
       </div>
     </div>
   )

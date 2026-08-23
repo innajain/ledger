@@ -2,6 +2,7 @@
 
 import type { Prisma } from '@/generated/prisma/client'
 import { useState } from 'react'
+import { Button } from '@/app/_components/Button'
 import { HierarchyTree, useHideEmpty } from '../_components/HierarchyTree'
 import { PageHeader } from '../_components/PageHeader'
 import { EmptyState } from '../_components/EmptyState'
@@ -39,18 +40,12 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
                   {hiddenCount} empty hidden
                 </span>
               )}
-              <button
-                onClick={toggleHideZero}
-                className="px-3 py-1 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
-              >
+              <Button size="sm" variant="secondary" onClick={toggleHideZero}>
                 {hideZero ? 'Show empty' : 'Hide empty'}
-              </button>
-              <button
-                onClick={() => setExpandAll(!expandAll)}
-                className="px-3 py-1 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
-              >
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setExpandAll(!expandAll)}>
                 {expandAll ? 'Collapse All' : 'Expand All'}
-              </button>
+              </Button>
             </div>
           </div>
           <HierarchyTree

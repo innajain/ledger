@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { CloseIcon } from './icons'
 
 type ToastType = 'success' | 'error' | 'info' | 'warning'
 
@@ -48,6 +49,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 }
 
+const BORDER_CLS: Record<ToastType, string> = {
+  success: 'border-green-500',
+  error: 'border-red-500',
+  warning: 'border-amber-500',
+  info: 'border-blue-500',
+}
+
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
   const [paused, setPaused] = useState(false)
 
@@ -61,10 +69,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     <div
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className="pointer-events-auto animate-slide-in-right bg-white dark:bg-slate-800 border shadow-lg rounded-lg p-4 min-w-75 max-w-md flex items-start gap-3"
-      style={{
-        borderColor: toast.type === 'success' ? '#10b981' : toast.type === 'error' ? '#ef4444' : toast.type === 'warning' ? '#f59e0b' : '#3b82f6',
-      }}
+      className={`pointer-events-auto animate-slide-in-right bg-white dark:bg-slate-800 border shadow-lg rounded-lg p-4 min-w-75 max-w-md flex items-start gap-3 ${BORDER_CLS[toast.type]}`}
     >
       {}
       <div className="shrink-0">
@@ -99,10 +104,12 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       <p className="flex-1 text-sm text-slate-900 dark:text-slate-100">{toast.message}</p>
 
       {}
-      <button onClick={onDismiss} className="shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
+      <button
+        onClick={onDismiss}
+        aria-label="Dismiss notification"
+        className="shrink-0 p-1 -m-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+      >
+        <CloseIcon className="w-5 h-5" />
       </button>
     </div>
   )

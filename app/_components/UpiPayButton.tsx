@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import QRCode from 'qrcode'
+import { Button } from '@/app/_components/Button'
 import { currency_fmt } from '../_utils/currency_formatter'
 
 type Props = {
@@ -64,7 +65,7 @@ function ModalShell({ children, on_close }: { children: ReactNode; on_close: () 
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in" onClick={on_close}>
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-full animate-scale-in" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl p-6 max-w-sm w-full animate-scale-in" onClick={e => e.stopPropagation()}>
         {children}
       </div>
     </div>
@@ -209,13 +210,9 @@ export function UpiPayButton({
           </div>
 
           <div className="flex gap-2 mt-5">
-            <button
-              type="button"
-              onClick={close_modal}
-              className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
-            >
+            <Button variant="secondary" className="flex-1" onClick={close_modal}>
               Cancel
-            </button>
+            </Button>
             <button
               type="button"
               disabled={!amount_valid}
@@ -245,13 +242,9 @@ export function UpiPayButton({
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 break-all font-mono text-center">{upi_id}</p>
           <div className="flex gap-2 mt-4">
-            <button
-              type="button"
-              onClick={close_modal}
-              className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
-            >
+            <Button variant="secondary" className="flex-1" onClick={close_modal}>
               Cancel
-            </button>
+            </Button>
             <button
               type="button"
               onClick={() => set_modal('confirm')}
@@ -271,13 +264,9 @@ export function UpiPayButton({
             {payee_name} succeed?
           </p>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={close_modal}
-              className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
-            >
+            <Button variant="secondary" className="flex-1" onClick={close_modal}>
               No
-            </button>
+            </Button>
             <button
               type="button"
               onClick={confirm_paid}

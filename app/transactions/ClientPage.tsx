@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { currency_fmt } from '../_utils/currency_formatter'
+import { format_day } from '../_utils/format_date'
+import { CloseIcon } from '../_components/icons'
 import { MaskedAmount } from '../_components/MaskedAmount'
 import { PageHeader } from '../_components/PageHeader'
 import { EmptyState } from '../_components/EmptyState'
@@ -214,18 +216,14 @@ export default function ClientPage({
     searchParams.assetId
   )
 
-  const formatChipDate = (s: string) => {
-    const [y, m, d] = s.split('-').map(Number)
-    return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-  }
   const accountName = (id: string) => accounts.find(a => a.id === id)?.name ?? id
   const assetName = (id: string) => assets.find(a => a.id === id)?.name ?? id
 
   const activeChips: { key: string; label: string }[] = []
   if (searchParams.search) activeChips.push({ key: 'search', label: `Search: "${searchParams.search}"` })
   if (searchParams.ref) activeChips.push({ key: 'ref', label: `Ref: ${searchParams.ref}` })
-  if (searchParams.dateFrom) activeChips.push({ key: 'dateFrom', label: `From: ${formatChipDate(searchParams.dateFrom)}` })
-  if (searchParams.dateTo) activeChips.push({ key: 'dateTo', label: `To: ${formatChipDate(searchParams.dateTo)}` })
+  if (searchParams.dateFrom) activeChips.push({ key: 'dateFrom', label: `From: ${format_day(searchParams.dateFrom)}` })
+  if (searchParams.dateTo) activeChips.push({ key: 'dateTo', label: `To: ${format_day(searchParams.dateTo)}` })
   if (searchParams.minAmount) activeChips.push({ key: 'minAmount', label: `Min: ${currency_fmt.format(parseFloat(searchParams.minAmount))}` })
   if (searchParams.maxAmount) activeChips.push({ key: 'maxAmount', label: `Max: ${currency_fmt.format(parseFloat(searchParams.maxAmount))}` })
   if (searchParams.accountId) activeChips.push({ key: 'accountId', label: `Account: ${accountName(searchParams.accountId)}` })
@@ -494,9 +492,9 @@ export default function ClientPage({
                   tx.link_severity === 'error'
                     ? 'border-l-4 border-l-red-400 dark:border-l-red-500'
                     : tx.link_severity === 'warning'
-                      ? 'border-l-4 border-l-yellow-400 dark:border-l-yellow-500'
+                      ? 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
                       : tx.link_severity === 'info'
-                        ? 'border-l-4 border-l-yellow-400 dark:border-l-yellow-500'
+                        ? 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
                         : ''
                 const badge =
                   tx.link_severity === 'error' ? (
@@ -504,11 +502,11 @@ export default function ClientPage({
                       Rejected
                     </span>
                   ) : tx.link_severity === 'warning' ? (
-                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                       Pending
                     </span>
                   ) : tx.link_severity === 'info' ? (
-                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                       Awaiting
                     </span>
                   ) : null
@@ -632,7 +630,7 @@ export default function ClientPage({
       )}
 
       {undoSnapshot && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-xl bg-slate-900 dark:bg-slate-700 text-white shadow-xl animate-slide-in-up max-w-[calc(100vw-2rem)]">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-lg bg-slate-900 dark:bg-slate-700 text-white shadow-xl animate-slide-in-up max-w-[calc(100vw-2rem)]">
           <div className="text-sm min-w-0">
             <p className="font-medium truncate">Transaction deleted{undoSnapshot.description ? ` — “${undoSnapshot.description}”` : ''}</p>
             {undoSnapshot.had_attachments && <p className="text-xs text-slate-300 dark:text-slate-400">Attachments can’t be restored</p>}
@@ -651,13 +649,13 @@ export default function ClientPage({
             className="shrink-0 text-slate-300 hover:text-white transition-colors"
             aria-label="Dismiss"
           >
-            ✕
+            <CloseIcon className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {undoDone && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-xl bg-green-700 text-white shadow-xl animate-slide-in-up">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-lg bg-green-700 text-white shadow-xl animate-slide-in-up">
           <p className="text-sm font-medium">
             Transaction restored.{' '}
             <Link href={`/transactions/${undoDone}`} className="underline hover:no-underline">
@@ -665,7 +663,7 @@ export default function ClientPage({
             </Link>
           </p>
           <button type="button" onClick={() => setUndoDone(null)} className="shrink-0 text-green-200 hover:text-white" aria-label="Dismiss">
-            ✕
+            <CloseIcon className="w-4 h-4" />
           </button>
         </div>
       )}

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { buttonClasses } from '@/app/_components/Button'
 import { SectionHeading } from './SectionHeading'
 import type { InactiveAccount, InactiveAsset } from './types'
 
@@ -18,8 +19,8 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
       <SectionHeading id="data">Data</SectionHeading>
       <div className="space-y-6">
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Accounts</h3>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Accounts</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Accounts that are hidden from transaction selectors. Click to manage.</p>
           {inactiveAccounts.length === 0 ? (
             <p className="text-sm text-slate-500 dark:text-slate-400 italic">No inactive accounts.</p>
@@ -38,7 +39,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         a.type === 'account'
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                           : a.type === 'allocation'
                             ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                             : 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
@@ -54,8 +55,8 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Assets</h3>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Assets</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Assets that are hidden from transaction selectors. Click to manage.</p>
           {inactiveAssets.length === 0 ? (
             <p className="text-sm text-slate-500 dark:text-slate-400 italic">No inactive assets.</p>
@@ -82,18 +83,15 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">SQL Dump</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">SQL Dump</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 Download your data as SQL <code>INSERT</code> statements — a restorable, data-only dump scoped to you.
               </p>
             </div>
-            <a
-              href="/api/dump"
-              className="shrink-0 px-4 py-2 bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded-lg hover:bg-teal-200 dark:hover:bg-teal-900/50 transition-colors font-medium border border-teal-200 dark:border-teal-800 inline-flex items-center gap-2"
-            >
+            <a href="/api/dump" className={buttonClasses('secondary', 'md', 'shrink-0')}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -108,16 +106,13 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Export CSV (ZIP)</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Export CSV (ZIP)</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Download a ZIP with one CSV per table, scoped to your own data.</p>
             </div>
-            <a
-              href="/api/export"
-              className="shrink-0 px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors font-medium border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-2"
-            >
+            <a href="/api/export" className={buttonClasses('secondary', 'md', 'shrink-0')}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -132,18 +127,15 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Export Excel (linked)</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Export Excel (linked)</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 One workbook, a sheet per table — foreign keys are clickable links to the rows they reference.
               </p>
             </div>
-            <a
-              href="/api/export/xlsx"
-              className="shrink-0 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors font-medium border border-emerald-200 dark:border-emerald-800 inline-flex items-center gap-2"
-            >
+            <a href="/api/export/xlsx" className={buttonClasses('secondary', 'md', 'shrink-0')}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"

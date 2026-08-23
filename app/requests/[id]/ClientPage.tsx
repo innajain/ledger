@@ -8,6 +8,8 @@ import { approve_request, revert_request } from '@/app/_actions/approvals'
 import { TransactionLineItems, TransactionBalanceSummary, LineItemData, new_line_uid } from '@/app/_components/TransactionLineItems'
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
+import { Button, ButtonLink } from '@/app/_components/Button'
+import { ChevronLeftIcon, LockIcon } from '@/app/_components/icons'
 import type { EditorContext } from '@/app/_utils/links'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
 import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app/_utils/line_item_defaults'
@@ -32,8 +34,8 @@ function DiffCard({ ctx }: { ctx: EditorContext }) {
   if (!dateChanged && !descChanged && !linesChanged) return null
 
   return (
-    <div className="rounded-lg border border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-yellow-900 dark:text-yellow-200 uppercase tracking-wide">Proposed changes</h2>
+    <div className="rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-6 space-y-4">
+      <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200 uppercase tracking-wide">Proposed changes</h2>
 
       {dateChanged && (
         <div className="space-y-1">
@@ -225,9 +227,7 @@ export default function ClientPage({
           href="/requests"
           className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          <ChevronLeftIcon className="w-5 h-5" />
           Requests
         </Link>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
@@ -245,14 +245,7 @@ export default function ClientPage({
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Details</h2>
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
+            <LockIcon className="w-3.5 h-3.5" />
             Locked
           </span>
         </div>
@@ -289,19 +282,12 @@ export default function ClientPage({
         <TransactionBalanceSummary items={items} lockedItems={lockedItems} accounts={accounts} assets={assets} />
 
         <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
-          <Link
-            href="/requests"
-            className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
-          >
+          <ButtonLink href="/requests" variant="secondary">
             Cancel
-          </Link>
-          <button
-            type="submit"
-            disabled={busy}
-            className="px-6 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 transition-colors font-medium"
-          >
+          </ButtonLink>
+          <Button type="submit" disabled={busy} variant="primary">
             {busy ? 'Saving…' : ctx.mode === 'revert' ? 'Revert' : 'Approve'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

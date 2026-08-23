@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { asset_type } from '@/generated/prisma/enums'
 import { MaskedAmount } from './MaskedAmount'
 import { Card } from './Card'
+import { EmptyState } from './EmptyState'
 
 export type HoldingItem = {
   id: string
@@ -40,18 +41,21 @@ export function HoldingsGrid({
       </div>
 
       {items.length === 0 ? (
-        <div className="p-8 text-center">
-          <svg className="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-            />
-          </svg>
-          <p className="text-slate-600 dark:text-slate-400 font-medium">{emptyMessage}</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{emptySubMessage}</p>
-        </div>
+        <EmptyState
+          embedded
+          icon={
+            <svg className="w-8 h-8 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+              />
+            </svg>
+          }
+          title={emptyMessage}
+          description={emptySubMessage}
+        />
       ) : (
         <div className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Card } from '@/app/_components/Card'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
+import { format_day } from '@/app/_utils/format_date'
 import type { ActionResult } from '@/app/_actions/_result'
 import type { ClosingBalance } from '@/app/heads/[type]/[id]/closing_balance'
 
@@ -34,11 +35,6 @@ export function AsOfBalance({
     }
   }
 
-  const fmtDate = (s: string) => {
-    const [y, m, d] = s.split('-').map(Number)
-    return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-  }
-
   return (
     <Card>
       <div className="p-6 space-y-4">
@@ -67,7 +63,7 @@ export function AsOfBalance({
         {result && !busy && (
           <div className="rounded-lg bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 p-4 space-y-2">
             <div className="flex items-baseline justify-between gap-4 flex-wrap">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Closing balance on {fmtDate(result.date)}</span>
+              <span className="text-sm text-slate-600 dark:text-slate-300">Closing balance on {format_day(result.date)}</span>
               <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
                 <MaskedAmount value={result.balance.total_value} />
               </span>
