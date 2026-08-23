@@ -179,12 +179,12 @@ export function CreateHeadForm({ parents, headType }: CreateHeadFormProps) {
       <PageHeader
         backLink={config.basePath}
         backText={config.backText}
-        title={`Create ${config.entityName}`}
+        title={`New ${config.entityName.toLowerCase()}`}
         description={`Add a new ${config.entityName.toLowerCase()} to your ledger`}
       />
 
       <form onSubmit={onCreate} className="space-y-6">
-        <FormCard title={`${config.entityName} Details`}>
+        <FormCard title={`${config.entityName} details`}>
           <TextInput
             label={`${config.entityName} Name`}
             value={name}
@@ -209,7 +209,7 @@ export function CreateHeadForm({ parents, headType }: CreateHeadFormProps) {
 
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
-        <FormActions cancelLink={config.basePath} submitText={busy ? 'Creating...' : `Create ${config.entityName}`} busy={busy} />
+        <FormActions cancelLink={config.basePath} submitText={busy ? 'Creating…' : `Create ${config.entityName.toLowerCase()}`} busy={busy} />
       </form>
     </div>
   )
@@ -281,12 +281,12 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
       <PageHeader
         backLink={config.basePath}
         backText={config.backText}
-        title={`Update ${config.entityName}`}
+        title={`Edit ${config.entityName.toLowerCase()}`}
         description={`Modify ${config.entityName.toLowerCase()} details or delete`}
       />
 
       <form onSubmit={onUpdate} className="space-y-6">
-        <FormCard title={`${config.entityName} Details`}>
+        <FormCard title={`${config.entityName} details`}>
           <TextInput
             label={`${config.entityName} Name`}
             value={name}
@@ -347,7 +347,7 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
 
         <FormActions
           cancelLink={config.basePath}
-          submitText={busy ? 'Updating...' : `Update ${config.entityName}`}
+          submitText={busy ? 'Updating…' : `Update ${config.entityName.toLowerCase()}`}
           busy={busy}
           onDelete={deleteHead ? onDelete : undefined}
           deleteText={`Delete ${config.entityName}`}

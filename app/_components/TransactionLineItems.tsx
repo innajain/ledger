@@ -163,9 +163,10 @@ export function TransactionLineItems({
         return (
           <div
             key={typeKey}
-            className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors"
+            /* no overflow-hidden: the Combobox dropdowns inside must be able to overhang the card */
+            className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors"
           >
-            <div className={`px-6 py-3 border-b ${colorClasses[config.color as keyof typeof colorClasses]}`}>
+            <div className={`px-6 py-3 border-b rounded-t-lg ${colorClasses[config.color as keyof typeof colorClasses]}`}>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="font-semibold">{config.title}</h3>

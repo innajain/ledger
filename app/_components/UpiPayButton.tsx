@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import QRCode from 'qrcode'
 import { Button } from '@/app/_components/Button'
 import { currency_fmt } from '../_utils/currency_formatter'
@@ -30,7 +30,7 @@ type Props = {
 }
 
 const UPI_ICON = (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -116,6 +116,7 @@ export function UpiPayButton({
 }: Props) {
   const prompt_for_amount = amount_prop === undefined
 
+  const uid = useId()
   const [modal, set_modal] = useState<'amount' | 'qr' | 'confirm' | null>(null)
   const [qr_data_url, set_qr_data_url] = useState<string | null>(null)
 
@@ -208,8 +209,11 @@ export function UpiPayButton({
 
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Amount (₹)</label>
+              <label htmlFor={`${uid}-amount`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Amount (₹)
+              </label>
               <input
+                id={`${uid}-amount`}
                 type="number"
                 step="0.01"
                 autoFocus
@@ -223,8 +227,11 @@ export function UpiPayButton({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Note (optional)</label>
+              <label htmlFor={`${uid}-note`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Note (optional)
+              </label>
               <input
+                id={`${uid}-note`}
                 type="text"
                 value={note_input}
                 onChange={e => set_note_input(e.target.value)}

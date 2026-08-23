@@ -70,7 +70,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         backText="Assets"
         title={asset.name}
         editLink={isAdmin ? `/assets/${asset.id}/update` : undefined}
-        editText={isAdmin ? 'Edit Asset' : undefined}
+        editText={isAdmin ? 'Edit asset' : undefined}
       />
 
       {asset.parent && (

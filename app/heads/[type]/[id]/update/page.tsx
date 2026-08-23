@@ -18,7 +18,7 @@ async function Page({ params }: Props) {
   if (!user) {
     return (
       <div>
-        <h1>Update {cfg.entityName}</h1>
+        <h1>Edit {cfg.entityName.toLowerCase()}</h1>
         <p>User not authenticated.</p>
       </div>
     )
@@ -28,7 +28,7 @@ async function Page({ params }: Props) {
   if (!head) {
     return (
       <div>
-        <h1>Update {cfg.entityName}</h1>
+        <h1>Edit {cfg.entityName.toLowerCase()}</h1>
         <p>{cfg.entityName} not found.</p>
       </div>
     )

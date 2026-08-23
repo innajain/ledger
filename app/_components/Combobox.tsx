@@ -59,7 +59,8 @@ export function Combobox({ options, value, onChange, disabled = false, placehold
   }, [active, open])
 
   function openList() {
-    if (disabled) return
+    // Re-running on a click inside an already-open list would wipe the typed filter.
+    if (disabled || open) return
     setQuery('')
     setActive(
       Math.max(
@@ -102,6 +103,12 @@ export function Combobox({ options, value, onChange, disabled = false, placehold
       e.preventDefault()
       close()
     } else if (e.key === 'Tab') {
+      // Tab commits what the user was pointing at — the native select this replaced
+      // committed type-ahead instantly, and silently reverting a money-posting field
+      // to its previous value is the one thing this control must never do. Escape
+      // remains the explicit "never mind".
+      const opt = filtered[active]
+      if (query.trim() !== '' && opt) onChange(opt.id)
       close()
     }
   }

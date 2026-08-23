@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useId } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { asset_type } from '@/generated/prisma/enums'
@@ -74,6 +74,7 @@ export default function ClientPage({
   }
 
   const router = useRouter()
+  const uid = useId()
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(transaction.date))
   const [description, setDescription] = useState(transaction.description ?? '')
   const [externalRef, setExternalRef] = useState(transaction.external_ref ?? '')
@@ -199,8 +200,11 @@ export default function ClientPage({
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date & time</label>
+              <label htmlFor={`${uid}-date`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Date & time
+              </label>
               <input
+                id={`${uid}-date`}
                 type="datetime-local"
                 value={date}
                 onChange={e => setDate(e.target.value)}
@@ -214,8 +218,11 @@ export default function ClientPage({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description</label>
+              <label htmlFor={`${uid}-description`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Description
+              </label>
               <input
+                id={`${uid}-description`}
                 type="text"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
@@ -225,10 +232,11 @@ export default function ClientPage({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor={`${uid}-ref`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Reference <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
               </label>
               <input
+                id={`${uid}-ref`}
                 type="text"
                 value={externalRef}
                 onChange={e => setExternalRef(e.target.value)}
@@ -240,7 +248,7 @@ export default function ClientPage({
 
             {attachmentsEnabled && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Attachments</label>
+                <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Attachments</span>
                 <AttachmentUpload
                   existingAttachments={existingAttachments}
                   onPendingChange={setPendingAttachments}
@@ -267,7 +275,7 @@ export default function ClientPage({
         <TransactionBalanceSummary items={items} accounts={accounts} assets={assets} />
 
         {}
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+        <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
           <ButtonLink href={`/transactions/${transaction.id}`} variant="secondary">
             Cancel
           </ButtonLink>

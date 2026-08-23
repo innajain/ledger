@@ -116,7 +116,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
         backText={config.backText}
         title={head.name}
         editLink={editLink}
-        editText={`Edit ${config.entityName}`}
+        editText={`Edit ${config.entityName.toLowerCase()}`}
       />
 
       {head.parent && (

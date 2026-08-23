@@ -48,7 +48,7 @@ export default function ClientPage({
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total Net Worth</p>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total net worth</p>
               <p className="text-3xl sm:text-5xl font-bold text-slate-900 dark:text-slate-100">
                 <MaskedAmount value={networth} />
               </p>
@@ -100,7 +100,7 @@ export default function ClientPage({
                 </div>
                 {investXirrSlot}
               </div>
-              <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Investment Allocation</h2>
+              <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Investment allocation</h2>
               <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
                 {invest ? <MaskedAmount value={invest.total} interactive={false} /> : '—'}
               </p>
@@ -134,7 +134,7 @@ export default function ClientPage({
                   </svg>
                 </div>
               </div>
-              <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Savings Allocation</h2>
+              <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Savings allocation</h2>
               <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
                 {savings ? <MaskedAmount value={savings.total} interactive={false} /> : '—'}
               </p>

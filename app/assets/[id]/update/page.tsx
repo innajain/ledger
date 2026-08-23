@@ -11,7 +11,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
   if (!user) {
     return (
       <div>
-        <h1>Update Asset</h1>
+        <h1>Edit asset</h1>
         <p>User not authenticated.</p>
       </div>
     )
@@ -20,7 +20,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
   if (!me?.is_admin) {
     return (
       <div>
-        <h1>Update Asset</h1>
+        <h1>Edit asset</h1>
         <p>Assets are managed by admins only.</p>
       </div>
     )
@@ -31,7 +31,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
   if (!asset) {
     return (
       <div>
-        <h1>Update Asset</h1>
+        <h1>Edit asset</h1>
         <p>Asset not found.</p>
       </div>
     )

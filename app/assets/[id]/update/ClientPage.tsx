@@ -68,10 +68,10 @@ export default function ClientPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader backLink="/assets" backText="Assets" title="Update Asset" description="Modify asset details or delete" />
+      <PageHeader backLink="/assets" backText="Assets" title="Edit asset" description="Modify asset details or delete" />
 
       <form onSubmit={onUpdate} className="space-y-6">
-        <FormCard title="Asset Details">
+        <FormCard title="Asset details">
           <TextInput label="Asset Name" value={name} onChange={setName} placeholder="Enter asset name" required />
 
           <AssetTypeSelect label="Asset Type" value={type} onChange={val => setType(val as asset_type)} />
@@ -100,7 +100,7 @@ export default function ClientPage({
 
         <FormActions
           cancelLink="/assets"
-          submitText={busy ? 'Updating...' : 'Update Asset'}
+          submitText={busy ? 'Updating…' : 'Update asset'}
           busy={busy}
           onDelete={deleteAsset ? onDelete : undefined}
           deleteText="Delete Asset"

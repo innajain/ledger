@@ -88,7 +88,7 @@ export function HoldingsGrid({
                             <span className="font-medium text-slate-900 dark:text-slate-100">{item.quantity} units</span>
                           </div>
                           <div>
-                            <span className="text-slate-500 dark:text-slate-400">Txn:</span>{' '}
+                            <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
                             <span className="font-medium text-slate-900 dark:text-slate-100">
                               {item.txn_value === null ? '—' : <MaskedAmount value={item.txn_value} />}
                             </span>

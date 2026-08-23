@@ -56,8 +56,12 @@ export function MaskedAmount({ value, precise = false, className, interactive = 
   const text = hidden ? build_mask(value, formatter, keep_sign) : formatted
 
   if (!interactive) {
+    // With keep_sign the direction is part of what the row communicates, so the
+    // screen-reader name must carry it too — the visible "-"/"+" alone is not
+    // reliably voiced.
+    const hidden_label = keep_sign && value !== 0 ? `Hidden amount, money ${value > 0 ? 'in' : 'out'}` : 'Hidden amount'
     return (
-      <span className={`${className ?? ''}${hidden ? ' tracking-wider' : ''}`} aria-label={hidden ? 'Hidden amount' : undefined}>
+      <span className={`${className ?? ''}${hidden ? ' tracking-wider' : ''}`} aria-label={hidden ? hidden_label : undefined}>
         {text}
       </span>
     )

@@ -1,5 +1,5 @@
 const baseClasses = 'w-8 h-8 text-slate-400'
-const baseProps = { fill: 'none' as const, stroke: 'currentColor' as const, viewBox: '0 0 24 24' }
+const baseProps = { fill: 'none' as const, stroke: 'currentColor' as const, viewBox: '0 0 24 24', 'aria-hidden': true }
 const pathProps = { strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, strokeWidth: 2 }
 
 export const AccountEmptyIcon = () => (

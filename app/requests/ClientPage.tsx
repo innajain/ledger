@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { approve_request, reject_request, accept_all_from } from '@/app/_actions/approvals'
 import type { InboxItem, OutboxItem } from '@/app/_utils/links'
@@ -49,6 +49,7 @@ export default function ClientPage({
   defaultAccountId?: string
 }) {
   const router = useRouter()
+  const uid = useId()
   const [busyId, setBusyId] = useState<string | null>(null)
   const [bulkBusy, setBulkBusy] = useState<string | null>(null)
   const [balancingByOther, setBalancingByOther] = useState<Record<string, string>>({})
@@ -119,7 +120,7 @@ export default function ClientPage({
       </span>
     ) : (
       <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         Needs approval
@@ -265,8 +266,11 @@ export default function ClientPage({
                     <span className="text-sm text-slate-700 dark:text-slate-300">
                       <strong>@{g.username}</strong> — {g.count} request{g.count === 1 ? '' : 's'}
                     </span>
-                    <label className="text-sm text-slate-500 dark:text-slate-400">balance with</label>
+                    <label htmlFor={`${uid}-balance-${otherId}`} className="text-sm text-slate-500 dark:text-slate-400">
+                      balance with
+                    </label>
                     <select
+                      id={`${uid}-balance-${otherId}`}
                       value={balancingByOther[otherId] ?? defaultAccountId ?? accounts[0].id}
                       onChange={e => setBalancingByOther(prev => ({ ...prev, [otherId]: e.target.value }))}
                       className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"

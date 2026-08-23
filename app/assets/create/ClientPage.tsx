@@ -32,10 +32,10 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
 
   return (
     <div className="space-y-6">
-      <PageHeader backLink="/assets" backText="Assets" title="Create Asset" description="Add a new asset to your portfolio" />
+      <PageHeader backLink="/assets" backText="Assets" title="New asset" description="Add a new asset to your portfolio" />
 
       <form onSubmit={onCreate} className="space-y-6">
-        <FormCard title="Asset Details">
+        <FormCard title="Asset details">
           <TextInput label="Asset Name" value={name} onChange={setName} placeholder="Enter asset name" required />
 
           <AssetTypeSelect label="Asset Type" value={type} onChange={val => setType(val as asset_type)} />
@@ -53,7 +53,7 @@ export default function ClientPage({ parents }: { parents: Prisma.assetGetPayloa
 
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
-        <FormActions cancelLink="/assets" submitText={busy ? 'Creating...' : 'Create Asset'} busy={busy} />
+        <FormActions cancelLink="/assets" submitText={busy ? 'Creating…' : 'Create asset'} busy={busy} />
       </form>
     </div>
   )

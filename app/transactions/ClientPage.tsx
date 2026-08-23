@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useId } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { currency_fmt } from '../_utils/currency_formatter'
@@ -94,6 +94,7 @@ export default function ClientPage({
   const router = useRouter()
   const params = useSearchParams()
   const { showToast } = useToast()
+  const uid = useId()
   const [showFilters, setShowFilters] = useState(false)
   const [searchInput, setSearchInput] = useState(searchParams.search || '')
   const [refInput, setRefInput] = useState(searchParams.ref || '')
@@ -342,7 +343,7 @@ export default function ClientPage({
             }}
             className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
           >
-            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -371,6 +372,8 @@ export default function ClientPage({
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
+            aria-expanded={showFilters}
+            aria-controls={`${uid}-filter-panel`}
             className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium w-full md:w-auto"
           >
             Filters {hasFilters && <span className="ml-1 text-blue-600 dark:text-blue-400">●</span>}
@@ -378,10 +381,16 @@ export default function ClientPage({
         </div>
 
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-in-up">
+          <div
+            id={`${uid}-filter-panel`}
+            className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-in-up"
+          >
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sort</label>
+              <label htmlFor={`${uid}-sort`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Sort
+              </label>
               <select
+                id={`${uid}-sort`}
                 value={searchParams.sort || 'date_desc'}
                 onChange={e => changeSort(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -393,8 +402,11 @@ export default function ClientPage({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Show</label>
+              <label htmlFor={`${uid}-show`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Show
+              </label>
               <select
+                id={`${uid}-show`}
                 value={isShowingAll ? 'all' : selectedPageSize}
                 onChange={e => changePageSize(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -407,8 +419,11 @@ export default function ClientPage({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">From date</label>
+              <label htmlFor={`${uid}-date-from`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                From date
+              </label>
               <input
+                id={`${uid}-date-from`}
                 type="date"
                 value={dateFrom}
                 onChange={e => setDateFrom(e.target.value)}
@@ -417,8 +432,11 @@ export default function ClientPage({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">To date</label>
+              <label htmlFor={`${uid}-date-to`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                To date
+              </label>
               <input
+                id={`${uid}-date-to`}
                 type="date"
                 value={dateTo}
                 onChange={e => setDateTo(e.target.value)}
@@ -427,8 +445,11 @@ export default function ClientPage({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Min amount</label>
+              <label htmlFor={`${uid}-min-amount`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Min amount
+              </label>
               <input
+                id={`${uid}-min-amount`}
                 type="number"
                 step="0.01"
                 value={minAmount}
@@ -439,8 +460,11 @@ export default function ClientPage({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max amount</label>
+              <label htmlFor={`${uid}-max-amount`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Max amount
+              </label>
               <input
+                id={`${uid}-max-amount`}
                 type="number"
                 step="0.01"
                 value={maxAmount}
@@ -451,8 +475,11 @@ export default function ClientPage({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account</label>
+              <label htmlFor={`${uid}-account`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Account
+              </label>
               <select
+                id={`${uid}-account`}
                 value={accountId}
                 onChange={e => setAccountId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
@@ -466,8 +493,11 @@ export default function ClientPage({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Asset</label>
+              <label htmlFor={`${uid}-asset`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Asset
+              </label>
               <select
+                id={`${uid}-asset`}
                 value={assetId}
                 onChange={e => setAssetId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
@@ -481,8 +511,11 @@ export default function ClientPage({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Reference</label>
+              <label htmlFor={`${uid}-reference`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Reference
+              </label>
               <input
+                id={`${uid}-reference`}
                 type="text"
                 value={refInput}
                 onChange={e => setRefInput(e.target.value)}
@@ -495,7 +528,7 @@ export default function ClientPage({
               <button
                 type="button"
                 onClick={clearFilters}
-                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all hover:scale-105"
+                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
               >
                 Clear all
               </button>
