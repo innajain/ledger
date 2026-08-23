@@ -203,7 +203,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             <div className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {asset.breakdown.map((b, i) => (
                   <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm">
                     <div className="flex flex-col h-full justify-between">
@@ -270,7 +270,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
           </div>
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             <div className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {asset.allocation_breakdown.map((b, i) => (
                   <div key={i} className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm">
                     <div className="flex flex-col h-full justify-between">
@@ -339,7 +339,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
           <div className="p-8 text-center text-slate-500 dark:text-slate-400">No transactions for this asset</div>
         ) : (
           <div className="divide-y divide-slate-200">
-            <div className="max-h-96 overflow-y-auto">
+            <div>
               {(asset.line_items ?? []).slice(0, visibleLineItems).map(li => {
                 const is_depleted = li.remaining_quantity !== null && li.remaining_quantity === 0
                 const remaining_txn_value =
@@ -350,28 +350,28 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                   <div key={li.id} className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                        {/* Row identity: what the transaction was — the account is a tag beside it. */}
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          <Link
+                            href={`/transactions/${li.transaction_id}`}
+                            className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
+                          >
+                            {li.transaction_description || li.line_item_description || li.account_name}
+                          </Link>
                           <Link
                             href={`/heads/account/${li.accounting_head_id}`}
-                            className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >
                             {li.account_name}
                           </Link>
-                          <span>•</span>
-                          <Link
-                            href={`/transactions/${li.transaction_id}`}
-                            className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
-                          >
-                            <LocalDateTime value={li.transaction_date} />
-                          </Link>
                         </div>
 
-                        {li.line_item_description && (
-                          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 italic">{li.line_item_description}</p>
+                        {li.line_item_description && li.line_item_description !== (li.transaction_description || li.line_item_description) && (
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{li.line_item_description}</p>
                         )}
-                        {li.transaction_description && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400 italic">Transaction: {li.transaction_description}</p>
-                        )}
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          <LocalDateTime value={li.transaction_date} />
+                        </p>
 
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                           {asset.type !== asset_type.rupees && (
@@ -403,12 +403,6 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                         <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                           <MaskedAmount value={li.txn_value !== null ? li.txn_value : li.quantity} />
                         </div>
-                        <Link
-                          href={`/transactions/${li.transaction_id}`}
-                          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 inline-block"
-                        >
-                          View transaction →
-                        </Link>
                       </div>
                     </div>
                   </div>

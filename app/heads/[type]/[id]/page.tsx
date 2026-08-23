@@ -19,6 +19,16 @@ import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 type Props = { params: Promise<{ type: string; id: string }> }
 
+// Tab/history entries carry the specific account/allocation/category name.
+export async function generateMetadata({ params }: Props) {
+  const { type, id } = await params
+  if (!isHeadType(type)) return {}
+  const user = await get_current_user()
+  if (!user) return { title: HEAD_CONFIG[type].title }
+  const head = await prisma.accounting_head.findUnique({ where: { id, user_id: user.id, type }, select: { name: true } })
+  return { title: head?.name ?? HEAD_CONFIG[type].title }
+}
+
 async function Page({ params }: Props) {
   const { type, id } = await params
   if (!isHeadType(type)) notFound()
@@ -36,9 +46,9 @@ async function Page({ params }: Props) {
 
   if (!head) {
     return (
-      <div>
-        <h1>{cfg.entityName}</h1>
-        <p>{cfg.entityName} not found.</p>
+      <div className="max-w-md mx-auto mt-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-8 text-center">
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{cfg.entityName} not found</h1>
+        <p className="text-slate-600 dark:text-slate-400 mt-2">It may have been deleted, or the link is stale.</p>
       </div>
     )
   }

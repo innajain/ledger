@@ -46,14 +46,13 @@ export function HomeRecentTransactions({ transactions }: { transactions: HomeRec
                   </p>
                 </div>
                 {tx.total_book !== 0 && (
+                  /* Direction rides on the kept sign; money in is green, money out plain ink —
+                     same treatment as the transactions list. */
                   <span
-                    className={`shrink-0 text-sm font-semibold ${
-                      tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                    className={`shrink-0 text-sm font-semibold tabular-nums ${
+                      tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
                     }`}
                   >
-                    {/* a masked amount carries no sign by default, so direction must not ride on colour alone */}
-                    <span aria-hidden="true">{tx.total_book > 0 ? '▲ ' : '▼ '}</span>
-                    <span className="sr-only">{tx.total_book > 0 ? 'Money in, ' : 'Money out, '}</span>
                     <MaskedAmount value={tx.total_book} interactive={false} keep_sign />
                   </span>
                 )}

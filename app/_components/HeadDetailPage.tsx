@@ -135,8 +135,8 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
         <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2.5 flex items-center gap-2.5">
           <LockIcon className="w-4 h-4 text-amber-700 dark:text-amber-300 shrink-0" />
           <p className="text-sm text-amber-800 dark:text-amber-200">
-            Reconciled &amp; locked through <span className="font-semibold">{head.lock_date}</span> — entries on or before this day can&apos;t be
-            changed.{' '}
+            Reconciled &amp; locked through <span className="font-semibold">{head.lock_date}</span>
+            {' — '}entries on or before this day can&apos;t be changed.{' '}
             <Link
               href={editLink}
               className="font-medium underline underline-offset-2 decoration-amber-500/60 dark:decoration-amber-400/60 hover:text-amber-900 dark:hover:text-amber-50 hover:decoration-amber-700 dark:hover:decoration-amber-200 transition-colors"
@@ -335,7 +335,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
         {head.line_items.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="max-h-96 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-700">
+          <div className="divide-y divide-slate-200 dark:divide-slate-700">
             {head.line_items.slice(0, visibleLineItems).map(li => (
               <LineItemRow
                 key={li.id}

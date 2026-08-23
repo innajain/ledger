@@ -155,79 +155,71 @@ export function LineItemRow({
     remainingQuantity !== undefined && remainingQuantity !== null && bookValue !== null && bookValue !== undefined && quantity !== 0
       ? (remainingQuantity / quantity) * bookValue
       : null
+  // The transaction's description is the row's identity; the asset is a detail. A row
+  // titled "Money" 388 times tells the reader nothing.
+  const title = transactionDescription || lineItemDescription || assetName
+  const showLineNote = !!lineItemDescription && lineItemDescription !== title
+  const showAssetTag = assetType !== asset_type.rupees
   return (
     <div className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {assetLink ? (
-            <Link
-              href={assetLink}
-              className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            >
-              {assetName}
-            </Link>
-          ) : (
-            <span className="text-slate-900 dark:text-slate-100 font-semibold">{assetName}</span>
-          )}
-
-          {}
-          {lineItemDescription && <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{lineItemDescription}</p>}
-
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {assetType !== asset_type.rupees && (
-              <>
-                <div className="text-slate-600 dark:text-slate-400">
-                  <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{quantity} units</span>
-                </div>
-                {remainingQuantity !== undefined && remainingQuantity !== null && (
-                  <div className="text-slate-600 dark:text-slate-400">
-                    <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
-                    <span className="font-medium text-slate-900 dark:text-slate-100">{remainingQuantity} units</span>
-                    {remaining_txn_value !== null && (
-                      <>
-                        {' '}
-                        <span className="text-slate-500 dark:text-slate-400">
-                          (<MaskedAmount value={remaining_txn_value} /> book)
-                        </span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {}
-          <div className="mt-2 space-y-1">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <Link
               href={`/transactions/${transactionId}`}
-              className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors inline-flex items-center gap-1"
+              className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-              <LocalDateTime value={transactionDate} />
+              {title}
             </Link>
-            {transactionDescription && <p className="text-xs text-slate-500 dark:text-slate-400 italic">Transaction: {transactionDescription}</p>}
+            {showAssetTag &&
+              (assetLink ? (
+                <Link
+                  href={assetLink}
+                  className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  {assetName}
+                </Link>
+              ) : (
+                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                  {assetName}
+                </span>
+              ))}
           </div>
+
+          {showLineNote && <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{lineItemDescription}</p>}
+
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <LocalDateTime value={transactionDate} />
+          </p>
+
+          {assetType !== asset_type.rupees && (
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <div className="text-slate-600 dark:text-slate-400">
+                <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
+                <span className="font-medium text-slate-900 dark:text-slate-100">{quantity} units</span>
+              </div>
+              {remainingQuantity !== undefined && remainingQuantity !== null && (
+                <div className="text-slate-600 dark:text-slate-400">
+                  <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{remainingQuantity} units</span>
+                  {remaining_txn_value !== null && (
+                    <>
+                      {' '}
+                      <span className="text-slate-500 dark:text-slate-400">
+                        (<MaskedAmount value={remaining_txn_value} /> book)
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="text-right shrink-0">
           <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             <MaskedAmount value={bookValue !== null && bookValue !== undefined ? bookValue : quantity} />
           </div>
-          <Link
-            href={`/transactions/${transactionId}`}
-            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 inline-block"
-          >
-            View transaction →
-          </Link>
         </div>
       </div>
     </div>

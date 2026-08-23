@@ -182,26 +182,12 @@ export default function ClientPage({
       {}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
         <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Transaction Details</h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  <LocalDateTime value={transaction.date} />
-                </p>
-              </div>
-            </div>
-            {transaction.description && <p className="text-slate-700 dark:text-slate-300 mt-2">{transaction.description}</p>}
+          <div className="flex-1 min-w-0">
+            {/* The specific thing is the title; "transaction" is already in the breadcrumb. */}
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 break-words">{transaction.description || 'Transaction'}</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              <LocalDateTime value={transaction.date} />
+            </p>
             {transaction.refs.length > 0 && (
               <p className="mt-2 flex flex-wrap gap-1.5">
                 {transaction.refs.map(ref => (

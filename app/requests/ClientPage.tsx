@@ -212,9 +212,7 @@ export default function ClientPage({
             )}
             <PreviewLines preview={item.preview} />
           </div>
-          <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-            Waiting
-          </span>
+          {/* No status chip here: the section header and the headline already say this is waiting on them. */}
         </div>
 
         {item.my_txn_id && (

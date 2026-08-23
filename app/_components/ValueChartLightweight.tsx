@@ -211,6 +211,9 @@ export function ValueChartLightweight({ points, title }: Props) {
     chart.subscribeCrosshairMove(onCrosshairMove)
 
     const onWheel = (e: WheelEvent) => {
+      // Plain scrolling belongs to the page; the chart zooms only when asked for
+      // with a modifier, so it never traps the wheel.
+      if (!e.ctrlKey && !e.metaKey) return
       e.preventDefault()
       const ts = chart.timeScale()
       const range = ts.getVisibleLogicalRange()
@@ -271,7 +274,7 @@ export function ValueChartLightweight({ points, title }: Props) {
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
           {title && <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>}
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Scroll/pinch to zoom • Drag to pan • Double-click axis to reset</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Ctrl+scroll or pinch to zoom • Drag to pan • Double-click axis to reset</p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gain</p>
@@ -280,6 +283,20 @@ export function ValueChartLightweight({ points, title }: Props) {
             {gainPct !== null && <span className="ml-1 text-xs font-normal">({gainPct.toFixed(1)}%)</span>}
           </p>
         </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2" aria-hidden="true">
+        {(
+          [
+            ['#3b82f6', 'Invested (₹, left)'],
+            ['#10b981', 'Current value (₹, left)'],
+            ['#f59e0b', 'XIRR (%, right)'],
+          ] as const
+        ).map(([color, label]) => (
+          <span key={label} className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+            {label}
+          </span>
+        ))}
       </div>
       <div className="relative">
         <div ref={containerRef} className="w-full h-64 sm:h-80" />

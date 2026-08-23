@@ -10,7 +10,6 @@ import { MaskedAmount } from '../_components/MaskedAmount'
 import { PageHeader } from '../_components/PageHeader'
 import { EmptyState } from '../_components/EmptyState'
 import { TransactionEmptyIcon } from '../_components/EmptyStateIcons'
-import { LocalDateTime } from '../_components/LocalDateTime'
 import { delete_transaction_template } from '../_actions/templates'
 import { create_transaction, type DeletedTransactionSnapshot } from '../_actions/transactions'
 import { dedupe_template_chips } from '../_components/HomeTemplateChips'
@@ -23,6 +22,37 @@ type Transaction = {
   external_ref: string | null
   total_book: number
   link_severity: 'error' | 'warning' | 'info' | null
+}
+
+// The whole ledger lives in IST (lib/config USER_TIMEZONE), so day headers and row times
+// pin that zone explicitly — identical output on server and client, no hydration dance.
+const IST = 'Asia/Kolkata'
+const day_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: IST, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+const time_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: IST, hour: 'numeric', minute: '2-digit', hour12: true })
+const full_datetime_fmt = new Intl.DateTimeFormat('en-IN', {
+  timeZone: IST,
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+})
+
+const up_ampm = (s: string) => s.replace(/\b(am|pm)\b/g, m => m.toUpperCase())
+
+/** 1 … (current±1) … last, with ellipses only where pages are actually skipped. */
+function page_items(current: number, total: number): (number | 'gap')[] {
+  const wanted = new Set([1, total, current - 1, current, current + 1])
+  const pages = [...wanted].filter(p => p >= 1 && p <= total).sort((a, b) => a - b)
+  const out: (number | 'gap')[] = []
+  let prev = 0
+  for (const p of pages) {
+    if (p - prev > 1) out.push('gap')
+    out.push(p)
+    prev = p
+  }
+  return out
 }
 
 type Account = { id: string; name: string }
@@ -236,6 +266,22 @@ export default function ClientPage({
   if (searchParams.maxAmount) activeChips.push({ key: 'maxAmount', label: `Max: ${currency_fmt.format(parseFloat(searchParams.maxAmount))}` })
   if (searchParams.accountId) activeChips.push({ key: 'accountId', label: `Account: ${accountName(searchParams.accountId)}` })
   if (searchParams.assetId) activeChips.push({ key: 'assetId', label: `Asset: ${assetName(searchParams.assetId)}` })
+
+  // Rows group under day headers when the list is date-sorted (the ledger's home order).
+  // Amount sorts get a flat list with full dates — day headers would interleave meaninglessly.
+  // Everything formats in the ledger's own timezone so the server and client render agree.
+  const dateSorted = !searchParams.sort || searchParams.sort.startsWith('date')
+  const dayGroups: { label: string | null; txs: Transaction[] }[] = []
+  if (dateSorted) {
+    for (const tx of transactions) {
+      const label = day_fmt.format(new Date(tx.date))
+      const last = dayGroups[dayGroups.length - 1]
+      if (last && last.label === label) last.txs.push(tx)
+      else dayGroups.push({ label, txs: [tx] })
+    }
+  } else {
+    dayGroups.push({ label: null, txs: transactions })
+  }
 
   return (
     <div className="space-y-6">
@@ -507,51 +553,46 @@ export default function ClientPage({
               </div>
             </div>
             <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-              {transactions.map(tx => {
-                const borderCls =
-                  tx.link_severity === 'error'
-                    ? 'border-l-4 border-l-red-400 dark:border-l-red-500'
-                    : tx.link_severity === 'warning'
-                      ? 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
-                      : tx.link_severity === 'info'
-                        ? 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
-                        : ''
-                const badge =
-                  tx.link_severity === 'error' ? (
-                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                      Rejected
-                    </span>
-                  ) : tx.link_severity === 'warning' ? (
-                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                      Needs approval
-                    </span>
-                  ) : tx.link_severity === 'info' ? (
-                    <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                      Waiting
-                    </span>
-                  ) : null
-                return (
-                  <li key={tx.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${borderCls}`}>
-                    <Link href={`/transactions/${tx.id}`} className="block px-6 py-4 group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3">
-                            <div className="shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                />
-                              </svg>
-                            </div>
+              {dayGroups.map(group => (
+                <React.Fragment key={group.label ?? 'flat'}>
+                  {group.label !== null && (
+                    <li className="px-6 py-2 bg-slate-50 dark:bg-slate-900/40 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {group.label}
+                    </li>
+                  )}
+                  {group.txs.map(tx => {
+                    const borderCls =
+                      tx.link_severity === 'error'
+                        ? 'border-l-4 border-l-red-400 dark:border-l-red-500'
+                        : tx.link_severity === 'warning' || tx.link_severity === 'info'
+                          ? 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
+                          : ''
+                    const badge =
+                      tx.link_severity === 'error' ? (
+                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                          Rejected
+                        </span>
+                      ) : tx.link_severity === 'warning' ? (
+                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          Needs approval
+                        </span>
+                      ) : tx.link_severity === 'info' ? (
+                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          Waiting
+                        </span>
+                      ) : null
+                    return (
+                      <li key={tx.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${borderCls}`}>
+                        <Link href={`/transactions/${tx.id}`} className="block px-6 py-3.5 group">
+                          <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                 {tx.description || 'No description'}
                               </p>
                               <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 min-w-0">
-                                <LocalDateTime value={tx.date} />
+                                <span>
+                                  {up_ampm(group.label === null ? full_datetime_fmt.format(new Date(tx.date)) : time_fmt.format(new Date(tx.date)))}
+                                </span>
                                 {tx.external_ref && (
                                   <span className="hidden sm:inline text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
                                     {tx.external_ref}
@@ -559,31 +600,32 @@ export default function ClientPage({
                                 )}
                               </p>
                             </div>
+                            <div className="ml-4 shrink-0 flex items-center gap-2">
+                              {badge}
+                              {/* Direction rides on the sign (kept even while masked), not on a wall of
+                                  red: money in is green, money out is plain ink. */}
+                              {tx.total_book !== 0 ? (
+                                <span
+                                  className={`text-lg font-semibold inline-block tabular-nums ${
+                                    tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
+                                  }`}
+                                >
+                                  <MaskedAmount value={tx.total_book} keep_sign interactive={false} />
+                                </span>
+                              ) : (
+                                /* a zero net flow (e.g. a transfer) still deserves a figure, not a blank cell */
+                                <span className="text-lg font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
+                                  {currency_fmt.format(0)}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="ml-4 shrink-0 flex items-center gap-2">
-                          {badge}
-                          {tx.total_book !== 0 ? (
-                            <span
-                              className={`text-lg font-semibold inline-block ${
-                                tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                              }`}
-                            >
-                              {/* a masked amount carries no sign, so direction must not ride on colour alone */}
-                              <span aria-hidden="true">{tx.total_book > 0 ? '▲ ' : '▼ '}</span>
-                              <span className="sr-only">{tx.total_book > 0 ? 'Money in, ' : 'Money out, '}</span>
-                              <MaskedAmount value={tx.total_book} />
-                            </span>
-                          ) : (
-                            /* a zero net flow (e.g. a transfer) still deserves a figure, not a blank cell */
-                            <span className="text-lg font-semibold text-slate-500 dark:text-slate-400">{currency_fmt.format(0)}</span>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
-                )
-              })}
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </React.Fragment>
+              ))}
             </ul>
           </div>
 
@@ -600,32 +642,27 @@ export default function ClientPage({
                 <span className="sm:hidden">Prev</span>
               </button>
               <div className="flex items-center gap-1 sm:gap-2">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum
-                  if (totalPages <= 5) {
-                    pageNum = i + 1
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i
-                  } else {
-                    pageNum = currentPage - 2 + i
-                  }
-                  return (
+                {page_items(currentPage, totalPages).map((item, i) =>
+                  item === 'gap' ? (
+                    <span key={`gap-${i}`} aria-hidden="true" className="px-1 text-slate-400 dark:text-slate-500 select-none">
+                      …
+                    </span>
+                  ) : (
                     <button
-                      key={pageNum}
+                      key={item}
                       type="button"
-                      onClick={() => goToPage(pageNum)}
-                      className={`px-2.5 sm:px-3 py-1.5 sm:py-1 text-sm font-medium rounded-lg transition-colors min-w-9 ${
-                        currentPage === pageNum
+                      onClick={() => goToPage(item)}
+                      aria-current={currentPage === item ? 'page' : undefined}
+                      className={`px-2.5 sm:px-3 py-1.5 sm:py-1 text-sm font-medium rounded-lg transition-colors min-w-9 tabular-nums ${
+                        currentPage === item
                           ? 'bg-blue-600 dark:bg-blue-500 text-white'
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                       }`}
                     >
-                      {pageNum}
+                      {item}
                     </button>
-                  )
-                })}
+                  ),
+                )}
               </div>
               <button
                 type="button"

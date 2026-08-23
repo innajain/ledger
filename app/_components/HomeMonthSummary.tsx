@@ -55,8 +55,9 @@ export function HomeMonthSummary({ month }: { month: HomeMonthData }) {
             <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Spent</p>
               {/* negated: `spend` is a magnitude, but every other amount on this page is a signed
-                  book value, so money out has to read as negative here too */}
-              <p className="text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400 mt-0.5">
+                  book value, so money out has to read as negative here too. Plain ink — the sign
+                  carries direction, and the delta pill carries good/bad. */}
+              <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">
                 <MaskedAmount value={-month.spend} />
               </p>
               <div className="mt-1">
@@ -65,7 +66,7 @@ export function HomeMonthSummary({ month }: { month: HomeMonthData }) {
             </div>
             <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Received</p>
-              <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400 mt-0.5">
+              <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">
                 <MaskedAmount value={month.income} />
               </p>
               <div className="mt-1">

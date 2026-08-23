@@ -4,6 +4,7 @@ import React, { useId, useMemo, useState } from 'react'
 import { asset_type } from '@/generated/prisma/enums'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 import { asset_type_label } from '@/app/_utils/labels'
+import { Combobox } from './Combobox'
 import {
   preview_line_items,
   type LineItemPreview,
@@ -336,40 +337,27 @@ function LineItemCard({
           <label htmlFor={`${uid}-account`} className={labelCls}>
             Account
           </label>
-          <select
+          {/* Searchable: these lists grow past what a native select scans comfortably. */}
+          <Combobox
             id={`${uid}-account`}
+            options={accounts.filter(a => a.type === typeKey && (locked || !a.linked)).map(a => ({ id: a.id, name: a.name }))}
             value={item.accounting_head_id}
-            onChange={e => onUpdateItem(idx, 'accounting_head_id', e.target.value)}
+            onChange={id => onUpdateItem(idx, 'accounting_head_id', id)}
             disabled={locked}
-            className={fieldCls}
-          >
-            {accounts
-              .filter(a => a.type === typeKey && (locked || !a.linked))
-              .map(a => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-          </select>
+          />
         </div>
 
         <div>
           <label htmlFor={`${uid}-asset`} className={labelCls}>
             Asset
           </label>
-          <select
+          <Combobox
             id={`${uid}-asset`}
+            options={assets.map(a => ({ id: a.id, name: a.name, hint: asset_type_label(a.type) }))}
             value={item.asset_id}
-            onChange={e => onUpdateItem(idx, 'asset_id', e.target.value)}
+            onChange={id => onUpdateItem(idx, 'asset_id', id)}
             disabled={locked}
-            className={fieldCls}
-          >
-            {assets.map(a => (
-              <option key={a.id} value={a.id}>
-                {a.name} ({asset_type_label(a.type)})
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         <div>
@@ -545,7 +533,8 @@ function DerivedHint({
   }
 
   if (value === null) {
-    if (required) return <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">Required — account lines are never worked out</p>
+    // Neutral, not alarming: on a pristine form this is a statement of the rule, not an error.
+    if (required) return <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 italic">Required — account lines are never worked out</p>
     return <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 italic">Left blank — worked out on save</p>
   }
 
