@@ -285,8 +285,9 @@ export function ValueChartLightweight({ points, title }: Props) {
             {/* Gain is derived from invested/current, so its own (often smaller) magnitude
                 shouldn't decide masking independently of them — that's how it ended up
                 shown in the clear right above a tooltip hiding the very figures it's
-                derived from. Follow the same amountsHidden verdict as the tooltip instead. */}
-            {amountsHidden ? fmtAmount(gain) : <MaskedAmount value={gain} />}
+                derived from. Default to the tooltip's own amountsHidden verdict, but stay
+                click-to-reveal like any other masked amount. */}
+            <MaskedAmount value={gain} force_hidden={amountsHidden} />
             {gainPct !== null && <span className="ml-1 text-xs font-normal">({gainPct.toFixed(1)}%)</span>}
           </p>
         </div>
