@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { upload } from '@vercel/blob/client'
 import type { AttachmentInput } from '@/app/_actions/attachments'
+import { format_bytes } from '@/app/_utils/format_bytes'
 
 type ExistingAttachment = {
   id: string
@@ -51,13 +52,6 @@ function FileIcon({ content_type }: { content_type: string | null }) {
       />
     </svg>
   )
-}
-
-function fmt_size(bytes: number | null) {
-  if (!bytes) return ''
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 export function AttachmentUpload({ existingAttachments = [], onPendingChange, onDeleteExisting }: Props) {
@@ -136,7 +130,7 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
                 >
                   {att.filename}
                 </a>
-                {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{fmt_size(att.size)}</p>}
+                {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{format_bytes(att.size)}</p>}
               </div>
               {onDeleteExisting && (
                 <button
@@ -165,7 +159,7 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{att.filename}</p>
-                {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{fmt_size(att.size)}</p>}
+                {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{format_bytes(att.size)}</p>}
               </div>
               <button
                 type="button"

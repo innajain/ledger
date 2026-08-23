@@ -62,10 +62,12 @@ const headTypeConfig = {
   },
 }
 
-const colorClasses = {
-  green: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
-  orange: 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100',
-  purple: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-100',
+// Section identity is a small colored dot, not a full-bleed tinted banner — three loud
+// hues on one form outshout the actual data.
+const dotClasses = {
+  green: 'bg-green-500',
+  orange: 'bg-orange-500',
+  purple: 'bg-purple-500',
 }
 
 const emptyPreviewLine: PreviewLine = { index: -1, is_blank: false, derived_quantity: null, derived_txn_value: null, is_zero: false }
@@ -166,11 +168,14 @@ export function TransactionLineItems({
             /* no overflow-hidden: the Combobox dropdowns inside must be able to overhang the card */
             className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors"
           >
-            <div className={`px-6 py-3 border-b rounded-t-lg ${colorClasses[config.color as keyof typeof colorClasses]}`}>
+            <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-700 rounded-t-lg bg-slate-50 dark:bg-slate-900/40">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="font-semibold">{config.title}</h3>
-                  <p className="text-xs opacity-75 mt-0.5">{config.hint}</p>
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <span aria-hidden="true" className={`w-2 h-2 rounded-full shrink-0 ${dotClasses[config.color as keyof typeof dotClasses]}`} />
+                    {config.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{config.hint}</p>
                 </div>
                 <button
                   type="button"

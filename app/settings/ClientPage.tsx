@@ -70,7 +70,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
                     onClick={() => goTo(s.id)}
                     className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       activeSection === s.id
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-sm'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >

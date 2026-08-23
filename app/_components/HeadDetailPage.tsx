@@ -320,7 +320,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
         </Card>
       )}
 
-      <HoldingsGrid title={config.holdingsTitle || 'Holdings (aggregated by asset)'} items={holdingsItems} linkLabel="View asset →" />
+      <HoldingsGrid title={config.holdingsTitle || 'Held in assets'} items={holdingsItems} linkLabel="View asset →" />
 
       {}
       <Card>

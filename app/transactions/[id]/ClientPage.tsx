@@ -291,10 +291,11 @@ export default function ClientPage({
           if (!items || items.length === 0) return null
 
           const config = headTypeConfig[typeKey]
-          const colorClasses = {
-            green: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100',
-            orange: 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100',
-            purple: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-100',
+          // Section identity as a small colored icon on a quiet header, not a tinted banner.
+          const iconColor = {
+            green: 'text-green-600 dark:text-green-400',
+            orange: 'text-orange-600 dark:text-orange-400',
+            purple: 'text-purple-600 dark:text-purple-400',
           }
 
           return (
@@ -302,10 +303,10 @@ export default function ClientPage({
               key={typeKey}
               className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors"
             >
-              <div className={`px-6 py-3 border-b ${colorClasses[config.color as keyof typeof colorClasses]}`}>
-                <div className="flex items-center gap-2">
+              <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+                <div className={`flex items-center gap-2 ${iconColor[config.color as keyof typeof iconColor]}`}>
                   {config.icon}
-                  <h3 className="font-semibold">{config.title}</h3>
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">{config.title}</h3>
                 </div>
               </div>
               <ul className="divide-y divide-slate-200 dark:divide-slate-700">
