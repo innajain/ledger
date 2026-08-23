@@ -7,7 +7,7 @@ interface ViewPageHeaderProps {
   backLink: string
   backText: string
   title: string
-  description: string
+  description?: string
 
   editLink?: string
   editText?: string
@@ -29,7 +29,7 @@ export function ViewPageHeader({ backLink, backText, title, description, editLin
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">{description}</p>
+          {description && <p className="text-slate-600 dark:text-slate-400 mt-1">{description}</p>}
         </div>
         {editLink && (
           <Link
@@ -226,7 +226,7 @@ export function LineItemRow({
             href={`/transactions/${transactionId}`}
             className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 inline-block"
           >
-            View Transaction →
+            View transaction →
           </Link>
         </div>
       </div>

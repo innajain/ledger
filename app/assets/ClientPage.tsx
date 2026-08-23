@@ -26,14 +26,14 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
     <div className="space-y-6">
       <PageHeader
         title="Assets"
-        description={isAdmin ? 'Manage your assets and view their hierarchy' : 'View the asset hierarchy'}
+        description={isAdmin ? 'Funds, stocks and everything else you hold.' : 'View the asset hierarchy'}
         createUrl={isAdmin ? '/assets/create' : undefined}
-        createLabel={isAdmin ? '+ New Asset' : undefined}
+        createLabel={isAdmin ? 'New asset' : undefined}
       />
       {assets.length > 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Asset Hierarchy</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Asset hierarchy</h2>
             <div className="flex items-center gap-2 sm:gap-3">
               {hideZero && hiddenCount > 0 && (
                 <span className="text-xs text-slate-500 dark:text-slate-400" title="Assets whose total (including everything under them) is zero">
@@ -44,7 +44,7 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
                 {hideZero ? 'Show empty' : 'Hide empty'}
               </Button>
               <Button size="sm" variant="secondary" onClick={() => setExpandAll(!expandAll)}>
-                {expandAll ? 'Collapse All' : 'Expand All'}
+                {expandAll ? 'Collapse all' : 'Expand all'}
               </Button>
             </div>
           </div>
@@ -89,9 +89,13 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
         <EmptyState
           icon={<AssetEmptyIcon />}
           title="No assets yet"
-          description={isAdmin ? 'Get started by creating your first asset' : 'No assets have been set up yet'}
+          description={
+            isAdmin
+              ? 'An asset is anything you hold units of — a mutual fund, a stock, plain rupees. Create one to track it.'
+              : 'No assets have been set up yet'
+          }
           actionUrl={isAdmin ? '/assets/create' : undefined}
-          actionLabel={isAdmin ? 'Create Asset' : undefined}
+          actionLabel={isAdmin ? 'New asset' : undefined}
         />
       )}
     </div>

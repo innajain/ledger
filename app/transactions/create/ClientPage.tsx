@@ -18,6 +18,7 @@ import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
 import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app/_utils/line_item_defaults'
+import { useToast } from '@/app/_components/Toast'
 
 export default function ClientPage({
   accounts,
@@ -42,6 +43,7 @@ export default function ClientPage({
   }
 
   const router = useRouter()
+  const { showToast } = useToast()
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()))
   const [description, setDescription] = useState('')
   const defaultAccount = pickDefaultAccount(accounts, defaults, 'account')
@@ -181,7 +183,7 @@ export default function ClientPage({
       if (!result.success) {
         setTemplateError(result.message)
       } else {
-        alert('Template updated!')
+        showToast('Template updated', 'success')
       }
     } catch (err) {
       setTemplateError(err instanceof Error ? err.message : String(err))
@@ -205,7 +207,7 @@ export default function ClientPage({
       if (!result.success) {
         setTemplateError(result.message)
       } else {
-        alert('Template saved!')
+        showToast('Template saved', 'success')
       }
     } catch (err) {
       setTemplateError(err instanceof Error ? err.message : String(err))
@@ -284,18 +286,17 @@ export default function ClientPage({
           <ChevronLeftIcon />
           Transactions
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Create Transaction</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">Add a new transaction with line items</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">New transaction</h1>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
         {}
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Transaction Details</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Transaction details</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date & Time</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date & time</label>
               <input
                 type="datetime-local"
                 value={date}
@@ -402,11 +403,11 @@ export default function ClientPage({
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {loadedTemplateId && (
               <Button variant="secondary" onClick={handleUpdateTemplate} disabled={savingTemplate} className="w-full sm:w-auto">
-                {savingTemplate ? 'Updating...' : 'Update Quick Template'}
+                {savingTemplate ? 'Updating…' : 'Update template'}
               </Button>
             )}
             <Button variant="secondary" onClick={handleSaveTemplate} disabled={savingTemplate} className="w-full sm:w-auto">
-              {savingTemplate ? 'Saving...' : 'Save as New Template'}
+              {savingTemplate ? 'Saving…' : 'Save as template'}
             </Button>
           </div>
 
@@ -415,7 +416,7 @@ export default function ClientPage({
               Cancel
             </ButtonLink>
             <Button type="submit" variant="primary" disabled={busy} className="flex-1 sm:flex-none">
-              {busy ? 'Creating...' : 'Create Transaction'}
+              {busy ? 'Creating…' : 'Create transaction'}
             </Button>
           </div>
         </div>

@@ -66,7 +66,7 @@ export async function sign_up(payload: { username: string; password: string }): 
 
     const token = await sign_token({ uid: res.data!.id, username: res.data!.username })
     await set_session_cookie(token)
-    return ok(undefined, 'Account created successfully')
+    return ok(undefined, 'Account created')
   } catch (error) {
     return fromCatch(error)
   }
@@ -82,12 +82,12 @@ export async function log_in(payload: z.infer<typeof AuthSchema>): Promise<Actio
     if (!within_ip || !within_user) return err('UNAUTHORIZED', 'Too many attempts. Please wait a minute and try again.')
 
     const userRec = await authenticate(username, password)
-    if (!userRec) return err('UNAUTHORIZED', 'invalid credentials')
+    if (!userRec) return err('UNAUTHORIZED', 'Wrong username or password')
 
     const token = await sign_token({ uid: userRec.id, username: userRec.username })
     await set_session_cookie(token)
 
-    return ok(undefined, 'Logged in successfully')
+    return ok(undefined, 'Logged in')
   } catch (error) {
     return fromCatch(error)
   }
@@ -102,7 +102,7 @@ export async function log_out(): Promise<ActionResult> {
       path: '/',
       expires: new Date(0),
     })
-    return ok(undefined, 'Logged out successfully')
+    return ok(undefined, 'Logged out')
   } catch (error) {
     return fromCatch(error)
   }
@@ -165,26 +165,26 @@ export const is_current_user_admin = cache(async (): Promise<boolean> => {
 
 export async function require_admin(): Promise<string> {
   const id = await get_current_user_id()
-  if (!id) throw new Error('unauthorized')
+  if (!id) throw new Error('Your session has expired — log in again')
   const user = await prisma.user.findUnique({
     where: { id },
     select: { is_admin: true },
   })
-  if (!user?.is_admin) throw new Error('admin only')
+  if (!user?.is_admin) throw new Error('Admin access is required')
   return id
 }
 
 export async function change_password(payload: { current_password: string; new_password: string }): Promise<ActionResult> {
   try {
     const user = await get_current_user()
-    if (!user) return err('UNAUTHORIZED', 'not authenticated')
+    if (!user) return err('UNAUTHORIZED', 'Your session has expired — log in again')
 
     const res = await change_password_core(user.id, payload)
     if (!res.success) return res
 
     const token = await sign_token({ uid: user.id, username: user.username })
     await set_session_cookie(token)
-    return ok(undefined, 'Password changed successfully')
+    return ok(undefined, 'Password changed')
   } catch (error) {
     return fromCatch(error)
   }
@@ -193,14 +193,14 @@ export async function change_password(payload: { current_password: string; new_p
 export async function change_username(payload: { new_username: string; password: string }): Promise<ActionResult> {
   try {
     const user = await get_current_user()
-    if (!user) return err('UNAUTHORIZED', 'not authenticated')
+    if (!user) return err('UNAUTHORIZED', 'Your session has expired — log in again')
 
     const res = await change_username_core(user.id, payload)
     if (!res.success) return res
 
     const token = await sign_token({ uid: user.id, username: res.data!.username })
     await set_session_cookie(token)
-    return ok(undefined, 'Username changed successfully')
+    return ok(undefined, 'Username changed')
   } catch (error) {
     return fromCatch(error)
   }

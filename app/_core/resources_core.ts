@@ -61,7 +61,7 @@ export async function create_account_core(
 
     if (parent_id) {
       const parent = await prisma.accounting_head.findUnique({ where: { id: parent_id, user_id }, select: { id: true } })
-      if (!parent) throw new ActionError('VALIDATION', 'invalid parent account')
+      if (!parent) throw new ActionError('VALIDATION', 'Invalid parent account')
     }
 
     await prisma.accounting_head.create({
@@ -103,7 +103,7 @@ export async function update_account_core(
     // from 'account' must not strand a live lock on a non-account head
     const effective_lock = lock_date === undefined ? existing.lock_date : lock_date
     if (effective_lock != null && (type ?? existing.type) !== 'account')
-      throw new ActionError('VALIDATION', 'lock date applies to account heads only — clear it before changing the type')
+      throw new ActionError('VALIDATION', 'A lock date applies to accounts only — clear it before changing the type')
 
     if (parent_id) {
       if (parent_id === id) throw new ActionError('VALIDATION', 'parent cannot be the account itself')
@@ -111,7 +111,7 @@ export async function update_account_core(
         where: { id: parent_id, user_id },
         select: { id: true, user_id: true, parent_id: true },
       })
-      if (!p) throw new ActionError('VALIDATION', 'invalid parent account')
+      if (!p) throw new ActionError('VALIDATION', 'Invalid parent account')
 
       const all_accounts = await prisma.accounting_head.findMany({ where: { user_id }, select: { id: true, parent_id: true } })
       const parentMap = new Map(all_accounts.map(a => [a.id, a.parent_id]))

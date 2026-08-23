@@ -60,7 +60,10 @@ export default function ClientPage({
   const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
-    if (!confirm('Delete this transaction?')) return
+    const message = linkStatus
+      ? 'Delete this transaction? The linked user will be asked to approve deleting their copy. You can undo from the transactions list.'
+      : 'Delete this transaction? You can undo it from the transactions list right after.'
+    if (!confirm(message)) return
     setIsDeleting(true)
     setError(null)
     try {
@@ -72,7 +75,7 @@ export default function ClientPage({
       } catch {}
       router.push('/transactions')
     } catch (err: unknown) {
-      setError('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
+      setError("Couldn't delete the transaction: " + (err instanceof Error ? err.message : String(err)))
       setIsDeleting(false)
     }
   }
@@ -88,7 +91,7 @@ export default function ClientPage({
       }
       router.refresh()
     } catch (err: unknown) {
-      setError('Cancel failed: ' + (err instanceof Error ? err.message : String(err)))
+      setError("Couldn't cancel the request: " + (err instanceof Error ? err.message : String(err)))
       setCancelling(false)
     }
   }
@@ -121,7 +124,7 @@ export default function ClientPage({
       color: 'green',
     },
     allocation: {
-      title: 'Allocation Accounts',
+      title: 'Allocations',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
@@ -217,7 +220,7 @@ export default function ClientPage({
 
         {}
         <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-          <p className="text-sm text-blue-900 dark:text-blue-100 mb-1">Transaction Total</p>
+          <p className="text-sm text-blue-900 dark:text-blue-100 mb-1">Total</p>
           <p
             className={`text-3xl font-bold ${
               transaction.total > 0
@@ -239,7 +242,7 @@ export default function ClientPage({
           </ButtonLink>
           <Button variant="dangerOutline" onClick={handleDelete} disabled={isDeleting}>
             <TrashIcon />
-            {isDeleting ? 'Deleting...' : 'Delete'}
+            {isDeleting ? 'Deleting…' : 'Delete'}
           </Button>
         </div>
       </div>
@@ -295,7 +298,7 @@ export default function ClientPage({
 
       {}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line Items</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line items</h2>
 
         {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
           const items = groups[typeKey] || []

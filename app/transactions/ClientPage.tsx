@@ -14,6 +14,7 @@ import { LocalDateTime } from '../_components/LocalDateTime'
 import { delete_transaction_template } from '../_actions/templates'
 import { create_transaction, type DeletedTransactionSnapshot } from '../_actions/transactions'
 import { dedupe_template_chips } from '../_components/HomeTemplateChips'
+import { useToast } from '../_components/Toast'
 
 type Transaction = {
   id: string
@@ -62,6 +63,7 @@ export default function ClientPage({
 }) {
   const router = useRouter()
   const params = useSearchParams()
+  const { showToast } = useToast()
   const [showFilters, setShowFilters] = useState(false)
   const [searchInput, setSearchInput] = useState(searchParams.search || '')
   const [refInput, setRefInput] = useState(searchParams.ref || '')
@@ -122,7 +124,7 @@ export default function ClientPage({
       setUndoDone(result.data!.id)
       router.refresh()
     } catch (e) {
-      alert('Could not restore the transaction: ' + (e instanceof Error ? e.message : String(e)))
+      showToast("Couldn't restore the transaction: " + (e instanceof Error ? e.message : String(e)), 'error')
     } finally {
       setUndoBusy(false)
     }
@@ -231,12 +233,7 @@ export default function ClientPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Transactions"
-        description="View and manage all your transactions"
-        createUrl="/transactions/create"
-        createLabel="+ New Transaction"
-      />
+      <PageHeader title="Transactions" createUrl="/transactions/create" createLabel="New transaction" />
 
       {templates && templates.length > 0 && (
         <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">
@@ -262,7 +259,7 @@ export default function ClientPage({
               }}
             >
               <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate max-w-37.5 sm:max-w-62.5">
-                {t.description || 'Unnamed Template'}
+                {t.description || 'Unnamed template'}
               </div>
             </div>
           ))}
@@ -304,7 +301,7 @@ export default function ClientPage({
           <div className="flex-1">
             <input
               type="text"
-              placeholder="Search transactions..."
+              placeholder="Search transactions…"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
@@ -348,7 +345,7 @@ export default function ClientPage({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">From Date</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">From date</label>
               <input
                 type="date"
                 value={dateFrom}
@@ -358,7 +355,7 @@ export default function ClientPage({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">To Date</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">To date</label>
               <input
                 type="date"
                 value={dateTo}
@@ -368,7 +365,7 @@ export default function ClientPage({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Min Amount</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Min amount</label>
               <input
                 type="number"
                 step="0.01"
@@ -380,7 +377,7 @@ export default function ClientPage({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Amount</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max amount</label>
               <input
                 type="number"
                 step="0.01"
@@ -398,7 +395,7 @@ export default function ClientPage({
                 onChange={e => setAccountId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
               >
-                <option value="">All Accounts</option>
+                <option value="">All accounts</option>
                 {accounts.map(acc => (
                   <option key={acc.id} value={acc.id}>
                     {acc.name}
@@ -413,7 +410,7 @@ export default function ClientPage({
                 onChange={e => setAssetId(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
               >
-                <option value="">All Assets</option>
+                <option value="">All assets</option>
                 {assets.map(asset => (
                   <option key={asset.id} value={asset.id}>
                     {asset.name}
@@ -437,13 +434,13 @@ export default function ClientPage({
                 onClick={clearFilters}
                 className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all hover:scale-105"
               >
-                Clear All
+                Clear all
               </button>
               <button
                 onClick={applyFilters}
                 className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
-                Apply Filters
+                Apply filters
               </button>
             </div>
           </div>
@@ -476,7 +473,7 @@ export default function ClientPage({
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All Transactions</h2>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All transactions</h2>
                 <div className="flex items-center gap-4 flex-wrap">
                   <span className="text-sm text-slate-500 dark:text-slate-400">
                     {isShowingAll
@@ -503,11 +500,11 @@ export default function ClientPage({
                     </span>
                   ) : tx.link_severity === 'warning' ? (
                     <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                      Pending
+                      Needs approval
                     </span>
                   ) : tx.link_severity === 'info' ? (
                     <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                      Awaiting
+                      Waiting
                     </span>
                   ) : null
                 return (
@@ -619,9 +616,13 @@ export default function ClientPage({
         <EmptyState
           icon={<TransactionEmptyIcon />}
           title={hasFilters ? 'No matching transactions' : 'No transactions yet'}
-          description={hasFilters ? 'Try adjusting your filters' : 'Get started by creating your first transaction'}
+          description={
+            hasFilters
+              ? 'Try adjusting your filters'
+              : 'A transaction records money moving between your accounts, allocations and categories in one balanced entry.'
+          }
           actionUrl="/transactions/create"
-          actionLabel="Create Transaction"
+          actionLabel="New transaction"
         />
       )}
 

@@ -48,7 +48,7 @@ export function HomeMonthSummary({ month }: { month: HomeMonthData }) {
       </div>
 
       {empty ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">Nothing booked to an income or expense head yet this month.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Nothing booked to an income or expense category yet this month.</p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3">

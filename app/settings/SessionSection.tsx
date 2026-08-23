@@ -11,14 +11,14 @@ export function SessionSection() {
   const [loggingOut, setLoggingOut] = useState(false)
 
   async function handleLogout() {
-    if (!confirm('Log out?')) return
+    if (!confirm('Log out of this device?')) return
     setLoggingOut(true)
     try {
       await log_out()
 
       window.location.href = '/login'
     } catch (err: unknown) {
-      showToast('Logout failed: ' + (err instanceof Error ? err.message : String(err)), 'error')
+      showToast("Couldn't log out: " + (err instanceof Error ? err.message : String(err)), 'error')
       setLoggingOut(false)
     }
   }
@@ -30,10 +30,10 @@ export function SessionSection() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Log out</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Sign out of this device. You&apos;ll need to sign in again to return.</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Log out of this device. You&apos;ll need to log in again to return.</p>
           </div>
           <Button variant="secondary" className="shrink-0" onClick={handleLogout} disabled={loggingOut}>
-            {loggingOut ? 'Logging out...' : 'Log out'}
+            {loggingOut ? 'Logging out…' : 'Log out'}
           </Button>
         </div>
       </div>

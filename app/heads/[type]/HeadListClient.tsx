@@ -43,7 +43,7 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
                 {hideZero ? 'Show empty' : 'Hide empty'}
               </Button>
               <Button size="sm" variant="secondary" onClick={() => setExpandAll(!expandAll)}>
-                {expandAll ? 'Collapse All' : 'Expand All'}
+                {expandAll ? 'Collapse all' : 'Expand all'}
               </Button>
             </div>
           </div>

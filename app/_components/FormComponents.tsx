@@ -119,7 +119,7 @@ export function ParentSelect({ label, value, onChange, parents, excludeId, helpT
         onChange={e => onChange(e.target.value || null)}
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       >
-        <option value="">-- None (Top Level) --</option>
+        <option value="">None (top level)</option>
         {filteredParents.map(p => (
           <option key={p.id} value={p.id}>
             {p.name}
@@ -147,7 +147,7 @@ export function AssetTypeSelect({ label, value, onChange }: AssetTypeSelectProps
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       >
         <option value="rupees">Rupees</option>
-        <option value="mf">Mutual Fund</option>
+        <option value="mf">Mutual fund</option>
         <option value="etf">ETF</option>
         <option value="shares">Shares</option>
         <option value="other">Other</option>
@@ -176,7 +176,7 @@ export function ParentAssetSelect({ label, value, onChange, parents, excludeId, 
         onChange={e => onChange(e.target.value || null)}
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
       >
-        <option value="">-- None (Top Level) --</option>
+        <option value="">None (top level)</option>
         {filteredParents.map(p => (
           <option key={p.id} value={p.id}>
             {p.name}

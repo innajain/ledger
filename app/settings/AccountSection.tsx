@@ -70,7 +70,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
     try {
       const result = await change_password({ current_password: currentPassword, new_password: newPassword })
       if (!result.success) throw new Error(result.message)
-      setPasswordSuccess('Password changed successfully!')
+      setPasswordSuccess('Password changed.')
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
@@ -97,7 +97,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
     try {
       const result = await change_username({ new_username: newUsername, password: usernamePassword })
       if (!result.success) throw new Error(result.message)
-      setUsernameSuccess('Username changed successfully! Refreshing...')
+      setUsernameSuccess('Username changed — refreshing…')
       setTimeout(() => router.refresh(), REDIRECT_DELAY_MS)
     } catch (err: unknown) {
       setUsernameError(err instanceof Error ? err.message : String(err))
@@ -115,7 +115,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
       const result = await update_own_upi(upi.trim() === '' ? null : upi.trim())
       if (!result.success) throw new Error(result.message)
       setUpi(result.data?.upi_id ?? '')
-      setUpiSuccess(result.data?.upi_id ? 'UPI ID saved!' : 'UPI ID cleared.')
+      setUpiSuccess(result.data?.upi_id ? 'UPI ID saved.' : 'UPI ID cleared.')
     } catch (err: unknown) {
       setUpiError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -142,11 +142,11 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
 
         {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Change Password</h3>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Change password</h3>
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>
               <label htmlFor="currentPassword" className={labelCls}>
-                Current Password
+                Current password
               </label>
               <div className="relative">
                 <input
@@ -167,7 +167,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
 
             <div>
               <label htmlFor="newPassword" className={labelCls}>
-                New Password
+                New password
               </label>
               <div className="relative">
                 <input
@@ -188,7 +188,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
 
             <div>
               <label htmlFor="confirmPassword" className={labelCls}>
-                Confirm New Password
+                Confirm new password
               </label>
               <div className="relative">
                 <input
@@ -215,10 +215,10 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
                 {passwordLoading ? (
                   <>
                     <Spinner />
-                    <span>Changing password...</span>
+                    <span>Changing password…</span>
                   </>
                 ) : (
-                  <span>Change Password</span>
+                  <span>Change password</span>
                 )}
               </Button>
             </div>
@@ -227,11 +227,11 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
 
         {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Change Username</h3>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Change username</h3>
           <form onSubmit={handleUsernameChange} className="space-y-4">
             <div>
               <label htmlFor="newUsername" className={labelCls}>
-                New Username
+                New username
               </label>
               <input
                 id="newUsername"
@@ -247,7 +247,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
 
             <div>
               <label htmlFor="usernamePassword" className={labelCls}>
-                Confirm with Password
+                Confirm with password
               </label>
               <div className="relative">
                 <input
@@ -275,10 +275,10 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
                 {usernameLoading ? (
                   <>
                     <Spinner />
-                    <span>Changing username...</span>
+                    <span>Changing username…</span>
                   </>
                 ) : (
-                  <span>Change Username</span>
+                  <span>Change username</span>
                 )}
               </Button>
             </div>
@@ -318,7 +318,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
                 {upiLoading ? (
                   <>
                     <Spinner />
-                    <span>Saving...</span>
+                    <span>Saving…</span>
                   </>
                 ) : (
                   <span>Save UPI ID</span>

@@ -69,7 +69,6 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         backLink="/assets"
         backText="Assets"
         title={asset.name}
-        description="Asset details and holdings breakdown"
         editLink={isAdmin ? `/assets/${asset.id}/update` : undefined}
         editText={isAdmin ? 'Edit Asset' : undefined}
       />
@@ -87,17 +86,17 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
       )}
 
       <InfoCard
-        title="Asset Information"
+        title="Asset details"
         fields={[
           {
-            label: 'Asset Type',
+            label: 'Type',
             value: <span className="text-slate-900 dark:text-slate-100 font-medium">{asset_type_label(asset.type)}</span>,
           },
           { label: 'Ticker', value: asset.ticker ?? '—' },
           ...((asset.type === asset_type.mf || asset.type === asset_type.etf || asset.type === asset_type.shares) && asset.price !== null
             ? [
                 {
-                  label: 'Current Price',
+                  label: 'Current price',
                   value: precise_plain_currency_fmt.format(asset.price),
                 },
               ]
@@ -128,14 +127,14 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
         <div className={`grid grid-cols-1 ${asset.txn_value_total !== null ? 'sm:grid-cols-3' : ''} gap-4`}>
           <div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Total Across Accounts</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Total across accounts</p>
             <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">
               <MaskedAmount value={asset.total} />
             </p>
           </div>
           {asset.current_investment !== null && (
             <div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Current Investment</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Current investment</p>
               <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">
                 <MaskedAmount value={asset.current_investment} />
               </p>
@@ -143,7 +142,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
           )}
           {asset.txn_value_total !== null && (
             <div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Total Txn Value</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Total book value</p>
               <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1">
                 <MaskedAmount value={asset.txn_value_total} />
               </p>
@@ -181,7 +180,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holdings (aggregated by account)</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Held in accounts</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {asset.breakdown.length} account
             {asset.breakdown.length !== 1 ? 's' : ''}
@@ -231,7 +230,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{b.quantity} units</span>
                               </div>
                               <div>
-                                <span className="text-slate-500 dark:text-slate-400">Txn:</span>{' '}
+                                <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
                                 <span className="font-medium text-slate-900 dark:text-slate-100">
                                   {b.txn_value === null ? '—' : <MaskedAmount value={b.txn_value} />}
                                 </span>
@@ -249,7 +248,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
 
                       <div className="mt-4 text-right">
                         <Link href={`/heads/account/${b.accounting_head_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                          View Account →
+                          View account →
                         </Link>
                       </div>
                     </div>
@@ -264,7 +263,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
       {asset.allocation_breakdown.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
           <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Holdings (aggregated by allocation)</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Held in allocations</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {asset.allocation_breakdown.length} allocation{asset.allocation_breakdown.length !== 1 ? 's' : ''}
             </p>
@@ -297,7 +296,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{b.quantity} units</span>
                               </div>
                               <div>
-                                <span className="text-slate-500 dark:text-slate-400">Txn:</span>{' '}
+                                <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
                                 <span className="font-medium text-slate-900 dark:text-slate-100">
                                   {b.txn_value === null ? '—' : <MaskedAmount value={b.txn_value} />}
                                 </span>
@@ -314,7 +313,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                       </div>
                       <div className="mt-4 text-right">
                         <Link href={`/heads/allocation/${b.allocation_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                          View Allocation →
+                          View allocation →
                         </Link>
                       </div>
                     </div>
@@ -329,7 +328,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
       {}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Line Items</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Line items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {(asset.line_items ?? []).length} item
             {(asset.line_items ?? []).length !== 1 ? 's' : ''}
@@ -389,7 +388,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                                     <>
                                       {' '}
                                       <span className="text-slate-500 dark:text-slate-400">
-                                        (<MaskedAmount value={remaining_txn_value} /> txn)
+                                        (<MaskedAmount value={remaining_txn_value} /> book)
                                       </span>
                                     </>
                                   )}
@@ -408,7 +407,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                           href={`/transactions/${li.transaction_id}`}
                           className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 inline-block"
                         >
-                          View Transaction →
+                          View transaction →
                         </Link>
                       </div>
                     </div>

@@ -115,7 +115,6 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
         backLink={config.backLink}
         backText={config.backText}
         title={head.name}
-        description={`${config.entityName} details and holdings`}
         editLink={editLink}
         editText={`Edit ${config.entityName}`}
       />
@@ -169,7 +168,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
           <UpiPayButton
             upi_id={head.upi_id}
             payee_name={head.name}
-            mark_paid_label="Log Transaction"
+            mark_paid_label="Log transaction"
             initial_amount={head.total < 0 ? -head.total : undefined}
             initial_note={head.total < 0 ? 'reimbursement. balance settled' : undefined}
             on_mark_paid={handle_mark_paid}
@@ -211,10 +210,10 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
       )}
 
       <InfoCard
-        title={`${config.entityName} Information`}
+        title={`${config.entityName} details`}
         fields={[
           {
-            label: head.subtree_total != null ? 'Total Value (this head only)' : 'Total Value',
+            label: head.subtree_total != null ? 'Total value (this one only)' : 'Total value',
             value: (
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                 <MaskedAmount value={head.total} />
@@ -224,7 +223,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
           ...(head.subtree_total != null
             ? [
                 {
-                  label: 'Total Value (incl. sub-accounts)',
+                  label: 'Total value (with sub-accounts)',
                   value: (
                     <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                       <MaskedAmount value={head.subtree_total} />
@@ -294,7 +293,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
           <div className="p-6 border-b border-slate-200 dark:border-slate-700">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sub-{config.entityName.toLowerCase()}s</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              {head.children.length} child {head.children.length !== 1 ? 'heads' : 'head'} — values include their own descendants
+              {head.children.length} sub-{head.children.length !== 1 ? 'entries' : 'entry'} — totals include everything under them
             </p>
           </div>
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -319,12 +318,12 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
         </Card>
       )}
 
-      <HoldingsGrid title={config.holdingsTitle || 'Holdings (aggregated by asset)'} items={holdingsItems} linkLabel="View Asset →" />
+      <HoldingsGrid title={config.holdingsTitle || 'Holdings (aggregated by asset)'} items={holdingsItems} linkLabel="View asset →" />
 
       {}
       <Card>
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Line Items</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Line items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {head.line_items.length} item
             {head.line_items.length !== 1 ? 's' : ''}

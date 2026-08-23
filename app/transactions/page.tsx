@@ -23,7 +23,7 @@ function istDayStart(dateStr: string, addDays = 0): Date {
 
 export const metadata: Metadata = {
   title: 'Transactions',
-  description: 'View and manage all your financial transactions',
+  description: 'Search, filter and post transactions',
 }
 
 type TxForClient = {

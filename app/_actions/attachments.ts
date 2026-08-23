@@ -31,7 +31,7 @@ export async function save_attachments(transaction_id: string, attachments: Atta
   try {
     if (attachments.length === 0) return ok()
     const user_id = await get_current_user_id()
-    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
+    if (!user_id) return err('UNAUTHORIZED', 'Your session has expired — log in again')
 
     const tx = await prisma.transaction.findUnique({ where: { id: transaction_id, user_id } })
     if (!tx) return err('NOT_FOUND', 'Transaction not found')
@@ -50,7 +50,7 @@ export async function save_attachments(transaction_id: string, attachments: Atta
 export async function delete_attachment(attachment_id: string): Promise<ActionResult> {
   try {
     const user_id = await get_current_user_id()
-    if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
+    if (!user_id) return err('UNAUTHORIZED', 'Your session has expired — log in again')
 
     const attachment = await prisma.transaction_attachment.findUnique({
       where: { id: attachment_id },

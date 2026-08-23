@@ -57,7 +57,6 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Settings</h1>
-        <p className="text-slate-600 dark:text-slate-400">Manage your account settings and preferences</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-8 lg:gap-10">

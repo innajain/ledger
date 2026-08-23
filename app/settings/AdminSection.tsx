@@ -13,12 +13,12 @@ export function AdminSection() {
   const [validating, setValidating] = useState(false)
 
   async function handleFlushRedis() {
-    if (!confirm('Flush Redis cache? This clears all cached prices.')) return
+    if (!confirm('Flush the Redis cache? Cached prices and balances will be recomputed on next use.')) return
     setFlushing(true)
     try {
       const res = await flush_redis()
       if (res.success) showToast(res.message ?? 'Redis cache flushed', 'success')
-      else showToast(res.message ?? 'Flush failed', 'error')
+      else showToast(res.message ?? "Couldn't flush the cache", 'error')
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : String(err), 'error')
     } finally {
@@ -27,7 +27,6 @@ export function AdminSection() {
   }
 
   async function handleValidate() {
-    if (!confirm('Validate all transactions? This will check every txn.')) return
     setValidating(true)
     try {
       const res = await validate_all_txns()
@@ -53,13 +52,13 @@ export function AdminSection() {
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Flush Redis Cache</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Flush Redis cache</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 Clears every cached price, balance, and chart series. Next page render will rebuild from source.
               </p>
             </div>
             <Button variant="secondary" className="shrink-0" onClick={handleFlushRedis} disabled={flushing}>
-              {flushing ? 'Flushing...' : 'Flush cache'}
+              {flushing ? 'Flushing…' : 'Flush cache'}
             </Button>
           </div>
         </div>
@@ -68,13 +67,13 @@ export function AdminSection() {
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Validate Transactions</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Validate transactions</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 Run the integrity checker against every transaction. Any failures are logged to the browser console.
               </p>
             </div>
             <Button variant="secondary" className="shrink-0" onClick={handleValidate} disabled={validating}>
-              {validating ? 'Validating...' : 'Validate all'}
+              {validating ? 'Validating…' : 'Validate all'}
             </Button>
           </div>
         </div>
@@ -83,7 +82,7 @@ export function AdminSection() {
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Complete DB Dump</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Complete DB dump</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 Download the entire database — every table, every user — as a restorable SQL file. Sensitive: includes all users&apos; data and
                 password hashes.

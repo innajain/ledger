@@ -29,7 +29,7 @@ export function HoldingsGrid({
   items,
   emptyMessage = 'No holdings yet',
   emptySubMessage = 'Holdings will appear here once transactions are recorded',
-  linkLabel = 'View Details →',
+  linkLabel = 'View details →',
 }: HoldingsGridProps) {
   return (
     <Card>

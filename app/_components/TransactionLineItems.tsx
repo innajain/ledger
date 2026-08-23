@@ -47,17 +47,17 @@ const headTypeConfig = {
   account: {
     title: 'Accounts',
     color: 'green',
-    hint: 'Where the money actually sits. Negative = money out, positive = money in.',
+    hint: 'Where the money actually sits. Negative = money out, positive = in.',
   },
   allocation: {
-    title: 'Allocation Accounts',
+    title: 'Allocations',
     color: 'orange',
-    hint: 'Which bucket it belongs to. Negative = money out, positive = money in. Leave one line blank and it is worked out for you.',
+    hint: 'Which bucket it belongs to. Leave one line blank and it is worked out for you.',
   },
   income_expense: {
     title: 'Income & Expenses',
     color: 'purple',
-    hint: 'Why the money moved. Negative = money out, positive = money in. Leave one line blank and it is worked out for you.',
+    hint: 'Why the money moved. Leave one line blank and it is worked out for you.',
   },
 }
 
@@ -152,7 +152,7 @@ export function TransactionLineItems({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line Items</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line items</h2>
       </div>
 
       {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
@@ -199,7 +199,7 @@ export function TransactionLineItems({
                 />
               ))}
               {list.length === 0 && (lockedGroups[typeKey] || []).length === 0 && (
-                <div className="text-sm text-slate-500 dark:text-slate-400 italic">No items in this section. Use Add to create one.</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 italic">Nothing here yet — use Add to create a line.</div>
               )}
               {list.length > 0 &&
                 list.map(({ item: it, idx }) => {
@@ -388,7 +388,7 @@ function LineItemCard({
 
         {!isRupees && (
           <div>
-            <label className={labelCls}>Txn Value (₹)</label>
+            <label className={labelCls}>Value (₹)</label>
             <div className="relative">
               <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500 dark:text-slate-400">₹</span>
               <input
@@ -411,12 +411,12 @@ function LineItemCard({
           </div>
         )}
         <div>
-          <label className={labelCls}>Line Item Description</label>
+          <label className={labelCls}>Line note</label>
           <input
             type="text"
             value={item.description}
             onChange={e => onUpdateItem(idx, 'description', e.target.value)}
-            placeholder="Optional description for this line item"
+            placeholder="Optional note for this line"
             disabled={locked}
             className={fieldCls}
           />

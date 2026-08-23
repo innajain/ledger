@@ -243,7 +243,7 @@ export default function ClientPage({
       {}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction Details</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction details</h2>
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
             <LockIcon className="w-3.5 h-3.5" />
             Locked
@@ -251,7 +251,7 @@ export default function ClientPage({
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date &amp; Time</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date &amp; time</label>
             <input type="datetime-local" value={toLocalInput(ctx.datetime)} disabled className={lockedFieldCls} />
             {ctx.datetime && (
               <div className="text-sm text-slate-600 dark:text-slate-400 mt-2 italic">

@@ -369,8 +369,8 @@ export default function ClientPage({
                 </Button>
               </div>
               <p className="px-6 pb-4 text-xs text-slate-500 dark:text-slate-400">
-                Each entry is created with its bank reference and an idempotency key, so re-running this import can never double-post. Re-categorize
-                individual entries later if needed.
+                Re-running this import never adds the same row twice — each entry is tagged with its bank reference. Re-categorize individual entries
+                later if needed.
               </p>
             </div>
           )}

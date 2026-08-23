@@ -59,11 +59,11 @@ export async function sign_up_core(payload: { username: string; password: string
     const { username, password } = parsed.data
 
     const existing = await prisma.user.findUnique({ where: { username }, select: { id: true } })
-    if (existing) return err('VALIDATION', 'user already exists')
+    if (existing) return err('VALIDATION', 'That username is already taken')
 
     const password_hash = await bcrypt.hash(password, 10)
     const created = await prisma.user.create({ data: { username, password_hash }, select: { id: true, username: true } })
-    return ok(created, 'Account created successfully')
+    return ok(created, 'Account created')
   } catch (error) {
     return fromError(error)
   }
@@ -76,15 +76,15 @@ export async function change_password_core(user_id: string, payload: { current_p
     const { current_password, new_password } = parsed.data
 
     const userRec = await prisma.user.findUnique({ where: { id: user_id }, select: { id: true, password_hash: true } })
-    if (!userRec) return err('NOT_FOUND', 'user not found')
+    if (!userRec) return err('NOT_FOUND', 'User not found')
 
-    if (!(await bcrypt.compare(current_password, userRec.password_hash))) return err('UNAUTHORIZED', 'current password is incorrect')
+    if (!(await bcrypt.compare(current_password, userRec.password_hash))) return err('UNAUTHORIZED', 'Your current password is incorrect')
 
     const new_password_hash = await bcrypt.hash(new_password, 10)
     await prisma.user.update({ where: { id: user_id }, data: { password_hash: new_password_hash } })
 
     await revoke_sessions_before(user_id, Math.floor(Date.now() / 1000))
-    return ok(undefined, 'Password changed successfully')
+    return ok(undefined, 'Password changed')
   } catch (error) {
     return fromError(error)
   }
@@ -100,16 +100,16 @@ export async function change_username_core(
     const { new_username, password } = parsed.data
 
     const userRec = await prisma.user.findUnique({ where: { id: user_id }, select: { id: true, username: true, password_hash: true } })
-    if (!userRec) return err('NOT_FOUND', 'user not found')
+    if (!userRec) return err('NOT_FOUND', 'User not found')
 
-    if (!(await bcrypt.compare(password, userRec.password_hash))) return err('UNAUTHORIZED', 'password is incorrect')
+    if (!(await bcrypt.compare(password, userRec.password_hash))) return err('UNAUTHORIZED', 'Your current password is incorrect')
 
     const existing = await prisma.user.findUnique({ where: { username: new_username }, select: { id: true } })
-    if (existing && existing.id !== user_id) return err('VALIDATION', 'username already taken')
-    if (userRec.username === new_username) return err('VALIDATION', 'new username must be different from current username')
+    if (existing && existing.id !== user_id) return err('VALIDATION', 'That username is already taken')
+    if (userRec.username === new_username) return err('VALIDATION', 'New username must be different from your current username')
 
     await prisma.user.update({ where: { id: user_id }, data: { username: new_username } })
-    return ok({ username: new_username }, 'Username changed successfully')
+    return ok({ username: new_username }, 'Username changed')
   } catch (error) {
     return fromError(error)
   }

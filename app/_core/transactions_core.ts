@@ -35,7 +35,7 @@ type Tx = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction
 const externalRefLineSchema = z
   .string()
   .trim()
-  .max(120, 'external_ref is too long')
+  .max(120, 'Reference is too long')
   .transform(val => (val === '' ? null : val))
   .nullish()
 
@@ -64,7 +64,7 @@ const descriptionSchema = z
 const externalRefSchema = z
   .string()
   .trim()
-  .max(120, 'external_ref is too long')
+  .max(120, 'Reference is too long')
   .transform(val => (val === '' ? null : val))
   .nullish()
 
@@ -89,7 +89,7 @@ const updateTransactionSchema = z.object({
 })
 
 const deleteTransactionSchema = z.object({
-  id: z.string().min(1, 'id is required'),
+  id: z.string().min(1, 'Transaction ID is required'),
 })
 
 // Runs inside an existing $transaction. Replays (same user + idempotency_key)
@@ -116,8 +116,7 @@ async function create_transaction_in_tx(
   const accounts = await tx.accounting_head.findMany({
     where: { id: { in: accounting_head_ids }, user_id },
   })
-  if (accounts.length !== accounting_head_ids.length)
-    throw new ActionError('VALIDATION', 'One or more accounts not found or do not belong to your user')
+  if (accounts.length !== accounting_head_ids.length) throw new ActionError('VALIDATION', 'One or more accounts not found')
 
   const assets = await tx.asset.findMany({
     where: { id: { in: asset_ids } },
@@ -181,11 +180,11 @@ function apply_ref_to_account_line(
 
   const type_by_id = new Map(accounts.map(a => [a.id, a.type]))
   const account_indexes = line_items.flatMap((li, i) => (type_by_id.get(li.accounting_head_id) === 'account' ? [i] : []))
-  if (account_indexes.length === 0) throw new ActionError('VALIDATION', 'external_ref given but the transaction has no account line to attach it to')
+  if (account_indexes.length === 0) throw new ActionError('VALIDATION', 'A reference needs at least one account line to attach it to')
   if (account_indexes.length > 1)
     throw new ActionError(
       'VALIDATION',
-      'external_ref is ambiguous — this transaction has several account lines; set external_ref on the individual line items instead',
+      'The reference is ambiguous — this transaction has several account lines; set the reference on the individual line items instead',
     )
   return line_items.map((li, i) => (i === account_indexes[0] ? { ...li, external_ref } : li))
 }
@@ -208,12 +207,12 @@ export async function create_transaction_core(
       }),
     )
 
-    if (replayed) return ok({ id, replayed: true }, 'Already recorded — an existing transaction matches this idempotency_key; nothing was created')
+    if (replayed) return ok({ id, replayed: true }, 'Already recorded — this transaction already exists, so nothing new was created')
 
     await invalidate_balances(user_id)
 
     for (const cp of counterparties) void notify_request_pending(cp, user_id, { description: parsed.data.description })
-    return ok({ id }, 'Transaction created successfully')
+    return ok({ id }, 'Transaction created')
   } catch (error) {
     // Concurrent create with the same idempotency_key: the unique constraint is
     // the backstop — resolve the race to a replay instead of an error.
@@ -223,8 +222,7 @@ export async function create_transaction_core(
         where: { user_id_idempotency_key: { user_id, idempotency_key: key } },
         select: { id: true },
       })
-      if (existing)
-        return ok({ id: existing.id, replayed: true }, 'Already recorded — an existing transaction matches this idempotency_key; nothing was created')
+      if (existing) return ok({ id: existing.id, replayed: true }, 'Already recorded — this transaction already exists, so nothing new was created')
     }
     logger.error({ err: error, action: 'create_transaction' }, 'Error creating transaction')
     return fromError(error)
@@ -260,7 +258,7 @@ export async function create_transactions_core(
             external_ref: item.external_ref,
             idempotency_key: item.idempotency_key,
           })
-          if (!parsed.success) throw new ActionError('VALIDATION', `transaction ${i + 1}: ${parsed.error.issues[0].message}`)
+          if (!parsed.success) throw new ActionError('VALIDATION', `Transaction ${i + 1}: ${parsed.error.issues[0].message}`)
           try {
             const r = await create_transaction_in_tx(tx, user_id, item.datetime, parsed.data.line_items, parsed.data.description, {
               external_ref: parsed.data.external_ref,
@@ -269,7 +267,7 @@ export async function create_transactions_core(
             for (const cp of r.counterparties) cps.add(cp)
             results.push({ id: r.id, replayed: r.replayed })
           } catch (error) {
-            if (error instanceof ActionError) throw new ActionError(error.code, `transaction ${i + 1}: ${error.message}`)
+            if (error instanceof ActionError) throw new ActionError(error.code, `Transaction ${i + 1}: ${error.message}`)
             throw error
           }
         }
@@ -285,7 +283,7 @@ export async function create_transactions_core(
     }
     return ok(
       { ids: results.map(r => r.id), replayed_ids: results.filter(r => r.replayed).map(r => r.id) },
-      `Created ${created.length} transaction${created.length === 1 ? '' : 's'}${results.length > created.length ? ` (${results.length - created.length} replayed via idempotency_key)` : ''}`,
+      `Created ${created.length} transaction${created.length === 1 ? '' : 's'}${results.length > created.length ? ` (${results.length - created.length} already recorded)` : ''}`,
     )
   } catch (error) {
     logger.error({ err: error, action: 'create_transactions' }, 'Error creating transactions in bulk')
@@ -314,7 +312,7 @@ export async function update_transaction_core(
         where: { id, user_id },
         include: { line_items: { select: { datetime: true, accounting_head: { select: { name: true, lock_date: true } } } } },
       })
-      if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found or does not belong to your user')
+      if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found')
 
       // both the transaction's current lines and its would-be lines must be
       // outside every lock — moving a txn out of a locked period is also a change
@@ -326,8 +324,7 @@ export async function update_transaction_core(
       const accounts = await prisma.accounting_head.findMany({
         where: { id: { in: accounting_head_ids }, user_id },
       })
-      if (accounts.length !== accounting_head_ids.length)
-        throw new ActionError('VALIDATION', 'One or more accounts not found or do not belong to your user')
+      if (accounts.length !== accounting_head_ids.length) throw new ActionError('VALIDATION', 'One or more accounts not found')
 
       const assets = await prisma.asset.findMany({
         where: { id: { in: asset_ids } },
@@ -396,7 +393,7 @@ export async function update_transaction_core(
         void notify_request_pending(cp, user_id, { changed: true, description: txn?.description ?? null })
       }
     }
-    return ok(undefined, 'Transaction updated successfully')
+    return ok(undefined, 'Transaction updated')
   } catch (error) {
     logger.error({ err: error, action: 'update_transaction' }, 'Error updating transaction')
     return fromError(error)
@@ -414,7 +411,7 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
         where: { id, user_id },
         select: { datetime: true, line_items: { select: { datetime: true, accounting_head: { select: { name: true, lock_date: true } } } } },
       })
-      if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found or does not belong to your user')
+      if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found')
       assert_no_locked_lines('delete', existing.datetime, existing.line_items)
 
       await prepare_links_for_delete(tx, user_id, id)
@@ -428,8 +425,8 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
 }
 
 const upiPaymentSchema = z.object({
-  payee_account_id: z.string().min(1, 'payee account is required'),
-  amount: z.number().positive('amount must be positive'),
+  payee_account_id: z.string().min(1, 'Payee account is required'),
+  amount: z.number().positive('Amount must be positive'),
   description: z
     .string()
     .trim()

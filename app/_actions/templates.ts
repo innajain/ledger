@@ -22,7 +22,7 @@ export async function create_transaction_template(
   description?: string | null | undefined,
 ): Promise<ActionResult<TemplateWithLineItems>> {
   const user_id = await get_current_user_id()
-  if (!user_id) return err('UNAUTHORIZED', 'Not authenticated')
+  if (!user_id) return err('UNAUTHORIZED', 'Your session has expired — log in again')
   const res = await create_transaction_template_core(user_id, line_items, description)
   if (res.success) revalidate_templates()
   return res
@@ -30,7 +30,7 @@ export async function create_transaction_template(
 
 export async function get_transaction_templates() {
   const user_id = await get_current_user_id()
-  if (!user_id) throw new Error('Not authenticated')
+  if (!user_id) throw new Error('Your session has expired — log in again')
   return get_transaction_templates_core(user_id)
 }
 
@@ -40,7 +40,7 @@ export async function update_transaction_template(
   description?: string | null | undefined,
 ): Promise<ActionResult<TemplateWithLineItems>> {
   const user_id = await get_current_user_id()
-  if (!user_id) return err('UNAUTHORIZED', 'Not authenticated')
+  if (!user_id) return err('UNAUTHORIZED', 'Your session has expired — log in again')
   const res = await update_transaction_template_core(user_id, id, line_items, description)
   if (res.success) revalidate_templates()
   return res
@@ -48,7 +48,7 @@ export async function update_transaction_template(
 
 export async function delete_transaction_template(id: string): Promise<ActionResult> {
   const user_id = await get_current_user_id()
-  if (!user_id) return err('UNAUTHORIZED', 'Not authenticated')
+  if (!user_id) return err('UNAUTHORIZED', 'Your session has expired — log in again')
   const res = await delete_transaction_template_core(user_id, id)
   if (res.success) revalidate_templates()
   return res

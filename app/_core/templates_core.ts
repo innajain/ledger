@@ -73,7 +73,7 @@ export async function update_transaction_template_core(
     description = templateSchema.parse({ description }).description
 
     const existing = await prisma.transaction_template.findUnique({ where: { id, user_id } })
-    if (!existing) return err('NOT_FOUND', 'Template not found or unauthorized')
+    if (!existing) return err('NOT_FOUND', 'Template not found')
 
     const template = await prisma.transaction_template.update({
       where: { id },

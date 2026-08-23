@@ -44,7 +44,7 @@ export default function ClientPage({ user }: Props) {
     try {
       const result = await log_in({ username, password })
       if (!result.success) throw new Error(result.message)
-      setSuccess('Login successful! Redirecting...')
+      setSuccess('Logged in — redirecting…')
       setTimeout(go_next_or_home, 500)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
@@ -61,7 +61,7 @@ export default function ClientPage({ user }: Props) {
     try {
       const result = await sign_up({ username, password })
       if (!result.success) throw new Error(result.message)
-      setSuccess('Account created! Redirecting...')
+      setSuccess('Account created — redirecting…')
       setTimeout(go_next_or_home, 500)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
@@ -77,7 +77,7 @@ export default function ClientPage({ user }: Props) {
     try {
       const result = await log_out()
       if (!result.success) throw new Error(result.message)
-      setSuccess('Logged out successfully')
+      setSuccess('Logged out')
       setTimeout(() => window.location.reload(), 500)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
@@ -107,7 +107,7 @@ export default function ClientPage({ user }: Props) {
               onClick={() => router.push('/')}
               className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium shadow-sm"
             >
-              Go to Dashboard
+              Go to dashboard
             </button>
 
             <button
@@ -115,7 +115,7 @@ export default function ClientPage({ user }: Props) {
               disabled={loading}
               className="w-full px-4 py-3 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-60 transition-colors font-medium"
             >
-              {loading ? 'Logging out...' : 'Logout'}
+              {loading ? 'Logging out…' : 'Log out'}
             </button>
           </div>
 
@@ -143,9 +143,9 @@ export default function ClientPage({ user }: Props) {
             <Image src="/favicon.ico" alt="Ledger" width={40} height={40} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-            {isSignup ? 'Create Account' : 'Welcome To Ledger'}
+            {isSignup ? 'Create account' : 'Welcome to Ledger'}
           </h1>
-          <p className="text-slate-600 dark:text-slate-400">{isSignup ? 'Sign up to start managing your ledger' : 'Sign in to your account'}</p>
+          <p className="text-slate-600 dark:text-slate-400">{isSignup ? 'Create an account to start your ledger' : 'Log in to your account'}</p>
         </div>
 
         {}
@@ -247,10 +247,10 @@ export default function ClientPage({ user }: Props) {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     />
                   </svg>
-                  <span>{isSignup ? 'Creating account...' : 'Signing in...'}</span>
+                  <span>{isSignup ? 'Creating account…' : 'Logging in…'}</span>
                 </>
               ) : (
-                <span>{isSignup ? 'Create Account' : 'Sign In'}</span>
+                <span>{isSignup ? 'Create account' : 'Log in'}</span>
               )}
             </button>
           </form>
@@ -266,11 +266,11 @@ export default function ClientPage({ user }: Props) {
             >
               {isSignup ? (
                 <>
-                  Already have an account? <span className="font-medium">Sign in</span>
+                  Already have an account? <span className="font-medium">Log in</span>
                 </>
               ) : (
                 <>
-                  Don&apos;t have an account? <span className="font-medium">Sign up</span>
+                  Don&apos;t have an account? <span className="font-medium">Create one</span>
                 </>
               )}
             </button>

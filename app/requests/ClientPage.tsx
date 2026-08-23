@@ -64,7 +64,7 @@ export default function ClientPage({
     setError(null)
     try {
       const r = await accept_all_from(otherId, acct)
-      if (!r.success) setError(r.message ?? 'Action failed')
+      if (!r.success) setError(r.message ?? "Couldn't approve these requests")
       else router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -78,7 +78,7 @@ export default function ClientPage({
     setError(null)
     try {
       const r = await fn()
-      if (!r.success) setError(r.message ?? 'Action failed')
+      if (!r.success) setError(r.message ?? "Couldn't update this request")
       else router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -122,7 +122,7 @@ export default function ClientPage({
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        Pending
+        Needs approval
       </span>
     )
 
@@ -180,7 +180,7 @@ export default function ClientPage({
             <>
               {item.has_reciprocal && (
                 <ButtonLink href={`/requests/${item.link_id}`} variant="primary" size="sm">
-                  Review &amp; Approve
+                  Review &amp; approve
                 </ButtonLink>
               )}
               <Button onClick={() => run(item.link_id, () => reject_request(item.link_id))} disabled={busy} variant="secondary" size="sm">
@@ -197,7 +197,7 @@ export default function ClientPage({
     const headline =
       item.kind === 'deletion'
         ? `You asked @${item.other_username} to approve a deletion`
-        : `Awaiting @${item.other_username}’s approval of your change`
+        : `Waiting on @${item.other_username} to approve your change`
 
     return (
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
@@ -213,7 +213,7 @@ export default function ClientPage({
             <PreviewLines preview={item.preview} />
           </div>
           <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-            Pending
+            Waiting
           </span>
         </div>
 

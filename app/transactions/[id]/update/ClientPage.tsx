@@ -189,18 +189,17 @@ export default function ClientPage({
           <ChevronLeftIcon />
           Transaction
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Edit Transaction</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">Update transaction details and line items</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Edit transaction</h1>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
         {}
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Transaction Details</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Transaction details</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date & Time</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date & time</label>
               <input
                 type="datetime-local"
                 value={date}
@@ -273,7 +272,7 @@ export default function ClientPage({
             Cancel
           </ButtonLink>
           <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Updating...' : 'Update Transaction'}
+            {busy ? 'Updating…' : 'Update transaction'}
           </Button>
         </div>
       </form>

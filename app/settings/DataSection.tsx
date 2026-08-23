@@ -20,10 +20,12 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
       <div className="space-y-6">
         {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Accounts</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Accounts that are hidden from transaction selectors. Click to manage.</p>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive accounts &amp; categories</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+            Archived accounts and categories, hidden from transaction pickers. Click to manage.
+          </p>
           {inactiveAccounts.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400 italic">No inactive accounts.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 italic">No archived accounts or categories.</p>
           ) : (
             <ul className="space-y-2">
               {inactiveAccounts.map(a => (
@@ -56,10 +58,10 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
 
         {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive Assets</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Assets that are hidden from transaction selectors. Click to manage.</p>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive assets</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Archived assets, hidden from transaction pickers. Click to manage.</p>
           {inactiveAssets.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400 italic">No inactive assets.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 italic">No archived assets.</p>
           ) : (
             <ul className="space-y-2">
               {inactiveAssets.map(a => (
@@ -86,7 +88,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">SQL Dump</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">SQL dump</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 Download your data as SQL <code>INSERT</code> statements — a restorable, data-only dump scoped to you.
               </p>

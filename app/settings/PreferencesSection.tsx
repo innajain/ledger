@@ -49,7 +49,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
         default_asset_id: defaultAsset === '' ? null : defaultAsset,
       })
       if (!result.success) throw new Error(result.message)
-      setDefaultsSuccess('Defaults saved successfully!')
+      setDefaultsSuccess('Defaults saved.')
     } catch (err: unknown) {
       setDefaultsError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -70,7 +70,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Theme</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">System follows your operating system preference.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">System follows your OS setting.</p>
             </div>
             <select
               value={theme}
@@ -145,14 +145,14 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
 
         {}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Transaction Line Item Defaults</h3>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Transaction line defaults</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-            Pre-selected account and asset for new line items on the Create / Edit Transaction pages. Leave blank to fall back to the first
-            account/asset of that type.
+            Pre-selected account and asset for new lines on the create and edit transaction pages. Leave blank to fall back to the first account/asset
+            of that type.
           </p>
           <form onSubmit={handleDefaultsSave} className="space-y-4">
             <div>
-              <label className={labelCls}>Default Account</label>
+              <label className={labelCls}>Default account</label>
               <select value={defaultAccount} onChange={e => setDefaultAccount(e.target.value)} className={selectCls}>
                 <option value="">— Use first available —</option>
                 {accountHeads.map(a => (
@@ -164,7 +164,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
             </div>
 
             <div>
-              <label className={labelCls}>Default Allocation Account</label>
+              <label className={labelCls}>Default allocation</label>
               <select value={defaultAllocation} onChange={e => setDefaultAllocation(e.target.value)} className={selectCls}>
                 <option value="">— Use first available —</option>
                 {allocationAccounts.map(a => (
@@ -176,7 +176,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
             </div>
 
             <div>
-              <label className={labelCls}>Default Income / Expense</label>
+              <label className={labelCls}>Default income / expense category</label>
               <select value={defaultIncomeExpense} onChange={e => setDefaultIncomeExpense(e.target.value)} className={selectCls}>
                 <option value="">— Use first available —</option>
                 {incomeExpenseHeads.map(a => (
@@ -188,7 +188,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
             </div>
 
             <div>
-              <label className={labelCls}>Default Asset</label>
+              <label className={labelCls}>Default asset</label>
               <select value={defaultAsset} onChange={e => setDefaultAsset(e.target.value)} className={selectCls}>
                 <option value="">— Use first available —</option>
                 {assets.map(a => (
@@ -222,10 +222,10 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
                 {defaultsLoading ? (
                   <>
                     <Spinner />
-                    <span>Saving...</span>
+                    <span>Saving…</span>
                   </>
                 ) : (
-                  <span>Save Defaults</span>
+                  <span>Save defaults</span>
                 )}
               </Button>
             </div>

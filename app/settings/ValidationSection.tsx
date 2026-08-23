@@ -34,7 +34,7 @@ export function ValidationSection() {
         <div>
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Check my ledger</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Re-runs the balancing invariant over every transaction in your ledger and lists any that fail — useful after bulk edits or imports.
+            Checks that every transaction in your ledger still balances, and lists any that do not — useful after bulk edits or imports.
           </p>
         </div>
 
@@ -53,7 +53,7 @@ export function ValidationSection() {
             ) : (
               <div className="space-y-3">
                 <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
-                  {result.invalid.length} of {result.checked} transactions fail the balancing invariant:
+                  {result.invalid.length} of {result.checked} transactions do not balance:
                 </div>
                 <ul className="space-y-2">
                   {result.invalid.map(t => (
