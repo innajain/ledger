@@ -9,7 +9,7 @@ import {
 } from './home_month_summary'
 import { get_date_obj_from_indian_date } from './date'
 
-const ist = (s: string) => get_date_obj_from_indian_date(s) // IST midnight of dd-MM-yyyy
+const ist = (s: string) => get_date_obj_from_indian_date(s)
 const ist_at = (s: string, hours: number) => new Date(ist(s).getTime() + hours * 3600 * 1000)
 
 const line = (head_id: string, head_name: string, head_type: SummaryLine['head_type'], txn_value: number): SummaryLine => ({

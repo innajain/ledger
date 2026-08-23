@@ -10,7 +10,6 @@ import { usePrivacy } from './PrivacyProvider'
 export function RevealToggle({ className }: { className?: string }) {
   const { masking_enabled, reveal_all, set_reveal_all } = usePrivacy()
 
-  // Nothing is masked, so there is nothing to reveal.
   if (!masking_enabled) return null
 
   const label = reveal_all ? 'Hide amounts' : 'Reveal all amounts'

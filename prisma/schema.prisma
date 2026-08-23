@@ -74,11 +74,9 @@ model accounting_head {
   // IST day are verified against the real account and cannot be touched.
   lock_date DateTime?
 
-  // --- Hierarchy Implementation ---
   parent_id String?
   parent    accounting_head?  @relation("AccountingHeadHierarchy", fields: [parent_id], references: [id])
   children  accounting_head[] @relation("AccountingHeadHierarchy")
-  // --------------------------------
 
   // Optional cross-user link: when set, this account head "represents" another
   // user, so transactions touching it become approval-gated (see transaction_link).
@@ -109,11 +107,9 @@ model asset {
   is_placeholder Boolean    @default(false)
   order_index    Int?
 
-  // --- Hierarchy Implementation ---
   parent_id String?
   parent    asset?  @relation("AssetHierarchy", fields: [parent_id], references: [id])
   children  asset[] @relation("AssetHierarchy")
-  // --------------------------------
 
   line_items     line_item[]
   template_items line_item_template[]

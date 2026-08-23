@@ -119,8 +119,6 @@ async function settings_payload(uid: string) {
 }
 
 export function register_extra_tools(server: McpServer) {
-  // ---------- accounting heads ----------
-
   server.registerTool(
     'create_head',
     {
@@ -220,8 +218,6 @@ export function register_extra_tools(server: McpServer) {
       return action_result(await delete_account_core(uid, target.id))
     },
   )
-
-  // ---------- asset catalog (admin) ----------
 
   server.registerTool(
     'create_asset',
@@ -326,8 +322,6 @@ export function register_extra_tools(server: McpServer) {
     },
   )
 
-  // ---------- transaction templates ----------
-
   server.registerTool(
     'list_templates',
     {
@@ -395,8 +389,6 @@ export function register_extra_tools(server: McpServer) {
       return action_result(await delete_transaction_template_core(uid, args.id))
     },
   )
-
-  // ---------- bulk create & reconciliation ----------
 
   server.registerTool(
     'create_transactions',
@@ -619,8 +611,6 @@ export function register_extra_tools(server: McpServer) {
     },
   )
 
-  // ---------- approvals (beyond approve/reject) ----------
-
   server.registerTool(
     'cancel_request',
     {
@@ -688,8 +678,6 @@ export function register_extra_tools(server: McpServer) {
       return action_result(await find_user_by_username_core(uid, args.username))
     },
   )
-
-  // ---------- attachments ----------
 
   server.registerTool(
     'add_attachment',
@@ -781,8 +769,6 @@ export function register_extra_tools(server: McpServer) {
       return text({ ok: true, message: 'Attachment deleted' })
     },
   )
-
-  // ---------- settings ----------
 
   server.registerTool(
     'get_settings',

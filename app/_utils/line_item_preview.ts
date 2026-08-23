@@ -153,7 +153,6 @@ export function preview_line_items(items: PreviewLineInput[]): LineItemPreview {
     const all_entries = [...group.account, ...group.allocation, ...group.income_expense]
     const needs_zero_sum = group.allocation.length === 0 || group.income_expense.length === 0
 
-    // --- quantities -------------------------------------------------------
     const blank_accounts = group.account.filter(e => e.quantity === null).length
     if (blank_accounts > 0) push(`Add an amount to every account line${suffix} — ${blank_count_phrase(blank_accounts)}.`)
 
@@ -187,7 +186,6 @@ export function preview_line_items(items: PreviewLineInput[]): LineItemPreview {
       blanks[0].quantity = derived
     }
 
-    // --- rupee values on non-rupee assets ---------------------------------
     if (group.is_rupees) {
       if (all_entries.some(e => e.txn_value !== null)) push(`Rupee lines carry no separate value${suffix} — clear the Txn Value field.`)
     } else {
@@ -216,7 +214,6 @@ export function preview_line_items(items: PreviewLineInput[]): LineItemPreview {
       }
     }
 
-    // --- nothing may end up at zero ---------------------------------------
     for (const entry of all_entries) {
       if (entry.quantity === null) continue
       if (!is_zero_amount(round_amount(entry.quantity))) continue

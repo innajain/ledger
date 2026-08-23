@@ -34,10 +34,8 @@ export default function ClientPage({
           visitors never see. */}
       <h1 className="sr-only">Dashboard</h1>
 
-      {/* The quip — kept, just no longer the biggest thing on the page. */}
       <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400">{welcomeMessage}</p>
 
-      {/* Hero: the number people open this page for. */}
       {networth !== null && (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between gap-4">
@@ -62,7 +60,6 @@ export default function ClientPage({
         </div>
       )}
 
-      {/* Allocation roll-ups. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Investments. The amount needs its own click-to-reveal, so it can't sit inside the
             card's <Link> (nesting an interactive control inside an anchor is invalid and was

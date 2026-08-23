@@ -25,7 +25,6 @@ type Props = {
   confirm_title?: string
 
   initial_amount?: number
-  /** Pre-fill the note input when opening the prompt modal. */
   initial_note?: string
 }
 
@@ -125,8 +124,6 @@ export function UpiPayButton({
 
   const [prompted_amount, set_prompted_amount] = useState<number | null>(null)
   const [prompted_note, set_prompted_note] = useState<string>('')
-
-  // Effective amount + note used for URL + dialog display. Props win in
 
   const active_amount = prompt_for_amount ? prompted_amount : (amount_prop ?? null)
   const active_note = prompt_for_amount ? prompted_note : (note_prop ?? '')

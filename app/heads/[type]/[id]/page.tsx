@@ -19,7 +19,6 @@ import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 type Props = { params: Promise<{ type: string; id: string }> }
 
-// Tab/history entries carry the specific account/allocation/category name.
 export async function generateMetadata({ params }: Props) {
   const { type, id } = await params
   if (!isHeadType(type)) return {}

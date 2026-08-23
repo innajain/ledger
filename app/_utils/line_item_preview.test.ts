@@ -225,11 +225,9 @@ describe('preview_line_items', () => {
   it('keeps the asset groups apart and names the asset when several are involved', () => {
     const mf = { asset_id: 'nifty50', asset_type: 'mf', asset_name: 'Nifty 50 Index Fund' }
     const res = preview_line_items([
-      // rupee side: money leaves the bank
       line('account', '-1000', { asset_name: 'Rupees', accounting_head_id: 'hdfc' }),
       line('allocation', null, { asset_name: 'Rupees' }),
       line('income_expense', null, { asset_name: 'Rupees' }),
-      // fund side: units arrive
       line('account', '12.5', { ...mf, txn_value: '1000', accounting_head_id: 'folio' }),
       line('allocation', null, { ...mf, accounting_head_id: 'alloc-mf' }),
       line('income_expense', null, { ...mf, accounting_head_id: 'ie-mf' }),

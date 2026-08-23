@@ -200,12 +200,8 @@ export async function resolve_counterparty(me: string, ref: string): Promise<{ i
   throw new Error(`No user matching "${ref}" — pass their exact username`)
 }
 
-// The near-duplicate guard lives in transactions_core (shared with the web
-// create form); re-exported here for the tool files.
 export { find_possible_duplicate } from '@/app/_core/transactions_core'
 
-// Post-write state: current balances of the given heads (account type only),
-// so a mutating tool can echo the resulting balances in its response.
 export async function account_balances_for(
   uid: string,
   head_ids: string[],
@@ -231,8 +227,6 @@ export async function account_balances_for(
   return rows
 }
 
-// Validate + normalize a proposed transaction without writing anything, echoing
-// the server-derived remainder lines so the caller can confirm before creating.
 // old_state (updates only) is the transaction's current datetime + lines, so the
 // dry run also predicts the real path's you-cannot-touch-a-locked-txn rejection.
 export async function dry_run_check(

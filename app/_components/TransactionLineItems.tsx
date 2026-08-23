@@ -38,7 +38,6 @@ type ItemGroup = { item: LineItemData; idx: number }
 
 let uid_seq = 0
 
-/** A fresh `LineItemData.uid`. Never persisted — it only has to be unique within one form. */
 export function new_line_uid(): string {
   uid_seq += 1
   return `line-${uid_seq}`
@@ -127,7 +126,6 @@ export function TransactionLineItems({
   const sortedAssets = [...assets].sort((a, b) => a.name.localeCompare(b.name))
 
   const preview = useMemo(() => preview_form_line_items(items, lockedItems, accounts, assets), [items, lockedItems, accounts, assets])
-  // the preview array is [...lockedItems, ...items]
   const lockedOffset = lockedItems.length
   const previewFor = (i: number) => preview.lines[i] ?? emptyPreviewLine
 

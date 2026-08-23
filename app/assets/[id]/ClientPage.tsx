@@ -350,7 +350,6 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                   <div key={li.id} className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        {/* Row identity: what the transaction was — the account is a tag beside it. */}
                         <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <Link
                             href={`/transactions/${li.transaction_id}`}

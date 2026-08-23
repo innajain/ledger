@@ -22,7 +22,6 @@ for (const k of required) {
   }
 }
 
-// ----------------------------- Postgres -----------------------------
 console.log('--- Postgres ---')
 
 // Parse the destination URL to extract host, port, user, and database name
@@ -57,7 +56,6 @@ execSync(
   { stdio: 'inherit', shell: '/bin/bash' },
 )
 
-// ----------------------------- Redis -----------------------------
 console.log('\n--- Redis ---')
 const { default: Redis } = await import('ioredis')
 const dest_redis = new Redis(env.REDIS_DEST)
@@ -87,7 +85,6 @@ if (env.REDIS_SRC) {
 }
 await dest_redis.quit()
 
-// ----------------------------- Vercel Blob -----------------------------
 console.log('\n--- Vercel Blob ---')
 
 if (!env.PROD_BLOB_TOKEN) {
@@ -142,7 +139,6 @@ if (!env.PROD_BLOB_TOKEN) {
     throw new Error(`Refusing to clear local: prod listed ${prod_listed} blobs but pulled zero (all failed)`)
   }
 
-  // Phase 2: clear local + upload prod blobs into it.
   env.VERCEL_BLOB_API_URL = env.DEST_BLOB_API_URL
 
   /** @type {string[]} */

@@ -127,7 +127,6 @@ export default function ClientPage({
     }
   }, [])
 
-  // Move keyboard focus to the duplicate warning when it appears
   useEffect(() => {
     if (dupWarning) dupWarningRef.current?.focus()
   }, [dupWarning])

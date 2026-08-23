@@ -3,7 +3,7 @@ import { Prisma } from '@/generated/prisma/client'
 import { ist_day_window, collect_networth_events, build_networth_sparkline, type SparkEvent, type AssetBalance } from './home_networth_series'
 import { get_date_obj_from_indian_date } from './date'
 
-const ist = (s: string) => get_date_obj_from_indian_date(s) // IST midnight of dd-MM-yyyy
+const ist = (s: string) => get_date_obj_from_indian_date(s)
 const ist_at = (s: string, hours: number) => new Date(ist(s).getTime() + hours * 3600 * 1000)
 const dec = (n: number) => new Prisma.Decimal(n)
 

@@ -23,7 +23,6 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
-          # Use pg_dump from PostgreSQL 17 explicitly
           /usr/lib/postgresql/17/bin/pg_dump "$DATABASE_URL" --no-owner --no-acl > backup-$(date +%Y%m%d-%H%M%S).sql
 
       - name: Upload to Artifacts

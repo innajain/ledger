@@ -33,7 +33,6 @@ describe('match_bank_rows', () => {
   })
 
   it('resolves several entries sharing one ref (lines of one transaction) by amount', () => {
-    // e.g. two account lines in one transaction whose ref both inherit
     const rows: BankRow[] = [
       { date: day('2026-07-31'), amount: 9443.22, ref: 'UPI-777' },
       { date: day('2026-07-31'), amount: -8493, ref: 'UPI-777' },

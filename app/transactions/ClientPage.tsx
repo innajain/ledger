@@ -168,7 +168,6 @@ export default function ClientPage({
     return () => document.removeEventListener('click', handleGlobalClick)
   }, [])
 
-  // Move keyboard focus into the floating delete menu when it opens
   useEffect(() => {
     if (deletingTemplate) deleteMenuButtonRef.current?.focus()
   }, [deletingTemplate])
