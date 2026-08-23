@@ -33,7 +33,7 @@ export function HomeRecentTransactions({ transactions }: { transactions: HomeRec
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-700 border-t border-slate-200 dark:border-slate-700 max-h-56 overflow-y-auto">
+        <ul className="divide-y divide-slate-200 dark:divide-slate-700 border-t border-slate-200 dark:border-slate-700 max-h-[216px] overflow-y-auto">
           {transactions.map(tx => (
             // Same stretched-link treatment as the home allocation cards: the amount needs its
             // own click-to-reveal, so it can't be nested inside the row's <Link>. The Link fills
