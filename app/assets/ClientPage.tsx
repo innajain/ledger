@@ -2,7 +2,7 @@
 
 import type { Prisma } from '@/generated/prisma/client'
 import { useState } from 'react'
-import { HierarchyTree } from '../_components/HierarchyTree'
+import { HierarchyTree, useHideEmpty } from '../_components/HierarchyTree'
 import { PageHeader } from '../_components/PageHeader'
 import { EmptyState } from '../_components/EmptyState'
 import { AssetEmptyIcon } from '../_components/EmptyStateIcons'
@@ -18,6 +18,8 @@ type Props = {
 export default function ClientPage({ assets, totals, assetAccountQuantities, xirrByAsset, isAdmin }: Props) {
   const [expandAll, setExpandAll] = useState(true)
   const [reorderEnabled, setReorderEnabled] = useState(false)
+  const { hideZero, toggleHideZero } = useHideEmpty()
+  const [hiddenCount, setHiddenCount] = useState(0)
 
   return (
     <div className="space-y-6">
@@ -31,18 +33,33 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Asset Hierarchy</h2>
-            <button
-              onClick={() => setExpandAll(!expandAll)}
-              className="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium"
-            >
-              {expandAll ? 'Collapse All' : 'Expand All'}
-            </button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {hideZero && hiddenCount > 0 && (
+                <span className="text-xs text-slate-500 dark:text-slate-400" title="Assets whose total (including everything under them) is zero">
+                  {hiddenCount} empty hidden
+                </span>
+              )}
+              <button
+                onClick={toggleHideZero}
+                className="px-3 py-1 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
+              >
+                {hideZero ? 'Show empty' : 'Hide empty'}
+              </button>
+              <button
+                onClick={() => setExpandAll(!expandAll)}
+                className="px-3 py-1 text-sm bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"
+              >
+                {expandAll ? 'Collapse All' : 'Expand All'}
+              </button>
+            </div>
           </div>
           <HierarchyTree
             items={assets}
             totals={totals}
             getItemUrl={id => `/assets/${id}`}
             expandAll={expandAll}
+            hideZero={hideZero}
+            onHiddenCountChange={setHiddenCount}
             scope="asset"
             accentBorderClass="border-l-purple-500"
             reorderEnabled={reorderEnabled}

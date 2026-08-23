@@ -554,6 +554,9 @@ export default function ClientPage({
                                 tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                               }`}
                             >
+                              {/* a masked amount carries no sign, so direction must not ride on colour alone */}
+                              <span aria-hidden="true">{tx.total_book > 0 ? '▲ ' : '▼ '}</span>
+                              <span className="sr-only">{tx.total_book > 0 ? 'Money in, ' : 'Money out, '}</span>
                               <MaskedAmount value={tx.total_book} />
                             </span>
                           )}

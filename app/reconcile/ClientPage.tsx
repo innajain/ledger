@@ -31,13 +31,16 @@ export default function ClientPage({
   allocations,
   incomeExpenses,
   defaults,
+  initialAccountId = '',
 }: {
   accounts: AccountOpt[]
   allocations: HeadOpt[]
   incomeExpenses: HeadOpt[]
   defaults: LineItemDefaults
+  // preselected via ?account=<id>; the server has already checked it names one of `accounts`
+  initialAccountId?: string
 }) {
-  const [accountId, setAccountId] = useState('')
+  const [accountId, setAccountId] = useState(initialAccountId)
   const [rawText, setRawText] = useState('')
   const [parsed, setParsed] = useState<{ rows: ParsedStatementRow[]; errors: string[] } | null>(null)
   const [busy, setBusy] = useState(false)

@@ -10,9 +10,18 @@ type PrivacySettings = {
 }
 
 type PrivacyContextValue = PrivacySettings & {
+  /** Session-only "show everything" switch. Never persisted — it resets on reload. */
+  reveal_all: boolean
+  /**
+   * Bumped every time `reveal_all` actually flips. `MaskedAmount` tags its per-instance
+   * override with the epoch it was made in, so a flip drops stale overrides purely by
+   * derivation during render (no state-syncing effect).
+   */
+  reveal_epoch: number
   set_masking_enabled: (enabled: boolean) => void
   set_mask_threshold: (threshold: number) => void
   set_graphs_visible: (visible: boolean) => void
+  set_reveal_all: (revealed: boolean) => void
 }
 
 const PrivacyContext = createContext<PrivacyContextValue | null>(null)
@@ -34,6 +43,8 @@ export function PrivacyProvider({
   children: ReactNode
 }) {
   const [settings, setSettings] = useState<PrivacySettings>(initial)
+  // Deliberately outside `settings`: this must never reach `update_user_preferences`.
+  const [reveal, setReveal] = useState({ all: false, epoch: 0 })
 
   const update = useCallback(
     (patch: Partial<PrivacySettings>) => {
@@ -45,7 +56,19 @@ export function PrivacyProvider({
     [persist],
   )
 
-  const set_masking_enabled = useCallback((enabled: boolean) => update({ masking_enabled: enabled }), [update])
+  const set_reveal_all = useCallback((revealed: boolean) => {
+    setReveal(prev => (prev.all === revealed ? prev : { all: revealed, epoch: prev.epoch + 1 }))
+  }, [])
+
+  const set_masking_enabled = useCallback(
+    (enabled: boolean) => {
+      update({ masking_enabled: enabled })
+      // Nothing left to reveal once masking is off — don't leave the switch armed for
+      // the next time masking is turned back on.
+      if (!enabled) set_reveal_all(false)
+    },
+    [update, set_reveal_all],
+  )
   const set_mask_threshold = useCallback(
     (threshold: number) => {
       const clean = Number.isFinite(threshold) && threshold >= 0 ? Math.floor(threshold) : 50_000
@@ -61,9 +84,12 @@ export function PrivacyProvider({
         masking_enabled: settings.masking_enabled,
         mask_threshold: settings.mask_threshold,
         graphs_visible: settings.graphs_visible,
+        reveal_all: reveal.all,
+        reveal_epoch: reveal.epoch,
         set_masking_enabled,
         set_mask_threshold,
         set_graphs_visible,
+        set_reveal_all,
       }}
     >
       {children}

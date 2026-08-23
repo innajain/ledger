@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { update_hierarchy_order } from '@/app/_actions/resources'
+import { aggregate_total, count_empty_subtrees, is_empty_subtree, is_zero_total } from '@/app/_utils/hierarchy_empty'
 import { useToast } from './Toast'
 import { MaskedAmount } from './MaskedAmount'
 
@@ -30,6 +31,11 @@ type HierarchyTreeProps<T extends BaseItem> = {
   reorderEnabled?: boolean
   onReorderToggle?: (enabled: boolean) => void
   accentBorderClass?: string
+
+  /** Prune whole subtrees where the node and every descendant is individually zero. */
+  hideZero?: boolean
+  /** Reports how many rows `hideZero` is currently pruning, so callers can label the toggle. */
+  onHiddenCountChange?: (count: number) => void
 }
 
 export function HierarchyTree<T extends BaseItem>({
@@ -42,6 +48,8 @@ export function HierarchyTree<T extends BaseItem>({
   reorderEnabled = false,
   onReorderToggle,
   accentBorderClass,
+  hideZero = false,
+  onHiddenCountChange,
 }: HierarchyTreeProps<T>) {
   const router = useRouter()
   const { showToast } = useToast()
@@ -219,9 +227,14 @@ export function HierarchyTree<T extends BaseItem>({
   }, [items, applyOrderToSiblings])
 
   function aggregateCurr(n: Node<T>): number {
-    const own = totals.get(n.item.id) || 0
-    return n.children.reduce((sum, c) => sum + aggregateCurr(c), own)
+    return aggregate_total(n, totals)
   }
+
+  const hiddenCount = useMemo(() => (hideZero ? count_empty_subtrees(roots, totals) : 0), [hideZero, roots, totals])
+
+  useEffect(() => {
+    onHiddenCountChange?.(hiddenCount)
+  }, [hiddenCount, onHiddenCountChange])
 
   function renderNode(node: Node<T>, depth: number = 0): React.ReactElement | null {
     const item = node.item
@@ -231,6 +244,13 @@ export function HierarchyTree<T extends BaseItem>({
 
     const ownCurr = totals.get(item.id) || 0
     const displayCurr = aggregateCurr(node)
+
+    // Prune the whole subtree only when nothing inside it carries value — a node with a
+    // non-zero descendant always stays reachable, even when its children cancel out.
+    if (hideZero && is_empty_subtree(node, totals)) return null
+
+    const visibleChildren = hideZero ? node.children.filter(child => !is_empty_subtree(child, totals)) : node.children
+    const showSelfRow = !hideZero || !is_zero_total(ownCurr)
 
     const canDrag = reorderEnabled && !!scope
 
@@ -277,7 +297,7 @@ export function HierarchyTree<T extends BaseItem>({
             </span>
           )}
 
-          {node.children.length > 0 ? (
+          {visibleChildren.length > 0 ? (
             <button
               onClick={() => toggle(item.id)}
               aria-expanded={isExpanded}
@@ -308,7 +328,7 @@ export function HierarchyTree<T extends BaseItem>({
               >
                 {item.name}
               </Link>
-              {renderExtraInfo && node.children.length === 0 && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
+              {renderExtraInfo && visibleChildren.length === 0 && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
             </div>
             <div className="shrink-0 text-right">
               <span className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100">
@@ -318,26 +338,28 @@ export function HierarchyTree<T extends BaseItem>({
           </div>
         </div>
 
-        {node.children.length > 0 && isExpanded && (
+        {visibleChildren.length > 0 && isExpanded && (
           <ul className="mt-2 ml-4 sm:ml-6 md:ml-9 space-y-1 border-l-2 border-slate-200 dark:border-slate-700 pl-2 sm:pl-3 md:pl-4">
-            <li key={`${item.id}-self`} className="mb-2">
-              <div className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
-                {canDrag && <span className="w-5 sm:w-6 shrink-0"></span>}
-                <span className="w-5 sm:w-6 shrink-0"></span>
-                <div className="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-4">
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs sm:text-sm italic text-slate-600 dark:text-slate-400">self</span>
-                    {renderExtraInfo && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
-                      <MaskedAmount value={ownCurr} />
-                    </span>
+            {showSelfRow && (
+              <li key={`${item.id}-self`} className="mb-2">
+                <div className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                  {canDrag && <span className="w-5 sm:w-6 shrink-0"></span>}
+                  <span className="w-5 sm:w-6 shrink-0"></span>
+                  <div className="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-4">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs sm:text-sm italic text-slate-600 dark:text-slate-400">self</span>
+                      {renderExtraInfo && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <MaskedAmount value={ownCurr} />
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </li>
-            {node.children.map(child => renderNode(child, depth + 1))}
+              </li>
+            )}
+            {visibleChildren.map(child => renderNode(child, depth + 1))}
           </ul>
         )}
       </li>
@@ -368,10 +390,46 @@ export function HierarchyTree<T extends BaseItem>({
         </div>
       )}
       <ul className="space-y-2">{roots.map(r => renderNode(r, 0))}</ul>
+      {hideZero && hiddenCount > 0 && roots.every(r => is_empty_subtree(r, totals)) && (
+        <p className="text-sm text-slate-500 dark:text-slate-400 py-2">
+          Everything here totals zero — {hiddenCount} {hiddenCount === 1 ? 'entry is' : 'entries are'} hidden. Use “Show empty” to see them.
+        </p>
+      )}
     </div>
   )
 }
 
 function parentKey(parent_id: string | null): string {
   return parent_id ?? '__root__'
+}
+
+const HIDE_EMPTY_STORAGE_KEY = 'hierarchy-hide-empty'
+
+/**
+ * "Hide empty" preference, shared by every hierarchy page and persisted across navigation.
+ * Defaults to off — opt in via the toggle. Hiding by default would swallow a head or asset the
+ * moment it is created (a brand-new one totals zero, and the create form lands back on this list),
+ * as well as real-but-settled rows like a paid-off card. The stored value is read in an effect so
+ * the server and first client render match.
+ */
+export function useHideEmpty(): { hideZero: boolean; toggleHideZero: () => void } {
+  const [hideZero, setHideZero] = useState(false)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(HIDE_EMPTY_STORAGE_KEY)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved === 'true') setHideZero(true)
+    } catch {}
+  }, [])
+
+  const toggleHideZero = useCallback(() => {
+    const next = !hideZero
+    setHideZero(next)
+    try {
+      localStorage.setItem(HIDE_EMPTY_STORAGE_KEY, String(next))
+    } catch {}
+  }, [hideZero])
+
+  return { hideZero, toggleHideZero }
 }

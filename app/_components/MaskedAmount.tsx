@@ -12,29 +12,40 @@ type Props = {
 
 const BULLETS = '•••••'
 
+/**
+ * Keeps only the currency symbol (plus any literal spacing around it) so a masked
+ * amount reads as `₹•••••`. The +/- sign is dropped on purpose: showing it would leak
+ * the direction of the flow, which is exactly what the mask is meant to hide.
+ */
 function build_mask(value: number, formatter: Intl.NumberFormat): string {
   const parts = formatter.formatToParts(value)
   let prefix = ''
   for (const part of parts) {
-    if (part.type === 'integer' || part.type === 'group' || part.type === 'decimal' || part.type === 'fraction') continue
+    if (part.type !== 'currency' && part.type !== 'literal') continue
     prefix += part.value
   }
   return `${prefix}${BULLETS}`.trimStart()
 }
 
 export function MaskedAmount({ value, precise = false, className }: Props) {
-  const { masking_enabled, mask_threshold } = usePrivacy()
+  const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
   const formatter = precise ? precise_currency_fmt : currency_fmt
   const formatted = formatter.format(value)
 
-  const [hidden, setHidden] = useState(() => Math.abs(value) > mask_threshold)
+  // Per-instance click-to-toggle, tagged with the reveal epoch it was made in. Flipping
+  // the global switch bumps the epoch, so stale overrides are dropped while deriving
+  // `hidden` below — no effect, nothing to sync.
+  const [override, setOverride] = useState<{ epoch: number; hidden: boolean } | null>(null)
 
   if (!masking_enabled) return <span className={className}>{formatted}</span>
+
+  const current_override = override !== null && override.epoch === reveal_epoch ? override.hidden : null
+  const hidden = current_override ?? (!reveal_all && Math.abs(value) > mask_threshold)
 
   const toggle = (e: MouseEvent | KeyboardEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setHidden(h => !h)
+    setOverride({ epoch: reveal_epoch, hidden: !hidden })
   }
 
   return (

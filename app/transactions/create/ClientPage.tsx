@@ -9,7 +9,7 @@ import { save_attachments, type AttachmentInput } from '@/app/_actions/attachmen
 import { create_transaction_template, update_transaction_template } from '@/app/_actions/templates'
 import { check_possible_duplicate } from './check_duplicate'
 import type { CreateLineItemInput, PossibleDuplicate } from '@/app/_core/transactions_core'
-import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
+import { TransactionLineItems, TransactionBalanceSummary, LineItemData, new_line_uid } from '@/app/_components/TransactionLineItems'
 import { AttachmentUpload } from '@/app/_components/AttachmentUpload'
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
@@ -48,6 +48,7 @@ export default function ClientPage({
 
   const [items, setItems] = useState<LineItemData[]>([
     {
+      uid: new_line_uid(),
       accounting_head_id: defaultAccount?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
@@ -56,6 +57,7 @@ export default function ClientPage({
       datetime: '',
     },
     {
+      uid: new_line_uid(),
       accounting_head_id: defaultIncomeExpense?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
@@ -64,6 +66,7 @@ export default function ClientPage({
       datetime: '',
     },
     {
+      uid: new_line_uid(),
       accounting_head_id: defaultAllocation?.id ?? '',
       asset_id: defaultAsset?.id ?? '',
       quantity: null,
@@ -102,6 +105,7 @@ export default function ClientPage({
         if (parsed.line_items) {
           setItems(
             parsed.line_items.map(li => ({
+              uid: new_line_uid(),
               accounting_head_id: li.accounting_head_id,
               asset_id: li.asset_id,
               quantity: li.quantity == null ? null : String(li.quantity),
@@ -120,6 +124,7 @@ export default function ClientPage({
     const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
     setItems(prev => [
       {
+        uid: new_line_uid(),
         accounting_head_id: defaultAcc?.id ?? '',
         asset_id: defaultAsset?.id ?? assets[0]?.id ?? '',
         quantity: null,
@@ -392,6 +397,8 @@ export default function ClientPage({
         )}
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
         {templateError && <ErrorAlert message={templateError} onDismiss={() => setTemplateError(null)} />}
+
+        <TransactionBalanceSummary items={items} accounts={accounts} assets={assets} />
 
         {}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-slate-200">

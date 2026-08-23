@@ -7,7 +7,7 @@ import { asset_type } from '@/generated/prisma/enums'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 import { save_attachments, delete_attachment, type AttachmentInput } from '@/app/_actions/attachments'
 import { ActionResult } from '@/app/_actions/_result'
-import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
+import { TransactionLineItems, TransactionBalanceSummary, LineItemData, new_line_uid } from '@/app/_components/TransactionLineItems'
 import { AttachmentUpload } from '@/app/_components/AttachmentUpload'
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
@@ -77,6 +77,7 @@ export default function ClientPage({
   const [externalRef, setExternalRef] = useState(transaction.external_ref ?? '')
   const [items, setItems] = useState<LineItemData[]>(
     transaction.line_items.map(li => ({
+      uid: new_line_uid(),
       accounting_head_id: li.accounting_head_id,
       asset_id: li.asset_id,
       quantity: li.quantity === null ? null : String(li.quantity),
@@ -100,6 +101,7 @@ export default function ClientPage({
     const defaultAsset = pickDefaultAsset(assets, defaults)
     setItems(prev => [
       {
+        uid: new_line_uid(),
         accounting_head_id: defaultAcc?.id ?? '',
         asset_id: defaultAsset?.id ?? '',
         quantity: null,
@@ -262,6 +264,8 @@ export default function ClientPage({
 
         {}
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
+
+        <TransactionBalanceSummary items={items} accounts={accounts} assets={assets} />
 
         {}
         <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">

@@ -28,14 +28,34 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     )
   }
 
+  // Heads/assets the request itself references have to resolve even when archived — the mirrored
+  // and prefilled lines are built from them, and an unresolved one leaves the form unable to tell
+  // what kind of line it is.
+  const ref_head_ids = [
+    ...new Set(
+      [
+        ctx.reciprocal_head?.id,
+        ...ctx.prefill_balancing.map(b => b.accounting_head_id),
+        ...ctx.other_locked_lines.map(o => o.accounting_head_id),
+      ].filter((id): id is string => !!id),
+    ),
+  ]
+  const ref_asset_ids = [
+    ...new Set([
+      ...ctx.mirrored_lines.map(m => m.asset_id),
+      ...ctx.prefill_balancing.map(b => b.asset_id),
+      ...ctx.other_locked_lines.map(o => o.asset_id),
+    ]),
+  ]
+
   const [rawAccounts, assets, defaults] = await Promise.all([
     prisma.accounting_head.findMany({
-      where: { user_id, is_active: true, is_placeholder: false },
+      where: { user_id, OR: [{ is_active: true, is_placeholder: false }, { id: { in: ref_head_ids } }] },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true, type: true, linked_user_id: true },
     }),
     prisma.asset.findMany({
-      where: { is_active: true, is_placeholder: false },
+      where: { OR: [{ is_active: true, is_placeholder: false }, { id: { in: ref_asset_ids } }] },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true, type: true },
     }),

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { asset_type } from '@/generated/prisma/enums'
 import { approve_request, revert_request } from '@/app/_actions/approvals'
-import { TransactionLineItems, LineItemData } from '@/app/_components/TransactionLineItems'
+import { TransactionLineItems, TransactionBalanceSummary, LineItemData, new_line_uid } from '@/app/_components/TransactionLineItems'
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { EditorContext } from '@/app/_utils/links'
@@ -132,6 +132,7 @@ export default function ClientPage({
   function defaultItemForType(typeKey: AccountTypeKey): LineItemData {
     const acc = pickDefaultAccount(ownAccounts, defaults, typeKey)
     return {
+      uid: new_line_uid(),
       accounting_head_id: acc?.id ?? '',
       asset_id: defaultAsset?.id ?? assets[0]?.id ?? '',
       quantity: null,
@@ -142,7 +143,9 @@ export default function ClientPage({
   }
 
   const [items, setItems] = useState<LineItemData[]>(
-    ctx.prefill_balancing.length > 0 ? ctx.prefill_balancing.map(b => ({ ...b, datetime: '' })) : [defaultItemForType('account')],
+    ctx.prefill_balancing.length > 0
+      ? ctx.prefill_balancing.map(b => ({ ...b, uid: new_line_uid(), datetime: '' }))
+      : [defaultItemForType('account')],
   )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -282,6 +285,8 @@ export default function ClientPage({
         />
 
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
+
+        <TransactionBalanceSummary items={items} lockedItems={lockedItems} accounts={accounts} assets={assets} />
 
         <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
           <Link

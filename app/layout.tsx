@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import dynamic from 'next/dynamic'
 import Navbar from './_components/Navbar'
-import { get_current_user, is_current_user_admin } from './_actions/auth'
+import { get_current_user } from './_actions/auth'
 import { get_user_preferences } from './_actions/preferences'
 import { inbox_count } from './_utils/links'
 import { ThemeProvider } from './_components/ThemeProvider'
@@ -69,7 +69,7 @@ export default async function RootLayout({
   const [user, prefs] = await Promise.all([get_current_user(), get_user_preferences()])
 
   const nonce = (await headers()).get('x-nonce') || undefined
-  const [requestCount, isAdmin] = user ? await Promise.all([inbox_count(user.id), is_current_user_admin()]) : [0, false]
+  const requestCount = user ? await inbox_count(user.id) : 0
   const persist = !!user
   const htmlClassName = prefs.theme === 'dark' ? 'dark' : ''
   return (

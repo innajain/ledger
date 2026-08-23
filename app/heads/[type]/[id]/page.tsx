@@ -173,6 +173,8 @@ async function Page({ params }: Props) {
       }}
       config={{ backLink: headBasePath(type), backText: cfg.backText, entityName: cfg.entityName }}
       closingBalanceAction={type === 'income_expense' ? undefined : get_closing_balance}
+      // the reconcile picker only lists real, active accounts — don't offer a link that lands unselectable
+      canReconcile={isAccount && head.is_active && !head.is_placeholder}
     />
   )
 }

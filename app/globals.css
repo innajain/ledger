@@ -191,6 +191,12 @@
   }
 }
 
+/* Entrance animations.
+   None of these declare `opacity: 0` on the element itself and none use a `forwards`/`backwards`
+   fill by default: the element's own resting state stays fully visible and the keyframes only
+   borrow the transparent/offset start while they are actually running. Keep it that way — an
+   element parked at `opacity: 0` waiting on an animation renders a silently blank page if that
+   animation never fires. */
 .animate-slide-in-right {
   animation: slide-in-right 0.3s ease-out;
 }
@@ -321,35 +327,47 @@ html {
   height: 300px;
 }
 
-/* Stagger animation for lists */
+/* Stagger animation for lists.
+   The resting state is deliberately VISIBLE and in its final position — the entrance is purely
+   additive. This class is applied to whole page bodies (dashboard cards, transaction rows), so
+   parking it at `opacity: 0` until an animation runs means any failure to animate renders the
+   page blank while the header still looks fine. `backwards` fill borrows the transparent start
+   only while the animation-delay is ticking, and applies only when the animation actually exists.
+   The resting transform is the element's own (untransformed = the final position the keyframes end
+   at), so it is left alone rather than hard-set to `none` — that would clobber transform utilities. */
 .stagger-item {
-  opacity: 0;
-  animation: slide-in-up 0.4s ease-out forwards;
+  opacity: 1;
 }
 
-.stagger-item:nth-child(1) {
-  animation-delay: 0.05s;
-}
-.stagger-item:nth-child(2) {
-  animation-delay: 0.1s;
-}
-.stagger-item:nth-child(3) {
-  animation-delay: 0.15s;
-}
-.stagger-item:nth-child(4) {
-  animation-delay: 0.2s;
-}
-.stagger-item:nth-child(5) {
-  animation-delay: 0.25s;
-}
-.stagger-item:nth-child(6) {
-  animation-delay: 0.3s;
-}
-.stagger-item:nth-child(7) {
-  animation-delay: 0.35s;
-}
-.stagger-item:nth-child(8) {
-  animation-delay: 0.4s;
+@media (prefers-reduced-motion: no-preference) {
+  .stagger-item {
+    animation: slide-in-up 0.4s ease-out backwards;
+  }
+
+  .stagger-item:nth-child(1) {
+    animation-delay: 0.05s;
+  }
+  .stagger-item:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+  .stagger-item:nth-child(3) {
+    animation-delay: 0.15s;
+  }
+  .stagger-item:nth-child(4) {
+    animation-delay: 0.2s;
+  }
+  .stagger-item:nth-child(5) {
+    animation-delay: 0.25s;
+  }
+  .stagger-item:nth-child(6) {
+    animation-delay: 0.3s;
+  }
+  .stagger-item:nth-child(7) {
+    animation-delay: 0.35s;
+  }
+  .stagger-item:nth-child(8) {
+    animation-delay: 0.4s;
+  }
 }
 
 /* Fun hover effects */
@@ -374,7 +392,9 @@ html {
   transform: scale(0.95) rotate(2deg);
 }
 
-/* Easter egg sparkle effect */
+/* Easter egg sparkle effect.
+   The `opacity: 0` here is the intended resting state of decorative pseudo-content (it should be
+   invisible until hovered), not content waiting on an animation to become readable. */
 .sparkle-on-hover {
   position: relative;
 }
@@ -412,6 +432,64 @@ html {
   animation: confetti 3s ease-out forwards;
   pointer-events: none;
   z-index: 9999;
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion
+   Honour the OS "reduce motion" setting across the app: near-zero durations (0.01ms rather than 0,
+   so animationend/transitionend listeners still fire), no looping, and no transform-based jumps on
+   hover/press. Colour and opacity changes stay — they just land instantly. Nothing in here may
+   leave content hidden or non-interactive: every entrance animation above ends at (or rests at)
+   opacity 1, so collapsing its duration reveals content rather than hiding it, and `.stagger-item`
+   never gets an animation under `reduce` at all.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Ambient, looping or bouncy decoration: stop outright rather than snap through a cycle.
+     All of these rest at full opacity, so switching the animation off leaves them visible. */
+  .animate-wobble,
+  .animate-bounce-in,
+  .animate-shake,
+  .animate-float,
+  .animate-spin-slow,
+  .animate-heart-beat,
+  .skeleton,
+  .hover-bounce:hover,
+  .hover-wiggle:hover,
+  .sparkle-on-hover:hover::before,
+  .sparkle-on-hover:hover::after {
+    animation: none;
+  }
+
+  /* Keep the shadow/colour affordance, drop the movement. */
+  .hover-lift:hover,
+  .fun-button:hover,
+  .fun-button:active {
+    transform: none;
+  }
+
+  /* The ripple is a circle growing out of the control — pure motion, nothing to read. */
+  .ripple::after,
+  .ripple:active::after {
+    transition: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* Decorative celebration only, never content. */
+  .confetti-piece {
+    display: none;
+  }
 }
 
 /* Recharts overrides to remove focus outlines */

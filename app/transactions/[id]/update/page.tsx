@@ -39,13 +39,19 @@ async function Page({ params }: Props) {
       external_ref: li.external_ref,
     })),
   }
+  // A head or asset archived after this transaction was booked still has to come back with the
+  // pickers: otherwise the line's <select> renders empty and the form's preview cannot tell what
+  // kind of line it is, so it silently mis-derives the rest of the group.
+  const ref_head_ids = [...new Set(tx.line_items.map(li => li.accounting_head_id))]
+  const ref_asset_ids = [...new Set(tx.line_items.map(li => li.asset_id))]
+
   const [accounts, assets, defaults] = await Promise.all([
     prisma.accounting_head.findMany({
-      where: { user_id: user.id, is_active: true, is_placeholder: false },
+      where: { user_id: user.id, OR: [{ is_active: true, is_placeholder: false }, { id: { in: ref_head_ids } }] },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     prisma.asset.findMany({
-      where: { is_active: true, is_placeholder: false },
+      where: { OR: [{ is_active: true, is_placeholder: false }, { id: { in: ref_asset_ids } }] },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_line_item_defaults(),
