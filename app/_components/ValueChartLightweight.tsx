@@ -15,6 +15,8 @@ import {
   type LineData,
 } from 'lightweight-charts'
 import { useTheme } from './ThemeProvider'
+import { usePrivacy } from './PrivacyProvider'
+import { MaskedAmount } from './MaskedAmount'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 
 const compactFmt = new Intl.NumberFormat('en-IN', {
@@ -58,7 +60,14 @@ export function ValueChartLightweight({ points, title }: Props) {
   const xirrSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const pointsRef = useRef<ValuePoint[]>(points)
   const { resolved_theme } = useTheme()
+  const { masking_enabled, mask_threshold, reveal_all } = usePrivacy()
   const [hover, setHover] = useState<HoverInfo>(null)
+
+  // The mask hides large amounts in text, so the axis and tooltip must not spell the
+  // same figures out. Shape stays visible; magnitudes don't.
+  const amountsHidden =
+    masking_enabled && !reveal_all && points.some(p => Math.abs(p.invested) > mask_threshold || Math.abs(p.current) > mask_threshold)
+  const fmtAmount = (v: number) => (amountsHidden ? '₹•••••' : currency_fmt.format(v))
 
   useEffect(() => {
     pointsRef.current = points
@@ -84,7 +93,7 @@ export function ValueChartLightweight({ points, title }: Props) {
         borderColor: isDark ? '#334155' : '#e2e8f0',
       },
       leftPriceScale: {
-        visible: true,
+        visible: !amountsHidden,
         borderColor: isDark ? '#334155' : '#e2e8f0',
       },
       timeScale: {
@@ -231,7 +240,7 @@ export function ValueChartLightweight({ points, title }: Props) {
       investedSeriesRef.current = null
       currentSeriesRef.current = null
     }
-  }, [resolved_theme])
+  }, [resolved_theme, amountsHidden])
 
   useEffect(() => {
     if (!investedSeriesRef.current || !currentSeriesRef.current || !xirrSeriesRef.current) return
@@ -267,7 +276,7 @@ export function ValueChartLightweight({ points, title }: Props) {
         <div className="text-right shrink-0">
           <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gain</p>
           <p className={`text-base sm:text-lg font-semibold ${gain >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {currency_fmt.format(gain)}
+            <MaskedAmount value={gain} />
             {gainPct !== null && <span className="ml-1 text-xs font-normal">({gainPct.toFixed(1)}%)</span>}
           </p>
         </div>
@@ -283,12 +292,12 @@ export function ValueChartLightweight({ points, title }: Props) {
             <div className="flex items-center gap-2">
               <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
               <span className="text-slate-300">Invested</span>
-              <span className="ml-auto font-medium">{currency_fmt.format(hover.invested)}</span>
+              <span className="ml-auto font-medium">{fmtAmount(hover.invested)}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#10b981' }} />
               <span className="text-slate-300">Current</span>
-              <span className="ml-auto font-medium">{currency_fmt.format(hover.current)}</span>
+              <span className="ml-auto font-medium">{fmtAmount(hover.current)}</span>
             </div>
             {hover.xirr !== null && (
               <div className="flex items-center gap-2">

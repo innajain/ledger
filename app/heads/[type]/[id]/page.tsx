@@ -15,6 +15,7 @@ import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_valu
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { get_closing_balance } from './closing_balance'
 import { profile } from '@/lib/metrics/profile'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 type Props = { params: Promise<{ type: string; id: string }> }
 
@@ -25,12 +26,7 @@ async function Page({ params }: Props) {
 
   const user = await get_current_user()
   if (!user) {
-    return (
-      <div>
-        <h1>{cfg.entityName}</h1>
-        <p>Please log in to view this {cfg.entityName.toLowerCase()}.</p>
-      </div>
-    )
+    return <LoggedOutNotice title={cfg.title} />
   }
 
   const head = await prisma.accounting_head.findUnique({

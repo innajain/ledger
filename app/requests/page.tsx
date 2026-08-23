@@ -5,6 +5,7 @@ import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { get_inbox, get_outbox } from '@/app/_utils/links'
 import { profile } from '@/lib/metrics/profile'
 import type { Metadata } from 'next'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -17,12 +18,7 @@ export const metadata: Metadata = {
 async function Page() {
   const user_id = await get_current_user_id()
   if (!user_id) {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Requests</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">Please log in to view requests.</p>
-      </div>
-    )
+    return <LoggedOutNotice title="Requests" />
   }
   const [items, outbox, accounts, defaults] = await Promise.all([
     get_inbox(user_id),

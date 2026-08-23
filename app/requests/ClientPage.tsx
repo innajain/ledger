@@ -8,6 +8,9 @@ import type { InboxItem, OutboxItem } from '@/app/_utils/links'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { EmptyState } from '@/app/_components/EmptyState'
+import { MaskedAmount } from '@/app/_components/MaskedAmount'
+
+const qty_fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 4 })
 
 function PreviewLines({ preview }: { preview: { asset_name: string; quantity: number | null; txn_value: number | null }[] }) {
   if (preview.length === 0) return null
@@ -17,7 +20,15 @@ function PreviewLines({ preview }: { preview: { asset_name: string; quantity: nu
         <li key={i} className="flex justify-between gap-4">
           <span>{p.asset_name}</span>
           <span className="font-medium text-slate-900 dark:text-slate-100">
-            {p.txn_value !== null ? `${p.quantity ?? '—'} (₹${p.txn_value})` : `₹${p.quantity ?? '—'}`}
+            {p.txn_value !== null ? (
+              <>
+                {p.quantity !== null ? `${qty_fmt.format(p.quantity)} units ` : ''}(<MaskedAmount value={p.txn_value} />)
+              </>
+            ) : p.quantity !== null ? (
+              <MaskedAmount value={p.quantity} />
+            ) : (
+              '—'
+            )}
           </span>
         </li>
       ))}

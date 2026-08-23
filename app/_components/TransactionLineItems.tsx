@@ -3,6 +3,7 @@
 import React, { useId, useMemo, useState } from 'react'
 import { asset_type } from '@/generated/prisma/enums'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
+import { asset_type_label } from '@/app/_utils/labels'
 import {
   preview_line_items,
   type LineItemPreview,
@@ -354,7 +355,7 @@ function LineItemCard({
           <select value={item.asset_id} onChange={e => onUpdateItem(idx, 'asset_id', e.target.value)} disabled={locked} className={fieldCls}>
             {assets.map(a => (
               <option key={a.id} value={a.id}>
-                {a.name} ({a.type})
+                {a.name} ({asset_type_label(a.type)})
               </option>
             ))}
           </select>

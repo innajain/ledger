@@ -70,10 +70,18 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
               const qty = accQty.values().reduce((sum, q) => sum + q, 0)
               const xirr = xirrByAsset.get(asset.id) ?? null
               return (
-                <span className="flex items-center gap-3 text-sm text-slate-600">
+                <span className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                   <span>{qty} units</span>
                   {xirr !== null && (
-                    <span className={xirr > 0 ? 'text-green-600 font-medium' : xirr < 0 ? 'text-red-600 font-medium' : 'text-slate-600'}>
+                    <span
+                      className={
+                        xirr > 0
+                          ? 'text-green-600 dark:text-green-400 font-medium'
+                          : xirr < 0
+                            ? 'text-red-600 dark:text-red-400 font-medium'
+                            : 'text-slate-600 dark:text-slate-400'
+                      }
+                    >
                       {(xirr * 100).toFixed(2)}% XIRR
                     </span>
                   )}

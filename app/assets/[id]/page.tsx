@@ -9,6 +9,7 @@ import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
 import { profile } from '@/lib/metrics/profile'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -16,12 +17,7 @@ async function Page({ params }: Props) {
   const id = (await params).id
   const user = await get_current_user()
   if (!user) {
-    return (
-      <div>
-        <h1>Asset</h1>
-        <p>Please log in to view this asset.</p>
-      </div>
-    )
+    return <LoggedOutNotice title="Assets" />
   }
   const me = await prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true } })
   const isAdmin = me?.is_admin ?? false

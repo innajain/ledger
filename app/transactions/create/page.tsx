@@ -4,16 +4,12 @@ import { get_current_user } from '@/app/_actions/auth'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { profile } from '@/lib/metrics/profile'
 import { env } from '@/lib/env'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 async function Page() {
   const user = await get_current_user()
   if (!user) {
-    return (
-      <div>
-        <h1>Create Transaction</h1>
-        <p>Please log in to create transactions.</p>
-      </div>
-    )
+    return <LoggedOutNotice title="Transactions" />
   }
 
   const [accounts, assets, defaults] = await Promise.all([

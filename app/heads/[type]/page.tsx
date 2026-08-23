@@ -8,6 +8,7 @@ import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { get_or_compute_balances } from '@/app/_actions/compute_balances'
 import { compute_head_value } from '@/app/_utils/head_value'
 import { profile } from '@/lib/metrics/profile'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -27,12 +28,7 @@ async function Page({ params }: Props) {
 
   const user = await get_current_user()
   if (!user) {
-    return (
-      <div>
-        <h1>{cfg.title}</h1>
-        <p>Please log in to view {cfg.title.toLowerCase()}.</p>
-      </div>
-    )
+    return <LoggedOutNotice title={cfg.title} />
   }
 
   const [[heads, assets], { accountsToAssets: balances }] = await Promise.all([

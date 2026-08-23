@@ -3,6 +3,9 @@
 import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Brush } from 'recharts'
 import { useState, useMemo } from 'react'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
+import { useTheme } from './ThemeProvider'
+import { usePrivacy } from './PrivacyProvider'
+import { MaskedAmount } from './MaskedAmount'
 
 export type ValuePoint = {
   date: string
@@ -35,6 +38,15 @@ function fmtTooltipDate(s: string) {
 
 export function ValueChartBrush({ points, title }: Props) {
   const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number } | null>(null)
+  const { resolved_theme } = useTheme()
+  const isDark = resolved_theme === 'dark'
+  const { masking_enabled, mask_threshold, reveal_all } = usePrivacy()
+
+  // Mirror MaskedAmount: when masking hides these figures as text, the chart's axis and
+  // tooltip must not print them either.
+  const amountsHidden =
+    masking_enabled && !reveal_all && points.some(p => Math.abs(p.invested) > mask_threshold || Math.abs(p.current) > mask_threshold)
+  const fmtAmount = (v: number) => (amountsHidden ? '₹•••••' : currency_fmt.format(v))
 
   const domains = useMemo(() => {
     let startIndex = 0
@@ -78,7 +90,7 @@ export function ValueChartBrush({ points, title }: Props) {
         <div className="text-right shrink-0">
           <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gain</p>
           <p className={`text-base sm:text-lg font-semibold ${gain >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {currency_fmt.format(gain)}
+            <MaskedAmount value={gain} />
             {gainPct !== null && <span className="ml-1 text-xs font-normal">({gainPct.toFixed(1)}%)</span>}
           </p>
         </div>
@@ -108,10 +120,10 @@ export function ValueChartBrush({ points, title }: Props) {
             <YAxis
               yAxisId="left"
               tickFormatter={v => compactFmt.format(v as number)}
-              tick={{ fontSize: 11 }}
+              tick={amountsHidden ? false : { fontSize: 11 }}
               stroke="currentColor"
               className="text-slate-500 dark:text-slate-400"
-              width={52}
+              width={amountsHidden ? 8 : 52}
             />
             <YAxis
               yAxisId="right"
@@ -127,17 +139,17 @@ export function ValueChartBrush({ points, title }: Props) {
               cursor={false}
               formatter={(value, name) => {
                 if (name === 'xirr') return [`${(Number(value ?? 0) * 100).toFixed(2)}%`, 'XIRR']
-                return [currency_fmt.format(Number(value ?? 0)), name === 'invested' ? 'Invested' : 'Current']
+                return [fmtAmount(Number(value ?? 0)), name === 'invested' ? 'Invested' : 'Current']
               }}
               labelFormatter={label => (typeof label === 'string' ? fmtTooltipDate(label) : String(label ?? ''))}
               contentStyle={{
-                backgroundColor: 'rgb(30 41 59)',
-                border: '1px solid rgb(51 65 85)',
+                backgroundColor: isDark ? 'rgb(30 41 59)' : 'rgb(255 255 255)',
+                border: `1px solid ${isDark ? 'rgb(51 65 85)' : 'rgb(226 232 240)'}`,
                 borderRadius: 8,
-                color: 'rgb(241 245 249)',
+                color: isDark ? 'rgb(241 245 249)' : 'rgb(15 23 42)',
                 fontSize: 12,
               }}
-              labelStyle={{ color: 'rgb(148 163 184)', marginBottom: 4 }}
+              labelStyle={{ color: isDark ? 'rgb(148 163 184)' : 'rgb(100 116 139)', marginBottom: 4 }}
             />
             <Legend
               formatter={value => <span className="text-xs text-slate-700 dark:text-slate-300 capitalize">{value}</span>}

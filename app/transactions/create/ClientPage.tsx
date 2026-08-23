@@ -10,6 +10,7 @@ import { create_transaction_template, update_transaction_template } from '@/app/
 import { check_possible_duplicate } from './check_duplicate'
 import type { CreateLineItemInput, PossibleDuplicate } from '@/app/_core/transactions_core'
 import { TransactionLineItems, TransactionBalanceSummary, LineItemData, new_line_uid } from '@/app/_components/TransactionLineItems'
+import { plain_currency_fmt } from '@/app/_utils/currency_formatter'
 import { AttachmentUpload } from '@/app/_components/AttachmentUpload'
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
@@ -368,8 +369,7 @@ export default function ClientPage({
                 <p className="font-semibold">This looks like a duplicate</p>
                 <p className="mt-1">
                   An existing transaction{dupWarning.description ? ` (“${dupWarning.description}”)` : ''} already moves{' '}
-                  <span className="font-semibold">{dupWarning.amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span> on the
-                  same account within a day of this one.
+                  <span className="font-semibold">{plain_currency_fmt.format(dupWarning.amount)}</span> on the same account within a day of this one.
                 </p>
               </div>
             </div>
@@ -398,10 +398,14 @@ export default function ClientPage({
         {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
         {templateError && <ErrorAlert message={templateError} onDismiss={() => setTemplateError(null)} />}
 
-        <TransactionBalanceSummary items={items} accounts={accounts} assets={assets} />
+        {/* Reward early, punish late: a pristine form gets no warning — the live balance
+            read-out appears once the user has actually entered an amount. */}
+        {items.some(it => (it.quantity ?? '') !== '' || (it.txn_value ?? '') !== '') && (
+          <TransactionBalanceSummary items={items} accounts={accounts} assets={assets} />
+        )}
 
         {}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-slate-200">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-slate-200 dark:border-slate-700">
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {loadedTemplateId && (
               <button
@@ -423,7 +427,7 @@ export default function ClientPage({
             </button>
           </div>
 
-          <div className="flex w-full sm:w-auto justify-end gap-3 pt-4 sm:pt-0 border-t sm:border-0 border-slate-200">
+          <div className="flex w-full sm:w-auto justify-end gap-3 pt-4 sm:pt-0 border-t sm:border-0 border-slate-200 dark:border-slate-700">
             <Link
               href="/transactions"
               className="flex-1 sm:flex-none text-center px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-medium"

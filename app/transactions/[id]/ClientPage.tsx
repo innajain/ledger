@@ -1,7 +1,5 @@
 'use client'
 
-'use client'
-
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -228,7 +226,11 @@ export default function ClientPage({
           <p className="text-sm text-blue-900 dark:text-blue-100 mb-1">Transaction Total</p>
           <p
             className={`text-3xl font-bold ${
-              transaction.total > 0 ? 'text-green-600' : transaction.total < 0 ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'
+              transaction.total > 0
+                ? 'text-green-600 dark:text-green-400'
+                : transaction.total < 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-slate-500 dark:text-slate-400'
             }`}
           >
             <MaskedAmount value={transaction.total} />
@@ -313,7 +315,7 @@ export default function ClientPage({
                   >
                     {att.filename}
                   </a>
-                  {att.size && <p className="text-xs text-slate-400">{fmt_size(att.size)}</p>}
+                  {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{fmt_size(att.size)}</p>}
                 </div>
               </div>
             ))}

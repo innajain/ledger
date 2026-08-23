@@ -6,6 +6,7 @@ import { get_current_user } from '@/app/_actions/auth'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import ClientPage from './ClientPage'
 import { profile } from '@/lib/metrics/profile'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 export const metadata: Metadata = {
   title: 'Reconcile',
@@ -16,7 +17,7 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 
 async function Page({ searchParams }: Props) {
   const user = await get_current_user()
-  if (!user) return <div>Please log in.</div>
+  if (!user) return <LoggedOutNotice title="Reconcile" />
 
   const [heads, defaults, params] = await Promise.all([
     prisma.accounting_head.findMany({

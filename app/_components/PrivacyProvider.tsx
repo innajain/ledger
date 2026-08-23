@@ -32,6 +32,18 @@ export function usePrivacy(): PrivacyContextValue {
   return ctx
 }
 
+/**
+ * The same hide-or-show decision `MaskedAmount` makes, for places that render amounts
+ * outside that component — chart axes, tooltips, canvas labels. Anything the mask hides
+ * in text must not resurface in a graph.
+ */
+export function useAmountMask(): { hide: (value: number) => boolean } {
+  const { masking_enabled, mask_threshold, reveal_all } = usePrivacy()
+  return {
+    hide: (value: number) => masking_enabled && !reveal_all && Math.abs(value) > mask_threshold,
+  }
+}
+
 export function PrivacyProvider({
   initial,
   persist,

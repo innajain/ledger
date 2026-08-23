@@ -63,11 +63,8 @@ function ModalShell({ children, on_close }: { children: ReactNode; on_close: () 
   }, [on_close])
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-150" onClick={on_close}>
-      <div
-        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-150"
-        onClick={e => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in" onClick={on_close}>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-full animate-scale-in" onClick={e => e.stopPropagation()}>
         {children}
       </div>
     </div>

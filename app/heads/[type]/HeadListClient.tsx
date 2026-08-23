@@ -85,7 +85,7 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
                         {negativeAssets.map((assetName, idx) => (
                           <span
                             key={`neg-${idx}`}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium"
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 rounded-full text-xs font-medium"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path

@@ -5,13 +5,14 @@ import { update_transaction } from './transactions_update'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { profile } from '@/lib/metrics/profile'
 import { env } from '@/lib/env'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 type Props = { params: Promise<{ id: string }> }
 
 async function Page({ params }: Props) {
   const id = (await params).id
   const user = await get_current_user()
-  if (!user) return <div>Please log in.</div>
+  if (!user) return <LoggedOutNotice title="Transactions" />
 
   const tx = await prisma.transaction.findUnique({
     where: { id, user_id: user.id },

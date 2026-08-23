@@ -11,6 +11,7 @@ import { TransactionEmptyIcon } from '../_components/EmptyStateIcons'
 import { LocalDateTime } from '../_components/LocalDateTime'
 import { delete_transaction_template } from '../_actions/templates'
 import { create_transaction, type DeletedTransactionSnapshot } from '../_actions/transactions'
+import { dedupe_template_chips } from '../_components/HomeTemplateChips'
 
 type Transaction = {
   id: string
@@ -241,7 +242,7 @@ export default function ClientPage({
 
       {templates && templates.length > 0 && (
         <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">
-          {templates.map(t => (
+          {dedupe_template_chips(templates).map(t => (
             <div
               key={t.id}
               className="flex items-center shrink-0 py-1.5 px-3 border border-slate-200 dark:border-slate-600 rounded-full bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group cursor-pointer relative"
@@ -272,7 +273,7 @@ export default function ClientPage({
 
       {deletingTemplate && (
         <div
-          className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-36 animate-in fade-in zoom-in duration-150"
+          className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-36 animate-scale-in"
           style={{ top: deletingTemplate.y, left: deletingTemplate.x }}
         >
           <button
@@ -548,7 +549,7 @@ export default function ClientPage({
                         </div>
                         <div className="ml-4 shrink-0 flex items-center gap-2">
                           {badge}
-                          {tx.total_book !== 0 && (
+                          {tx.total_book !== 0 ? (
                             <span
                               className={`text-lg font-semibold transition-transform group-hover:scale-110 inline-block ${
                                 tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
@@ -559,6 +560,9 @@ export default function ClientPage({
                               <span className="sr-only">{tx.total_book > 0 ? 'Money in, ' : 'Money out, '}</span>
                               <MaskedAmount value={tx.total_book} />
                             </span>
+                          ) : (
+                            /* a zero net flow (e.g. a transfer) still deserves a figure, not a blank cell */
+                            <span className="text-lg font-semibold text-slate-500 dark:text-slate-400">{currency_fmt.format(0)}</span>
                           )}
                         </div>
                       </div>

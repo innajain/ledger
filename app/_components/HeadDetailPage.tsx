@@ -159,7 +159,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
               <p className="text-xs text-green-700 dark:text-green-300 mt-1">
                 You owe{' '}
                 <span className="font-semibold">
-                  {(-head.total).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 })}
+                  <MaskedAmount value={-head.total} />
                 </span>{' '}
                 — pre-filled below
               </p>

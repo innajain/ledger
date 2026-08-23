@@ -5,13 +5,14 @@ import { Prisma } from '@/generated/prisma/client'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { get_transaction_status, get_cancellable_links } from '@/app/_utils/links'
 import { profile } from '@/lib/metrics/profile'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 type Props = { params: Promise<{ id: string }> }
 
 async function Page({ params }: Props) {
   const id = (await params).id
   const user = await get_current_user()
-  if (!user) return <div>Please log in.</div>
+  if (!user) return <LoggedOutNotice title="Transactions" />
 
   const rawTx = await prisma.transaction.findUnique({
     where: { id, user_id: user.id },

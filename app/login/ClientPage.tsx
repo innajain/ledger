@@ -95,7 +95,7 @@ export default function ClientPage({ user }: Props) {
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <div className="w-full max-w-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-8 transition-colors">
           <div className="flex items-center justify-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center shadow-lg">
               <Image src="/favicon.ico" alt="Ledger" width={40} height={40} />
             </div>
           </div>
@@ -143,7 +143,7 @@ export default function ClientPage({ user }: Props) {
       <div className="w-full max-w-md">
         {}
         <div className="text-center mb-8 animate-slide-in-up">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br mb-4 shadow-lg transition-transform hover:scale-110 hover-wiggle">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 mb-4 shadow-lg">
             <Image src="/favicon.ico" alt="Ledger" width={40} height={40} className="animate-float" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
@@ -221,7 +221,7 @@ export default function ClientPage({ user }: Props) {
             {error && (
               <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3 animate-shake">
                 <svg
-                  className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5 animate-wobble"
+                  className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5 animate-wobble"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -235,7 +235,7 @@ export default function ClientPage({ user }: Props) {
             {success && (
               <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3 animate-bounce-in">
                 <svg
-                  className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5 animate-heart-beat"
+                  className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5 animate-heart-beat"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

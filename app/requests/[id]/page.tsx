@@ -5,6 +5,7 @@ import { get_current_user_id } from '@/app/_actions/auth'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { get_editor_context } from '@/app/_utils/links'
 import { profile } from '@/lib/metrics/profile'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -13,7 +14,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
   const link_id = (await params).id
   const user_id = await get_current_user_id()
   if (!user_id) {
-    return <div className="p-2 text-slate-600 dark:text-slate-400">Please log in.</div>
+    return <LoggedOutNotice title="Requests" />
   }
 
   const ctx = await get_editor_context(user_id, link_id)

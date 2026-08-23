@@ -136,15 +136,16 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
                 >
                   {att.filename}
                 </a>
-                {att.size && <p className="text-xs text-slate-400">{fmt_size(att.size)}</p>}
+                {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{fmt_size(att.size)}</p>}
               </div>
               {onDeleteExisting && (
                 <button
                   type="button"
                   onClick={() => handleDeleteExisting(att.id)}
                   disabled={deletingId === att.id}
-                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 shrink-0"
+                  className="p-2 -m-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 shrink-0"
                   title="Remove attachment"
+                  aria-label={`Remove attachment ${att.filename}`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -164,13 +165,14 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{att.filename}</p>
-                {att.size && <p className="text-xs text-slate-400">{fmt_size(att.size)}</p>}
+                {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{fmt_size(att.size)}</p>}
               </div>
               <button
                 type="button"
                 onClick={() => removePending(idx)}
-                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 shrink-0"
+                className="p-2 -m-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 shrink-0"
                 title="Remove"
+                aria-label={`Remove pending attachment ${att.filename}`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -181,9 +183,9 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
         </div>
       )}
 
-      <div className="flex items-center gap-3 cursor-pointer group" onClick={() => !uploading && inputRef.current?.click()}>
+      <button type="button" className="flex items-center gap-3 group" onClick={() => !uploading && inputRef.current?.click()} disabled={uploading}>
         <input ref={inputRef} type="file" multiple accept="image/*,.pdf,.txt,.json" className="hidden" onChange={e => handleFiles(e.target.files)} />
-        <div className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-500 dark:text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 dark:group-hover:border-blue-500 dark:group-hover:text-blue-400 transition-colors">
+        <span className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-500 dark:text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 dark:group-hover:border-blue-500 dark:group-hover:text-blue-400 transition-colors">
           {uploading ? (
             <>
               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -205,8 +207,8 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
               Attach files (images, PDF, TXT, JSON — max 10 MB each)
             </>
           )}
-        </div>
-      </div>
+        </span>
+      </button>
 
       {uploadError && <p className="text-sm text-red-600 dark:text-red-400">{uploadError}</p>}
     </div>

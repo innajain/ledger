@@ -87,7 +87,7 @@ export function HoldingsHeader({ title = 'Holdings', count }: HoldingsHeaderProp
   return (
     <div className="p-6 border-b border-slate-200 dark:border-slate-700">
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
-      <p className="text-sm text-slate-500 mt-1">
+      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
         {count} line item{count !== 1 ? 's' : ''}
       </p>
     </div>
@@ -105,7 +105,13 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className="p-8 text-center">
-      <svg className="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        aria-hidden="true"
+        className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -113,8 +119,8 @@ export function EmptyState({
           d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
         />
       </svg>
-      <p className="text-slate-600 font-medium">{message}</p>
-      <p className="text-sm text-slate-500 mt-1">{subMessage}</p>
+      <p className="text-slate-600 dark:text-slate-300 font-medium">{message}</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{subMessage}</p>
     </div>
   )
 }
@@ -208,7 +214,7 @@ export function LineItemRow({
               </svg>
               <LocalDateTime value={transactionDate} />
             </Link>
-            {transactionDescription && <p className="text-xs text-slate-500 italic">Transaction: {transactionDescription}</p>}
+            {transactionDescription && <p className="text-xs text-slate-500 dark:text-slate-400 italic">Transaction: {transactionDescription}</p>}
           </div>
         </div>
 
@@ -216,7 +222,10 @@ export function LineItemRow({
           <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             <MaskedAmount value={bookValue !== null && bookValue !== undefined ? bookValue : quantity} />
           </div>
-          <Link href={`/transactions/${transactionId}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-1 inline-block">
+          <Link
+            href={`/transactions/${transactionId}`}
+            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 inline-block"
+          >
             View Transaction →
           </Link>
         </div>

@@ -15,11 +15,27 @@ export type HomeTemplate = {
 }
 
 /**
+ * Two templates with the same name are indistinguishable as chips, so only the first
+ * of each name is shown. Unnamed templates are kept as-is.
+ */
+export function dedupe_template_chips<T extends { description: string | null }>(templates: T[]): T[] {
+  const seen = new Set<string>()
+  return templates.filter(t => {
+    const name = t.description?.trim().toLowerCase()
+    if (!name) return true
+    if (seen.has(name)) return false
+    seen.add(name)
+    return true
+  })
+}
+
+/**
  * The fast path for the app's primary daily write. Same mechanism as the transactions list:
  * stash the template under `ledger_quick_template` and let /transactions/create pick it up.
  */
-export function HomeTemplateChips({ templates }: { templates: HomeTemplate[] }) {
+export function HomeTemplateChips({ templates: allTemplates }: { templates: HomeTemplate[] }) {
   const router = useRouter()
+  const templates = dedupe_template_chips(allTemplates)
   if (templates.length === 0) return null
 
   return (

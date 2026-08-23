@@ -5,7 +5,8 @@ import { useState } from 'react'
 import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { asset_type } from '@/generated/prisma/enums'
-import { precise_currency_fmt } from '@/app/_utils/currency_formatter'
+import { precise_plain_currency_fmt } from '@/app/_utils/currency_formatter'
+import { asset_type_label } from '@/app/_utils/labels'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 import { Card } from '@/app/_components/Card'
@@ -90,14 +91,14 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         fields={[
           {
             label: 'Asset Type',
-            value: <span className="capitalize text-slate-900 dark:text-slate-100 font-medium">{asset.type}</span>,
+            value: <span className="text-slate-900 dark:text-slate-100 font-medium">{asset_type_label(asset.type)}</span>,
           },
           { label: 'Ticker', value: asset.ticker ?? '—' },
           ...((asset.type === asset_type.mf || asset.type === asset_type.etf || asset.type === asset_type.shares) && asset.price !== null
             ? [
                 {
                   label: 'Current Price',
-                  value: precise_currency_fmt.format(asset.price),
+                  value: precise_plain_currency_fmt.format(asset.price),
                 },
               ]
             : []),

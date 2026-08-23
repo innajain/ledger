@@ -9,6 +9,7 @@ import { USER_TIMEZONE } from '@/lib/config'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
 import { profile } from '@/lib/metrics/profile'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 function istDayStart(dateStr: string, addDays = 0): Date {
   const [y, m, d] = dateStr.split('-').map(Number)
@@ -56,12 +57,7 @@ async function Page({
 }) {
   const user = await get_current_user()
   if (!user) {
-    return (
-      <div>
-        <h1>Transactions</h1>
-        <p>Please log in to view transactions.</p>
-      </div>
-    )
+    return <LoggedOutNotice title="Transactions" />
   }
 
   const params = await searchParams

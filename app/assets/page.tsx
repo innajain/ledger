@@ -9,6 +9,7 @@ import { value_balance_entry } from '../_utils/head_value'
 import { normalize_txn } from '../_utils/normalize_txn'
 import { calculate_xirr } from '../_utils/xirr_calculator'
 import { profile } from '@/lib/metrics/profile'
+import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -21,12 +22,7 @@ export const metadata: Metadata = {
 async function Page() {
   const user = await get_current_user()
   if (!user) {
-    return (
-      <div>
-        <h1>Assets</h1>
-        <p>Please log in to view assets.</p>
-      </div>
-    )
+    return <LoggedOutNotice title="Assets" />
   }
 
   const [assets, { assetsToAccounts: balances }, me] = await Promise.all([
