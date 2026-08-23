@@ -54,7 +54,7 @@ export default function ClientPage({
               </p>
             </div>
             <div className="shrink-0 w-10 h-10 sm:w-14 sm:h-14 bg-slate-700 dark:bg-slate-600 rounded-xl flex items-center justify-center">
-              <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -94,14 +94,16 @@ export default function ClientPage({
             <>
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                 </div>
                 {investXirrSlot}
               </div>
-              <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Investment Allocation</h3>
-              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{invest ? <MaskedAmount value={invest.total} /> : '—'}</p>
+              <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Investment Allocation</h2>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                {invest ? <MaskedAmount value={invest.total} interactive={false} /> : '—'}
+              </p>
               {invest && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{invest.name}</p>}
             </>
           )
@@ -122,7 +124,7 @@ export default function ClientPage({
             <>
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-green-600 dark:bg-green-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -132,8 +134,10 @@ export default function ClientPage({
                   </svg>
                 </div>
               </div>
-              <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Savings Allocation</h3>
-              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{savings ? <MaskedAmount value={savings.total} /> : '—'}</p>
+              <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Savings Allocation</h2>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                {savings ? <MaskedAmount value={savings.total} interactive={false} /> : '—'}
+              </p>
               {savings && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{savings.name}</p>}
             </>
           )

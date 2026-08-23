@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useId, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { asset_type } from '@/generated/prisma/enums'
@@ -95,8 +95,8 @@ function DiffCard({ ctx }: { ctx: EditorContext }) {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 pt-0.5">
-            <p className="text-center text-xs text-slate-400 dark:text-slate-500">Before</p>
-            <p className="text-center text-xs text-slate-400 dark:text-slate-500">After</p>
+            <p className="text-center text-xs text-slate-500 dark:text-slate-400">Before</p>
+            <p className="text-center text-xs text-slate-500 dark:text-slate-400">After</p>
           </div>
         </div>
       )}
@@ -112,8 +112,9 @@ function toLocalInput(iso: string | null): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+// readOnly (not disabled) so keyboard users can still reach the fields — muted styles applied directly
 const lockedFieldCls =
-  'w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800'
+  'w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg opacity-70 cursor-not-allowed'
 
 export default function ClientPage({
   ctx,
@@ -127,6 +128,7 @@ export default function ClientPage({
   defaults: LineItemDefaults
 }) {
   const router = useRouter()
+  const uid = useId()
 
   const ownAccounts = accounts.filter(a => !a.linked)
   const defaultAsset = pickDefaultAsset(assets, defaults)
@@ -251,8 +253,17 @@ export default function ClientPage({
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date &amp; time</label>
-            <input type="datetime-local" value={toLocalInput(ctx.datetime)} disabled className={lockedFieldCls} />
+            <label htmlFor={`${uid}-datetime`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Date &amp; time
+            </label>
+            <input
+              id={`${uid}-datetime`}
+              type="datetime-local"
+              value={toLocalInput(ctx.datetime)}
+              readOnly
+              aria-readonly="true"
+              className={lockedFieldCls}
+            />
             {ctx.datetime && (
               <div className="text-sm text-slate-600 dark:text-slate-400 mt-2 italic">
                 <LocalDateTime value={ctx.datetime} />
@@ -260,8 +271,18 @@ export default function ClientPage({
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description</label>
-            <input type="text" value={ctx.description ?? ''} disabled placeholder="No description" className={lockedFieldCls} />
+            <label htmlFor={`${uid}-description`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Description
+            </label>
+            <input
+              id={`${uid}-description`}
+              type="text"
+              value={ctx.description ?? ''}
+              readOnly
+              aria-readonly="true"
+              placeholder="No description"
+              className={lockedFieldCls}
+            />
           </div>
         </div>
       </div>

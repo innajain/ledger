@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RevealToggle } from './RevealToggle'
 
 const NAV_ITEMS: { href: string; label: string }[] = [
@@ -59,6 +59,15 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
 
   const toggleMenu = () => setIsMenuOpen(o => !o)
   const closeMenu = () => setIsMenuOpen(false)
+
+  useEffect(() => {
+    if (!isMenuOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMenuOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [isMenuOpen])
 
   const isActive = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 

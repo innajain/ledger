@@ -42,17 +42,28 @@ export function ValidationSection() {
           {busy ? 'Checking…' : 'Run check'}
         </Button>
 
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
 
         {result && !busy && (
           <div>
             {result.invalid.length === 0 ? (
-              <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-3 text-sm text-green-800 dark:text-green-200">
+              <div
+                role="status"
+                aria-live="polite"
+                className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-3 text-sm text-green-800 dark:text-green-200"
+              >
                 All {result.checked} transaction{result.checked === 1 ? '' : 's'} balance correctly
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200"
+                >
                   {result.invalid.length} of {result.checked} transactions do not balance:
                 </div>
                 <ul className="space-y-2">

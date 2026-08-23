@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatInTimeZone } from 'date-fns-tz'
 import { USER_TIMEZONE } from '@/lib/config'
@@ -59,6 +59,7 @@ function LinkedUserField({
   linkedUsername: string | null
   onChange: (id: string | null, username: string | null) => void
 }) {
+  const uid = useId()
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -80,7 +81,9 @@ function LinkedUserField({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Linked User (Optional)</label>
+      <label htmlFor={`${uid}-linked-user`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+        Linked User (Optional)
+      </label>
       {linkedUserId ? (
         <div className="flex items-center gap-3">
           <span className="px-3 py-1.5 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium">
@@ -93,6 +96,7 @@ function LinkedUserField({
       ) : (
         <div className="flex gap-2">
           <input
+            id={`${uid}-linked-user`}
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -116,7 +120,11 @@ function LinkedUserField({
           </button>
         </div>
       )}
-      {err && <p className="text-sm text-red-600 dark:text-red-400 mt-1">{err}</p>}
+      {err && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400 mt-1">
+          {err}
+        </p>
+      )}
       <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
         Link this account to another user so transactions touching it sync to their ledger for approval.
       </p>
@@ -208,6 +216,7 @@ export function CreateHeadForm({ parents, headType }: CreateHeadFormProps) {
 }
 
 export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUsername: initialLinkedUsername }: UpdateHeadFormProps) {
+  const uid = useId()
   const router = useRouter()
   const config = headFormConfig(headType)
   const [name, setName] = useState(head.name)
@@ -316,8 +325,11 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
 
           {isLinkable && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Reconciliation Lock (Optional)</label>
+              <label htmlFor={`${uid}-lock-date`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Reconciliation Lock (Optional)
+              </label>
               <input
+                id={`${uid}-lock-date`}
                 type="date"
                 value={lockDate}
                 onChange={e => setLockDate(e.target.value)}

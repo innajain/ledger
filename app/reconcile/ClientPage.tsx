@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/app/_components/Button'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
@@ -18,7 +18,7 @@ const inputCls =
 function Amount({ value }: { value: number }) {
   return (
     <span className={`font-semibold ${value > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-      <MaskedAmount value={value} />
+      <MaskedAmount value={value} keep_sign />
     </span>
   )
 }
@@ -37,6 +37,7 @@ export default function ClientPage({
   // preselected via ?account=<id>; the server has already checked it names one of `accounts`
   initialAccountId?: string
 }) {
+  const uid = useId()
   const [accountId, setAccountId] = useState(initialAccountId)
   const [rawText, setRawText] = useState('')
   const [parsed, setParsed] = useState<{ rows: ParsedStatementRow[]; errors: string[] } | null>(null)
@@ -171,8 +172,11 @@ export default function ClientPage({
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-4 transition-colors">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Account</label>
+            <label htmlFor={`${uid}-account`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Account
+            </label>
             <select
+              id={`${uid}-account`}
               value={accountId}
               onChange={e => {
                 // results belong to the account they were run for — drop them
@@ -204,8 +208,11 @@ export default function ClientPage({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Statement rows</label>
+          <label htmlFor={`${uid}-rows`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            Statement rows
+          </label>
           <textarea
+            id={`${uid}-rows`}
             value={rawText}
             onChange={e => {
               setRawText(e.target.value)
@@ -243,7 +250,11 @@ export default function ClientPage({
           </ul>
         )}
 
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
       </div>
 
       {view && (
@@ -308,7 +319,11 @@ export default function ClientPage({
           )}
 
           {createNote && (
-            <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-3 text-sm text-green-800 dark:text-green-200">
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-3 text-sm text-green-800 dark:text-green-200"
+            >
               {createNote}
             </div>
           )}
@@ -328,6 +343,7 @@ export default function ClientPage({
                       type="checkbox"
                       checked={selected.has(r.index)}
                       onChange={() => toggle(r.index)}
+                      aria-label={`Add ${r.desc || r.ref || 'row'} (${format_day(r.date)}) to ledger`}
                       className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
                     />
                     <div className="flex-1 min-w-0">
@@ -343,8 +359,10 @@ export default function ClientPage({
               </ul>
               <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 flex flex-wrap items-end gap-4">
                 <div className="flex-1 min-w-40">
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Allocation</label>
-                  <select value={allocationId} onChange={e => setAllocationId(e.target.value)} className={inputCls}>
+                  <label htmlFor={`${uid}-allocation`} className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    Allocation
+                  </label>
+                  <select id={`${uid}-allocation`} value={allocationId} onChange={e => setAllocationId(e.target.value)} className={inputCls}>
                     <option value="">Select…</option>
                     {allocations.map(a => (
                       <option key={a.id} value={a.id}>
@@ -354,8 +372,15 @@ export default function ClientPage({
                   </select>
                 </div>
                 <div className="flex-1 min-w-40">
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Income / Expense</label>
-                  <select value={incomeExpenseId} onChange={e => setIncomeExpenseId(e.target.value)} className={inputCls}>
+                  <label htmlFor={`${uid}-income-expense`} className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    Income / Expense
+                  </label>
+                  <select
+                    id={`${uid}-income-expense`}
+                    value={incomeExpenseId}
+                    onChange={e => setIncomeExpenseId(e.target.value)}
+                    className={inputCls}
+                  >
                     <option value="">Select…</option>
                     {incomeExpenses.map(a => (
                       <option key={a.id} value={a.id}>

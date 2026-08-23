@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import QRCode from 'qrcode'
 import { Button } from '@/app/_components/Button'
 import { currency_fmt } from '../_utils/currency_formatter'
@@ -49,23 +49,51 @@ function build_upi_url(upi_id: string, payee_name: string, amount: number, note?
   return `upi://pay?${parts.join('&')}`
 }
 
-function ModalShell({ children, on_close }: { children: ReactNode; on_close: () => void }) {
+function ModalShell({ children, on_close, label }: { children: ReactNode; on_close: () => void; label: string }) {
+  const panel_ref = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     const on_key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') on_close()
+      // Minimal focus trap: keep Tab inside the dialog while it is open.
+      if (e.key === 'Tab' && panel_ref.current) {
+        const focusables = panel_ref.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+        if (focusables.length === 0) return
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
     }
     document.addEventListener('keydown', on_key)
     const prev_overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    const previously_focused = document.activeElement as HTMLElement | null
+    // Focus the panel itself unless a child (e.g. the amount input) autofocuses.
+    if (!panel_ref.current?.contains(document.activeElement)) panel_ref.current?.focus()
     return () => {
       document.removeEventListener('keydown', on_key)
       document.body.style.overflow = prev_overflow
+      previously_focused?.focus?.()
     }
   }, [on_close])
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in" onClick={on_close}>
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl p-6 max-w-sm w-full animate-scale-in" onClick={e => e.stopPropagation()}>
+      <div
+        ref={panel_ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        tabIndex={-1}
+        className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl p-6 max-w-sm w-full animate-scale-in focus:outline-none"
+        onClick={e => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>
@@ -174,7 +202,7 @@ export function UpiPayButton({
       </span>
 
       {modal === 'amount' && (
-        <ModalShell on_close={close_modal}>
+        <ModalShell on_close={close_modal} label={`Pay ${payee_name}`}>
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Pay {payee_name}</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 font-mono break-all">{upi_id}</p>
 
@@ -227,7 +255,7 @@ export function UpiPayButton({
       )}
 
       {modal === 'qr' && active_amount !== null && (
-        <ModalShell on_close={close_modal}>
+        <ModalShell on_close={close_modal} label="Scan to pay">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Scan to pay</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             {payee_name} · <span className="font-medium text-slate-900 dark:text-slate-100">{currency_fmt.format(active_amount)}</span>
@@ -257,7 +285,7 @@ export function UpiPayButton({
       )}
 
       {modal === 'confirm' && active_amount !== null && (
-        <ModalShell on_close={close_modal}>
+        <ModalShell on_close={close_modal} label={confirm_title}>
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">{confirm_title}</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
             Did the payment of <span className="font-semibold text-slate-900 dark:text-slate-100">{currency_fmt.format(active_amount)}</span> to{' '}

@@ -126,6 +126,39 @@ export function HierarchyTree<T extends BaseItem>({
     [optimisticOrder],
   )
 
+  const persistOrder = useCallback(
+    async (orderIds: string[], parentId: string | null) => {
+      setOptimisticOrder(prev => ({ ...prev, [parentKey(parentId)]: orderIds }))
+      if (!scope) return
+
+      setSaving(true)
+      try {
+        const result = await update_hierarchy_order({ scope, parent_id: parentId, ordered_ids: orderIds })
+        if (!result.success) {
+          showToast(result.message, 'error')
+
+          setOptimisticOrder(prev => {
+            const next = { ...prev }
+            delete next[parentKey(parentId)]
+            return next
+          })
+        } else {
+          router.refresh()
+        }
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : String(err), 'error')
+        setOptimisticOrder(prev => {
+          const next = { ...prev }
+          delete next[parentKey(parentId)]
+          return next
+        })
+      } finally {
+        setSaving(false)
+      }
+    },
+    [scope, router, showToast],
+  )
+
   const handleDrop = useCallback(
     async (e: React.DragEvent<HTMLDivElement>, targetId: string, parentId: string | null) => {
       e.preventDefault()
@@ -154,41 +187,38 @@ export function HierarchyTree<T extends BaseItem>({
       const newOrder = [...orderedSiblings]
       const [draggedItem] = newOrder.splice(draggedIndex, 1)
       newOrder.splice(targetIndex, 0, draggedItem)
-      const orderIds = newOrder.map(i => i.id)
 
-      setOptimisticOrder(prev => ({ ...prev, [parentKey(parentId)]: orderIds }))
       setDraggedId(null)
       setDraggedParentId(null)
       setDragOverId(null)
 
-      if (!scope) return
-
-      setSaving(true)
-      try {
-        const result = await update_hierarchy_order({ scope, parent_id: parentId, ordered_ids: orderIds })
-        if (!result.success) {
-          showToast(result.message, 'error')
-
-          setOptimisticOrder(prev => {
-            const next = { ...prev }
-            delete next[parentKey(parentId)]
-            return next
-          })
-        } else {
-          router.refresh()
-        }
-      } catch (err) {
-        showToast(err instanceof Error ? err.message : String(err), 'error')
-        setOptimisticOrder(prev => {
-          const next = { ...prev }
-          delete next[parentKey(parentId)]
-          return next
-        })
-      } finally {
-        setSaving(false)
-      }
+      await persistOrder(
+        newOrder.map(i => i.id),
+        parentId,
+      )
     },
-    [draggedId, draggedParentId, items, applyOrderToSiblings, scope, router, showToast],
+    [draggedId, draggedParentId, items, applyOrderToSiblings, persistOrder],
+  )
+
+  /** Keyboard/tap alternative to drag-and-drop: move one step within the same level. */
+  const moveBy = useCallback(
+    async (id: string, parentId: string | null, delta: -1 | 1) => {
+      const orderedSiblings = applyOrderToSiblings(
+        items.filter(item => item.parent_id === parentId),
+        parentId,
+      )
+      const from = orderedSiblings.findIndex(item => item.id === id)
+      const to = from + delta
+      if (from === -1 || to < 0 || to >= orderedSiblings.length) return
+      const newOrder = [...orderedSiblings]
+      const [moved] = newOrder.splice(from, 1)
+      newOrder.splice(to, 0, moved)
+      await persistOrder(
+        newOrder.map(i => i.id),
+        parentId,
+      )
+    },
+    [items, applyOrderToSiblings, persistOrder],
   )
 
   const handleDragEnd = useCallback(() => {
@@ -278,11 +308,15 @@ export function HierarchyTree<T extends BaseItem>({
       }
       return null
     }
+    const rowToggles = visibleChildren.length > 0 && !expandAll && !canDrag
     return (
       <li key={item.id} className="mb-2">
         <div
-          className={`${baseClasses} ${depthClasses} ${dragClasses} ${dragOverClasses} ${cursorClasses}`}
+          className={`${baseClasses} ${depthClasses} ${dragClasses} ${dragOverClasses} ${cursorClasses}${rowToggles ? ' cursor-pointer' : ''}`}
           draggable={canDrag}
+          // The whole row is the expand/collapse target (the chevron alone is a 24px hit);
+          // links and buttons inside stop propagation so navigation still works.
+          onClick={rowToggles ? () => toggle(item.id) : undefined}
           onDragStart={canDrag ? e => handleDragStart(e, item.id, item.parent_id) : undefined}
           onDragOver={canDrag ? e => handleDragOver(e, item.id, item.parent_id) : undefined}
           onDragLeave={canDrag ? handleDragLeave : undefined}
@@ -299,9 +333,15 @@ export function HierarchyTree<T extends BaseItem>({
 
           {visibleChildren.length > 0 ? (
             <button
-              onClick={() => toggle(item.id)}
+              type="button"
+              onClick={e => {
+                e.stopPropagation()
+                toggle(item.id)
+              }}
               aria-expanded={isExpanded}
-              className="shrink-0 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
+              aria-controls={`tree-children-${item.id}`}
+              aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${item.name}`}
+              className="shrink-0 w-6 h-6 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
             >
               <svg
                 className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
@@ -321,16 +361,46 @@ export function HierarchyTree<T extends BaseItem>({
               <Link
                 href={getItemUrl(item.id)}
                 className="font-medium text-sm sm:text-base text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors inline-block"
-                onClick={e => {
-                  if (canDrag) e.stopPropagation()
-                }}
+                onClick={e => e.stopPropagation()}
                 draggable={false}
               >
                 {item.name}
               </Link>
               {renderExtraInfo && visibleChildren.length === 0 && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
             </div>
-            <div className="shrink-0 text-right">
+            <div className="shrink-0 text-right flex items-center gap-1">
+              {canDrag && (
+                <span className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation()
+                      void moveBy(item.id, item.parent_id, -1)
+                    }}
+                    disabled={saving}
+                    aria-label={`Move ${item.name} up`}
+                    className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-40"
+                  >
+                    <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation()
+                      void moveBy(item.id, item.parent_id, 1)
+                    }}
+                    disabled={saving}
+                    aria-label={`Move ${item.name} down`}
+                    className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-40"
+                  >
+                    <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </span>
+              )}
               <span className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100">
                 <MaskedAmount value={displayCurr} />
               </span>
@@ -339,7 +409,10 @@ export function HierarchyTree<T extends BaseItem>({
         </div>
 
         {visibleChildren.length > 0 && isExpanded && (
-          <ul className="mt-2 ml-4 sm:ml-6 md:ml-9 space-y-1 border-l-2 border-slate-200 dark:border-slate-700 pl-2 sm:pl-3 md:pl-4">
+          <ul
+            id={`tree-children-${item.id}`}
+            className="mt-2 ml-4 sm:ml-6 md:ml-9 space-y-1 border-l-2 border-slate-200 dark:border-slate-700 pl-2 sm:pl-3 md:pl-4"
+          >
             {showSelfRow && (
               <li key={`${item.id}-self`} className="mb-2">
                 <div className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
@@ -347,7 +420,7 @@ export function HierarchyTree<T extends BaseItem>({
                   <span className="w-5 sm:w-6 shrink-0"></span>
                   <div className="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-4">
                     <div className="flex-1 min-w-0">
-                      <span className="text-xs sm:text-sm italic text-slate-600 dark:text-slate-400">self</span>
+                      <span className="text-xs sm:text-sm italic text-slate-600 dark:text-slate-400">Held directly</span>
                       {renderExtraInfo && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
                     </div>
                     <div className="shrink-0 text-right">
@@ -382,10 +455,12 @@ export function HierarchyTree<T extends BaseItem>({
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
             </svg>
-            {reorderEnabled ? 'Done Reordering' : 'Reorder'}
+            {reorderEnabled ? 'Done reordering' : 'Reorder'}
           </button>
           {reorderEnabled && (
-            <span className="text-sm text-slate-500 dark:text-slate-400">{saving ? 'Saving…' : 'Drag items to reorder (within same level)'}</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {saving ? 'Saving…' : 'Drag rows, or use the arrows, to reorder within a level'}
+            </span>
           )}
         </div>
       )}

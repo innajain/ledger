@@ -8,26 +8,38 @@ type Props = {
   value: number
   precise?: boolean
   className?: string
+  /**
+   * Render as a click-to-reveal control (the default). Pass false inside links and other
+   * interactive rows — nested controls are invalid and add a tab stop per row; the global
+   * reveal toggle still applies.
+   */
+  interactive?: boolean
+  /**
+   * Keep the +/- sign visible while masked. Off by default because the sign leaks the
+   * flow's direction; turn it on where the surrounding UI already shows direction anyway
+   * (e.g. the transactions list, which colors and signs every amount).
+   */
+  keep_sign?: boolean
 }
 
 const BULLETS = '•••••'
 
 /**
- * Keeps only the currency symbol (plus any literal spacing around it) so a masked
- * amount reads as `₹•••••`. The +/- sign is dropped on purpose: showing it would leak
- * the direction of the flow, which is exactly what the mask is meant to hide.
+ * Keeps only the currency symbol (plus any literal spacing around it) so a masked amount
+ * reads as `₹•••••` — or `-₹•••••` when `keep_sign` asks for direction to survive.
  */
-function build_mask(value: number, formatter: Intl.NumberFormat): string {
+function build_mask(value: number, formatter: Intl.NumberFormat, keep_sign: boolean): string {
   const parts = formatter.formatToParts(value)
   let prefix = ''
   for (const part of parts) {
-    if (part.type !== 'currency' && part.type !== 'literal') continue
-    prefix += part.value
+    if (part.type === 'currency' || part.type === 'literal') prefix += part.value
+    else if (keep_sign && (part.type === 'minusSign' || part.type === 'plusSign')) prefix += part.value
+    else if (part.type === 'integer') break
   }
   return `${prefix}${BULLETS}`.trimStart()
 }
 
-export function MaskedAmount({ value, precise = false, className }: Props) {
+export function MaskedAmount({ value, precise = false, className, interactive = true, keep_sign = false }: Props) {
   const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
   const formatter = precise ? precise_currency_fmt : currency_fmt
   const formatted = formatter.format(value)
@@ -39,8 +51,17 @@ export function MaskedAmount({ value, precise = false, className }: Props) {
 
   if (!masking_enabled) return <span className={className}>{formatted}</span>
 
-  const current_override = override !== null && override.epoch === reveal_epoch ? override.hidden : null
+  const current_override = interactive && override !== null && override.epoch === reveal_epoch ? override.hidden : null
   const hidden = current_override ?? (!reveal_all && Math.abs(value) > mask_threshold)
+  const text = hidden ? build_mask(value, formatter, keep_sign) : formatted
+
+  if (!interactive) {
+    return (
+      <span className={`${className ?? ''}${hidden ? ' tracking-wider' : ''}`} aria-label={hidden ? 'Hidden amount' : undefined}>
+        {text}
+      </span>
+    )
+  }
 
   const toggle = (e: MouseEvent | KeyboardEvent) => {
     e.preventDefault()
@@ -60,7 +81,7 @@ export function MaskedAmount({ value, precise = false, className }: Props) {
       aria-label={hidden ? 'Hidden amount, click to reveal' : `${formatted}, click to hide`}
       className={`${className ?? ''} cursor-pointer select-none${hidden ? ' tracking-wider' : ''}`}
     >
-      {hidden ? build_mask(value, formatter) : formatted}
+      {text}
     </span>
   )
 }

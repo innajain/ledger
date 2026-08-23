@@ -36,7 +36,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
                   >
                     <span className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       {a.name}
-                      {a.is_placeholder && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">(placeholder)</span>}
+                      {a.is_placeholder && <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">(placeholder)</span>}
                     </span>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -72,7 +72,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
                   >
                     <span className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       {a.name}
-                      {a.is_placeholder && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">(placeholder)</span>}
+                      {a.is_placeholder && <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">(placeholder)</span>}
                     </span>
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 capitalize">
                       {a.type}
@@ -94,7 +94,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
               </p>
             </div>
             <a href="/api/dump" className={buttonClasses('secondary', 'md', 'shrink-0')}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -115,7 +115,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Download a ZIP with one CSV per table, scoped to your own data.</p>
             </div>
             <a href="/api/export" className={buttonClasses('secondary', 'md', 'shrink-0')}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -138,7 +138,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
               </p>
             </div>
             <a href="/api/export/xlsx" className={buttonClasses('secondary', 'md', 'shrink-0')}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"

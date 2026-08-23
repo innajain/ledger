@@ -104,6 +104,7 @@ export default function ClientPage({ user }: Props) {
 
           <div className="space-y-3">
             <button
+              type="button"
               onClick={() => router.push('/')}
               className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium shadow-sm"
             >
@@ -111,6 +112,7 @@ export default function ClientPage({ user }: Props) {
             </button>
 
             <button
+              type="button"
               onClick={handleLogout}
               disabled={loading}
               className="w-full px-4 py-3 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-60 transition-colors font-medium"
@@ -120,12 +122,16 @@ export default function ClientPage({ user }: Props) {
           </div>
 
           {error && (
-            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div role="alert" className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
             </div>
           )}
           {success && (
-            <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <div
+              role="status"
+              aria-live="polite"
+              className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
+            >
               <p className="text-sm text-green-700 dark:text-green-400">{success}</p>
             </div>
           )}
@@ -187,10 +193,12 @@ export default function ClientPage({ user }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                 >
                   {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -199,7 +207,7 @@ export default function ClientPage({ user }: Props) {
                       />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path
                         strokeLinecap="round"
@@ -215,8 +223,17 @@ export default function ClientPage({ user }: Props) {
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-                <svg className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div
+                role="alert"
+                className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
@@ -224,8 +241,18 @@ export default function ClientPage({ user }: Props) {
             )}
 
             {success && (
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3">
-                <svg className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div
+                role="status"
+                aria-live="polite"
+                className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm text-green-700 dark:text-green-400">{success}</p>
@@ -239,7 +266,7 @@ export default function ClientPage({ user }: Props) {
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path
                       className="opacity-75"
@@ -257,6 +284,7 @@ export default function ClientPage({ user }: Props) {
 
           <div className="mt-6 text-center">
             <button
+              type="button"
               onClick={() => {
                 setIsSignup(!isSignup)
                 setError(null)

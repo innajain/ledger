@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import Link from 'next/link'
 import type { accounting_head_type, Prisma } from '@/generated/prisma/client'
 import { Card } from './Card'
@@ -53,10 +54,14 @@ interface TextInputProps {
 }
 
 export function TextInput({ label, value, onChange, placeholder, required, helpText, autoComplete, inputMode }: TextInputProps) {
+  const uid = useId()
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
+      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+        {label}
+      </label>
       <input
+        id={uid}
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
@@ -80,12 +85,16 @@ interface HeadTypeSelectProps {
 }
 
 export function HeadTypeSelect({ label, value, onChange, disabled, restrictedTo }: HeadTypeSelectProps) {
+  const uid = useId()
   const allowedTypes = restrictedTo || ['account', 'allocation', 'income_expense']
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
+      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+        {label}
+      </label>
       <select
+        id={uid}
         value={value}
         onChange={e => onChange(e.target.value as accounting_head_type)}
         disabled={disabled}
@@ -109,12 +118,16 @@ interface ParentSelectProps {
 }
 
 export function ParentSelect({ label, value, onChange, parents, excludeId, helpText }: ParentSelectProps) {
+  const uid = useId()
   const filteredParents = excludeId ? parents.filter(p => p.id !== excludeId) : parents
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
+      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+        {label}
+      </label>
       <select
+        id={uid}
         value={value ?? ''}
         onChange={e => onChange(e.target.value || null)}
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
@@ -138,10 +151,14 @@ interface AssetTypeSelectProps {
 }
 
 export function AssetTypeSelect({ label, value, onChange }: AssetTypeSelectProps) {
+  const uid = useId()
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
+      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+        {label}
+      </label>
       <select
+        id={uid}
         value={value}
         onChange={e => onChange(e.target.value)}
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
@@ -166,12 +183,16 @@ interface ParentAssetSelectProps {
 }
 
 export function ParentAssetSelect({ label, value, onChange, parents, excludeId, helpText }: ParentAssetSelectProps) {
+  const uid = useId()
   const filteredParents = excludeId ? parents.filter(p => p.id !== excludeId) : parents
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{label}</label>
+      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+        {label}
+      </label>
       <select
+        id={uid}
         value={value ?? ''}
         onChange={e => onChange(e.target.value || null)}
         className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
@@ -248,6 +269,7 @@ export function ToggleSwitch({ label, helpText, value, onChange }: ToggleSwitchP
         }`}
         role="switch"
         aria-checked={value}
+        aria-label={label}
       >
         <span
           className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-1'}`}

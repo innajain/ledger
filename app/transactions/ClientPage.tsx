@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { currency_fmt } from '../_utils/currency_formatter'
@@ -75,6 +75,7 @@ export default function ClientPage({
   const [assetId, setAssetId] = useState(searchParams.assetId || '')
   const [selectedPageSize] = useState(pageSize)
   const [deletingTemplate, setDeletingTemplate] = useState<{ id: string; x: number; y: number } | null>(null)
+  const deleteMenuButtonRef = useRef<HTMLButtonElement>(null)
   const [undoSnapshot, setUndoSnapshot] = useState<DeletedTransactionSnapshot | null>(null)
   const [undoBusy, setUndoBusy] = useState(false)
   const [undoDone, setUndoDone] = useState<string | null>(null)
@@ -135,6 +136,11 @@ export default function ClientPage({
     document.addEventListener('click', handleGlobalClick)
     return () => document.removeEventListener('click', handleGlobalClick)
   }, [])
+
+  // Move keyboard focus into the floating delete menu when it opens
+  useEffect(() => {
+    if (deletingTemplate) deleteMenuButtonRef.current?.focus()
+  }, [deletingTemplate])
 
   useEffect(() => {
     const current = searchParams.search || ''
@@ -238,8 +244,9 @@ export default function ClientPage({
       {templates && templates.length > 0 && (
         <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">
           {dedupe_template_chips(templates).map(t => (
-            <div
+            <button
               key={t.id}
+              type="button"
               className="flex items-center shrink-0 py-1.5 px-3 border border-slate-200 dark:border-slate-600 rounded-full bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group cursor-pointer relative"
               onClick={e => {
                 if (deletingTemplate?.id === t.id) {
@@ -258,20 +265,27 @@ export default function ClientPage({
                 setDeletingTemplate({ id: t.id, x: e.clientX, y: e.clientY })
               }}
             >
-              <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate max-w-37.5 sm:max-w-62.5">
+              <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate max-w-37.5 sm:max-w-62.5">
                 {t.description || 'Unnamed template'}
-              </div>
-            </div>
+              </span>
+            </button>
           ))}
         </div>
       )}
 
       {deletingTemplate && (
         <div
+          role="menu"
           className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-36 animate-scale-in"
           style={{ top: deletingTemplate.y, left: deletingTemplate.x }}
+          onKeyDown={e => {
+            if (e.key === 'Escape') setDeletingTemplate(null)
+          }}
         >
           <button
+            ref={deleteMenuButtonRef}
+            type="button"
+            role="menuitem"
             onClick={async e => {
               e.stopPropagation()
               const id = deletingTemplate.id
@@ -300,7 +314,8 @@ export default function ClientPage({
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <input
-              type="text"
+              type="search"
+              aria-label="Search transactions"
               placeholder="Search transactions…"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
@@ -308,6 +323,7 @@ export default function ClientPage({
             />
           </div>
           <button
+            type="button"
             onClick={() => setShowFilters(!showFilters)}
             className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium w-full md:w-auto"
           >
@@ -431,12 +447,14 @@ export default function ClientPage({
             </div>
             <div className="md:col-span-2 flex gap-2 justify-end">
               <button
+                type="button"
                 onClick={clearFilters}
                 className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all hover:scale-105"
               >
                 Clear all
               </button>
               <button
+                type="button"
                 onClick={applyFilters}
                 className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
@@ -452,6 +470,7 @@ export default function ClientPage({
           {activeChips.map(chip => (
             <button
               key={chip.key}
+              type="button"
               onClick={() => removeFilter(chip.key)}
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-sm text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
               title="Remove filter"
@@ -462,7 +481,11 @@ export default function ClientPage({
               </span>
             </button>
           ))}
-          <button onClick={clearFilters} className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 ml-1">
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 ml-1"
+          >
             Clear all
           </button>
         </div>
@@ -530,7 +553,7 @@ export default function ClientPage({
                               <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 min-w-0">
                                 <LocalDateTime value={tx.date} />
                                 {tx.external_ref && (
-                                  <span className="hidden sm:inline text-xs font-mono text-slate-400 dark:text-slate-500 truncate">
+                                  <span className="hidden sm:inline text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
                                     {tx.external_ref}
                                   </span>
                                 )}
@@ -568,6 +591,7 @@ export default function ClientPage({
           {totalPages > 1 && !isShowingAll && (
             <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-4 transition-colors gap-2">
               <button
+                type="button"
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
                 className="px-3 sm:px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -590,6 +614,7 @@ export default function ClientPage({
                   return (
                     <button
                       key={pageNum}
+                      type="button"
                       onClick={() => goToPage(pageNum)}
                       className={`px-2.5 sm:px-3 py-1.5 sm:py-1 text-sm font-medium rounded-lg transition-colors min-w-9 ${
                         currentPage === pageNum
@@ -603,6 +628,7 @@ export default function ClientPage({
                 })}
               </div>
               <button
+                type="button"
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 className="px-3 sm:px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -627,7 +653,11 @@ export default function ClientPage({
       )}
 
       {undoSnapshot && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-lg bg-slate-900 dark:bg-slate-700 text-white shadow-xl animate-slide-in-up max-w-[calc(100vw-2rem)]">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-lg bg-slate-900 dark:bg-slate-700 text-white shadow-xl animate-slide-in-up max-w-[calc(100vw-2rem)]"
+        >
           <div className="text-sm min-w-0">
             <p className="font-medium truncate">Transaction deleted{undoSnapshot.description ? ` — “${undoSnapshot.description}”` : ''}</p>
             {undoSnapshot.had_attachments && <p className="text-xs text-slate-300 dark:text-slate-400">Attachments can’t be restored</p>}
@@ -643,7 +673,7 @@ export default function ClientPage({
           <button
             type="button"
             onClick={() => setUndoSnapshot(null)}
-            className="shrink-0 text-slate-300 hover:text-white transition-colors"
+            className="shrink-0 p-1 -m-1 text-slate-300 hover:text-white transition-colors"
             aria-label="Dismiss"
           >
             <CloseIcon className="w-4 h-4" />
@@ -652,14 +682,18 @@ export default function ClientPage({
       )}
 
       {undoDone && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-lg bg-green-700 text-white shadow-xl animate-slide-in-up">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-lg bg-green-700 text-white shadow-xl animate-slide-in-up"
+        >
           <p className="text-sm font-medium">
             Transaction restored.{' '}
             <Link href={`/transactions/${undoDone}`} className="underline hover:no-underline">
               View it
             </Link>
           </p>
-          <button type="button" onClick={() => setUndoDone(null)} className="shrink-0 text-green-200 hover:text-white" aria-label="Dismiss">
+          <button type="button" onClick={() => setUndoDone(null)} className="shrink-0 p-1 -m-1 text-green-200 hover:text-white" aria-label="Dismiss">
             <CloseIcon className="w-4 h-4" />
           </button>
         </div>

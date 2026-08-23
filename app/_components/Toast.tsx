@@ -40,7 +40,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-50 max-h-[calc(100vh-2rem)] overflow-y-auto space-y-2">
+      <div role="status" aria-live="polite" className="fixed top-4 right-4 z-50 max-h-[calc(100vh-2rem)] overflow-y-auto space-y-2">
         {toasts.map(toast => (
           <ToastItem key={toast.id} toast={toast} onDismiss={() => dismissToast(toast.id)} />
         ))}
@@ -74,17 +74,17 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       {}
       <div className="shrink-0">
         {toast.type === 'success' && (
-          <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         )}
         {toast.type === 'error' && (
-          <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         )}
         {toast.type === 'warning' && (
-          <svg className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -94,17 +94,21 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
           </svg>
         )}
         {toast.type === 'info' && (
-          <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         )}
       </div>
 
       {}
-      <p className="flex-1 text-sm text-slate-900 dark:text-slate-100">{toast.message}</p>
+      <p className="flex-1 text-sm text-slate-900 dark:text-slate-100">
+        <span className="sr-only">{toast.type}: </span>
+        {toast.message}
+      </p>
 
       {}
       <button
+        type="button"
         onClick={onDismiss}
         aria-label="Dismiss notification"
         className="shrink-0 p-1 -m-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"

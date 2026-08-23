@@ -187,7 +187,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
           <button
             type="button"
             onClick={() => set_pay_status(null)}
-            className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 text-sm"
+            className="p-1 -m-1 text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 text-sm"
             aria-label="Dismiss"
           >
             <CloseIcon className="w-4 h-4" />
@@ -201,7 +201,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
           <button
             type="button"
             onClick={() => set_pay_status(null)}
-            className="text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 text-sm"
+            className="p-1 -m-1 text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 text-sm"
             aria-label="Dismiss"
           >
             <CloseIcon className="w-4 h-4" />
@@ -274,7 +274,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
               href={`/reconcile?account=${encodeURIComponent(head.id)}`}
               className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2 justify-center sm:whitespace-nowrap"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -308,9 +308,11 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
                   <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    <MaskedAmount value={child.total} />
+                    <MaskedAmount value={child.total} interactive={false} />
                   </span>
-                  <span className="text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">→</span>
+                  <span aria-hidden="true" className="text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    →
+                  </span>
                 </span>
               </Link>
             ))}

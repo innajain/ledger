@@ -51,6 +51,7 @@ export function LinkedUserNotify({ targetUserId, username, owedAmount }: { targe
           onChange={e => setMessage(e.target.value)}
           maxLength={500}
           rows={2}
+          aria-label={`Message to @${username}`}
           placeholder={`Message to @${username}…`}
           className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
         />
@@ -66,7 +67,11 @@ export function LinkedUserNotify({ targetUserId, username, owedAmount }: { targe
         </div>
       </div>
 
-      {status && <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{status}</p>}
+      {status && (
+        <p role="status" aria-live="polite" className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+          {status}
+        </p>
+      )}
     </div>
   )
 }

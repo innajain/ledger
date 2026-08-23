@@ -11,8 +11,8 @@ import { SectionHeading } from './SectionHeading'
 const REDIRECT_DELAY_MS = 1500
 
 const ErrorBanner = ({ message }: { message: string }) => (
-  <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-    <svg className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <div role="alert" className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+    <svg aria-hidden="true" className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
     <p className="text-sm text-red-700 dark:text-red-400">{message}</p>
@@ -20,8 +20,18 @@ const ErrorBanner = ({ message }: { message: string }) => (
 )
 
 const SuccessBanner = ({ message }: { message: string }) => (
-  <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3">
-    <svg className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <div
+    role="status"
+    aria-live="polite"
+    className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3"
+  >
+    <svg
+      aria-hidden="true"
+      className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
     <p className="text-sm text-green-700 dark:text-green-400">{message}</p>
@@ -31,7 +41,7 @@ const SuccessBanner = ({ message }: { message: string }) => (
 const inputCls =
   'block w-full px-3 py-2 pr-12 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors'
 const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
-const eyeBtnCls = 'absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors'
+const eyeBtnCls = 'absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors'
 
 export function AccountSection({ username, upiId }: { username: string; upiId: string | null }) {
   const router = useRouter()
@@ -159,7 +169,13 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
                   onChange={e => setCurrentPassword(e.target.value)}
                   className={inputCls}
                 />
-                <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className={eyeBtnCls}>
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showCurrentPassword}
+                  className={eyeBtnCls}
+                >
                   <EyeIcon open={showCurrentPassword} />
                 </button>
               </div>
@@ -180,7 +196,13 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
                   onChange={e => setNewPassword(e.target.value)}
                   className={inputCls}
                 />
-                <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className={eyeBtnCls}>
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showNewPassword}
+                  className={eyeBtnCls}
+                >
                   <EyeIcon open={showNewPassword} />
                 </button>
               </div>
@@ -201,7 +223,13 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
                   onChange={e => setConfirmPassword(e.target.value)}
                   className={inputCls}
                 />
-                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className={eyeBtnCls}>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showConfirmPassword}
+                  className={eyeBtnCls}
+                >
                   <EyeIcon open={showConfirmPassword} />
                 </button>
               </div>
@@ -260,7 +288,13 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
                   onChange={e => setUsernamePassword(e.target.value)}
                   className={inputCls}
                 />
-                <button type="button" onClick={() => setShowUsernamePassword(!showUsernamePassword)} className={eyeBtnCls}>
+                <button
+                  type="button"
+                  onClick={() => setShowUsernamePassword(!showUsernamePassword)}
+                  aria-label={showUsernamePassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showUsernamePassword}
+                  className={eyeBtnCls}
+                >
                   <EyeIcon open={showUsernamePassword} />
                 </button>
               </div>

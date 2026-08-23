@@ -175,7 +175,7 @@ export function TransactionLineItems({
                   onClick={() => onAddItem(typeKey)}
                   className="shrink-0 inline-flex items-center gap-2 px-2 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   Add
@@ -247,7 +247,7 @@ export function TransactionBalanceSummary({
   if (preview.ok)
     return (
       <div className="flex items-start gap-2 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
-        <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg aria-hidden="true" className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
         <span>This transaction balances. Any blank line is worked out when you save.</span>
@@ -257,7 +257,7 @@ export function TransactionBalanceSummary({
   return (
     <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
       <div className="flex items-start gap-2">
-        <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg aria-hidden="true" className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -308,7 +308,7 @@ function LineItemCard({
   const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
 
   const isRupees = asset?.type === asset_type.rupees
-  const dateFieldId = useId()
+  const uid = useId()
   const [dateOpen, setDateOpen] = useState(false)
   // an inherited-date line stays collapsed until asked for; a line that already
   // carries an override always shows it (reconciliation honours those)
@@ -320,7 +320,7 @@ function LineItemCard({
     >
       {locked && (
         <div className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -333,8 +333,11 @@ function LineItemCard({
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
-          <label className={labelCls}>Account</label>
+          <label htmlFor={`${uid}-account`} className={labelCls}>
+            Account
+          </label>
           <select
+            id={`${uid}-account`}
             value={item.accounting_head_id}
             onChange={e => onUpdateItem(idx, 'accounting_head_id', e.target.value)}
             disabled={locked}
@@ -351,8 +354,16 @@ function LineItemCard({
         </div>
 
         <div>
-          <label className={labelCls}>Asset</label>
-          <select value={item.asset_id} onChange={e => onUpdateItem(idx, 'asset_id', e.target.value)} disabled={locked} className={fieldCls}>
+          <label htmlFor={`${uid}-asset`} className={labelCls}>
+            Asset
+          </label>
+          <select
+            id={`${uid}-asset`}
+            value={item.asset_id}
+            onChange={e => onUpdateItem(idx, 'asset_id', e.target.value)}
+            disabled={locked}
+            className={fieldCls}
+          >
             {assets.map(a => (
               <option key={a.id} value={a.id}>
                 {a.name} ({asset_type_label(a.type)})
@@ -362,12 +373,15 @@ function LineItemCard({
         </div>
 
         <div>
-          <label className={labelCls}>{isRupees ? 'Amount (₹)' : 'Quantity'}</label>
+          <label htmlFor={`${uid}-quantity`} className={labelCls}>
+            {isRupees ? 'Amount (₹)' : 'Quantity'}
+          </label>
           <div className="relative">
             {isRupees && (
               <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500 dark:text-slate-400">₹</span>
             )}
             <input
+              id={`${uid}-quantity`}
               type="number"
               step="any"
               placeholder="- out / + in"
@@ -388,10 +402,13 @@ function LineItemCard({
 
         {!isRupees && (
           <div>
-            <label className={labelCls}>Value (₹)</label>
+            <label htmlFor={`${uid}-value`} className={labelCls}>
+              Value (₹)
+            </label>
             <div className="relative">
               <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500 dark:text-slate-400">₹</span>
               <input
+                id={`${uid}-value`}
                 type="number"
                 step="any"
                 placeholder="Book value"
@@ -411,8 +428,11 @@ function LineItemCard({
           </div>
         )}
         <div>
-          <label className={labelCls}>Line note</label>
+          <label htmlFor={`${uid}-note`} className={labelCls}>
+            Line note
+          </label>
           <input
+            id={`${uid}-note`}
             type="text"
             value={item.description}
             onChange={e => onUpdateItem(idx, 'description', e.target.value)}
@@ -427,11 +447,11 @@ function LineItemCard({
         <div className="flex flex-wrap items-center gap-2">
           {showDate ? (
             <>
-              <label htmlFor={dateFieldId} className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              <label htmlFor={`${uid}-date`} className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Custom date
               </label>
               <input
-                id={dateFieldId}
+                id={`${uid}-date`}
                 type="datetime-local"
                 value={item.datetime}
                 onChange={e => onUpdateItem(idx, 'datetime', e.target.value)}
@@ -458,7 +478,7 @@ function LineItemCard({
                 onClick={() => setDateOpen(true)}
                 className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -478,7 +498,7 @@ function LineItemCard({
             onClick={() => onRemoveItem(idx)}
             className="inline-flex items-center gap-1 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useId } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { asset_type } from '@/generated/prisma/enums'
@@ -44,6 +44,7 @@ export default function ClientPage({
 
   const router = useRouter()
   const { showToast } = useToast()
+  const uid = useId()
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()))
   const [description, setDescription] = useState('')
   const defaultAccount = pickDefaultAccount(accounts, defaults, 'account')
@@ -85,6 +86,7 @@ export default function ClientPage({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dupWarning, setDupWarning] = useState<PossibleDuplicate | null>(null)
+  const dupWarningRef = useRef<HTMLDivElement>(null)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateError, setTemplateError] = useState<string | null>(null)
   const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null)
@@ -124,6 +126,11 @@ export default function ClientPage({
       sessionStorage.removeItem('ledger_quick_template')
     }
   }, [])
+
+  // Move keyboard focus to the duplicate warning when it appears
+  useEffect(() => {
+    if (dupWarning) dupWarningRef.current?.focus()
+  }, [dupWarning])
 
   function addItemForType(typeKey: string) {
     const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
@@ -296,8 +303,11 @@ export default function ClientPage({
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date & time</label>
+              <label htmlFor={`${uid}-date`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Date & time
+              </label>
               <input
+                id={`${uid}-date`}
                 type="datetime-local"
                 value={date}
                 onChange={e => setDate(e.target.value)}
@@ -311,8 +321,11 @@ export default function ClientPage({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Description</label>
+              <label htmlFor={`${uid}-description`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Description
+              </label>
               <input
+                id={`${uid}-description`}
                 type="text"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
@@ -322,10 +335,11 @@ export default function ClientPage({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Reference <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+              <label htmlFor={`${uid}-ref`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Reference <span className="font-normal text-slate-500 dark:text-slate-400">(optional)</span>
               </label>
               <input
+                id={`${uid}-ref`}
                 type="text"
                 value={externalRef}
                 onChange={e => setExternalRef(e.target.value)}
@@ -337,7 +351,7 @@ export default function ClientPage({
 
             {attachmentsEnabled && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Attachments</label>
+                <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Attachments</span>
                 <AttachmentUpload onPendingChange={setPendingAttachments} />
               </div>
             )}
@@ -356,7 +370,12 @@ export default function ClientPage({
 
         {}
         {dupWarning && (
-          <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg space-y-3">
+          <div
+            ref={dupWarningRef}
+            role="alert"
+            tabIndex={-1}
+            className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg space-y-3"
+          >
             <div className="flex items-start gap-3">
               <WarningIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="flex-1 text-sm text-amber-800 dark:text-amber-200">

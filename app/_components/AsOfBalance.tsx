@@ -47,6 +47,7 @@ export function AsOfBalance({
         <div className="flex flex-wrap items-center gap-3">
           <input
             type="date"
+            aria-label="Balance on date"
             value={date}
             max={new Date().toISOString().slice(0, 10)}
             onChange={e => {
@@ -55,10 +56,18 @@ export function AsOfBalance({
             }}
             className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
           />
-          {busy && <span className="text-sm text-slate-500 dark:text-slate-400">Computing…</span>}
+          {busy && (
+            <span role="status" aria-live="polite" className="text-sm text-slate-500 dark:text-slate-400">
+              Computing…
+            </span>
+          )}
         </div>
 
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
 
         {result && !busy && (
           <div className="rounded-lg bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 p-4 space-y-2">
@@ -75,7 +84,7 @@ export function AsOfBalance({
                   <li key={r.asset_name} className="flex justify-between gap-4">
                     <span>
                       {r.asset_name}
-                      {Math.abs(r.qty - r.value) > 0.005 && <span className="text-slate-400 dark:text-slate-500"> · {r.qty} units</span>}
+                      {Math.abs(r.qty - r.value) > 0.005 && <span className="text-slate-500 dark:text-slate-400"> · {r.qty} units</span>}
                     </span>
                     <span>
                       <MaskedAmount value={r.value} />
