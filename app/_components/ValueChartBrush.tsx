@@ -93,7 +93,11 @@ export function ValueChartBrush({ points, title }: Props) {
         <div className="text-right shrink-0">
           <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gain</p>
           <p className={`text-base sm:text-lg font-semibold ${gain >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            <MaskedAmount value={gain} />
+            {/* Gain is derived from invested/current, so its own (often smaller) magnitude
+                shouldn't decide masking independently of them — that's how it ended up
+                shown in the clear right above a tooltip hiding the very figures it's
+                derived from. Follow the same amountsHidden verdict as the tooltip instead. */}
+            {amountsHidden ? fmtAmount(gain) : <MaskedAmount value={gain} />}
             {gainPct !== null && <span className="ml-1 text-xs font-normal">({gainPct.toFixed(1)}%)</span>}
           </p>
         </div>
