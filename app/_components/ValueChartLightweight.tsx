@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import {
   createChart,
   AreaSeries,
@@ -16,7 +16,6 @@ import {
 } from 'lightweight-charts'
 import { useTheme } from './ThemeProvider'
 import { usePrivacy } from './PrivacyProvider'
-import { MaskedAmount } from './MaskedAmount'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 
 const compactFmt = new Intl.NumberFormat('en-IN', {
@@ -60,14 +59,22 @@ export function ValueChartLightweight({ points, title }: Props) {
   const xirrSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const pointsRef = useRef<ValuePoint[]>(points)
   const { resolved_theme } = useTheme()
-  const { masking_enabled, mask_threshold, reveal_all } = usePrivacy()
+  const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
   const [hover, setHover] = useState<HoverInfo>(null)
 
-  // The mask hides large amounts in text, so the axis and tooltip must not spell the
-  // same figures out. Shape stays visible; magnitudes don't.
-  const amountsHidden =
+  // Gain, the axis and the tooltip all describe the same holding, so they reveal as one
+  // unit rather than each figure toggling independently — mirrors MaskedAmount's
+  // per-instance click-to-reveal, just shared across every figure in this chart.
+  const [reveal_override, set_reveal_override] = useState<{ epoch: number; hidden: boolean } | null>(null)
+  const default_hidden =
     masking_enabled && !reveal_all && points.some(p => Math.abs(p.invested) > mask_threshold || Math.abs(p.current) > mask_threshold)
+  const amountsHidden = reveal_override !== null && reveal_override.epoch === reveal_epoch ? reveal_override.hidden : default_hidden
   const fmtAmount = (v: number) => (amountsHidden ? '₹•••••' : currency_fmt.format(v))
+  const toggle_reveal = (e: MouseEvent | KeyboardEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    set_reveal_override({ epoch: reveal_epoch, hidden: !amountsHidden })
+  }
 
   useEffect(() => {
     pointsRef.current = points
@@ -282,12 +289,23 @@ export function ValueChartLightweight({ points, title }: Props) {
         <div className="text-right shrink-0">
           <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gain</p>
           <p className={`text-base sm:text-lg font-semibold ${gain >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {/* Gain is derived from invested/current, so its own (often smaller) magnitude
-                shouldn't decide masking independently of them — that's how it ended up
-                shown in the clear right above a tooltip hiding the very figures it's
-                derived from. Default to the tooltip's own amountsHidden verdict, but stay
-                click-to-reveal like any other masked amount. */}
-            <MaskedAmount value={gain} force_hidden={amountsHidden} />
+            {masking_enabled ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={toggle_reveal}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') toggle_reveal(e)
+                }}
+                title={amountsHidden ? 'Click to reveal' : 'Click to hide'}
+                aria-label={amountsHidden ? 'Hidden amount, click to reveal' : `${fmtAmount(gain)}, click to hide`}
+                className={`cursor-pointer select-none${amountsHidden ? ' tracking-wider' : ''}`}
+              >
+                {fmtAmount(gain)}
+              </span>
+            ) : (
+              fmtAmount(gain)
+            )}
             {gainPct !== null && <span className="ml-1 text-xs font-normal">({gainPct.toFixed(1)}%)</span>}
           </p>
         </div>

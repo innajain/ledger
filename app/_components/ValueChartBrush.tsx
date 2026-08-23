@@ -1,11 +1,10 @@
 'use client'
 
 import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Brush } from 'recharts'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type KeyboardEvent, type MouseEvent } from 'react'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 import { useTheme } from './ThemeProvider'
 import { usePrivacy } from './PrivacyProvider'
-import { MaskedAmount } from './MaskedAmount'
 
 export type ValuePoint = {
   date: string
@@ -40,13 +39,21 @@ export function ValueChartBrush({ points, title }: Props) {
   const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number } | null>(null)
   const { resolved_theme } = useTheme()
   const isDark = resolved_theme === 'dark'
-  const { masking_enabled, mask_threshold, reveal_all } = usePrivacy()
+  const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
 
-  // Mirror MaskedAmount: when masking hides these figures as text, the chart's axis and
-  // tooltip must not print them either.
-  const amountsHidden =
+  // Gain, the axis and the tooltip all describe the same holding, so they reveal as one
+  // unit rather than each figure toggling independently — mirrors MaskedAmount's
+  // per-instance click-to-reveal, just shared across every figure in this chart.
+  const [reveal_override, set_reveal_override] = useState<{ epoch: number; hidden: boolean } | null>(null)
+  const default_hidden =
     masking_enabled && !reveal_all && points.some(p => Math.abs(p.invested) > mask_threshold || Math.abs(p.current) > mask_threshold)
+  const amountsHidden = reveal_override !== null && reveal_override.epoch === reveal_epoch ? reveal_override.hidden : default_hidden
   const fmtAmount = (v: number) => (amountsHidden ? '₹•••••' : currency_fmt.format(v))
+  const toggle_reveal = (e: MouseEvent | KeyboardEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    set_reveal_override({ epoch: reveal_epoch, hidden: !amountsHidden })
+  }
 
   const domains = useMemo(() => {
     let startIndex = 0
@@ -93,12 +100,23 @@ export function ValueChartBrush({ points, title }: Props) {
         <div className="text-right shrink-0">
           <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gain</p>
           <p className={`text-base sm:text-lg font-semibold ${gain >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {/* Gain is derived from invested/current, so its own (often smaller) magnitude
-                shouldn't decide masking independently of them — that's how it ended up
-                shown in the clear right above a tooltip hiding the very figures it's
-                derived from. Default to the tooltip's own amountsHidden verdict, but stay
-                click-to-reveal like any other masked amount. */}
-            <MaskedAmount value={gain} force_hidden={amountsHidden} />
+            {masking_enabled ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={toggle_reveal}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') toggle_reveal(e)
+                }}
+                title={amountsHidden ? 'Click to reveal' : 'Click to hide'}
+                aria-label={amountsHidden ? 'Hidden amount, click to reveal' : `${fmtAmount(gain)}, click to hide`}
+                className={`cursor-pointer select-none${amountsHidden ? ' tracking-wider' : ''}`}
+              >
+                {fmtAmount(gain)}
+              </span>
+            ) : (
+              fmtAmount(gain)
+            )}
             {gainPct !== null && <span className="ml-1 text-xs font-normal">({gainPct.toFixed(1)}%)</span>}
           </p>
         </div>

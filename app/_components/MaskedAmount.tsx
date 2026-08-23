@@ -20,13 +20,6 @@ type Props = {
    * (e.g. the transactions list, which colors and signs every amount).
    */
   keep_sign?: boolean
-  /**
-   * Mask regardless of this value's own magnitude — for a figure derived from other,
-   * larger amounts (e.g. a gain computed from invested/current) that should default to
-   * hidden whenever they are, even if the derived figure alone would fall under the
-   * threshold. Still click-to-reveal, same as any other masked amount.
-   */
-  force_hidden?: boolean
 }
 
 const BULLETS = '•••••'
@@ -46,7 +39,7 @@ function build_mask(value: number, formatter: Intl.NumberFormat, keep_sign: bool
   return `${prefix}${BULLETS}`.trimStart()
 }
 
-export function MaskedAmount({ value, precise = false, className, interactive = true, keep_sign = false, force_hidden = false }: Props) {
+export function MaskedAmount({ value, precise = false, className, interactive = true, keep_sign = false }: Props) {
   const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
   const formatter = precise ? precise_currency_fmt : currency_fmt
   const formatted = formatter.format(value)
@@ -59,7 +52,7 @@ export function MaskedAmount({ value, precise = false, className, interactive = 
   if (!masking_enabled) return <span className={className}>{formatted}</span>
 
   const current_override = interactive && override !== null && override.epoch === reveal_epoch ? override.hidden : null
-  const hidden = current_override ?? (!reveal_all && (force_hidden || Math.abs(value) > mask_threshold))
+  const hidden = current_override ?? (!reveal_all && Math.abs(value) > mask_threshold)
   const text = hidden ? build_mask(value, formatter, keep_sign) : formatted
 
   if (!interactive) {
