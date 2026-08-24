@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { delete_account } from '@/app/_actions/resources'
-import type { Prisma } from '@/generated/prisma/client'
 import { UpdateHeadForm } from '@/app/_components/HeadForm'
 import { HEAD_CONFIG, isHeadType } from '../../head_config'
 import { profile } from '@/lib/metrics/profile'
@@ -39,8 +38,10 @@ async function Page({ params }: Props) {
       ? ((await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { username: true } }))?.username ?? null)
       : null
 
-  const parents: Prisma.accounting_headGetPayload<Record<string, never>>[] = await prisma.accounting_head.findMany({
+  // ParentSelect only reads id/name — don't ship every column of every head to the client
+  const parents: { id: string; name: string }[] = await prisma.accounting_head.findMany({
     where: { user_id: user.id, type },
+    select: { id: true, name: true },
     orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
   })
 

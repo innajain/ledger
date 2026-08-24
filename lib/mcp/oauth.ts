@@ -119,9 +119,14 @@ export async function rotate_refresh_token(client_id: string, refresh_token: str
   return issue_tokens({ client_id, user_id: row.user_id, scope: row.scope ?? DEFAULT_SCOPE })
 }
 
+const LAST_USED_WRITE_INTERVAL_MS = 5 * 60 * 1000
+
 export async function resolve_access_token(access_token: string): Promise<{ user_id: string; client_id: string; scope: string } | null> {
   const row = await prisma.mcp_access_token.findUnique({ where: { token_hash: hash_token(access_token) } })
   if (!row || row.revoked || row.expires_at.getTime() < Date.now()) return null
-  void prisma.mcp_access_token.update({ where: { id: row.id }, data: { last_used_at: new Date() } }).catch(() => {})
+  // last_used_at is a coarse display value, not an expiry input — throttle the
+  // write so a busy agent session doesn't turn every read into row churn.
+  if (!row.last_used_at || Date.now() - row.last_used_at.getTime() > LAST_USED_WRITE_INTERVAL_MS)
+    void prisma.mcp_access_token.update({ where: { id: row.id }, data: { last_used_at: new Date() } }).catch(() => {})
   return { user_id: row.user_id, client_id: row.client_id, scope: row.scope ?? DEFAULT_SCOPE }
 }

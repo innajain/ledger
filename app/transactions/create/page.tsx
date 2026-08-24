@@ -15,27 +15,18 @@ async function Page() {
   const [accounts, assets, defaults] = await Promise.all([
     prisma.accounting_head.findMany({
       where: { user_id: user.id, is_active: true, is_placeholder: false },
+      select: { id: true, name: true, type: true },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     prisma.asset.findMany({
       where: { is_active: true, is_placeholder: false },
+      select: { id: true, name: true, type: true },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_line_item_defaults(),
   ])
 
-  const accountsForClient = accounts.map(a => ({
-    id: a.id,
-    name: a.name,
-    type: a.type,
-  }))
-  const assetsForClient = assets.map(a => ({
-    id: a.id,
-    name: a.name,
-    type: a.type,
-  }))
-
-  return <ClientPage accounts={accountsForClient} assets={assetsForClient} defaults={defaults} attachmentsEnabled={!!env.BLOB_READ_WRITE_TOKEN} />
+  return <ClientPage accounts={accounts} assets={assets} defaults={defaults} attachmentsEnabled={!!env.BLOB_READ_WRITE_TOKEN} />
 }
 
 export default profile('/transactions/create', Page)

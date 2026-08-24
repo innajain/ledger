@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import Link from 'next/link'
-import type { accounting_head_type, Prisma } from '@/generated/prisma/client'
+import type { accounting_head_type } from '@/generated/prisma/client'
 import { Card } from './Card'
 import { Button, ButtonLink } from './Button'
 import { ChevronLeftIcon } from './icons'
@@ -112,7 +112,7 @@ interface ParentSelectProps {
   label: string
   value: string | null
   onChange: (value: string | null) => void
-  parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
+  parents: Array<{ id: string; name: string }>
   excludeId?: string
   helpText?: string
 }

@@ -1,6 +1,6 @@
 import 'server-only'
 import { Prisma } from '@/generated/prisma/client'
-import type { transaction_link } from '@/generated/prisma/client'
+import type { transaction_link, accounting_head, asset } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validate_line_items } from './validate_line_items'
 import { assert_no_locked_lines } from './lock_date'
@@ -56,24 +56,44 @@ async function linked_signature(tx: Tx, transaction_id: string, linked_user_id: 
   return `T:${txn.description ?? ''}:${txn.datetime.toISOString()}||${lineSig}`
 }
 
+type SourceTxn = Prisma.transactionGetPayload<{ include: { line_items: { include: { accounting_head: true } } } }>
+
+// Loop-invariant rows a caller approving many links from one counterparty can fetch
+// once (accept_all_from): heads/assets are supersets — coverage is re-checked per link
+// and any gap falls back to the normal per-link query.
+export type BuildActorCopyPrefetch = {
+  recip?: { id: string } | null
+  source?: SourceTxn
+  heads?: accounting_head[]
+  assets?: asset[]
+}
+
+export type ActorCopyTouched = {
+  mine: { head_ids: Set<string>; asset_ids: Set<string> }
+  theirs: { head_ids: Set<string>; asset_ids: Set<string> }
+}
+
 export async function build_actor_copy(
   tx: Tx,
   link: transaction_link,
   actor_id: string,
   balancing: CreateLineItemInput[],
   auto_balance_account_id?: string,
-): Promise<void> {
+  prefetch?: BuildActorCopyPrefetch,
+): Promise<ActorCopyTouched> {
   const other_id = other_user(link, actor_id)
-  const recip = await reciprocal_head(tx, actor_id, other_id)
+  const recip = prefetch?.recip !== undefined ? prefetch.recip : await reciprocal_head(tx, actor_id, other_id)
   if (!recip) throw new ActionError('VALIDATION', 'Link an account back to that user before approving')
 
   const source_txn_id = their_txn_id(link, actor_id)
   if (!source_txn_id) throw new ActionError('NOT_FOUND', 'No counterpart transaction to mirror')
 
-  const source = await tx.transaction.findUnique({
-    where: { id: source_txn_id },
-    include: { line_items: { include: { accounting_head: true } } },
-  })
+  const source =
+    prefetch?.source ??
+    (await tx.transaction.findUnique({
+      where: { id: source_txn_id },
+      include: { line_items: { include: { accounting_head: true } } },
+    }))
   if (!source) throw new ActionError('NOT_FOUND', 'Counterpart transaction not found')
 
   const seed: CreateLineItemInput[] = source.line_items
@@ -112,29 +132,60 @@ export async function build_actor_copy(
   }
 
   const my_txn = my_txn_id(link, actor_id)
+  // One read serves both the preserved-lines derivation and the lock assertion below,
+  // and its head/asset ids feed the returned invalidation set (the old copy's lines can
+  // sit on heads absent from the rebuilt copy).
+  const current = my_txn
+    ? await tx.transaction.findUnique({
+        where: { id: my_txn },
+        select: {
+          datetime: true,
+          line_items: {
+            select: {
+              accounting_head_id: true,
+              asset_id: true,
+              quantity: true,
+              txn_value: true,
+              description: true,
+              datetime: true,
+              accounting_head: { select: { name: true, lock_date: true, linked_user_id: true } },
+            },
+          },
+        },
+      })
+    : null
+
   let preserved: CreateLineItemInput[] = []
-  if (!auto_balance_account_id && my_txn) {
-    const others = await tx.line_item.findMany({
-      where: { transaction_id: my_txn, accounting_head: { linked_user_id: { not: null } }, NOT: { accounting_head_id: recip.id } },
-      select: { accounting_head_id: true, asset_id: true, quantity: true, txn_value: true, description: true, datetime: true },
-    })
-    preserved = others.map(li => ({
-      accounting_head_id: li.accounting_head_id,
-      asset_id: li.asset_id,
-      quantity: li.quantity === null ? undefined : li.quantity.toNumber(),
-      txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
-      description: li.description ?? null,
-      datetime: li.datetime ?? null,
-    }))
+  if (!auto_balance_account_id && current) {
+    preserved = current.line_items
+      .filter(li => li.accounting_head.linked_user_id !== null && li.accounting_head_id !== recip.id)
+      .map(li => ({
+        accounting_head_id: li.accounting_head_id,
+        asset_id: li.asset_id,
+        quantity: li.quantity === null ? undefined : li.quantity.toNumber(),
+        txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
+        description: li.description ?? null,
+        datetime: li.datetime ?? null,
+      }))
   }
 
   const all_lines = [...seed, ...balancing, ...preserved]
 
   const head_ids = Array.from(new Set(all_lines.map(l => l.accounting_head_id)))
   const asset_ids = Array.from(new Set(all_lines.map(l => l.asset_id)))
-  const heads = await tx.accounting_head.findMany({ where: { id: { in: head_ids }, user_id: actor_id } })
+  let heads: accounting_head[]
+  if (prefetch?.heads && head_ids.every(id => prefetch.heads!.some(h => h.id === id))) {
+    heads = prefetch.heads.filter(h => head_ids.includes(h.id))
+  } else {
+    heads = await tx.accounting_head.findMany({ where: { id: { in: head_ids }, user_id: actor_id } })
+  }
   if (heads.length !== head_ids.length) throw new ActionError('VALIDATION', 'One or more of your accounts were not found')
-  const assets = await tx.asset.findMany({ where: { id: { in: asset_ids } } })
+  let assets: asset[]
+  if (prefetch?.assets && asset_ids.every(id => prefetch.assets!.some(a => a.id === id))) {
+    assets = prefetch.assets.filter(a => asset_ids.includes(a.id))
+  } else {
+    assets = await tx.asset.findMany({ where: { id: { in: asset_ids } } })
+  }
   if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets were not found')
 
   const { is_valid, message } = validate_line_items(
@@ -154,13 +205,7 @@ export async function build_actor_copy(
     source.datetime,
     all_lines.map(li => ({ datetime: li.datetime, accounting_head: heads.find(h => h.id === li.accounting_head_id)! })),
   )
-  if (my_txn) {
-    const current = await tx.transaction.findUnique({
-      where: { id: my_txn },
-      select: { datetime: true, line_items: { select: { datetime: true, accounting_head: { select: { name: true, lock_date: true } } } } },
-    })
-    if (current) assert_no_locked_lines('apply this request to', current.datetime, current.line_items)
-  }
+  if (current) assert_no_locked_lines('apply this request to', current.datetime, current.line_items)
 
   const data_lines = all_lines.map(li => ({
     quantity: toDecimal(li.quantity),
@@ -171,15 +216,14 @@ export async function build_actor_copy(
     datetime: li.datetime ?? null,
   }))
 
-  const existing_my = my_txn
   let actor_txn_id: string
-  if (existing_my) {
-    await tx.line_item.deleteMany({ where: { transaction_id: existing_my } })
+  if (my_txn) {
+    await tx.line_item.deleteMany({ where: { transaction_id: my_txn } })
     await tx.transaction.update({
-      where: { id: existing_my },
+      where: { id: my_txn },
       data: { datetime: source.datetime, description: source.description, line_items: { create: data_lines } },
     })
-    actor_txn_id = existing_my
+    actor_txn_id = my_txn
   } else {
     const created = await tx.transaction.create({
       data: { user_id: actor_id, datetime: source.datetime, description: source.description, line_items: { create: data_lines } },
@@ -198,11 +242,38 @@ export async function build_actor_copy(
     },
   })
 
-  await sync_links_after_update(tx, actor_id, actor_txn_id, { propagate: true })
+  // Auto-balance onto a non-linked head: the rebuilt copy's only counterparty is this
+  // link's, just marked approved with content mirrored sign-flipped from the source —
+  // the propagate sync is a no-op by construction, so skip its queries. Any other shape
+  // (manual balancing, or a linked balancing head) keeps the full sync.
+  const balancing_head = auto_balance_account_id ? heads.find(h => h.id === auto_balance_account_id) : undefined
+  if (!(auto_balance_account_id && balancing_head?.linked_user_id === null)) {
+    const counterparties = Array.from(new Set(heads.map(h => h.linked_user_id).filter((x): x is string => !!x)))
+    await sync_links_after_update(tx, actor_id, actor_txn_id, { propagate: true, counterparties })
+  }
+
+  const mine_heads = new Set(all_lines.map(l => l.accounting_head_id))
+  const mine_assets = new Set(all_lines.map(l => l.asset_id))
+  if (current) {
+    for (const li of current.line_items) {
+      mine_heads.add(li.accounting_head_id)
+      mine_assets.add(li.asset_id)
+    }
+  }
+  return {
+    mine: { head_ids: mine_heads, asset_ids: mine_assets },
+    theirs: {
+      head_ids: new Set(source.line_items.map(li => li.accounting_head_id)),
+      asset_ids: new Set(source.line_items.map(li => li.asset_id)),
+    },
+  }
 }
 
-export async function create_links_for_transaction(tx: Tx, user_id: string, transaction_id: string): Promise<string[]> {
-  const counterparties = await linked_counterparties(tx, transaction_id)
+// counterparties: pass the linked users of the transaction's heads when the caller
+// already holds the head rows — skips re-reading the just-written line items, making
+// this a free no-op for the common unlinked-transaction create.
+export async function create_links_for_transaction(tx: Tx, user_id: string, transaction_id: string, counterparties?: string[]): Promise<string[]> {
+  counterparties ??= await linked_counterparties(tx, transaction_id)
   for (const cp of counterparties) {
     await tx.transaction_link.create({
       data: {
@@ -263,9 +334,19 @@ async function links_owned_by(tx: Tx, user_id: string, transaction_id: string): 
   })
 }
 
-export async function sync_links_after_update(tx: Tx, user_id: string, transaction_id: string, opts: { propagate?: boolean } = {}): Promise<void> {
-  const current = await linked_counterparties(tx, transaction_id)
+// opts.counterparties: same contract as create_links_for_transaction — the linked users
+// of the transaction's current heads, when the caller already holds the head rows.
+// Returns the counterparty ids whose link this call created or set pending, so callers
+// can notify without re-querying the link table after commit.
+export async function sync_links_after_update(
+  tx: Tx,
+  user_id: string,
+  transaction_id: string,
+  opts: { propagate?: boolean; counterparties?: string[] } = {},
+): Promise<string[]> {
+  const current = opts.counterparties ?? (await linked_counterparties(tx, transaction_id))
   const existing = await links_owned_by(tx, user_id, transaction_id)
+  const reopened: string[] = []
 
   if (!opts.propagate) {
     for (const link of existing) {
@@ -282,6 +363,7 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
       await tx.transaction_link.create({
         data: { user_a_id: user_id, user_b_id: cp, txn_a_id: transaction_id, pending_status: 'pending', pending_kind: 'change', pending_by: cp },
       })
+      reopened.push(cp)
       continue
     }
 
@@ -304,7 +386,9 @@ export async function sync_links_after_update(tx: Tx, user_id: string, transacti
       where: { id: link.id },
       data: { pending_status: 'pending', pending_kind: 'change', pending_by: cp },
     })
+    reopened.push(cp)
   }
+  return reopened
 }
 
 export type InboxItem = {
@@ -329,19 +413,27 @@ export async function get_inbox(user_id: string): Promise<InboxItem[]> {
   if (links.length === 0) return []
 
   const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
-  const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
-  const nameById = new Map(users.map(u => [u.id, u.username]))
-  const recips = await prisma.accounting_head.findMany({
-    where: { user_id, linked_user_id: { in: otherIds }, type: 'account' },
-    select: { linked_user_id: true },
-  })
-  const hasRecip = new Set(recips.map(r => r.linked_user_id))
-
   const sourceIds = links.map(l => their_txn_id(l, user_id)).filter((id): id is string => id !== null)
-  const sourceTxns = await prisma.transaction.findMany({
-    where: { id: { in: sourceIds } },
-    include: { line_items: { include: { accounting_head: true, asset: true } } },
-  })
+  const [users, recips, sourceTxns] = await Promise.all([
+    prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } }),
+    prisma.accounting_head.findMany({
+      where: { user_id, linked_user_id: { in: otherIds }, type: 'account' },
+      select: { linked_user_id: true },
+    }),
+    prisma.transaction.findMany({
+      where: { id: { in: sourceIds } },
+      select: {
+        id: true,
+        datetime: true,
+        description: true,
+        line_items: {
+          select: { quantity: true, txn_value: true, accounting_head: { select: { linked_user_id: true } }, asset: { select: { name: true } } },
+        },
+      },
+    }),
+  ])
+  const nameById = new Map(users.map(u => [u.id, u.username]))
+  const hasRecip = new Set(recips.map(r => r.linked_user_id))
   const srcById = new Map(sourceTxns.map(t => [t.id, t]))
 
   const items: InboxItem[] = []
@@ -409,14 +501,22 @@ export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
   if (links.length === 0) return []
 
   const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
-  const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
-  const nameById = new Map(users.map(u => [u.id, u.username]))
-
   const myIds = links.map(l => my_txn_id(l, user_id)).filter((id): id is string => id !== null)
-  const myTxns = await prisma.transaction.findMany({
-    where: { id: { in: myIds } },
-    include: { line_items: { include: { accounting_head: true, asset: true } } },
-  })
+  const [users, myTxns] = await Promise.all([
+    prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } }),
+    prisma.transaction.findMany({
+      where: { id: { in: myIds } },
+      select: {
+        id: true,
+        datetime: true,
+        description: true,
+        line_items: {
+          select: { quantity: true, txn_value: true, accounting_head: { select: { linked_user_id: true } }, asset: { select: { name: true } } },
+        },
+      },
+    }),
+  ])
+  const nameById = new Map(users.map(u => [u.id, u.username]))
   const myTxnById = new Map(myTxns.map(t => [t.id, t]))
 
   const items: OutboxItem[] = []
@@ -553,47 +653,51 @@ export async function get_editor_context(user_id: string, link_id: string): Prom
   if (link.pending_status === 'pending' && link.pending_kind === 'deletion') return null
 
   const other = other_user(link, user_id)
-  const otherUser = await prisma.user.findUnique({ where: { id: other }, select: { username: true } })
-  const recip = await prisma.accounting_head.findFirst({
-    where: { user_id, linked_user_id: other, type: 'account' },
-    select: { id: true, name: true },
-  })
-
   const sourceTxnId = their_txn_id(link, user_id)
+  const myTxnId = my_txn_id(link, user_id)
+  const [otherUser, recip, src, mine] = await Promise.all([
+    prisma.user.findUnique({ where: { id: other }, select: { username: true } }),
+    prisma.accounting_head.findFirst({
+      where: { user_id, linked_user_id: other, type: 'account' },
+      select: { id: true, name: true },
+    }),
+    sourceTxnId
+      ? prisma.transaction.findUnique({
+          where: { id: sourceTxnId },
+          include: { line_items: { include: { accounting_head: true, asset: true } } },
+        })
+      : null,
+    myTxnId
+      ? prisma.transaction.findUnique({
+          where: { id: myTxnId },
+          include: { line_items: { include: { accounting_head: true, asset: true } } },
+        })
+      : null,
+  ])
+
   let mirrored: EditorContext['mirrored_lines'] = []
   let datetime: string | null = null
   let description: string | null = null
-  if (sourceTxnId) {
-    const src = await prisma.transaction.findUnique({
-      where: { id: sourceTxnId },
-      include: { line_items: { include: { accounting_head: true, asset: true } } },
-    })
-    if (src) {
-      datetime = src.datetime.toISOString()
-      description = src.description
-      mirrored = src.line_items
-        .filter(li => li.accounting_head.linked_user_id === user_id)
-        .map(li => ({
-          asset_id: li.asset_id,
-          asset_name: li.asset.name,
-          asset_type: li.asset.type,
-          quantity: li.quantity === null ? null : li.quantity.neg().toNumber(),
-          txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
-          description: li.description ?? null,
-          datetime: li.datetime ? li.datetime.toISOString() : null,
-        }))
-    }
+  if (src) {
+    datetime = src.datetime.toISOString()
+    description = src.description
+    mirrored = src.line_items
+      .filter(li => li.accounting_head.linked_user_id === user_id)
+      .map(li => ({
+        asset_id: li.asset_id,
+        asset_name: li.asset.name,
+        asset_type: li.asset.type,
+        quantity: li.quantity === null ? null : li.quantity.neg().toNumber(),
+        txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
+        description: li.description ?? null,
+        datetime: li.datetime ? li.datetime.toISOString() : null,
+      }))
   }
 
   const prefill: EditorContext['prefill_balancing'] = []
   const otherLocked: EditorContext['other_locked_lines'] = []
   let previous: EditorContext['previous'] = null
-  const myTxnId = my_txn_id(link, user_id)
-  if (myTxnId && recip) {
-    const mine = await prisma.transaction.findUnique({
-      where: { id: myTxnId },
-      include: { line_items: { include: { accounting_head: true, asset: true } } },
-    })
+  if (recip) {
     if (mine) {
       const prevLines: SharedLine[] = []
       for (const li of mine.line_items) {

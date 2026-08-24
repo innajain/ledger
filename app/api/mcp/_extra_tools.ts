@@ -49,7 +49,6 @@ import {
   build_line_items,
   require_admin,
   resolve_counterparty,
-  find_possible_duplicate,
   account_balances_for,
 } from './_helpers'
 
@@ -93,6 +92,61 @@ async function owned_attachment(uid: string, attachment_id: string) {
   })
   if (!att || att.transaction.user_id !== uid) return null
   return att
+}
+
+const DUP_WINDOW_MS = 36 * 60 * 60 * 1000
+const DUP_CHECK_CONCURRENCY = 8
+
+type DupHit = { index: number; dupe: { id: string; datetime: Date; description: string | null; amount: number } }
+
+// Batched equivalent of find_possible_duplicate (transactions_core) for bulk
+// creates: head types come from the already-loaded user catalog instead of a
+// per-item query, and the ±36h candidate scans run concurrently in small chunks
+// (bounded for the pooled connection). Chunks are processed in index order and
+// the lowest-index hit is returned, so first-index-wins semantics match the old
+// serial loop — nothing is written between checks.
+async function find_first_bulk_duplicate(uid: string, built: BulkTransactionInput[], heads: { id: string; type: string }[]): Promise<DupHit | null> {
+  const account_head_ids = new Set(heads.filter(h => h.type === 'account').map(h => h.id))
+  const checks: { index: number; account_ids: string[]; flow: number; datetime: Date }[] = []
+  for (const [index, b] of built.entries()) {
+    if (b.idempotency_key) continue
+    const account_ids = [...new Set(b.line_items.map(li => li.accounting_head_id).filter(id => account_head_ids.has(id)))]
+    if (account_ids.length === 0) continue
+    const account_id_set = new Set(account_ids)
+    const flow =
+      Math.round(
+        b.line_items.filter(li => account_id_set.has(li.accounting_head_id)).reduce((s, li) => s + (li.txn_value ?? li.quantity ?? 0), 0) * 100,
+      ) / 100
+    if (flow === 0) continue
+    checks.push({ index, account_ids, flow, datetime: b.datetime })
+  }
+  for (let start = 0; start < checks.length; start += DUP_CHECK_CONCURRENCY) {
+    const hits = await Promise.all(
+      checks.slice(start, start + DUP_CHECK_CONCURRENCY).map(async c => {
+        const candidates = await prisma.transaction.findMany({
+          where: {
+            user_id: uid,
+            datetime: { gte: new Date(c.datetime.getTime() - DUP_WINDOW_MS), lte: new Date(c.datetime.getTime() + DUP_WINDOW_MS) },
+            line_items: { some: { accounting_head_id: { in: c.account_ids } } },
+          },
+          include: { line_items: { select: { quantity: true, txn_value: true, accounting_head: { select: { type: true } } } } },
+          orderBy: { datetime: 'desc' },
+          take: 50,
+        })
+        for (const t of candidates) {
+          const candidate_flow = t.line_items
+            .filter(li => li.accounting_head.type === 'account')
+            .reduce((s, li) => s + (li.txn_value?.toNumber() ?? li.quantity?.toNumber() ?? 0), 0)
+          if (Math.abs(Math.round(candidate_flow * 100) / 100 - c.flow) <= 0.01)
+            return { index: c.index, dupe: { id: t.id, datetime: t.datetime, description: t.description, amount: c.flow } } satisfies DupHit
+        }
+        return null
+      }),
+    )
+    const hit = hits.filter((h): h is DupHit => h !== null).sort((a, b) => a.index - b.index)[0]
+    if (hit) return hit
+  }
+  return null
 }
 
 async function settings_payload(uid: string) {
@@ -438,20 +492,18 @@ export function register_extra_tools(server: McpServer) {
         }
       })
       if (!args.force) {
-        for (let i = 0; i < built.length; i++) {
-          if (built[i].idempotency_key) continue
-          const dupe = await find_possible_duplicate(uid, built[i].datetime, built[i].line_items)
-          if (dupe)
-            return error_text(
-              `Possible duplicate at transaction ${i + 1} — nothing was created. Existing transaction ${dupe.id} (${dupe.datetime.toISOString()}, "${dupe.description ?? ''}") already moves ${dupe.amount} on the same account within ±1 day. Pass force:true to create anyway, or give each item an idempotency_key.`,
-            )
-        }
+        const hit = await find_first_bulk_duplicate(uid, built, heads)
+        if (hit)
+          return error_text(
+            `Possible duplicate at transaction ${hit.index + 1} — nothing was created. Existing transaction ${hit.dupe.id} (${hit.dupe.datetime.toISOString()}, "${hit.dupe.description ?? ''}") already moves ${hit.dupe.amount} on the same account within ±1 day. Pass force:true to create anyway, or give each item an idempotency_key.`,
+          )
       }
       const res = await create_transactions_core(uid, built)
       if (!res.success) return action_result(res)
       const balances = await account_balances_for(
         uid,
         built.flatMap(b => b.line_items.map(li => li.accounting_head_id)),
+        { heads, assets },
       )
       return text({ ok: true, message: res.message, ...res.data, account_balances: balances })
     },
@@ -598,13 +650,29 @@ export function register_extra_tools(server: McpServer) {
     },
     async (_args, extra) => {
       const uid = get_uid(extra as ToolExtra)
+      // This scans the whole ledger — select only the fields the invariant reads
+      // rather than dragging every full head/asset row across the wire.
       const txns = await prisma.transaction.findMany({
         where: { user_id: uid },
-        include: { line_items: { include: { accounting_head: true, asset: true } } },
+        select: {
+          id: true,
+          datetime: true,
+          description: true,
+          line_items: {
+            select: {
+              quantity: true,
+              txn_value: true,
+              accounting_head: { select: { type: true } },
+              asset: { select: { id: true, type: true, name: true } },
+            },
+          },
+        },
       })
       const invalid: { id: string; datetime: Date; description: string | null; message: string }[] = []
       for (const txn of txns) {
-        const { is_valid, message } = validate_line_items(txn.line_items)
+        // validate_line_items structurally reads exactly the selected fields; its
+        // declared parameter type is just wider (full Prisma payload rows).
+        const { is_valid, message } = validate_line_items(txn.line_items as unknown as Parameters<typeof validate_line_items>[0])
         if (!is_valid) invalid.push({ id: txn.id, datetime: txn.datetime, description: txn.description, message })
       }
       return text({ checked: txns.length, invalid })

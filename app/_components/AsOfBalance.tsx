@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Card } from '@/app/_components/Card'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { format_day } from '@/app/_utils/format_date'
@@ -18,21 +18,46 @@ export function AsOfBalance({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ date: string; balance: ClosingBalance } | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Monotonic request id: responses that resolve after a newer request started are dropped
+  const seqRef = useRef(0)
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
 
   async function check(chosen: string) {
-    if (!chosen) return
+    const seq = ++seqRef.current
     setBusy(true)
     setError(null)
     try {
       const res = await getClosingBalance(headId, chosen)
+      if (seq !== seqRef.current) return
       if (!res.success) throw new Error(res.message)
       setResult({ date: chosen, balance: res.data! })
     } catch (e) {
+      if (seq !== seqRef.current) return
       setError(e instanceof Error ? e.message : String(e))
       setResult(null)
     } finally {
-      setBusy(false)
+      if (seq === seqRef.current) setBusy(false)
     }
+  }
+
+  // Debounced: keyboard date entry commits several intermediate valid dates, and each
+  // check is a full line-item scan server-side — only the settled date should query
+  function onDateChange(chosen: string) {
+    setDate(chosen)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (!chosen) {
+      seqRef.current++
+      setBusy(false)
+      return
+    }
+    setBusy(true)
+    timerRef.current = setTimeout(() => check(chosen), 400)
   }
 
   return (
@@ -50,10 +75,7 @@ export function AsOfBalance({
             aria-label="Balance on date"
             value={date}
             max={new Date().toISOString().slice(0, 10)}
-            onChange={e => {
-              setDate(e.target.value)
-              check(e.target.value)
-            }}
+            onChange={e => onDateChange(e.target.value)}
             className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
           />
           {busy && (

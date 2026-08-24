@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { memo, useCallback, useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { approve_request, reject_request, accept_all_from } from '@/app/_actions/approvals'
 import type { InboxItem, OutboxItem } from '@/app/_utils/links'
@@ -36,6 +36,136 @@ function PreviewLines({ preview }: { preview: { asset_name: string; quantity: nu
     </ul>
   )
 }
+
+// Module-scope + memo: defined inside ClientPage these were remounted (not diffed) for every
+// card on each busy/error state change, re-running every LocalDateTime mount effect.
+const Card = memo(function Card({
+  item,
+  busy,
+  onRun,
+}: {
+  item: InboxItem
+  busy: boolean
+  onRun: (id: string, fn: () => Promise<{ success: boolean; message?: string }>) => void
+}) {
+  const isRejected = item.status === 'rejected'
+  const headline = isRejected
+    ? `@${item.other_username} rejected your ${item.kind === 'deletion' ? 'deletion' : 'change'}`
+    : item.kind === 'deletion'
+      ? `@${item.other_username} wants to delete a shared transaction`
+      : `@${item.other_username} sent a transaction for your approval`
+
+  const borderAccent = isRejected ? 'border-l-4 border-l-red-400 dark:border-l-red-500' : 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
+
+  const badge = isRejected ? (
+    <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+      <CloseIcon className="w-3 h-3" />
+      Rejected
+    </span>
+  ) : (
+    <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+      <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      Needs approval
+    </span>
+  )
+
+  return (
+    <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 ${borderAccent} p-6`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
+          {item.description && <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 italic">{item.description}</p>}
+          {item.datetime && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <LocalDateTime value={item.datetime} />
+            </p>
+          )}
+          <PreviewLines preview={item.preview} />
+        </div>
+        {badge}
+      </div>
+
+      {!item.has_reciprocal && item.kind === 'change' && (
+        <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">Link an account back to @{item.other_username} before you can approve this.</p>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {isRejected ? (
+          <>
+            {item.can_revert && item.has_reciprocal && (
+              <ButtonLink href={`/requests/${item.link_id}`} variant="primary" size="sm">
+                {item.kind === 'deletion' ? 'Restore (undo deletion)' : 'Revert to approved'}
+              </ButtonLink>
+            )}
+            {item.my_txn_id && (
+              <ButtonLink href={`/transactions/${item.my_txn_id}`} variant="secondary" size="sm">
+                View transaction
+              </ButtonLink>
+            )}
+            {item.kind !== 'deletion' && !item.my_txn_id && (
+              <span className="text-sm text-slate-500 dark:text-slate-400 self-center">
+                {item.can_revert ? 'or edit / delete your own transaction.' : 'Edit or delete your transaction to resolve.'}
+              </span>
+            )}
+          </>
+        ) : item.kind === 'deletion' ? (
+          <>
+            <Button onClick={() => onRun(item.link_id, () => approve_request(item.link_id))} disabled={busy} variant="danger" size="sm">
+              {busy ? '…' : 'Approve deletion'}
+            </Button>
+            <Button onClick={() => onRun(item.link_id, () => reject_request(item.link_id))} disabled={busy} variant="secondary" size="sm">
+              Reject
+            </Button>
+          </>
+        ) : (
+          <>
+            {item.has_reciprocal && (
+              <ButtonLink href={`/requests/${item.link_id}`} variant="primary" size="sm">
+                Review &amp; approve
+              </ButtonLink>
+            )}
+            <Button onClick={() => onRun(item.link_id, () => reject_request(item.link_id))} disabled={busy} variant="secondary" size="sm">
+              Reject
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+})
+
+const OutboxCard = memo(function OutboxCard({ item }: { item: OutboxItem }) {
+  const headline =
+    item.kind === 'deletion' ? `You asked @${item.other_username} to approve a deletion` : `Waiting on @${item.other_username} to approve your change`
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
+          {item.description && <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 italic">{item.description}</p>}
+          {item.datetime && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <LocalDateTime value={item.datetime} />
+            </p>
+          )}
+          <PreviewLines preview={item.preview} />
+        </div>
+        {/* No status chip here: the section header and the headline already say this is waiting on them. */}
+      </div>
+
+      {item.my_txn_id && (
+        <div className="mt-4">
+          <ButtonLink href={`/transactions/${item.my_txn_id}`} variant="secondary" size="sm">
+            View transaction
+          </ButtonLink>
+        </div>
+      )}
+    </div>
+  )
+})
 
 export default function ClientPage({
   items,
@@ -74,19 +204,22 @@ export default function ClientPage({
     }
   }
 
-  async function run(id: string, fn: () => Promise<{ success: boolean; message?: string }>) {
-    setBusyId(id)
-    setError(null)
-    try {
-      const r = await fn()
-      if (!r.success) setError(r.message ?? "Couldn't update this request")
-      else router.refresh()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusyId(null)
-    }
-  }
+  const run = useCallback(
+    async (id: string, fn: () => Promise<{ success: boolean; message?: string }>) => {
+      setBusyId(id)
+      setError(null)
+      try {
+        const r = await fn()
+        if (!r.success) setError(r.message ?? "Couldn't update this request")
+        else router.refresh()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        setBusyId(null)
+      }
+    },
+    [router],
+  )
 
   const pending = items.filter(i => i.status === 'pending')
   const rejected = items.filter(i => i.status === 'rejected')
@@ -101,131 +234,6 @@ export default function ClientPage({
         return m
       }, new Map<string, { username: string; count: number }>()),
   )
-
-  function Card({ item }: { item: InboxItem }) {
-    const busy = busyId === item.link_id
-    const isRejected = item.status === 'rejected'
-    const headline = isRejected
-      ? `@${item.other_username} rejected your ${item.kind === 'deletion' ? 'deletion' : 'change'}`
-      : item.kind === 'deletion'
-        ? `@${item.other_username} wants to delete a shared transaction`
-        : `@${item.other_username} sent a transaction for your approval`
-
-    const borderAccent = isRejected ? 'border-l-4 border-l-red-400 dark:border-l-red-500' : 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
-
-    const badge = isRejected ? (
-      <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-        <CloseIcon className="w-3 h-3" />
-        Rejected
-      </span>
-    ) : (
-      <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-        <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        Needs approval
-      </span>
-    )
-
-    return (
-      <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 ${borderAccent} p-6`}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
-            {item.description && <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 italic">{item.description}</p>}
-            {item.datetime && (
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                <LocalDateTime value={item.datetime} />
-              </p>
-            )}
-            <PreviewLines preview={item.preview} />
-          </div>
-          {badge}
-        </div>
-
-        {!item.has_reciprocal && item.kind === 'change' && (
-          <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
-            Link an account back to @{item.other_username} before you can approve this.
-          </p>
-        )}
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {isRejected ? (
-            <>
-              {item.can_revert && item.has_reciprocal && (
-                <ButtonLink href={`/requests/${item.link_id}`} variant="primary" size="sm">
-                  {item.kind === 'deletion' ? 'Restore (undo deletion)' : 'Revert to approved'}
-                </ButtonLink>
-              )}
-              {item.my_txn_id && (
-                <ButtonLink href={`/transactions/${item.my_txn_id}`} variant="secondary" size="sm">
-                  View transaction
-                </ButtonLink>
-              )}
-              {item.kind !== 'deletion' && !item.my_txn_id && (
-                <span className="text-sm text-slate-500 dark:text-slate-400 self-center">
-                  {item.can_revert ? 'or edit / delete your own transaction.' : 'Edit or delete your transaction to resolve.'}
-                </span>
-              )}
-            </>
-          ) : item.kind === 'deletion' ? (
-            <>
-              <Button onClick={() => run(item.link_id, () => approve_request(item.link_id))} disabled={busy} variant="danger" size="sm">
-                {busy ? '…' : 'Approve deletion'}
-              </Button>
-              <Button onClick={() => run(item.link_id, () => reject_request(item.link_id))} disabled={busy} variant="secondary" size="sm">
-                Reject
-              </Button>
-            </>
-          ) : (
-            <>
-              {item.has_reciprocal && (
-                <ButtonLink href={`/requests/${item.link_id}`} variant="primary" size="sm">
-                  Review &amp; approve
-                </ButtonLink>
-              )}
-              <Button onClick={() => run(item.link_id, () => reject_request(item.link_id))} disabled={busy} variant="secondary" size="sm">
-                Reject
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  function OutboxCard({ item }: { item: OutboxItem }) {
-    const headline =
-      item.kind === 'deletion'
-        ? `You asked @${item.other_username} to approve a deletion`
-        : `Waiting on @${item.other_username} to approve your change`
-
-    return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
-            {item.description && <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 italic">{item.description}</p>}
-            {item.datetime && (
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                <LocalDateTime value={item.datetime} />
-              </p>
-            )}
-            <PreviewLines preview={item.preview} />
-          </div>
-          {/* No status chip here: the section header and the headline already say this is waiting on them. */}
-        </div>
-
-        {item.my_txn_id && (
-          <div className="mt-4">
-            <ButtonLink href={`/transactions/${item.my_txn_id}`} variant="secondary" size="sm">
-              View transaction
-            </ButtonLink>
-          </div>
-        )}
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-6">
@@ -292,7 +300,7 @@ export default function ClientPage({
             <section className="space-y-3">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">To approve</h2>
               {pending.map(item => (
-                <Card key={item.link_id} item={item} />
+                <Card key={item.link_id} item={item} busy={busyId === item.link_id} onRun={run} />
               ))}
             </section>
           )}
@@ -300,7 +308,7 @@ export default function ClientPage({
             <section className="space-y-3">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Needs your action</h2>
               {rejected.map(item => (
-                <Card key={item.link_id} item={item} />
+                <Card key={item.link_id} item={item} busy={busyId === item.link_id} onRun={run} />
               ))}
             </section>
           )}

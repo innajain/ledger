@@ -77,8 +77,11 @@ export async function log_in(payload: z.infer<typeof AuthSchema>): Promise<Actio
     const { username, password } = AuthSchema.parse(payload)
 
     const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    const within_ip = await rate_limit(`login:ip:${ip}`, 10, 60)
-    const within_user = await rate_limit(`login:user:${username.toLowerCase()}`, 5, 5 * 60)
+    // Both counters always increment (no short-circuit), so the checks can run concurrently.
+    const [within_ip, within_user] = await Promise.all([
+      rate_limit(`login:ip:${ip}`, 10, 60),
+      rate_limit(`login:user:${username.toLowerCase()}`, 5, 5 * 60),
+    ])
     if (!within_ip || !within_user) return err('UNAUTHORIZED', 'Too many attempts. Please wait a minute and try again.')
 
     const userRec = await authenticate(username, password)

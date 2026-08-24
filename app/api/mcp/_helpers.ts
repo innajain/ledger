@@ -48,6 +48,11 @@ export const load_assets = () =>
     select: { id: true, name: true, type: true, ticker: true, is_active: true, parent_id: true },
   })
 
+export type HeadsCatalog = Awaited<ReturnType<typeof load_heads>>
+export type AssetsCatalog = Awaited<ReturnType<typeof load_assets>>
+// Per-invocation reuse of already-loaded catalogs — never cache these across requests.
+export type PreloadedCatalogs = { heads?: HeadsCatalog; assets?: AssetsCatalog }
+
 function format_candidates<T extends { name: string; type?: string; is_active?: boolean }>(list: T[]): string {
   const active = list.filter(x => x.is_active !== false)
   if (!active.some(x => x.type)) return active.map(x => x.name).join(', ') || 'none'
@@ -151,8 +156,8 @@ type LineItemArg = {
   external_ref?: string | null
 }
 
-export async function build_line_items(uid: string, items: LineItemArg[]): Promise<CreateLineItemInput[]> {
-  const [heads, assets] = await Promise.all([load_heads(uid), load_assets()])
+export async function build_line_items(uid: string, items: LineItemArg[], preloaded?: PreloadedCatalogs): Promise<CreateLineItemInput[]> {
+  const [heads, assets] = await Promise.all([preloaded?.heads ?? load_heads(uid), preloaded?.assets ?? load_assets()])
   return items.map(li => ({
     accounting_head_id: resolve_ref(li.account, heads, 'account').id,
     asset_id: resolve_ref(li.asset, assets, 'asset').id,
@@ -205,10 +210,15 @@ export { find_possible_duplicate } from '@/app/_core/transactions_core'
 export async function account_balances_for(
   uid: string,
   head_ids: string[],
+  preloaded?: PreloadedCatalogs,
 ): Promise<{ account: string; asset: string; quantity: number; txn_value: number }[]> {
   const ids = [...new Set(head_ids)]
   if (ids.length === 0) return []
-  const [heads, assets, { accountsToAssets }] = await Promise.all([load_heads(uid), load_assets(), compute_balances_core(uid)])
+  const [heads, assets, { accountsToAssets }] = await Promise.all([
+    preloaded?.heads ?? load_heads(uid),
+    preloaded?.assets ?? load_assets(),
+    compute_balances_core(uid),
+  ])
   const head_by_id = new Map(heads.map(h => [h.id, h]))
   const asset_by_id = new Map(assets.map(a => [a.id, a]))
   const rows: { account: string; asset: string; quantity: number; txn_value: number }[] = []

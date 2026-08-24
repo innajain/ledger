@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useId, useMemo, useState } from 'react'
+import React, { memo, useId, useMemo, useState } from 'react'
 import { asset_type } from '@/generated/prisma/enums'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 import { asset_type_label } from '@/app/_utils/labels'
@@ -61,8 +61,6 @@ const headTypeConfig = {
   },
 }
 
-// Section identity is a small colored dot, not a full-bleed tinted banner — three loud
-// hues on one form outshout the actual data.
 const dotClasses = {
   green: 'bg-green-500',
   orange: 'bg-orange-500',
@@ -113,9 +111,12 @@ type TransactionLineItemsProps = {
   onUpdateItem: (idx: number, field: keyof LineItemData, value: string | null) => void
 }
 
-export function TransactionLineItems({
+// Stable default so the preview useMemo deps don't see a fresh [] every render.
+const NO_LOCKED: LineItemData[] = []
+
+export const TransactionLineItems = memo(function TransactionLineItems({
   items,
-  lockedItems = [],
+  lockedItems = NO_LOCKED,
   accounts,
   assets,
   onAddItem,
@@ -230,15 +231,15 @@ export function TransactionLineItems({
       })}
     </div>
   )
-}
+})
 
 /**
  * Live read-out of the null-remainder rules, meant to sit next to the submit
  * button. Purely advisory — the server revalidates everything on save.
  */
-export function TransactionBalanceSummary({
+export const TransactionBalanceSummary = memo(function TransactionBalanceSummary({
   items,
-  lockedItems = [],
+  lockedItems = NO_LOCKED,
   accounts,
   assets,
 }: {
@@ -281,7 +282,7 @@ export function TransactionBalanceSummary({
       </div>
     </div>
   )
-}
+})
 
 type LineItemCardProps = {
   item: LineItemData
@@ -537,7 +538,6 @@ function DerivedHint({
   }
 
   if (value === null) {
-    // Neutral, not alarming: on a pristine form this is a statement of the rule, not an error.
     if (required) return <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 italic">Required — account lines are never worked out</p>
     return <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 italic">Left blank — worked out on save</p>
   }

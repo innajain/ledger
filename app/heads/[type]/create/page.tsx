@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
-import type { Prisma } from '@/generated/prisma/client'
 import { CreateHeadForm } from '@/app/_components/HeadForm'
 import { isHeadType } from '../head_config'
 import { profile } from '@/lib/metrics/profile'
@@ -13,9 +12,11 @@ async function Page({ params }: Props) {
   if (!isHeadType(type)) notFound()
 
   const user = await get_current_user()
-  const parents: Prisma.accounting_headGetPayload<Record<string, never>>[] = user
+  // ParentSelect only reads id/name — don't ship every column of every head to the client
+  const parents: { id: string; name: string }[] = user
     ? await prisma.accounting_head.findMany({
         where: { user_id: user.id, type },
+        select: { id: true, name: true },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       })
     : []

@@ -67,7 +67,8 @@ export async function create_account_core(
     await prisma.accounting_head.create({
       data: { name, type, user_id, parent_id, linked_user_id: linked },
     })
-    await invalidate_balances(user_id)
+    // No invalidation: a brand-new head has zero line items, so no cached balances or
+    // frozen timeseries can reference it.
     return ok()
   } catch (error) {
     return fromError(error)
@@ -160,7 +161,10 @@ export async function update_account_core(
       },
       { timeout: 30_000 },
     )
-    await invalidate_balances(user_id)
+    // The balances cache and frozen timeseries read only line-item head/asset ids plus the
+    // head *type* — renames/reparents/lock dates/archiving change nothing cached, so only
+    // an actual type change needs the coarse flush.
+    if (type !== undefined && type !== existing.type) await invalidate_balances(user_id)
     if (newly_linked && backfilled > 0) void notify_request_pending(linked_update!, user_id)
     return ok()
   } catch (error) {
@@ -176,8 +180,9 @@ export async function delete_account_core(user_id: string, id: string): Promise<
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
 
+    // No invalidation: the required line_item relation defaults to Restrict, so delete
+    // only succeeds for a head with zero line items — nothing cached can change.
     await prisma.accounting_head.delete({ where: { id, user_id } })
-    await invalidate_balances(user_id)
     return ok()
   } catch (error) {
     return fromError(error)
@@ -259,30 +264,36 @@ export async function update_asset_core(
       }
     }
 
-    await prisma.$transaction(async prisma => {
-      const asset = await prisma.asset.update({
-        where: { id },
-        data: {
-          name,
-          type,
-          ticker,
-          parent_id,
-          ...(is_active !== undefined ? { is_active } : {}),
-          ...(is_placeholder !== undefined ? { is_placeholder } : {}),
-        },
-      })
-      if (type === 'etf' || type === 'mf' || type === 'shares') {
-        if (!asset.ticker || asset.ticker.length === 0) throw new ActionError('VALIDATION', 'ticker is required for asset type ' + type)
-        if (type === 'mf') {
-          if ((await get_nav({ code: asset.ticker })) === null) throw new ActionError('VALIDATION', 'invalid ticker for mutual fund: ' + asset.ticker)
-        } else if (type === 'etf' || type === 'shares') {
-          if ((await get_latest_etf_or_shares_price(asset.ticker)) === null)
-            throw new ActionError('VALIDATION', 'invalid ticker for etf/shares: ' + asset.ticker)
-        }
-      } else if (asset.ticker !== null) {
-        throw new ActionError('VALIDATION', 'ticker cannot non-null for asset type ' + type)
+    // Validate the merged post-update ticker BEFORE writing (mirrors create_asset_core) —
+    // the price lookups hit Redis/external APIs and must not run inside an open DB transaction.
+    const next_ticker = ticker === undefined ? existing.ticker : ticker
+    if (type === 'etf' || type === 'mf' || type === 'shares') {
+      if (!next_ticker || next_ticker.length === 0) throw new ActionError('VALIDATION', 'ticker is required for asset type ' + type)
+      if (type === 'mf') {
+        if ((await get_nav({ code: next_ticker })) === null) throw new ActionError('VALIDATION', 'invalid ticker for mutual fund: ' + next_ticker)
+      } else if (type === 'etf' || type === 'shares') {
+        if ((await get_latest_etf_or_shares_price(next_ticker)) === null)
+          throw new ActionError('VALIDATION', 'invalid ticker for etf/shares: ' + next_ticker)
       }
+    } else if (next_ticker !== null) {
+      throw new ActionError('VALIDATION', 'ticker cannot non-null for asset type ' + type)
+    }
+
+    // When ticker is kept (undefined), the validation above covered existing.ticker —
+    // guard the write on it so a concurrent ticker change can't slip an unvalidated
+    // combination through (the old in-transaction validate-after-write couldn't either).
+    const { count } = await prisma.asset.updateMany({
+      where: { id, ...(ticker === undefined ? { ticker: existing.ticker } : {}) },
+      data: {
+        name,
+        type,
+        ticker,
+        parent_id,
+        ...(is_active !== undefined ? { is_active } : {}),
+        ...(is_placeholder !== undefined ? { is_placeholder } : {}),
+      },
     })
+    if (count === 0) throw new ActionError('VALIDATION', 'asset changed while updating — retry')
     return ok()
   } catch (error) {
     return fromError(error)
@@ -319,7 +330,15 @@ export async function reorder_heads_core(user_id: string, parent_id: string | nu
       return err('VALIDATION', 'One or more items are not siblings under this parent or do not belong to you')
     }
 
-    await prisma.$transaction(parsed.data.ordered_ids.map((id, i) => prisma.accounting_head.update({ where: { id }, data: { order_index: i } })))
+    // One statement instead of N sequential UPDATE round trips; the user_id predicate
+    // re-scopes the write itself, not just the validation read above.
+    const ids = parsed.data.ordered_ids
+    const positions = ids.map((_, i) => i)
+    await prisma.$executeRaw`
+      UPDATE accounting_head SET order_index = t.ord
+      FROM unnest(${ids}::text[], ${positions}::int[]) AS t(id, ord)
+      WHERE accounting_head.id = t.id AND accounting_head.user_id = ${user_id}
+    `
     return ok()
   } catch (error) {
     return fromError(error)
@@ -339,7 +358,14 @@ export async function reorder_assets_core(parent_id: string | null, ordered_ids:
       return err('VALIDATION', 'One or more items are not siblings under this parent')
     }
 
-    await prisma.$transaction(parsed.data.ordered_ids.map((id, i) => prisma.asset.update({ where: { id }, data: { order_index: i } })))
+    // asset is a global admin-gated catalog — no user_id scope exists on the table
+    const ids = parsed.data.ordered_ids
+    const positions = ids.map((_, i) => i)
+    await prisma.$executeRaw`
+      UPDATE asset SET order_index = t.ord
+      FROM unnest(${ids}::text[], ${positions}::int[]) AS t(id, ord)
+      WHERE asset.id = t.id
+    `
     return ok()
   } catch (error) {
     return fromError(error)

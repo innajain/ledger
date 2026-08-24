@@ -44,14 +44,18 @@ export async function reconcile_ledger_core(
 
   // Query on the transaction datetime with padding so per-line datetime
   // overrides near the window edges are still seen, then filter each line by
-  // its effective date.
-  const line_items = await prisma.line_item.findMany({
-    where: {
-      accounting_head_id: head_id,
-      transaction: { user_id, datetime: { gte: new Date(from.getTime() - 7 * DAY_MS), lt: new Date(to_exclusive.getTime() + 7 * DAY_MS) } },
-    },
-    include: { transaction: { select: { id: true, datetime: true, description: true } } },
-  })
+  // its effective date. closing_balance_core scans the head's full history and
+  // depends only on the window bounds, so it runs alongside rather than after.
+  const [line_items, closing_rows] = await Promise.all([
+    prisma.line_item.findMany({
+      where: {
+        accounting_head_id: head_id,
+        transaction: { user_id, datetime: { gte: new Date(from.getTime() - 7 * DAY_MS), lt: new Date(to_exclusive.getTime() + 7 * DAY_MS) } },
+      },
+      include: { transaction: { select: { id: true, datetime: true, description: true } } },
+    }),
+    closing_balance_core(user_id, head_id, to_exclusive),
+  ])
 
   const flows: LedgerFlow[] = line_items
     .map(li => {
@@ -75,7 +79,6 @@ export async function reconcile_ledger_core(
   )
   const flow_by_id = new Map(flows.map(f => [f.line_item_id, f]))
 
-  const closing_rows = await closing_balance_core(user_id, head_id, to_exclusive)
   const closing_balance = Math.round(closing_rows.reduce((s, r) => s + r.value, 0) * 100) / 100
 
   return { from, to_exclusive, flows, result, flow_by_id, closing_balance }

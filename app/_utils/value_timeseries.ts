@@ -15,8 +15,13 @@ const CASHFLOWS_VERSION_KEY = (user_id: string) => `cashflows_version:${user_id}
 const FROZEN_KEY = (user_id: string, kind: string, id: string) => `timeseries_frozen:${user_id}:${kind}:${id}`
 const FROZEN_TTL = 30 * 24 * 60 * 60
 
-/** Heads/assets whose line items a write actually touched — lets invalidation skip unrelated frozen series. */
-export type TouchedEntities = { head_ids: Iterable<string>; asset_ids: Iterable<string> }
+/**
+ * Heads/assets whose line items a write actually touched — lets invalidation skip unrelated
+ * frozen series. earliest_day is the earliest effective IST day (li.datetime ?? txn.datetime)
+ * across the write's line items; when it is today, frozen series (which never cover today)
+ * are provably unaffected. Absent means unknown — invalidate conservatively.
+ */
+export type TouchedEntities = { head_ids: Iterable<string>; asset_ids: Iterable<string>; earliest_day?: string }
 
 export function timeseries_version_key(user_id: string): string {
   return VERSION_KEY(user_id)
@@ -34,13 +39,18 @@ export async function invalidate_timeseries(user_id: string, touched?: TouchedEn
     // Scoped: DEL just the frozen series the write could have changed. A head id is
     // deleted under both kinds since we don't know its type here; deleting a
     // nonexistent key is harmless. The allocation filter matches direct head id only,
-    // so no ancestor expansion is needed.
-    const keys: string[] = []
-    for (const h of touched.head_ids) {
-      keys.push(FROZEN_KEY(user_id, 'account', h), FROZEN_KEY(user_id, 'allocation', h))
+    // so no ancestor expansion is needed. A frozen series stores points only up to
+    // yesterday (upToDate <= yesterday by construction), so a write whose earliest
+    // effective day is today cannot change any frozen point — skip the DELs entirely.
+    const frozen_unaffected = touched.earliest_day !== undefined && touched.earliest_day >= ist_date_key(new Date())
+    if (!frozen_unaffected) {
+      const keys: string[] = []
+      for (const h of touched.head_ids) {
+        keys.push(FROZEN_KEY(user_id, 'account', h), FROZEN_KEY(user_id, 'allocation', h))
+      }
+      for (const a of touched.asset_ids) keys.push(FROZEN_KEY(user_id, 'asset', a))
+      if (keys.length > 0) ops.push(redis.del(...keys))
     }
-    for (const a of touched.asset_ids) keys.push(FROZEN_KEY(user_id, 'asset', a))
-    if (keys.length > 0) ops.push(redis.del(...keys))
   } else {
     // Coarse fallback: version bump invalidates every frozen series for the user.
     ops.push(redis.incr(VERSION_KEY(user_id)))

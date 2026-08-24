@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
@@ -9,12 +10,19 @@ import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 type Props = { params: Promise<{ id: string }> }
 
-// Tab/history entries should name the specific transaction, not repeat "Ledger App".
+// react.cache so generateMetadata and Page share one fetch per request.
+const get_txn = cache((user_id: string, id: string) =>
+  prisma.transaction.findUnique({
+    where: { id, user_id },
+    include: { line_items: { include: { asset: true, accounting_head: true } }, attachments: true },
+  }),
+)
+
 export async function generateMetadata({ params }: Props) {
   const id = (await params).id
   const user = await get_current_user()
   if (!user) return { title: 'Transaction' }
-  const tx = await prisma.transaction.findUnique({ where: { id, user_id: user.id }, select: { description: true } })
+  const tx = await get_txn(user.id, id)
   return { title: tx?.description?.trim() || 'Transaction' }
 }
 
@@ -23,10 +31,13 @@ async function Page({ params }: Props) {
   const user = await get_current_user()
   if (!user) return <LoggedOutNotice title="Transactions" />
 
-  const rawTx = await prisma.transaction.findUnique({
-    where: { id, user_id: user.id },
-    include: { line_items: { include: { asset: true, accounting_head: true } }, attachments: true },
-  })
+  // The link helpers take only (user_id, id) and never read the transaction row, so all
+  // three queries start together; for a missing txn their results are simply discarded.
+  const [rawTx, linkStatus, cancellable] = await Promise.all([
+    get_txn(user.id, id),
+    get_transaction_status(user.id, id),
+    get_cancellable_links(user.id, id),
+  ])
   if (!rawTx)
     return (
       <div className="max-w-md mx-auto mt-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-8 text-center">
@@ -36,7 +47,6 @@ async function Page({ params }: Props) {
     )
 
   const tx = normalize_txn(rawTx)
-  const [linkStatus, cancellable] = await Promise.all([get_transaction_status(user.id, id), get_cancellable_links(user.id, id)])
 
   const txForClient = {
     id: tx.id,

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useId } from 'react'
+import React, { useState, useEffect, useRef, useId, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { asset_type } from '@/generated/prisma/enums'
@@ -131,47 +131,56 @@ export default function ClientPage({
     if (dupWarning) dupWarningRef.current?.focus()
   }, [dupWarning])
 
-  function addItemForType(typeKey: string) {
-    const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
-    setItems(prev => [
-      {
-        uid: new_line_uid(),
-        accounting_head_id: defaultAcc?.id ?? '',
-        asset_id: defaultAsset?.id ?? assets[0]?.id ?? '',
-        quantity: null,
-        txn_value: null,
-        description: '',
-        datetime: '',
-      },
-      ...prev,
-    ])
-  }
+  // Stable identities so the memoized TransactionLineItems tree skips re-rendering on
+  // header-field keystrokes (description/reference/date live in this component's state)
+  const addItemForType = useCallback(
+    (typeKey: string) => {
+      const defaultAcc = pickDefaultAccount(accounts, defaults, typeKey as AccountTypeKey)
+      const defaultAst = pickDefaultAsset(assets, defaults)
+      setItems(prev => [
+        {
+          uid: new_line_uid(),
+          accounting_head_id: defaultAcc?.id ?? '',
+          asset_id: defaultAst?.id ?? assets[0]?.id ?? '',
+          quantity: null,
+          txn_value: null,
+          description: '',
+          datetime: '',
+        },
+        ...prev,
+      ])
+    },
+    [accounts, assets, defaults],
+  )
 
-  function removeItem(i: number) {
+  const removeItem = useCallback((i: number) => {
     setItems(prev => prev.filter((_, idx) => idx !== i))
-  }
+  }, [])
 
-  function updateItem(idx: number, field: keyof LineItemData, value: string | null) {
-    setItems(prev => {
-      const copy = [...prev]
+  const updateItem = useCallback(
+    (idx: number, field: keyof LineItemData, value: string | null) => {
+      setItems(prev => {
+        const copy = [...prev]
 
-      const v: string = field === 'quantity' || field === 'txn_value' ? (value === null ? '' : value) : (value ?? '')
-      copy[idx] = { ...copy[idx], [field]: v }
+        const v: string = field === 'quantity' || field === 'txn_value' ? (value === null ? '' : value) : (value ?? '')
+        copy[idx] = { ...copy[idx], [field]: v }
 
-      if (field === 'asset_id') {
-        const sel = assets.find(a => a.id === v)
-        if (sel?.type === asset_type.rupees) copy[idx].txn_value = null
-      }
+        if (field === 'asset_id') {
+          const sel = assets.find(a => a.id === v)
+          if (sel?.type === asset_type.rupees) copy[idx].txn_value = null
+        }
 
-      if (field === 'quantity' && value === null) {
-        ;(copy[idx] as LineItemData).quantity = null
-      }
-      if (field === 'txn_value' && value === null) {
-        ;(copy[idx] as LineItemData).txn_value = null
-      }
-      return copy
-    })
-  }
+        if (field === 'quantity' && value === null) {
+          ;(copy[idx] as LineItemData).quantity = null
+        }
+        if (field === 'txn_value' && value === null) {
+          ;(copy[idx] as LineItemData).txn_value = null
+        }
+        return copy
+      })
+    },
+    [assets],
+  )
 
   async function handleUpdateTemplate() {
     if (!loadedTemplateId) return

@@ -133,14 +133,14 @@ function LinkedUserField({
 }
 
 type CreateHeadFormProps = {
-  parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
+  parents: Array<{ id: string; name: string }>
 
   headType: accounting_head_type
 }
 
 type UpdateHeadFormProps = {
   head: Prisma.accounting_headGetPayload<Record<string, never>>
-  parents: Prisma.accounting_headGetPayload<Record<string, never>>[]
+  parents: Array<{ id: string; name: string }>
   headType: accounting_head_type
   deleteHead?: (id: string) => Promise<ActionResult>
 

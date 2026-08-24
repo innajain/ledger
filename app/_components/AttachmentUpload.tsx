@@ -66,15 +66,18 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
     if (!files || files.length === 0) return
     setUploadError(null)
     setUploading(true)
-    const uploaded: AttachmentInput[] = []
     try {
-      for (const file of Array.from(files)) {
-        const blob = await upload(`attachments/${Date.now()}-${file.name}`, file, {
-          access: 'private',
-          handleUploadUrl: '/api/upload',
-        })
-        uploaded.push({ url: blob.url, pathname: blob.pathname, filename: file.name, content_type: file.type || null, size: file.size })
-      }
+      // Parallel: each upload is two round trips (token handshake + PUT). The index keeps
+      // pathnames unique — concurrent uploads share the same Date.now() millisecond.
+      const uploaded: AttachmentInput[] = await Promise.all(
+        Array.from(files).map(async (file, i) => {
+          const blob = await upload(`attachments/${Date.now()}-${i}-${file.name}`, file, {
+            access: 'private',
+            handleUploadUrl: '/api/upload',
+          })
+          return { url: blob.url, pathname: blob.pathname, filename: file.name, content_type: file.type || null, size: file.size }
+        }),
+      )
       const next = [...pending, ...uploaded]
       setPending(next)
       onPendingChange(next)

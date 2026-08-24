@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useId, useState } from 'react'
+import React, { useCallback, useId, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { asset_type } from '@/generated/prisma/enums'
@@ -154,26 +154,51 @@ export default function ClientPage({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function addItem(typeKey: string) {
-    setItems(prev => [defaultItemForType(typeKey as AccountTypeKey), ...prev])
-  }
-  function removeItem(i: number) {
+  // Stable identities so the memoized TransactionLineItems tree doesn't re-render on
+  // unrelated state changes in this component
+  const addItem = useCallback(
+    (typeKey: string) => {
+      const acc = pickDefaultAccount(
+        accounts.filter(a => !a.linked),
+        defaults,
+        typeKey as AccountTypeKey,
+      )
+      const ast = pickDefaultAsset(assets, defaults)
+      setItems(prev => [
+        {
+          uid: new_line_uid(),
+          accounting_head_id: acc?.id ?? '',
+          asset_id: ast?.id ?? assets[0]?.id ?? '',
+          quantity: null,
+          txn_value: null,
+          description: '',
+          datetime: '',
+        },
+        ...prev,
+      ])
+    },
+    [accounts, assets, defaults],
+  )
+  const removeItem = useCallback((i: number) => {
     setItems(prev => prev.filter((_, idx) => idx !== i))
-  }
-  function updateItem(idx: number, field: keyof LineItemData, value: string | null) {
-    setItems(prev => {
-      const copy = [...prev]
-      const v: string = field === 'quantity' || field === 'txn_value' ? (value === null ? '' : value) : (value ?? '')
-      copy[idx] = { ...copy[idx], [field]: v }
-      if (field === 'asset_id') {
-        const sel = assets.find(a => a.id === v)
-        if (sel?.type === asset_type.rupees) copy[idx].txn_value = null
-      }
-      if (field === 'quantity' && value === null) (copy[idx] as LineItemData).quantity = null
-      if (field === 'txn_value' && value === null) (copy[idx] as LineItemData).txn_value = null
-      return copy
-    })
-  }
+  }, [])
+  const updateItem = useCallback(
+    (idx: number, field: keyof LineItemData, value: string | null) => {
+      setItems(prev => {
+        const copy = [...prev]
+        const v: string = field === 'quantity' || field === 'txn_value' ? (value === null ? '' : value) : (value ?? '')
+        copy[idx] = { ...copy[idx], [field]: v }
+        if (field === 'asset_id') {
+          const sel = assets.find(a => a.id === v)
+          if (sel?.type === asset_type.rupees) copy[idx].txn_value = null
+        }
+        if (field === 'quantity' && value === null) (copy[idx] as LineItemData).quantity = null
+        if (field === 'txn_value' && value === null) (copy[idx] as LineItemData).txn_value = null
+        return copy
+      })
+    },
+    [assets],
+  )
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -200,27 +225,30 @@ export default function ClientPage({
     }
   }
 
-  const lockedItems: LineItemData[] = [
-    ...(ctx.reciprocal_head
-      ? ctx.mirrored_lines.map(m => ({
-          accounting_head_id: ctx.reciprocal_head!.id,
-          asset_id: m.asset_id,
-          quantity: m.quantity === null ? null : String(m.quantity),
-          txn_value: m.txn_value === null ? null : String(m.txn_value),
-          description: m.description ?? '',
-          datetime: toLocalInput(m.datetime),
-        }))
-      : []),
+  const lockedItems: LineItemData[] = useMemo(
+    () => [
+      ...(ctx.reciprocal_head
+        ? ctx.mirrored_lines.map(m => ({
+            accounting_head_id: ctx.reciprocal_head!.id,
+            asset_id: m.asset_id,
+            quantity: m.quantity === null ? null : String(m.quantity),
+            txn_value: m.txn_value === null ? null : String(m.txn_value),
+            description: m.description ?? '',
+            datetime: toLocalInput(m.datetime),
+          }))
+        : []),
 
-    ...ctx.other_locked_lines.map(o => ({
-      accounting_head_id: o.accounting_head_id,
-      asset_id: o.asset_id,
-      quantity: o.quantity,
-      txn_value: o.txn_value,
-      description: o.description,
-      datetime: toLocalInput(o.datetime),
-    })),
-  ]
+      ...ctx.other_locked_lines.map(o => ({
+        accounting_head_id: o.accounting_head_id,
+        asset_id: o.asset_id,
+        quantity: o.quantity,
+        txn_value: o.txn_value,
+        description: o.description,
+        datetime: toLocalInput(o.datetime),
+      })),
+    ],
+    [ctx],
+  )
 
   return (
     <div className="space-y-6">

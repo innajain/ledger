@@ -125,12 +125,22 @@ export async function sync_nav() {
   let count = 0
   let queuedCount = 0
 
-  for (const row of rows) {
-    const localDate = parse(row.date, 'dd-MMM-yyyy', new Date())
-    const istDate = fromZonedTime(localDate, USER_TIMEZONE)
+  // The feed is ~15k schemes but only a handful are held, so filter before the
+  // (comparatively expensive) date parse; kept rows share 1-2 distinct date
+  // strings, so memoize the parse on the verbatim string.
+  const dateCache = new Map<string, Date>()
 
-    for (const isin of [row.isin_growth, row.isin_reinvestment]) {
-      if (!isin || !isinSet.has(isin)) continue
+  for (const row of rows) {
+    const wanted = [row.isin_growth, row.isin_reinvestment].filter((isin): isin is string => !!isin && isinSet.has(isin))
+    if (wanted.length === 0) continue
+
+    let istDate = dateCache.get(row.date)
+    if (!istDate) {
+      istDate = fromZonedTime(parse(row.date, 'dd-MMM-yyyy', new Date()), USER_TIMEZONE)
+      dateCache.set(row.date, istDate)
+    }
+
+    for (const isin of wanted) {
       const navData = { isin, schemeName: row.scheme_name, nav: row.nav, date: istDate }
       pipeline.setex(`price:nav:${isin}`, 2 * 24 * 60 * 60, JSON.stringify(navData))
       count++

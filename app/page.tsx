@@ -6,7 +6,7 @@ import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { Prisma } from '@/generated/prisma/client'
 import { get_or_compute_balances } from './_actions/compute_balances'
 import { compute_head_value } from '@/app/_utils/head_value'
-import { normalize_txn, type TransactionFull } from '@/app/_utils/normalize_txn'
+import { normalize_line_items } from '@/app/_utils/normalize_txn'
 import { pick_welcome_message } from '@/app/_utils/home_welcome'
 import { month_to_date_window, summarize_income_expense, window_label, type SummaryLine } from '@/app/_utils/home_month_summary'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
@@ -18,20 +18,37 @@ import { profile } from '@/lib/metrics/profile'
 const RECENT_TRANSACTION_COUNT = 15
 const TOP_SPEND_CATEGORIES = 4
 
-const txn_include = { line_items: { include: { asset: true, accounting_head: true } } }
+// Only the fields the summary/recent rollups and normalize_line_items read — the full
+// accounting_head/asset relation rows multiply the payload of the first-paint page.
+const txn_select = {
+  id: true,
+  datetime: true,
+  description: true,
+  line_items: {
+    select: {
+      accounting_head_id: true,
+      quantity: true,
+      txn_value: true,
+      accounting_head: { select: { type: true, name: true } },
+      asset: { select: { id: true, type: true, name: true } },
+    },
+  },
+} satisfies Prisma.transactionSelect
+
+type HomeTxn = Prisma.transactionGetPayload<{ select: typeof txn_select }>
 
 // Book total of the account lines — the same number the transactions list shows, so the two
 // pages can never disagree about what a transaction "cost".
-function book_total(txn: { line_items: { accounting_head: { type: string }; txn_value: Prisma.Decimal }[] }): number {
-  return txn.line_items
+function book_total(line_items: { accounting_head: { type: string }; txn_value: Prisma.Decimal }[]): number {
+  return line_items
     .filter(li => li.accounting_head.type === 'account')
     .reduce((sum, li) => sum.add(li.txn_value), new Prisma.Decimal(0))
     .toNumber()
 }
 
-function summary_lines(txns: TransactionFull[]): SummaryLine[] {
+function summary_lines(txns: HomeTxn[]): SummaryLine[] {
   return txns.flatMap(txn =>
-    normalize_txn(txn).line_items.map(li => ({
+    normalize_line_items(txn.line_items).map(li => ({
       head_id: li.accounting_head_id,
       head_name: li.accounting_head.name,
       head_type: li.accounting_head.type,
@@ -51,9 +68,7 @@ async function Home() {
   const now = new Date()
   const this_month = month_to_date_window(now)
 
-  // Prices depend only on the (fast) asset + balances lookups, so they're chained off
-  // those and overlap the slower transaction queries instead of waiting for them. The
-  // asset table is a shared catalog — only price what this user actually holds.
+  // The asset table is a shared catalog — only price what this user actually holds.
   const assetsPromise = prisma.asset.findMany()
   const balancesPromise = get_or_compute_balances()
   const pricesPromise = Promise.all([assetsPromise, balancesPromise]).then(([all_assets, { accountsToAssets }]) => {
@@ -74,11 +89,11 @@ async function Home() {
         datetime: { gte: this_month.from, lt: this_month.to },
         line_items: { some: { accounting_head: { type: 'income_expense' } } },
       },
-      include: txn_include,
+      select: txn_select,
     }),
     prisma.transaction.findMany({
       where: { user_id: user.id },
-      include: txn_include,
+      select: txn_select,
       orderBy: { datetime: 'desc' },
       take: RECENT_TRANSACTION_COUNT,
     }),
@@ -155,7 +170,6 @@ async function Home() {
     }
   }
 
-  // Replaying the ledger is far too slow for first paint, so it streams in behind Suspense.
   const networthTrendSlot =
     current_by_asset.size > 0 ? (
       <Suspense fallback={<HomeNetWorthTrendFallback />}>
@@ -181,7 +195,7 @@ async function Home() {
     id: txn.id,
     date: txn.datetime,
     description: txn.description,
-    total_book: book_total(normalize_txn(txn)),
+    total_book: book_total(normalize_line_items(txn.line_items)),
   }))
 
   return (

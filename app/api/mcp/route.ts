@@ -20,11 +20,10 @@ import { get_prices_for_assets, get_price_for_asset } from '@/app/_utils/price_f
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_head_value, value_balance_entry } from '@/app/_utils/head_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
-import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { get_subtree_head_ids, compute_subtree_total } from '@/app/_utils/subtree_value'
-import { normalize_txn } from '@/app/_utils/normalize_txn'
+import { normalize_txn, normalize_line_items } from '@/app/_utils/normalize_txn'
 import { get_indian_date_from_date_obj } from '@/app/_utils/date'
 import {
   type ToolExtra,
@@ -47,8 +46,13 @@ import {
 } from './_helpers'
 import { register_extra_tools } from './_extra_tools'
 
-async function head_rollup(uid: string, root_id: string): Promise<{ subtree_total: number | null; children: { name: string; total: number }[] }> {
-  const all_heads = await prisma.accounting_head.findMany({ where: { user_id: uid }, select: { id: true, parent_id: true, name: true } })
+async function head_rollup(
+  uid: string,
+  root_id: string,
+  preloaded_heads?: { id: string; parent_id: string | null; name: string }[],
+): Promise<{ subtree_total: number | null; children: { name: string; total: number }[] }> {
+  const all_heads =
+    preloaded_heads ?? (await prisma.accounting_head.findMany({ where: { user_id: uid }, select: { id: true, parent_id: true, name: true } }))
   const subtree_ids = get_subtree_head_ids(root_id, all_heads)
   if (subtree_ids.size <= 1) return { subtree_total: null, children: [] }
   const { accountsToAssets: balances } = await compute_balances_core(uid)
@@ -77,6 +81,28 @@ function refs_of(t: { line_items: { external_ref: string | null }[] }): string[]
   const refs = [...new Set(t.line_items.map(li => li.external_ref).filter((r): r is string => r !== null))]
   return refs.length > 0 ? refs : null
 }
+
+// Exactly the fields normalize_line_items and the tool outputs read — full
+// accounting_head/asset rows would multiply the payload of the biggest queries.
+const slim_txn_select = {
+  id: true,
+  datetime: true,
+  description: true,
+  line_items: {
+    select: {
+      id: true,
+      accounting_head_id: true,
+      asset_id: true,
+      quantity: true,
+      txn_value: true,
+      description: true,
+      datetime: true,
+      external_ref: true,
+      accounting_head: { select: { name: true, type: true } },
+      asset: { select: { id: true, type: true, name: true } },
+    },
+  },
+} satisfies Prisma.transactionSelect
 
 function register_tools(server: McpServer) {
   const base_register = server.registerTool.bind(server)
@@ -136,7 +162,9 @@ function register_tools(server: McpServer) {
         compute_balances_core(uid),
         prisma.asset.findMany({ select: { id: true, name: true, type: true, ticker: true } }),
       ])
-      const priceByAsset = await get_prices_for_assets(assets)
+      // Only user-held assets are ever valued below — an unheld cache-missed
+      // ticker would otherwise trigger a blocking network price fetch.
+      const priceByAsset = await get_prices_for_assets(assets.filter(a => assetsToAccounts.has(a.id)))
       const assetById = new Map(assets.map(a => [a.id, a]))
       let total = 0
       const holdings: Record<string, unknown>[] = []
@@ -187,21 +215,25 @@ function register_tools(server: McpServer) {
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const ref = resolve_ref(args.asset, await load_assets(), 'asset')
-      const asset = await prisma.asset.findUnique({
-        where: { id: ref.id },
-        include: {
-          line_items: { where: { transaction: { user_id: uid } }, include: { accounting_head: true, transaction: true } },
-          parent: true,
-          children: true,
-        },
-      })
+      const [asset, rawTransactions, priceResp] = await Promise.all([
+        prisma.asset.findUnique({ where: { id: ref.id }, include: { parent: true, children: true } }),
+        prisma.transaction.findMany({
+          where: { user_id: uid, line_items: { some: { asset_id: ref.id } } },
+          include: { line_items: { include: { accounting_head: true, asset: true } } },
+        }),
+        get_price_for_asset(ref.type, ref.ticker ?? null),
+      ])
       if (!asset) return { content: [{ type: 'text', text: 'Asset not found' }], isError: true }
       const is_rupees = asset.type === asset_type.rupees
 
-      const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(asset.line_items)
-      const real_line_items = asset.line_items.filter(li => li.accounting_head.type === 'account')
-      const allocation_line_items = asset.line_items.filter(li => li.accounting_head.type === 'allocation')
-      const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
+      const normalized_txns = rawTransactions.map(normalize_txn)
+      const normalizedById = new Map<string, (typeof normalized_txns)[number]['line_items'][number]>()
+      for (const tx of normalized_txns) for (const li of tx.line_items) normalizedById.set(li.id, li)
+      const asset_line_items = rawTransactions.flatMap(tx =>
+        tx.line_items.filter(li => li.asset_id === ref.id).map(li => ({ ...li, transaction: tx })),
+      )
+      const real_line_items = asset_line_items.filter(li => li.accounting_head.type === 'account')
+      const allocation_line_items = asset_line_items.filter(li => li.accounting_head.type === 'allocation')
       const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
 
       let asset_total = new Prisma.Decimal(0)
@@ -345,10 +377,9 @@ function register_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const heads = await load_heads(uid)
+      const [heads, assets] = await Promise.all([load_heads(uid), load_assets()])
       const filter_head = args.head ? resolve_ref(args.head, heads, 'accounting head') : null
       const headById = new Map(heads.map(h => [h.id, h]))
-      const assets = await load_assets()
       const assetById = new Map(assets.map(a => [a.id, a]))
       const rows: Record<string, unknown>[] = []
 
@@ -402,16 +433,30 @@ function register_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const ref = resolve_ref(args.head, await load_heads(uid), 'account')
-      const head = await prisma.accounting_head.findFirst({
-        where: { id: ref.id, user_id: uid },
-        include: { line_items: { include: { asset: true, transaction: true } }, parent: true },
-      })
+      const all_heads = await load_heads(uid)
+      const ref = resolve_ref(args.head, all_heads, 'account')
+      const head = await prisma.accounting_head.findFirst({ where: { id: ref.id, user_id: uid }, include: { parent: true } })
       if (!head) return { content: [{ type: 'text', text: 'Head not found' }], isError: true }
       const is_account = head.type === 'account'
 
-      const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(head.line_items)
-      const uniqueAssets = Array.from(new Map(head.line_items.map(li => [li.asset.id, li.asset])).values())
+      const [rawTransactions, rollup, linked_user] = await Promise.all([
+        prisma.transaction.findMany({
+          where: { user_id: uid, line_items: { some: { accounting_head_id: head.id } } },
+          include: { line_items: { include: { accounting_head: true, asset: true } } },
+        }),
+        head_rollup(uid, head.id, all_heads),
+        is_account && head.linked_user_id
+          ? prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { username: true, upi_id: true } })
+          : null,
+      ])
+
+      const normalized_txns = rawTransactions.map(normalize_txn)
+      const normalizedById = new Map<string, (typeof normalized_txns)[number]['line_items'][number]>()
+      for (const tx of normalized_txns) for (const li of tx.line_items) normalizedById.set(li.id, li)
+      const head_line_items = rawTransactions.flatMap(tx =>
+        tx.line_items.filter(li => li.accounting_head_id === head.id).map(li => ({ ...li, transaction: tx })),
+      )
+      const uniqueAssets = Array.from(new Map(head_line_items.map(li => [li.asset.id, li.asset])).values())
       const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
       let total = new Prisma.Decimal(0)
@@ -430,7 +475,7 @@ function register_tools(server: McpServer) {
         remaining_quantity: number | null
       }[] = []
 
-      for (const li of head.line_items) {
+      for (const li of head_line_items) {
         const n = normalizedById.get(li.id)!
         const priceData = priceByAsset.get(li.asset.id) ?? null
         const priceDecimal = priceData ? new Prisma.Decimal(priceData.price) : null
@@ -463,7 +508,7 @@ function register_tools(server: McpServer) {
       }
 
       if (is_account) {
-        const lineById = new Map(head.line_items.map(li => [li.id, li]))
+        const lineById = new Map(head_line_items.map(li => [li.id, li]))
         const remaining_by_id = compute_fifo_remaining(
           lines
             .filter(l => l.asset_type !== asset_type.rupees)
@@ -486,11 +531,7 @@ function register_tools(server: McpServer) {
         xirr = calculate_xirr(cashflows)
       }
 
-      const { subtree_total, children } = await head_rollup(uid, head.id)
-      const linked_user =
-        is_account && head.linked_user_id
-          ? await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { username: true, upi_id: true } })
-          : null
+      const { subtree_total, children } = rollup
 
       const out: Record<string, unknown> = {
         id: head.id,
@@ -577,8 +618,9 @@ function register_tools(server: McpServer) {
         toDate = parse_day(args.to)
         toDate.setDate(toDate.getDate() + 1)
       }
-      const filter_head = args.head ? resolve_ref(args.head, await load_heads(uid), 'accounting head') : null
-      const filter_asset = args.asset ? resolve_ref(args.asset, await load_assets(), 'asset') : null
+      const [heads_for_filter, assets_for_filter] = await Promise.all([args.head ? load_heads(uid) : null, args.asset ? load_assets() : null])
+      const filter_head = args.head ? resolve_ref(args.head, heads_for_filter!, 'accounting head') : null
+      const filter_asset = args.asset ? resolve_ref(args.asset, assets_for_filter!, 'asset') : null
       const and: Prisma.transactionWhereInput[] = []
       if (filter_head) and.push({ line_items: { some: { accounting_head_id: filter_head.id } } })
       if (filter_asset) and.push({ line_items: { some: { asset_id: filter_asset.id } } })
@@ -592,45 +634,37 @@ function register_tools(server: McpServer) {
       const orderBy = { datetime: 'desc' as const }
       const skip = args.offset ?? 0
 
-      const txns = await prisma.transaction.findMany({
-        where,
-        orderBy,
-        take,
-        skip,
-        include: { line_items: { include: { accounting_head: true, asset: true } } },
-      })
+      const txns = await prisma.transaction.findMany({ where, orderBy, take, skip, select: slim_txn_select })
       // Signed INR movement on the filtered head, from normalized lines (so
       // derived-remainder lines on allocation/income_expense heads count too).
       const deltas = new Map<string, number>()
       if (filter_head) {
         for (const raw of txns) {
-          const t = normalize_txn(raw)
-          const d = t.line_items.filter(li => li.accounting_head_id === filter_head.id).reduce((s, li) => s + li.txn_value.toNumber(), 0)
-          deltas.set(t.id, Math.round(d * 100) / 100)
+          const d = normalize_line_items(raw.line_items)
+            .filter(li => li.accounting_head_id === filter_head.id)
+            .reduce((s, li) => s + li.txn_value.toNumber(), 0)
+          deltas.set(raw.id, Math.round(d * 100) / 100)
         }
       }
 
       if (args.include_line_items) {
         return text(
-          txns.map(raw => {
-            const t = normalize_txn(raw)
-            return {
-              id: t.id,
-              datetime: t.datetime,
-              description: t.description,
-              ...(refs_of(t) ? { refs: refs_of(t) } : {}),
-              ...(filter_head ? { head_delta: deltas.get(t.id) } : {}),
-              line_items: t.line_items.map(li => ({
-                head: li.accounting_head.name,
-                head_type: li.accounting_head.type,
-                asset: li.asset.name,
-                quantity: li.quantity.toNumber(),
-                txn_value: li.txn_value.toNumber(),
-                description: li.description,
-                ...(li.external_ref ? { external_ref: li.external_ref } : {}),
-              })),
-            }
-          }),
+          txns.map(raw => ({
+            id: raw.id,
+            datetime: raw.datetime,
+            description: raw.description,
+            ...(refs_of(raw) ? { refs: refs_of(raw) } : {}),
+            ...(filter_head ? { head_delta: deltas.get(raw.id) } : {}),
+            line_items: normalize_line_items(raw.line_items).map(li => ({
+              head: li.accounting_head.name,
+              head_type: li.accounting_head.type,
+              asset: li.asset.name,
+              quantity: li.quantity.toNumber(),
+              txn_value: li.txn_value.toNumber(),
+              description: li.description,
+              ...(li.external_ref ? { external_ref: li.external_ref } : {}),
+            })),
+          })),
         )
       }
 
@@ -672,18 +706,22 @@ function register_tools(server: McpServer) {
         ),
       ].slice(0, 10)
       if (tokens.length === 0) return text([])
+      // Head-name matching happens in memory over the tiny heads catalog: one
+      // indexed accounting_head_id branch replaces up to ten unindexable
+      // double-join ILIKE subqueries in the OR. JS scoring re-ranks below, so
+      // the returned results are unchanged.
+      const heads = await load_heads(uid)
+      const matching_head_ids = heads.filter(h => tokens.some(tok => h.name.toLowerCase().includes(tok))).map(h => h.id)
+      const or: Prisma.transactionWhereInput[] = tokens.flatMap(tok => [
+        { description: { contains: tok, mode: 'insensitive' as const } },
+        { line_items: { some: { description: { contains: tok, mode: 'insensitive' as const } } } },
+      ])
+      if (matching_head_ids.length > 0) or.push({ line_items: { some: { accounting_head_id: { in: matching_head_ids } } } })
       const txns = await prisma.transaction.findMany({
-        where: {
-          user_id: uid,
-          OR: tokens.flatMap(tok => [
-            { description: { contains: tok, mode: 'insensitive' as const } },
-            { line_items: { some: { description: { contains: tok, mode: 'insensitive' as const } } } },
-            { line_items: { some: { accounting_head: { name: { contains: tok, mode: 'insensitive' as const } } } } },
-          ]),
-        },
+        where: { user_id: uid, OR: or },
         orderBy: { datetime: 'desc' },
         take: 200,
-        include: { line_items: { include: { accounting_head: true, asset: true } } },
+        select: slim_txn_select,
       })
       const MAX_LINES = 12
       const scored = txns
@@ -691,9 +729,9 @@ function register_tools(server: McpServer) {
         // categorization templates — they carry no account or income/expense lines.
         .filter(raw => raw.line_items.some(li => li.accounting_head.type !== 'allocation'))
         .map(raw => {
-          const t = normalize_txn(raw)
-          const descs = [t.description ?? '', ...t.line_items.map(li => li.description ?? '')].join(' ').toLowerCase()
-          const head_names = t.line_items
+          const line_items = normalize_line_items(raw.line_items)
+          const descs = [raw.description ?? '', ...line_items.map(li => li.description ?? '')].join(' ').toLowerCase()
+          const head_names = line_items
             .map(li => li.accounting_head.name)
             .join(' ')
             .toLowerCase()
@@ -704,18 +742,18 @@ function register_tools(server: McpServer) {
             if (descs.includes(tok)) score += 2
             else if (head_names.includes(tok)) score += 1
           }
-          return { t, score }
+          return { raw, line_items, score }
         })
         .filter(x => x.score > 0)
-      scored.sort((a, b) => b.score - a.score || new Date(b.t.datetime).getTime() - new Date(a.t.datetime).getTime())
+      scored.sort((a, b) => b.score - a.score || new Date(b.raw.datetime).getTime() - new Date(a.raw.datetime).getTime())
       return text(
-        scored.slice(0, take).map(({ t }) => ({
-          id: t.id,
-          datetime: t.datetime,
-          description: t.description,
-          total: net_account_flow(t.line_items),
-          ...(t.line_items.length > MAX_LINES ? { line_items_truncated: `showing ${MAX_LINES} of ${t.line_items.length}` } : {}),
-          line_items: t.line_items.slice(0, MAX_LINES).map(li => ({
+        scored.slice(0, take).map(({ raw, line_items }) => ({
+          id: raw.id,
+          datetime: raw.datetime,
+          description: raw.description,
+          total: net_account_flow(line_items),
+          ...(line_items.length > MAX_LINES ? { line_items_truncated: `showing ${MAX_LINES} of ${line_items.length}` } : {}),
+          line_items: line_items.slice(0, MAX_LINES).map(li => ({
             head: li.accounting_head.name,
             head_type: li.accounting_head.type,
             asset: li.asset.name,
@@ -802,7 +840,11 @@ function register_tools(server: McpServer) {
       if (!args.include_values) return text(heads.filter(h => args.include_inactive || h.is_active).map(as_ist_day))
 
       const [{ accountsToAssets }, assets] = await Promise.all([compute_balances_core(uid), load_assets()])
-      const priceByAsset = await get_prices_for_assets(assets)
+      // Values only consult prices for assets present in the balance maps —
+      // pricing the whole shared catalog risks blocking fetches for unheld tickers.
+      const held_asset_ids = new Set<string>()
+      for (const assetMap of accountsToAssets.values()) for (const asset_id of assetMap.keys()) held_asset_ids.add(asset_id)
+      const priceByAsset = await get_prices_for_assets(assets.filter(a => held_asset_ids.has(a.id)))
       const rows = heads
         .map(h => {
           const assetMap = accountsToAssets.get(h.id) ?? new Map<string, { qty: number; txn_value: number }>()
@@ -835,20 +877,23 @@ function register_tools(server: McpServer) {
       if (!args.include_values) return text(args.include_inactive ? assets : assets.filter(a => a.is_active))
 
       const { assetsToAccounts } = await compute_balances_core(uid)
-      const priceByAsset = await get_prices_for_assets(assets)
+      // Unheld assets contribute zero everywhere below — don't fetch the whole
+      // shared catalog's quotes (a cache-missed unheld ticker blocks on network).
+      const priceByAsset = await get_prices_for_assets(assets.filter(a => assetsToAccounts.has(a.id)))
 
+      // XIRR cashflows only need the account-line flows of non-rupees assets, and
+      // write validation keeps txn_value non-null on those lines (the stored value
+      // equals the normalized one), so one slim query replaces the old two-pass
+      // full-ledger scan; any legacy null row is skipped.
       const account_lines = await prisma.line_item.findMany({
-        where: { accounting_head: { type: 'account' }, transaction: { user_id: uid } },
-        include: { transaction: true },
+        where: { accounting_head: { type: 'account' }, transaction: { user_id: uid }, asset: { type: { not: asset_type.rupees } } },
+        select: { asset_id: true, txn_value: true, datetime: true, transaction: { select: { datetime: true } } },
       })
-      const tx_ids = [...new Set(account_lines.map(li => li.transaction_id))]
-      const txnValueById = new Map<string, number>()
-      if (tx_ids.length > 0) {
-        const rawTxns = await prisma.transaction.findMany({
-          where: { id: { in: tx_ids } },
-          include: { line_items: { include: { accounting_head: true, asset: true } } },
-        })
-        for (const tx of rawTxns.map(normalize_txn)) for (const li of tx.line_items) txnValueById.set(li.id, li.txn_value.toNumber())
+      const lines_by_asset = new Map<string, typeof account_lines>()
+      for (const li of account_lines) {
+        const arr = lines_by_asset.get(li.asset_id)
+        if (arr) arr.push(li)
+        else lines_by_asset.set(li.asset_id, [li])
       }
 
       const rows = assets
@@ -864,12 +909,9 @@ function register_tools(server: McpServer) {
           const current_value = value.toNumber()
           let xirr: number | null = null
           if (a.type !== asset_type.rupees && current_value !== 0) {
-            const cashflows = account_lines
-              .filter(li => li.asset_id === a.id)
-              .flatMap(li => {
-                const v = txnValueById.get(li.id)
-                return v === undefined ? [] : [{ amount: -v, when: li.datetime ?? li.transaction.datetime }]
-              })
+            const cashflows = (lines_by_asset.get(a.id) ?? []).flatMap(li =>
+              li.txn_value === null ? [] : [{ amount: -li.txn_value.toNumber(), when: li.datetime ?? li.transaction.datetime }],
+            )
             if (cashflows.length > 0) {
               cashflows.push({ amount: current_value, when: new Date() })
               xirr = calculate_xirr(cashflows)
@@ -925,11 +967,11 @@ function register_tools(server: McpServer) {
       toDate.setDate(toDate.getDate() + 1)
       const txns = await prisma.transaction.findMany({
         where: { user_id: uid, datetime: { gte: fromDate, lt: toDate }, line_items: { some: { accounting_head: { type: 'income_expense' } } } },
-        include: { line_items: { include: { accounting_head: true, asset: true } } },
+        select: slim_txn_select,
       })
       const totals = new Map<string, number>()
-      for (const t of txns.map(normalize_txn)) {
-        for (const li of t.line_items) {
+      for (const t of txns) {
+        for (const li of normalize_line_items(t.line_items)) {
           if (li.accounting_head.type !== 'income_expense') continue
           totals.set(li.accounting_head.name, (totals.get(li.accounting_head.name) ?? 0) + li.txn_value.toNumber())
         }
@@ -976,13 +1018,14 @@ function register_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const line_items = await build_line_items(uid, args.line_items)
+      const [heads, assets] = await Promise.all([load_heads(uid), load_assets()])
+      const line_items = await build_line_items(uid, args.line_items, { heads, assets })
       const datetime = parse_date(args.datetime)
       if (args.dry_run) return dry_run_check(uid, datetime, line_items, args.description)
       // With an idempotency_key the exact dedup in the core supersedes the
       // heuristic guard (which would otherwise block legitimate replays).
       if (!args.force && !args.idempotency_key) {
-        const dupe = await find_possible_duplicate(uid, datetime, line_items)
+        const dupe = await find_possible_duplicate(uid, datetime, line_items, new Map(heads.map(h => [h.id, h.type])))
         if (dupe)
           return error_text(
             `Possible duplicate — not created. Existing transaction ${dupe.id} (${dupe.datetime.toISOString()}, "${dupe.description ?? ''}") already moves ${dupe.amount} on the same account within ±1 day. ` +
@@ -997,6 +1040,7 @@ function register_tools(server: McpServer) {
       const balances = await account_balances_for(
         uid,
         line_items.map(li => li.accounting_head_id),
+        { heads, assets },
       )
       return text({ ok: true, message: res.message, ...res.data, account_balances: balances })
     },
@@ -1023,10 +1067,14 @@ function register_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const existing = await prisma.transaction.findFirst({ where: { id: args.id, user_id: uid }, include: { line_items: true } })
+      const [existing, heads, assets] = await Promise.all([
+        prisma.transaction.findFirst({ where: { id: args.id, user_id: uid }, include: { line_items: true } }),
+        load_heads(uid),
+        load_assets(),
+      ])
       if (!existing) return error_text('Transaction not found')
       const line_items: CreateLineItemInput[] = args.line_items
-        ? await build_line_items(uid, args.line_items)
+        ? await build_line_items(uid, args.line_items, { heads, assets })
         : stored_lines_to_input(existing.line_items)
       if (args.dry_run)
         return dry_run_check(uid, args.datetime ? parse_date(args.datetime) : existing.datetime, line_items, args.description, {
@@ -1043,7 +1091,7 @@ function register_tools(server: McpServer) {
       )
       if (!res.success) return action_result(res)
       const touched = [...new Set([...existing.line_items.map(li => li.accounting_head_id), ...line_items.map(li => li.accounting_head_id)])]
-      const balances = await account_balances_for(uid, touched)
+      const balances = await account_balances_for(uid, touched, { heads, assets })
       return text({ ok: true, message: res.message, account_balances: balances })
     },
   )
@@ -1092,11 +1140,15 @@ function register_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const accounts = (await load_heads(uid)).filter(h => h.type === 'account')
-      const payee = resolve_ref(args.payee_account, accounts, 'account')
+      const heads = await load_heads(uid)
+      const payee = resolve_ref(
+        args.payee_account,
+        heads.filter(h => h.type === 'account'),
+        'account',
+      )
       const res = await create_upi_payment_core(uid, { payee_account_id: payee.id, amount: args.amount, description: args.note })
       if (!res.success || !res.data) return action_result(res)
-      const balances = await account_balances_for(uid, await head_ids_of_txn(res.data.id))
+      const balances = await account_balances_for(uid, await head_ids_of_txn(res.data.id), { heads })
       return text({ ok: true, message: res.message, ...res.data, account_balances: balances })
     },
   )

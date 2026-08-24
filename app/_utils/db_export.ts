@@ -80,19 +80,26 @@ export function cell(v: unknown): string {
   return String(v)
 }
 
-async function table_meta(table: string): Promise<{ name: string; numeric: boolean }[]> {
-  const rows = await prisma.$queryRawUnsafe<{ column_name: string; data_type: string }[]>(
-    `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
-    table,
+async function tables_meta(tables: string[]): Promise<Map<string, { name: string; numeric: boolean }[]>> {
+  const rows = await prisma.$queryRawUnsafe<{ table_name: string; column_name: string; data_type: string }[]>(
+    `SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ANY($1::text[]) ORDER BY table_name, ordinal_position`,
+    tables,
   )
-  return rows.map(r => ({ name: r.column_name, numeric: NUMERIC_TYPES.has(r.data_type) }))
+  const by_table = new Map<string, { name: string; numeric: boolean }[]>()
+  for (const r of rows) {
+    let list = by_table.get(r.table_name)
+    if (!list) by_table.set(r.table_name, (list = []))
+    list.push({ name: r.column_name, numeric: NUMERIC_TYPES.has(r.data_type) })
+  }
+  return by_table
 }
 
 export async function collect_user_export(user_id: string, excluded: Record<string, Set<string>> = DEFAULT_EXCLUDED_COLUMNS): Promise<TableExport[]> {
+  const meta_by_table = await tables_meta(USER_TABLES.map(t => t.table))
   return Promise.all(
     USER_TABLES.map(async ({ table, where }) => {
       const drop = excluded[table]
-      const meta = (await table_meta(table)).filter(m => !drop?.has(m.name))
+      const meta = (meta_by_table.get(table) ?? []).filter(m => !drop?.has(m.name))
       const columns = meta.map(m => m.name)
       const quoted = columns.map(c => `"${c.replace(/"/g, '""')}"`).join(', ')
       const raw = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(`SELECT ${quoted} FROM "${table}" ${where}`, user_id)
@@ -107,7 +114,9 @@ export async function collect_user_export(user_id: string, excluded: Record<stri
   )
 }
 
-export async function collect_full_dump(): Promise<TableExport[]> {
+// Sequential per-table generator so the admin dump route can stream: peak memory
+// is one table's rows, not every table at once (the metrics tables are unbounded).
+export async function* collect_full_dump_tables(): AsyncGenerator<TableExport, void> {
   const found = await prisma.$queryRawUnsafe<{ table_name: string }[]>(
     `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`,
   )
@@ -116,22 +125,21 @@ export async function collect_full_dump(): Promise<TableExport[]> {
     return i < 0 ? FULL_TABLE_ORDER.length : i
   }
   const names = found.map(t => t.table_name).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+  const meta_by_table = await tables_meta(names)
 
-  return Promise.all(
-    names.map(async table => {
-      const meta = await table_meta(table)
-      const columns = meta.map(m => m.name)
-      const quoted = columns.map(c => `"${c.replace(/"/g, '""')}"`).join(', ')
-      const raw = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(`SELECT ${quoted} FROM "${table}"`)
-      return {
-        table,
-        columns,
-        numericColumns: meta.filter(m => m.numeric).map(m => m.name),
-        foreignKeys: {},
-        rows: raw.map(r => columns.map(c => r[c])),
-      }
-    }),
-  )
+  for (const table of names) {
+    const meta = meta_by_table.get(table) ?? []
+    const columns = meta.map(m => m.name)
+    const quoted = columns.map(c => `"${c.replace(/"/g, '""')}"`).join(', ')
+    const raw = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(`SELECT ${quoted} FROM "${table}"`)
+    yield {
+      table,
+      columns,
+      numericColumns: meta.filter(m => m.numeric).map(m => m.name),
+      foreignKeys: {},
+      rows: raw.map(r => columns.map(c => r[c])),
+    }
+  }
 }
 
 const utf8_bom = (s: string) => Buffer.from('﻿' + s, 'utf8')

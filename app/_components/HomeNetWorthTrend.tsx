@@ -1,7 +1,8 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@/generated/prisma/client'
 import type { asset_type } from '@/generated/prisma/enums'
-import { normalize_txn } from '@/app/_utils/normalize_txn'
+import { normalize_line_items } from '@/app/_utils/normalize_txn'
 import { get_price_lookups_for_assets } from '@/app/_utils/historical_price_fetcher'
 import { ist_day_window, collect_networth_events, build_networth_sparkline, type AssetBalance, type PriceAt } from '@/app/_utils/home_networth_series'
 import { HomeNetWorthSparkline, HomeNetWorthSparklineFallback } from './HomeNetWorthSparkline'
@@ -25,21 +26,35 @@ export async function HomeNetWorthTrend({ userId, current, assets, networth, day
   // Split the old OR-with-relation-subquery into two index-friendly queries: the OR
   // form forced Postgres to walk the user's whole transaction history instead of using
   // the (user_id, datetime) range index. The lt/gte split keeps them disjoint.
-  const txn_include = { line_items: { include: { accounting_head: true, asset: true } } }
+  // Select only what the dedup, normalize_line_items and collect_networth_events read.
+  const txn_select = {
+    id: true,
+    datetime: true,
+    line_items: {
+      select: {
+        asset_id: true,
+        datetime: true,
+        quantity: true,
+        txn_value: true,
+        accounting_head: { select: { type: true } },
+        asset: { select: { id: true, type: true, name: true } },
+      },
+    },
+  } satisfies Prisma.transactionSelect
   const [in_window, overridden_into_window] = await Promise.all([
     prisma.transaction.findMany({
       where: { user_id: userId, datetime: { gte: since } },
-      include: txn_include,
+      select: txn_select,
     }),
     prisma.transaction.findMany({
       where: { user_id: userId, datetime: { lt: since }, line_items: { some: { datetime: { gte: since } } } },
-      include: txn_include,
+      select: txn_select,
     }),
   ])
   const seen = new Set<string>()
   const raw = [...in_window, ...overridden_into_window].filter(t => (seen.has(t.id) ? false : (seen.add(t.id), true)))
 
-  const events = collect_networth_events(raw.map(normalize_txn))
+  const events = collect_networth_events(raw.map(t => ({ datetime: t.datetime, line_items: normalize_line_items(t.line_items) })))
 
   const relevant = new Set<string>([...current.keys(), ...events.map(e => e.asset_id)])
   const lookups = await get_price_lookups_for_assets(
