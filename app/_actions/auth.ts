@@ -159,10 +159,32 @@ export const get_current_user = cache(async (): Promise<Pick<user, 'id' | 'usern
   return userRec
 })
 
-export const is_current_user_admin = cache(async (): Promise<boolean> => {
+// One request-deduped read of the caller's user row, selecting the union of what
+// the layout (preferences), forms (line-item defaults) and admin/UPI checks need —
+// several of these render in the same request and previously each paid their own query.
+const user_row_select = {
+  is_admin: true,
+  upi_id: true,
+  theme: true,
+  masking_enabled: true,
+  mask_threshold: true,
+  graphs_visible: true,
+  default_account_id: true,
+  default_allocation_id: true,
+  default_income_expense_id: true,
+  default_asset_id: true,
+} as const
+
+export type CurrentUserRow = NonNullable<Awaited<ReturnType<typeof get_current_user_row>>>
+
+export const get_current_user_row = cache(async () => {
   const uid = await get_current_user_id()
-  if (!uid) return false
-  const rec = await prisma.user.findUnique({ where: { id: uid }, select: { is_admin: true } })
+  if (!uid) return null
+  return prisma.user.findUnique({ where: { id: uid }, select: user_row_select })
+})
+
+export const is_current_user_admin = cache(async (): Promise<boolean> => {
+  const rec = await get_current_user_row()
   return !!rec?.is_admin
 })
 

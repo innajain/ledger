@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { upload } from '@vercel/blob/client'
 import type { AttachmentInput } from '@/app/_actions/attachments'
 import { format_bytes } from '@/app/_utils/format_bytes'
 
@@ -67,6 +66,9 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
     setUploadError(null)
     setUploading(true)
     try {
+      // Loaded on first file pick — the blob client SDK doesn't belong in the form's
+      // initial bundle when most visits never attach a file.
+      const { upload } = await import('@vercel/blob/client')
       // Parallel: each upload is two round trips (token handshake + PUT). The index keeps
       // pathnames unique — concurrent uploads share the same Date.now() millisecond.
       const uploaded: AttachmentInput[] = await Promise.all(

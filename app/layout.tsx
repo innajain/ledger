@@ -27,6 +27,9 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+  // Only used for reference chips and a couple of textareas — never above the fold,
+  // so don't compete with the render-critical font for bandwidth.
+  preload: false,
 })
 
 export const metadata: Metadata = {
@@ -66,12 +69,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // inbox_count chains off the (react.cache-deduped) user fetch so it overlaps the
-  // preferences read instead of adding a serial round trip to every route.
+  // Only the user row (theme + masking prefs stamp the <html> element) blocks the first
+  // flush; the inbox count streams into the Navbar badge as a promise instead of gating
+  // every route on the link-count query.
   const userPromise = get_current_user()
-  const [user, prefs, requestCount] = await Promise.all([userPromise, get_user_preferences(), userPromise.then(u => (u ? inbox_count(u.id) : 0))])
-
-  const nonce = (await headers()).get('x-nonce') || undefined
+  const [user, prefs, nonce] = await Promise.all([userPromise, get_user_preferences(), headers().then(h => h.get('x-nonce') || undefined)])
+  const requestCount = userPromise.then(u => (u ? inbox_count(u.id) : 0))
   const persist = !!user
   const htmlClassName = prefs.theme === 'dark' ? 'dark' : ''
   return (

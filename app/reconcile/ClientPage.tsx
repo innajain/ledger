@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/app/_components/Button'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { format_day } from '@/app/_utils/format_date'
-import { parse_statement, type ParsedStatementRow } from '@/app/_utils/statement_parser'
+import type { ParsedStatementRow } from '@/app/_utils/statement_parser'
 import { run_reconcile, create_missing_transactions, set_reconciliation_lock, type ReconcileView, type StatementRow } from './reconcile_actions'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
 
@@ -284,6 +284,8 @@ export default function ClientPage({
     setError(null)
     setCreateNote(null)
     setView(null)
+    // Parser loads on first use — it's only needed once a statement is actually pasted.
+    const { parse_statement } = await import('@/app/_utils/statement_parser')
     const outcome = parse_statement(rawText)
     setParsed(outcome)
     if (outcome.rows.length === 0) return

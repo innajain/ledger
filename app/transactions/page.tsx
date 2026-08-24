@@ -198,35 +198,70 @@ async function Page({
     pageSize = wantsAll ? totalCount : requestedPageSize
     txForClient = rawTransactions.map(toClientRow)
   } else {
-    const AMOUNT_FILTER_SCAN_CAP = 5000
-    const allRaw = await prisma.transaction.findMany({
-      where,
-      select: list_select,
-      orderBy: { datetime: 'desc' as const },
-      take: AMOUNT_FILTER_SCAN_CAP,
-    })
-    const allWithTotals: TxForClient[] = allRaw.map(toClientRow)
-    const filtered = allWithTotals.filter(tx => {
-      if (minAmount !== undefined && tx.total_book < minAmount) return false
-      if (maxAmount !== undefined && tx.total_book > maxAmount) return false
-      return true
-    })
-    filtered.sort((a, b) => {
-      switch (sort) {
-        case 'date_asc':
-          return a.date.getTime() - b.date.getTime()
-        case 'amount_asc':
-          return a.total_book - b.total_book
-        case 'amount_desc':
-          return b.total_book - a.total_book
-        case 'date_desc':
-        default:
-          return b.date.getTime() - a.date.getTime()
-      }
-    })
-    totalCount = filtered.length
+    // Amount filter/sort in SQL. The book total per transaction is
+    // SUM(COALESCE(txn_value, quantity)) over its account-type lines: validation
+    // guarantees account lines always store quantity, non-rupee account lines always
+    // store txn_value, and normalization sets txn_value = quantity for rupee lines —
+    // so the stored columns reproduce the normalized total without fetching a single
+    // line item. This used to pull up to 5000 transactions (with every line item) into
+    // JS, and silently capped the count there.
+    const like = (s: string) => '%' + s.replace(/[\\%_]/g, m => '\\' + m) + '%'
+    const conds: Prisma.Sql[] = [Prisma.sql`t.user_id = ${user.id}`]
+    if (search) {
+      conds.push(
+        Prisma.sql`(t.description ILIKE ${like(search)} OR EXISTS (SELECT 1 FROM line_item s WHERE s.transaction_id = t.id AND s.description ILIKE ${like(search)}))`,
+      )
+    }
+    if (params.ref)
+      conds.push(Prisma.sql`EXISTS (SELECT 1 FROM line_item r WHERE r.transaction_id = t.id AND r.external_ref ILIKE ${like(params.ref)})`)
+    if (dateFrom) conds.push(Prisma.sql`t.datetime >= ${dateFrom}`)
+    if (dateTo) conds.push(Prisma.sql`t.datetime < ${dateTo}`)
+    if (accountId) conds.push(Prisma.sql`EXISTS (SELECT 1 FROM line_item a WHERE a.transaction_id = t.id AND a.accounting_head_id = ${accountId})`)
+    if (assetId) conds.push(Prisma.sql`EXISTS (SELECT 1 FROM line_item b WHERE b.transaction_id = t.id AND b.asset_id = ${assetId})`)
+
+    const totalExpr = Prisma.sql`COALESCE(SUM(COALESCE(li.txn_value, li.quantity)), 0)`
+    const having: Prisma.Sql[] = []
+    if (minAmount !== undefined) having.push(Prisma.sql`${totalExpr} >= ${minAmount}`)
+    if (maxAmount !== undefined) having.push(Prisma.sql`${totalExpr} <= ${maxAmount}`)
+
+    // LEFT JOIN of the (line_item ⋈ account-head) pair keeps transactions with no
+    // account lines in the result with a total of 0, matching the old JS behavior.
+    const grouped = Prisma.sql`
+      SELECT t.id, ${totalExpr} AS total
+      FROM "transaction" t
+      LEFT JOIN (line_item li JOIN accounting_head ah ON ah.id = li.accounting_head_id AND ah.type = 'account')
+        ON li.transaction_id = t.id
+      WHERE ${Prisma.join(conds, ' AND ')}
+      GROUP BY t.id
+      ${having.length > 0 ? Prisma.sql`HAVING ${Prisma.join(having, ' AND ')}` : Prisma.empty}
+    `
+    const orderSql =
+      sort === 'amount_asc'
+        ? Prisma.sql`ORDER BY total ASC, t.id`
+        : sort === 'amount_desc'
+          ? Prisma.sql`ORDER BY total DESC, t.id`
+          : sort === 'date_asc'
+            ? Prisma.sql`ORDER BY t.datetime ASC, t.id`
+            : Prisma.sql`ORDER BY t.datetime DESC, t.id`
+    const limitSql = wantsAll ? Prisma.empty : Prisma.sql`LIMIT ${requestedPageSize} OFFSET ${(page - 1) * requestedPageSize}`
+
+    const [pageRows, countRows] = await Promise.all([
+      prisma.$queryRaw<{ id: string }[]>(Prisma.sql`${grouped} ${orderSql} ${limitSql}`),
+      prisma.$queryRaw<{ count: number }[]>(Prisma.sql`SELECT COUNT(*)::int AS count FROM (${grouped}) sub`),
+    ])
+
+    totalCount = countRows[0]?.count ?? 0
     pageSize = wantsAll ? totalCount : requestedPageSize
-    txForClient = wantsAll ? filtered : filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize)
+    if (pageRows.length === 0) {
+      txForClient = []
+    } else {
+      const pageRaw = await prisma.transaction.findMany({
+        where: { id: { in: pageRows.map(r => r.id) }, user_id: user.id },
+        select: list_select,
+      })
+      const byId = new Map(pageRaw.map(t => [t.id, toClientRow(t)]))
+      txForClient = pageRows.map(r => byId.get(r.id)).filter((t): t is TxForClient => !!t)
+    }
   }
 
   if (txForClient.length > 0) {

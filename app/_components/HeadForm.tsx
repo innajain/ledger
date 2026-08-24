@@ -2,9 +2,7 @@
 
 import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatInTimeZone } from 'date-fns-tz'
-import { USER_TIMEZONE } from '@/lib/config'
-import { get_date_obj_from_indian_date } from '@/app/_utils/date'
+import { ist_ymd, ist_midnight } from '@/app/_utils/ist_date'
 import { create_account, update_account, find_user_by_username } from '@/app/_actions/resources'
 import type { Prisma, accounting_head_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
@@ -226,7 +224,7 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
   const isLinkable = config.headType === 'account'
   const [linkedUserId, setLinkedUserId] = useState<string | null>(head.linked_user_id ?? null)
   const [linkedUsername, setLinkedUsername] = useState<string | null>(initialLinkedUsername ?? null)
-  const initialLockDate = head.lock_date ? formatInTimeZone(head.lock_date, USER_TIMEZONE, 'yyyy-MM-dd') : ''
+  const initialLockDate = head.lock_date ? ist_ymd(head.lock_date) : ''
   const [lockDate, setLockDate] = useState(initialLockDate)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -245,11 +243,7 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
         isPlaceholder,
         isLinkable ? linkedUserId : undefined,
         // undefined = untouched, so a stale tab doesn't clobber a lock set elsewhere
-        !isLinkable || lockDate === initialLockDate
-          ? undefined
-          : lockDate
-            ? get_date_obj_from_indian_date(lockDate.split('-').reverse().join('-'))
-            : null,
+        !isLinkable || lockDate === initialLockDate ? undefined : lockDate ? ist_midnight(lockDate) : null,
       )
       if (!result.success) throw new Error(result.message)
       router.push(config.basePath)

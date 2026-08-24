@@ -61,17 +61,22 @@ export function head_detail_link(type: accounting_head_type, id: string): string
 export type ChildHeadSummary = { id: string; name: string; link: string; total: number }
 
 export async function compute_head_rollup(root_id: string, user_id: string): Promise<{ subtree_total: number | null; children: ChildHeadSummary[] }> {
-  const all_heads = await prisma.accounting_head.findMany({
-    where: { user_id },
-    select: { id: true, parent_id: true, name: true, type: true },
-  })
+  const [all_heads, { accountsToAssets: balances }] = await Promise.all([
+    prisma.accounting_head.findMany({
+      where: { user_id },
+      select: { id: true, parent_id: true, name: true, type: true },
+    }),
+    get_or_compute_balances(),
+  ])
   const subtree_ids = get_subtree_head_ids(root_id, all_heads)
   if (subtree_ids.size <= 1) return { subtree_total: null, children: [] }
 
-  const { accountsToAssets: balances } = await get_or_compute_balances()
   const subtree_asset_ids = new Set<string>()
   for (const head_id of subtree_ids) for (const asset_id of balances.get(head_id)?.keys() ?? []) subtree_asset_ids.add(asset_id)
-  const subtree_assets = await prisma.asset.findMany({ where: { id: { in: Array.from(subtree_asset_ids) } } })
+  const subtree_assets = await prisma.asset.findMany({
+    where: { id: { in: Array.from(subtree_asset_ids) } },
+    select: { id: true, type: true, ticker: true },
+  })
   const price_by_asset = await get_prices_for_assets(subtree_assets)
   const asset_type_by_id = new Map(subtree_assets.map(a => [a.id, a.type]))
 

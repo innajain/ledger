@@ -12,6 +12,7 @@ import {
   type PriceLookup,
   type ValuePoint,
 } from './value_timeseries_core'
+import { normalize_txn } from './normalize_txn'
 
 const D = (n: number) => new Prisma.Decimal(n)
 const MF: AssetMeta = { id: 'mf', type: asset_type.mf, ticker: 'XYZ' }
@@ -154,8 +155,10 @@ describe('build_events', () => {
     ],
   })
 
+  // build_events takes pre-normalized transactions — normalize the fixtures the same
+  // way the pages do before handing them over.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const txns = (...t: any[]) => t as Parameters<typeof build_events>[0]
+  const txns = (...t: any[]) => t.map(tx => normalize_txn(tx)) as Parameters<typeof build_events>[0]
 
   it('keeps only line items matching the filtered head', () => {
     const events = build_events(txns(makeTxn('t1', day(1))), { kind: 'account', accounting_head_id: 'bank' })
@@ -215,7 +218,8 @@ describe('compute_timeseries_points (build + walk)', () => {
       ],
     }
     const points = compute_timeseries_points(
-      [tx] as Parameters<typeof compute_timeseries_points>[0],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      [normalize_txn(tx as any)] as Parameters<typeof compute_timeseries_points>[0],
       { kind: 'account', accounting_head_id: 'bank' },
       new Map(),
       [CASH],

@@ -22,7 +22,7 @@ export default function ClientPage({
   deleteAsset,
 }: {
   asset: Prisma.assetGetPayload<Record<string, never>>
-  parents: Prisma.assetGetPayload<Record<string, never>>[]
+  parents: { id: string; name: string }[]
   deleteAsset?: (id: string) => Promise<ActionResult>
 }) {
   const router = useRouter()

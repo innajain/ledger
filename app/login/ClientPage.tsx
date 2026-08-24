@@ -92,7 +92,7 @@ export default function ClientPage({ user }: Props) {
         <div className="w-full max-w-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-8 transition-colors">
           <div className="flex items-center justify-center mb-6">
             <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center shadow-lg">
-              <Image src="/favicon.ico" alt="Ledger" width={40} height={40} />
+              <Image src="/logo-256.png" alt="Ledger" width={40} height={40} />
             </div>
           </div>
 
@@ -146,7 +146,7 @@ export default function ClientPage({ user }: Props) {
         {}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 mb-4 shadow-lg">
-            <Image src="/favicon.ico" alt="Ledger" width={40} height={40} />
+            <Image src="/logo-256.png" alt="Ledger" width={40} height={40} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
             {isSignup ? 'Create account' : 'Welcome to Ledger'}

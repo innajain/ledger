@@ -1,6 +1,5 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import {
   create_transaction_core,
@@ -25,7 +24,8 @@ export async function create_transaction(
 export async function delete_transaction(id: string): Promise<ActionResult> {
   const user_id = await get_current_user_id()
   if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
-  return delete_transaction_core(user_id, id)
+  const res = await delete_transaction_core(user_id, id)
+  return res.success ? ok(undefined, res.message) : res
 }
 
 export type DeletedTransactionSnapshot = {
@@ -41,16 +41,14 @@ export async function delete_transaction_with_snapshot(id: string): Promise<Acti
   const user_id = await get_current_user_id()
   if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
   try {
-    const existing = await prisma.transaction.findFirst({
-      where: { id, user_id },
-      include: { line_items: true, attachments: { select: { id: true } } },
-    })
-    if (!existing) return err('NOT_FOUND', 'Transaction not found')
+    const res = await delete_transaction_core(user_id, id)
+    if (!res.success) return res
+    const deleted = res.data!
     const snapshot: DeletedTransactionSnapshot = {
-      datetime: existing.datetime.toISOString(),
-      description: existing.description,
-      had_attachments: existing.attachments.length > 0,
-      line_items: existing.line_items.map(li => ({
+      datetime: deleted.datetime.toISOString(),
+      description: deleted.description,
+      had_attachments: deleted.had_attachments,
+      line_items: deleted.line_items.map(li => ({
         accounting_head_id: li.accounting_head_id,
         asset_id: li.asset_id,
         quantity: li.quantity === null ? undefined : li.quantity.toNumber(),
@@ -60,8 +58,6 @@ export async function delete_transaction_with_snapshot(id: string): Promise<Acti
         external_ref: li.external_ref,
       })),
     }
-    const res = await delete_transaction_core(user_id, id)
-    if (!res.success) return res
     return ok({ snapshot })
   } catch (error) {
     return fromError(error)

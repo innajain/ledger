@@ -1,11 +1,13 @@
 generator client {
-  provider   = "prisma-client"
-  output     = "../generated/prisma"
-  engineType = "client"
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  engineType      = "client"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [pg_trgm]
 }
 
 model user {
@@ -170,6 +172,9 @@ model transaction {
 
   @@unique([user_id, idempotency_key])
   @@index([user_id, datetime])
+  // Trigram GIN serves the list page's / MCP's case-insensitive contains search,
+  // which otherwise seq-scans every transaction of the user.
+  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model transaction_attachment {
@@ -216,6 +221,8 @@ model line_item {
   @@index([asset_id])
   @@index([external_ref])
   @@index([datetime])
+  // Trigram GIN for the description-contains branch of transaction search.
+  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 enum accounting_head_type {

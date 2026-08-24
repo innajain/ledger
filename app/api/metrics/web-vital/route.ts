@@ -12,24 +12,28 @@ const VitalSchema = z.object({
   navigationType: z.string().max(32).optional(),
 })
 
+// The reporter batches a page view's metrics into one beacon; a bare object is still
+// accepted for any in-flight clients from before the batching change.
+const PayloadSchema = z.union([z.array(VitalSchema).min(1).max(50), VitalSchema])
+
 export async function POST(req: Request) {
   if (!PROFILING_ENABLED) return NextResponse.json({ ok: true })
   try {
     const body = await req.json()
-    const parsed = VitalSchema.safeParse(body)
+    const parsed = PayloadSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json({ error: 'invalid payload' }, { status: 400 })
     }
-    const { route, name, value, rating, navigationType } = parsed.data
+    const vitals = Array.isArray(parsed.data) ? parsed.data : [parsed.data]
 
-    await prisma.web_vital.create({
-      data: {
+    await prisma.web_vital.createMany({
+      data: vitals.map(({ route, name, value, rating, navigationType }) => ({
         route,
         name,
         value,
         rating: rating ?? null,
         navigation_type: navigationType ?? null,
-      },
+      })),
     })
     return NextResponse.json({ ok: true })
   } catch (err) {

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { Suspense, use, useEffect, useState } from 'react'
 import { RevealToggle } from './RevealToggle'
 
 const NAV_ITEMS: { href: string; label: string }[] = [
@@ -26,6 +26,16 @@ const navLinkClasses = (active: boolean, block = false) =>
       : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
   }`
 
+// The count may arrive as a promise so the layout can stream the shell without
+// waiting on the inbox query — the badge fills in when the count resolves.
+function Badge({ value }: { value: number | Promise<number> }) {
+  const n = typeof value === 'number' ? value : use(value)
+  if (n <= 0) return null
+  return (
+    <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-semibold rounded-full bg-red-600 text-white">{n}</span>
+  )
+}
+
 function NavLink({
   href,
   label,
@@ -39,21 +49,19 @@ function NavLink({
   active: boolean
   block?: boolean
   onClick?: () => void
-  badge?: number
+  badge?: number | Promise<number>
 }) {
   return (
     <Link href={href} className={`${navLinkClasses(active, block)} inline-flex items-center gap-2`} onClick={onClick}>
       {label}
-      {badge > 0 && (
-        <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-semibold rounded-full bg-red-600 text-white">
-          {badge}
-        </span>
-      )}
+      <Suspense fallback={null}>
+        <Badge value={badge} />
+      </Suspense>
     </Link>
   )
 }
 
-export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: boolean; requestCount?: number }) {
+export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: boolean; requestCount?: number | Promise<number> }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
 
@@ -84,7 +92,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
             onClick={closeMenu}
           >
             <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
-              <Image src="/favicon.ico" alt="Ledger" width={24} height={24} />
+              <Image src="/logo-256.png" alt="Ledger" width={24} height={24} />
             </div>
             <span className="font-semibold text-lg">Ledger</span>
             {process.env.NODE_ENV === 'development' && (

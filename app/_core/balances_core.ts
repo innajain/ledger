@@ -136,6 +136,9 @@ export async function closing_balance_core(user_id: string, head_id: string | nu
     where: {
       user_id,
       ...(head_id ? { line_items: { some: { accounting_head_id: head_id } } } : {}),
+      // A transaction only contributes lines with effective date (li.datetime ?? txn.datetime)
+      // before the cutoff — prune the rest in SQL; the JS filter below stays authoritative.
+      OR: [{ datetime: { lt: cutoff } }, { line_items: { some: { datetime: { lt: cutoff } } } }],
     },
     select: {
       datetime: true,

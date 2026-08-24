@@ -1,4 +1,5 @@
 import 'server-only'
+import { cache } from 'react'
 import { Prisma } from '@/generated/prisma/client'
 import type { transaction_link, accounting_head, asset } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -35,25 +36,57 @@ export async function linked_counterparties(tx: Tx, transaction_id: string): Pro
   return Array.from(new Set(lines.map(l => l.accounting_head.linked_user_id).filter((x): x is string => !!x)))
 }
 
-async function linked_signature(tx: Tx, transaction_id: string, linked_user_id: string, negate: boolean): Promise<string> {
-  const txn = await tx.transaction.findUnique({
-    where: { id: transaction_id },
+// Both sides' content signatures in one read: my copy's shared lines sit on heads
+// linked to the counterparty, theirs on heads linked back to me. One findMany over the
+// two transaction ids halves the in-transaction round trips per counterparty.
+async function linked_signature_pair(
+  tx: Tx,
+  user_id: string,
+  my_txn: string,
+  their_txn: string,
+  cp: string,
+): Promise<{ mine: string; theirs: string }> {
+  const rows = await tx.transaction.findMany({
+    where: { id: { in: [my_txn, their_txn] } },
     select: {
+      id: true,
       description: true,
       datetime: true,
       line_items: {
-        where: { accounting_head: { linked_user_id } },
-        select: { asset_id: true, quantity: true, txn_value: true, description: true, datetime: true },
+        where: { accounting_head: { linked_user_id: { in: [user_id, cp] } } },
+        select: {
+          asset_id: true,
+          quantity: true,
+          txn_value: true,
+          description: true,
+          datetime: true,
+          accounting_head: { select: { linked_user_id: true } },
+        },
       },
     },
   })
-  if (!txn) return ''
-  const flip = (d: Prisma.Decimal | null) => (d === null ? 'x' : (negate ? d.neg() : d).toString())
-  const lineSig = txn.line_items
-    .map(l => `${l.asset_id}:${flip(l.quantity)}:${flip(l.txn_value)}:${l.description ?? ''}:${l.datetime ? l.datetime.toISOString() : ''}`)
-    .sort()
-    .join('|')
-  return `T:${txn.description ?? ''}:${txn.datetime.toISOString()}||${lineSig}`
+  const sig = (txn: (typeof rows)[number] | undefined, linked_user_id: string, negate: boolean) => {
+    if (!txn) return ''
+    const flip = (d: Prisma.Decimal | null) => (d === null ? 'x' : (negate ? d.neg() : d).toString())
+    const lineSig = txn.line_items
+      .filter(l => l.accounting_head.linked_user_id === linked_user_id)
+      .map(l => `${l.asset_id}:${flip(l.quantity)}:${flip(l.txn_value)}:${l.description ?? ''}:${l.datetime ? l.datetime.toISOString() : ''}`)
+      .sort()
+      .join('|')
+    return `T:${txn.description ?? ''}:${txn.datetime.toISOString()}||${lineSig}`
+  }
+  return {
+    mine: sig(
+      rows.find(r => r.id === my_txn),
+      cp,
+      false,
+    ),
+    theirs: sig(
+      rows.find(r => r.id === their_txn),
+      user_id,
+      true,
+    ),
+  }
 }
 
 type SourceTxn = Prisma.transactionGetPayload<{ include: { line_items: { include: { accounting_head: true } } } }>
@@ -377,8 +410,7 @@ export async function sync_links_after_update(
 
     const counterpart_txn = their_txn_id(link, user_id)
     if (counterpart_txn) {
-      const mine = await linked_signature(tx, transaction_id, cp, false)
-      const theirs = await linked_signature(tx, counterpart_txn, user_id, true)
+      const { mine, theirs } = await linked_signature_pair(tx, user_id, transaction_id, counterpart_txn, cp)
       if (mine === theirs && link.pending_status === 'approved') continue
     }
 
@@ -552,39 +584,37 @@ export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
   return items
 }
 
-export async function get_cancellable_links(user_id: string, transaction_id: string): Promise<{ link_id: string; other_username: string }[]> {
+// One request-deduped fetch of a transaction's links plus counterparty names —
+// get_transaction_status and get_cancellable_links render on the same page, and the
+// cancellable set is a pure subset of the full link list.
+const get_links_with_names = cache(async (user_id: string, transaction_id: string) => {
   const links = await prisma.transaction_link.findMany({
     where: {
-      pending_status: 'pending',
-      pending_by: { not: user_id },
       OR: [
         { user_a_id: user_id, txn_a_id: transaction_id },
         { user_b_id: user_id, txn_b_id: transaction_id },
       ],
     },
   })
-  if (links.length === 0) return []
+  if (links.length === 0) return { links, nameById: new Map<string, string>() }
   const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
   const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
-  const name = (id: string) => users.find(u => u.id === id)?.username ?? 'user'
-  return links.map(l => ({ link_id: l.id, other_username: name(other_user(l, user_id)) }))
+  return { links, nameById: new Map(users.map(u => [u.id, u.username])) }
+})
+
+export async function get_cancellable_links(user_id: string, transaction_id: string): Promise<{ link_id: string; other_username: string }[]> {
+  const { links, nameById } = await get_links_with_names(user_id, transaction_id)
+  return links
+    .filter(l => l.pending_status === 'pending' && l.pending_by !== user_id)
+    .map(l => ({ link_id: l.id, other_username: nameById.get(other_user(l, user_id)) ?? 'user' }))
 }
 
 export type TransactionStatus = { text: string; severity: 'success' | 'warning' | 'error' | 'info' }
 
 export async function get_transaction_status(user_id: string, transaction_id: string): Promise<TransactionStatus | null> {
-  const links = await prisma.transaction_link.findMany({
-    where: {
-      OR: [
-        { user_a_id: user_id, txn_a_id: transaction_id },
-        { user_b_id: user_id, txn_b_id: transaction_id },
-      ],
-    },
-  })
+  const { links, nameById } = await get_links_with_names(user_id, transaction_id)
   if (links.length === 0) return null
-  const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
-  const users = await prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } })
-  const name = (id: string) => users.find(u => u.id === id)?.username ?? 'user'
+  const name = (id: string) => nameById.get(id) ?? 'user'
   const tag = (l: (typeof links)[number]) => '@' + name(other_user(l, user_id))
 
   const awaitingMe = links.filter(l => l.pending_status === 'pending' && l.pending_by === user_id)
@@ -607,7 +637,11 @@ export async function get_transaction_status(user_id: string, transaction_id: st
         : 'success'
 
   const text =
-    parts.length === 0 ? `Shared with ${otherIds.map(id => '@' + name(id)).join(', ')} (approved)` : `Shared transaction — ${parts.join('; ')}`
+    parts.length === 0
+      ? `Shared with ${Array.from(new Set(links.map(l => other_user(l, user_id))))
+          .map(id => '@' + name(id))
+          .join(', ')} (approved)`
+      : `Shared transaction — ${parts.join('; ')}`
 
   return { text, severity }
 }

@@ -2,7 +2,7 @@ import 'server-only'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 import { get_current_user_id } from '@/app/_actions/auth'
-import type { TransactionFull } from './normalize_txn'
+import type { NormalizedTransaction } from './normalize_txn'
 import { get_price_lookups_for_assets } from './historical_price_fetcher'
 import { asset_type } from '@/generated/prisma/client'
 import { build_events, walk_events, ist_date_key, prev_day_key, type TimeseriesFilter, type ValuePoint } from './value_timeseries_core'
@@ -65,7 +65,7 @@ function entity_id_for_filter(filter: TimeseriesFilter): string {
 }
 
 async function compute_value_timeseries_uncached(
-  transactions: TransactionFull[],
+  transactions: NormalizedTransaction[],
   filter: TimeseriesFilter,
   assets: { id: string; type: asset_type; ticker: string | null }[],
   mode: 'all' | 'today-only' | { since: string },
@@ -79,7 +79,7 @@ async function compute_value_timeseries_uncached(
 type FrozenCache = { version: number; upToDate: string; points: ValuePoint[] }
 
 export async function compute_value_timeseries(
-  transactions: TransactionFull[],
+  transactions: NormalizedTransaction[],
   filter: TimeseriesFilter,
   assets: { id: string; type: asset_type; ticker: string | null }[],
   explicit_user_id?: string,

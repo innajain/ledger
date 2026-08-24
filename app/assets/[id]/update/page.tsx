@@ -1,6 +1,6 @@
 import ClientPage from './ClientPage'
 import { prisma } from '@/lib/prisma'
-import { get_current_user } from '@/app/_actions/auth'
+import { get_current_user, is_current_user_admin } from '@/app/_actions/auth'
 import { delete_asset } from '@/app/_actions/resources'
 import type { Prisma } from '@/generated/prisma/client'
 import { profile } from '@/lib/metrics/profile'
@@ -16,8 +16,17 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       </div>
     )
   }
-  const me = await prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true } })
-  if (!me?.is_admin) {
+  // Admin check, the asset row and the parent picker list are independent — one round trip.
+  // ParentAssetSelect only reads id/name, so the list stays slim.
+  const [isAdmin, asset, parents] = await Promise.all([
+    is_current_user_admin(),
+    prisma.asset.findUnique({ where: { id } }),
+    prisma.asset.findMany({
+      select: { id: true, name: true },
+      orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+    }),
+  ])
+  if (!isAdmin) {
     return (
       <div>
         <h1>Edit asset</h1>
@@ -25,9 +34,6 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       </div>
     )
   }
-  const asset = await prisma.asset.findUnique({
-    where: { id },
-  })
   if (!asset) {
     return (
       <div>
@@ -36,10 +42,6 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
       </div>
     )
   }
-
-  const parents = await prisma.asset.findMany({
-    orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-  })
 
   return <ClientPage asset={asset as Prisma.assetGetPayload<Record<string, never>>} parents={parents} deleteAsset={delete_asset} />
 }

@@ -51,14 +51,18 @@ async function head_rollup(
   root_id: string,
   preloaded_heads?: { id: string; parent_id: string | null; name: string }[],
 ): Promise<{ subtree_total: number | null; children: { name: string; total: number }[] }> {
-  const all_heads =
-    preloaded_heads ?? (await prisma.accounting_head.findMany({ where: { user_id: uid }, select: { id: true, parent_id: true, name: true } }))
+  const [all_heads, { accountsToAssets: balances }] = await Promise.all([
+    preloaded_heads ?? prisma.accounting_head.findMany({ where: { user_id: uid }, select: { id: true, parent_id: true, name: true } }),
+    compute_balances_core(uid),
+  ])
   const subtree_ids = get_subtree_head_ids(root_id, all_heads)
   if (subtree_ids.size <= 1) return { subtree_total: null, children: [] }
-  const { accountsToAssets: balances } = await compute_balances_core(uid)
   const subtree_asset_ids = new Set<string>()
   for (const head_id of subtree_ids) for (const asset_id of balances.get(head_id)?.keys() ?? []) subtree_asset_ids.add(asset_id)
-  const subtree_assets = await prisma.asset.findMany({ where: { id: { in: [...subtree_asset_ids] } } })
+  const subtree_assets = await prisma.asset.findMany({
+    where: { id: { in: [...subtree_asset_ids] } },
+    select: { id: true, type: true, ticker: true },
+  })
   const price_by_asset = await get_prices_for_assets(subtree_assets)
   const asset_type_by_id = new Map(subtree_assets.map(a => [a.id, a.type]))
   const subtree_total = compute_subtree_total(subtree_ids, balances, asset_type_by_id, price_by_asset).toNumber()
@@ -351,7 +355,7 @@ function register_tools(server: McpServer) {
         // Bearer auth doesn't populate request context, so pass the authenticated uid
         // explicitly — without it MCP always bypassed the frozen timeseries cache.
         const series = await compute_value_timeseries(
-          rawTransactions,
+          normalized_txns,
           { kind: 'asset', asset_id: asset.id },
           [{ id: asset.id, type: asset.type, ticker: asset.ticker }],
           uid,
@@ -577,7 +581,7 @@ function register_tools(server: McpServer) {
 
       if (args.include_timeseries && uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')) {
         const series = await compute_value_timeseries(
-          rawTransactions,
+          normalized_txns,
           is_account ? { kind: 'account', accounting_head_id: head.id } : { kind: 'allocation', allocation_id: head.id },
           uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
           uid,
@@ -1105,17 +1109,15 @@ function register_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const existing = await prisma.transaction.findFirst({
-        where: { id: args.id, user_id: uid },
-        include: { line_items: { include: { accounting_head: true, asset: true } } },
-      })
-      if (!existing) return error_text('Transaction not found')
+      const res = await delete_transaction_core(uid, args.id)
+      if (!res.success) return action_result(res)
+      const deleted = res.data!
       const snapshot = {
-        datetime: existing.datetime,
-        description: existing.description,
-        line_items: existing.line_items.map(li => ({
-          account: li.accounting_head.name,
-          asset: li.asset.name,
+        datetime: deleted.datetime,
+        description: deleted.description,
+        line_items: deleted.line_items.map(li => ({
+          account: li.account_name,
+          asset: li.asset_name,
           ...(li.quantity !== null ? { quantity: li.quantity.toNumber() } : {}),
           ...(li.txn_value !== null ? { txn_value: li.txn_value.toNumber() } : {}),
           ...(li.description ? { description: li.description } : {}),
@@ -1123,9 +1125,7 @@ function register_tools(server: McpServer) {
           ...(li.external_ref ? { external_ref: li.external_ref } : {}),
         })),
       }
-      const head_ids = existing.line_items.map(li => li.accounting_head_id)
-      const res = await delete_transaction_core(uid, args.id)
-      if (!res.success) return action_result(res)
+      const head_ids = deleted.line_items.map(li => li.accounting_head_id)
       const balances = await account_balances_for(uid, head_ids)
       return text({ ok: true, message: 'Transaction deleted', deleted: snapshot, account_balances: balances })
     },

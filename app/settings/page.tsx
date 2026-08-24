@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { get_current_user } from '@/app/_actions/auth'
+import { get_current_user, get_current_user_row } from '@/app/_actions/auth'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { prisma } from '@/lib/prisma'
 import ClientPage from './ClientPage'
@@ -38,7 +38,7 @@ async function SettingsPage() {
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       select: { id: true, name: true, type: true, is_placeholder: true },
     }),
-    prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true, upi_id: true } }),
+    get_current_user_row(),
   ])
 
   return (

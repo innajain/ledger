@@ -6,6 +6,7 @@ import { env, isDev } from '@/lib/env'
 const PUBLIC_PATHS = [
   '/login',
   '/favicon.ico',
+  '/logo-256.png',
   '/robots.txt',
   '/sitemap.xml',
   '/sw.js',
@@ -63,8 +64,9 @@ function nextWithSecurity(requestHeaders: Headers, formAction?: string): NextRes
   const nonce = btoa(crypto.randomUUID())
   const csp = buildCsp(nonce, formAction)
 
+  // Only x-nonce goes on the request — the full CSP would be round-tripped through
+  // x-middleware-override-headers with no downstream reader.
   requestHeaders.set('x-nonce', nonce)
-  requestHeaders.set('content-security-policy', csp)
   const res = NextResponse.next({ request: { headers: requestHeaders } })
   res.headers.set('Content-Security-Policy', csp)
   return res

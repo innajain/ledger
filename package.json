@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "analyze": "ANALYZE=true next build",
+    "analyze": "ANALYZE=true next build --webpack",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "cli": "tsx --tsconfig cli/tsconfig.json cli/index.ts",

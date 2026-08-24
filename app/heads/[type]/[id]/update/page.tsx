@@ -23,7 +23,16 @@ async function Page({ params }: Props) {
     )
   }
 
-  const head = await prisma.accounting_head.findUnique({ where: { id, user_id: user.id, type } })
+  // ParentSelect only reads id/name — don't ship every column of every head to the client.
+  // The parent list doesn't depend on the head row, so both queries run together.
+  const [head, parents] = await Promise.all([
+    prisma.accounting_head.findUnique({ where: { id, user_id: user.id, type } }),
+    prisma.accounting_head.findMany({
+      where: { user_id: user.id, type },
+      select: { id: true, name: true },
+      orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+    }),
+  ])
   if (!head) {
     return (
       <div>
@@ -37,13 +46,6 @@ async function Page({ params }: Props) {
     type === 'account' && head.linked_user_id
       ? ((await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { username: true } }))?.username ?? null)
       : null
-
-  // ParentSelect only reads id/name — don't ship every column of every head to the client
-  const parents: { id: string; name: string }[] = await prisma.accounting_head.findMany({
-    where: { user_id: user.id, type },
-    select: { id: true, name: true },
-    orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-  })
 
   return <UpdateHeadForm head={head} parents={parents} headType={type} deleteHead={delete_account} linkedUsername={linkedUsername} />
 }

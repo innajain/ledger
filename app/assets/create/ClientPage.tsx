@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { create_asset } from '@/app/_actions/resources'
-import type { asset_type, Prisma } from '@/generated/prisma/client'
+import type { asset_type } from '@/generated/prisma/client'
 import { PageHeader, FormCard, TextInput, AssetTypeSelect, ParentAssetSelect, FormActions, ErrorAlert } from '@/app/_components/FormComponents'
 
-export default function ClientPage({ parents }: { parents: Prisma.assetGetPayload<Record<string, never>>[] }) {
+export default function ClientPage({ parents }: { parents: { id: string; name: string }[] }) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [type, setType] = useState<asset_type>('other')

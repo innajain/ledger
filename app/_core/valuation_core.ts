@@ -19,7 +19,10 @@ export async function compute_net_worth(user_id: string): Promise<NetWorth> {
     prisma.asset.findMany({ select: { id: true, type: true, ticker: true } }),
     compute_balances_core(user_id),
   ])
-  const priceByAsset = await get_prices_for_assets(assets)
+  // The asset table is a shared catalog — only price what this user actually holds.
+  const held = new Set<string>()
+  for (const asset_map of accountsToAssets.values()) for (const asset_id of asset_map.keys()) held.add(asset_id)
+  const priceByAsset = await get_prices_for_assets(assets.filter(a => held.has(a.id)))
   const allocs: AllocationValue[] = allocations.map(a => ({
     id: a.id,
     name: a.name,

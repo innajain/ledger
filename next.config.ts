@@ -9,6 +9,19 @@ const nextConfig: NextConfig = {
 
   allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '172.16.*.*'],
 
+  // Node-only server deps stay external instead of being bundled into the server output.
+  serverExternalPackages: ['ioredis', 'pino', 'yahoo-finance2', 'web-push'],
+
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+
+  experimental: {
+    // Inline the (render-blocking) CSS into the HTML — saves a round trip before first paint.
+    inlineCss: true,
+    optimizePackageImports: ['date-fns', 'date-fns-tz', 'recharts', 'lightweight-charts'],
+  },
+
   async headers() {
     return [
       {
@@ -30,9 +43,10 @@ const nextConfig: NextConfig = {
       ['/allocations', '/heads/allocation'],
       ['/income_expenses', '/heads/income_expense'],
     ]
+    // 308s so browsers and the CDN cache the legacy routes instead of re-resolving each visit.
     return families.flatMap(([from, to]) => [
-      { source: from, destination: to, permanent: false },
-      { source: `${from}/:path*`, destination: `${to}/:path*`, permanent: false },
+      { source: from, destination: to, permanent: true },
+      { source: `${from}/:path*`, destination: `${to}/:path*`, permanent: true },
     ])
   },
 }

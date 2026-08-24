@@ -1,10 +1,11 @@
+import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import { formatInTimeZone } from 'date-fns-tz'
 import { USER_TIMEZONE } from '@/lib/config'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
-import { asset_type, Prisma } from '@/generated/prisma/client'
+import { accounting_head_type, asset_type, Prisma } from '@/generated/prisma/client'
 import { HeadDetailPage, type HeadData, type LineItem } from '@/app/_components/HeadDetailPage'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
@@ -19,12 +20,17 @@ import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 type Props = { params: Promise<{ type: string; id: string }> }
 
+// react.cache so generateMetadata and the page share one fetch per request.
+const get_head_row = cache((id: string, user_id: string, type: accounting_head_type) =>
+  prisma.accounting_head.findUnique({ where: { id, user_id, type }, include: { parent: true } }),
+)
+
 export async function generateMetadata({ params }: Props) {
   const { type, id } = await params
   if (!isHeadType(type)) return {}
   const user = await get_current_user()
   if (!user) return { title: HEAD_CONFIG[type].title }
-  const head = await prisma.accounting_head.findUnique({ where: { id, user_id: user.id, type }, select: { name: true } })
+  const head = await get_head_row(id, user.id, type)
   return { title: head?.name ?? HEAD_CONFIG[type].title }
 }
 
@@ -38,10 +44,7 @@ async function Page({ params }: Props) {
     return <LoggedOutNotice title={cfg.title} />
   }
 
-  const head = await prisma.accounting_head.findUnique({
-    where: { id, user_id: user.id, type },
-    include: { parent: true },
-  })
+  const head = await get_head_row(id, user.id, type)
 
   if (!head) {
     return (
@@ -169,7 +172,7 @@ async function Page({ params }: Props) {
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
   if (has_priced_asset) {
     value_timeseries = await compute_value_timeseries(
-      rawTransactions,
+      transactions,
       isAccount ? { kind: 'account', accounting_head_id: head.id } : { kind: 'allocation', allocation_id: head.id },
       uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
     )

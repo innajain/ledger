@@ -114,14 +114,20 @@ export async function update_line_item_defaults_core(user_id: string, input: Lin
   }
 }
 
+export function preferences_from_row(
+  u: { theme: string | null; masking_enabled: boolean; mask_threshold: number; graphs_visible: boolean } | null,
+): UserPreferences {
+  if (!u) return DEFAULT_USER_PREFERENCES
+  const theme: ThemeChoice = u.theme === 'light' || u.theme === 'dark' ? u.theme : 'system'
+  return { theme, masking_enabled: u.masking_enabled, mask_threshold: u.mask_threshold, graphs_visible: u.graphs_visible }
+}
+
 export async function get_user_preferences_core(user_id: string): Promise<UserPreferences> {
   const u = await prisma.user.findUnique({
     where: { id: user_id },
     select: { theme: true, masking_enabled: true, mask_threshold: true, graphs_visible: true },
   })
-  if (!u) return DEFAULT_USER_PREFERENCES
-  const theme: ThemeChoice = u.theme === 'light' || u.theme === 'dark' ? u.theme : 'system'
-  return { theme, masking_enabled: u.masking_enabled, mask_threshold: u.mask_threshold, graphs_visible: u.graphs_visible }
+  return preferences_from_row(u)
 }
 
 export async function update_user_preferences_core(user_id: string, input: Partial<UserPreferences>): Promise<ActionResult<UserPreferences>> {

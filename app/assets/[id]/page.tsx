@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
 import { get_current_user, is_current_user_admin } from '@/app/_actions/auth'
 import { get_price_for_asset } from '@/app/_utils/price_fetcher'
@@ -13,9 +14,12 @@ import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 type Props = { params: Promise<{ id: string }> }
 
+// react.cache so generateMetadata and the page share one fetch per request.
+const get_asset_row = cache((id: string) => prisma.asset.findUnique({ where: { id }, include: { parent: true, children: true } }))
+
 export async function generateMetadata({ params }: Props) {
   const id = (await params).id
-  const asset = await prisma.asset.findUnique({ where: { id }, select: { name: true } })
+  const asset = await get_asset_row(id)
   return { title: asset?.name ?? 'Asset' }
 }
 
@@ -27,16 +31,17 @@ async function Page({ params }: Props) {
   }
   // One pass over the ledger: the transactions touching this asset carry every line
   // item the page needs, so the asset row itself stays slim and nothing is fetched twice.
-  const [isAdmin, asset, rawTransactions] = await Promise.all([
+  // The price fetch depends only on the asset row, so it chains off that promise and
+  // overlaps the ledger query instead of running after it.
+  const assetPromise = get_asset_row(id)
+  const [isAdmin, asset, rawTransactions, priceResp] = await Promise.all([
     is_current_user_admin(),
-    prisma.asset.findUnique({
-      where: { id },
-      include: { parent: true, children: true },
-    }),
+    assetPromise,
     prisma.transaction.findMany({
       where: { user_id: user.id, line_items: { some: { asset_id: id } } },
       include: { line_items: { include: { accounting_head: true, asset: true } } },
     }),
+    assetPromise.then(a => (a ? get_price_for_asset(a.type, a.ticker ?? null) : null)),
   ])
 
   if (!asset) {
@@ -59,7 +64,6 @@ async function Page({ params }: Props) {
   const real_line_items = asset_line_items.filter(li => li.accounting_head.type === 'account')
   const allocation_line_items = asset_line_items.filter(li => li.accounting_head.type === 'allocation')
 
-  const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
   const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
 
   let asset_total = new Prisma.Decimal(0)
@@ -187,9 +191,7 @@ async function Page({ params }: Props) {
 
   const has_priced_asset = asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares'
   const value_timeseries = has_priced_asset
-    ? await compute_value_timeseries(rawTransactions, { kind: 'asset', asset_id: asset.id }, [
-        { id: asset.id, type: asset.type, ticker: asset.ticker },
-      ])
+    ? await compute_value_timeseries(transactions, { kind: 'asset', asset_id: asset.id }, [{ id: asset.id, type: asset.type, ticker: asset.ticker }])
     : []
 
   reconcile_timeseries_tail(value_timeseries, asset_total.toNumber(), xirr_value)

@@ -2,7 +2,7 @@ import { Prisma, asset_type } from '@/generated/prisma/client'
 import { parseISO } from 'date-fns'
 import { fromZonedTime, formatInTimeZone } from 'date-fns-tz'
 import { USER_TIMEZONE } from '@/lib/config'
-import { normalize_txn, type TransactionFull } from './normalize_txn'
+import type { NormalizedTransaction } from './normalize_txn'
 import { calculate_xirr_detailed } from './xirr_calculator'
 
 export type PriceLookup = (date: Date) => number | null
@@ -69,11 +69,13 @@ type WalkState = {
   cashflows: { amount: number; when: Date }[]
 }
 
-export function build_events(transactions: TransactionFull[], filter: TimeseriesFilter): Event[] {
+// Takes already-normalized transactions — every page/tool that renders a timeseries has
+// normalized the same array moments earlier, and normalization is the most expensive
+// pure-CPU step over a full ledger, so it must not run twice.
+export function build_events(transactions: NormalizedTransaction[], filter: TimeseriesFilter): Event[] {
   const events: Event[] = []
   for (const tx of transactions) {
-    const norm = normalize_txn(tx)
-    for (const li of norm.line_items) {
+    for (const li of tx.line_items) {
       if (filter.kind === 'asset') {
         if (li.asset.id !== filter.asset_id) continue
         if (li.accounting_head.type !== 'account') continue
@@ -273,7 +275,7 @@ export function walk_events(
 }
 
 export function compute_timeseries_points(
-  transactions: TransactionFull[],
+  transactions: NormalizedTransaction[],
   filter: TimeseriesFilter,
   priceLookups: Map<string, PriceLookup>,
   assets: AssetMeta[],

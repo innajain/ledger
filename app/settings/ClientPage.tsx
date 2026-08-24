@@ -7,8 +7,11 @@ import { AccountSection } from './AccountSection'
 import { PreferencesSection } from './PreferencesSection'
 import { DataSection } from './DataSection'
 import { ValidationSection } from './ValidationSection'
-import { AdminSection } from './AdminSection'
+import dynamic from 'next/dynamic'
 import { SessionSection } from './SessionSection'
+
+// Admin-only tab — don't ship its chunk to non-admins (or before the tab is opened).
+const AdminSection = dynamic(() => import('./AdminSection').then(m => m.AdminSection))
 
 type Props = {
   user: Pick<user, 'id' | 'username'>

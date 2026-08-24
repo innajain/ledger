@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { asset_type } from '@/generated/prisma/enums'
-import type { accounting_head, asset } from '@/generated/prisma/client'
+import type { accounting_head, asset, Prisma } from '@/generated/prisma/client'
 import { ist_date_key } from '@/app/_utils/value_timeseries_core'
 import { validate_line_items } from '@/app/_utils/validate_line_items'
 import { assert_no_locked_lines } from '@/app/_utils/lock_date'
@@ -496,7 +496,26 @@ export async function update_transaction_core(
   }
 }
 
-export async function delete_transaction_core(user_id: string, id: string): Promise<ActionResult> {
+// The full deleted row, returned so callers can build re-creatable snapshots without
+// their own pre-delete read (the lock assertion already needs most of these fields).
+export type DeletedTransaction = {
+  datetime: Date
+  description: string | null
+  had_attachments: boolean
+  line_items: {
+    accounting_head_id: string
+    asset_id: string
+    account_name: string
+    asset_name: string
+    quantity: Prisma.Decimal | null
+    txn_value: Prisma.Decimal | null
+    description: string | null
+    datetime: Date | null
+    external_ref: string | null
+  }[]
+}
+
+export async function delete_transaction_core(user_id: string, id: string): Promise<ActionResult<DeletedTransaction>> {
   try {
     const parsed = deleteTransactionSchema.safeParse({ id })
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
@@ -507,8 +526,20 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
         where: { id, user_id },
         select: {
           datetime: true,
+          description: true,
+          attachments: { select: { id: true }, take: 1 },
           line_items: {
-            select: { datetime: true, accounting_head_id: true, asset_id: true, accounting_head: { select: { name: true, lock_date: true } } },
+            select: {
+              datetime: true,
+              accounting_head_id: true,
+              asset_id: true,
+              quantity: true,
+              txn_value: true,
+              description: true,
+              external_ref: true,
+              accounting_head: { select: { name: true, lock_date: true } },
+              asset: { select: { name: true } },
+            },
           },
         },
       })
@@ -517,13 +548,31 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
 
       await prepare_links_for_delete(tx, user_id, id)
       await tx.transaction.delete({ where: { id, user_id } })
-      return {
-        txn_datetime: existing.datetime,
-        line_items: existing.line_items.map(li => ({ accounting_head_id: li.accounting_head_id, asset_id: li.asset_id, datetime: li.datetime })),
-      }
+      return existing
     })
-    await invalidate_balances(user_id, touched_entities(deleted))
-    return ok()
+    await invalidate_balances(
+      user_id,
+      touched_entities({
+        txn_datetime: deleted.datetime,
+        line_items: deleted.line_items.map(li => ({ accounting_head_id: li.accounting_head_id, asset_id: li.asset_id, datetime: li.datetime })),
+      }),
+    )
+    return ok({
+      datetime: deleted.datetime,
+      description: deleted.description,
+      had_attachments: deleted.attachments.length > 0,
+      line_items: deleted.line_items.map(li => ({
+        accounting_head_id: li.accounting_head_id,
+        asset_id: li.asset_id,
+        account_name: li.accounting_head.name,
+        asset_name: li.asset.name,
+        quantity: li.quantity,
+        txn_value: li.txn_value,
+        description: li.description,
+        datetime: li.datetime,
+        external_ref: li.external_ref,
+      })),
+    })
   } catch (error) {
     return fromError(error)
   }
@@ -548,25 +597,28 @@ export async function create_upi_payment_core(
     const parsed = upiPaymentSchema.safeParse(input)
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
 
-    const [user_row, payee, rupees_assets] = await Promise.all([
-      prisma.user.findUnique({ where: { id: user_id }, select: { default_account_id: true, default_asset_id: true } }),
-      prisma.accounting_head.findFirst({
-        where: { id: parsed.data.payee_account_id, user_id, type: 'account' },
-        select: { id: true },
+    const user_row = await prisma.user.findUnique({ where: { id: user_id }, select: { default_account_id: true, default_asset_id: true } })
+    if (!user_row?.default_account_id) return err('NOT_FOUND', 'No default account set — pick one in Settings → Preferences')
+    if (parsed.data.payee_account_id === user_row.default_account_id) return err('VALIDATION', "Payee can't be the same as your default account")
+
+    // Full rows up front — validation, the lock assertion and link creation all read
+    // them, so the interactive $transaction below holds its connection for writes only.
+    const [accounts, rupees_assets] = await Promise.all([
+      prisma.accounting_head.findMany({
+        where: { id: { in: [user_row.default_account_id, parsed.data.payee_account_id] }, user_id },
       }),
       prisma.asset.findMany({
         where: { type: asset_type.rupees, is_active: true },
-        select: { id: true },
         orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
       }),
     ])
 
-    if (!user_row?.default_account_id) return err('NOT_FOUND', 'No default account set — pick one in Settings → Preferences')
+    const payee = accounts.find(a => a.id === parsed.data.payee_account_id && a.type === 'account')
     if (!payee) return err('NOT_FOUND', 'Payee account not found')
-    if (parsed.data.payee_account_id === user_row.default_account_id) return err('VALIDATION', "Payee can't be the same as your default account")
     if (rupees_assets.length === 0) return err('NOT_FOUND', 'You need a rupees asset to record a payment')
 
-    const rupees_asset_id = rupees_assets.find(a => a.id === user_row.default_asset_id)?.id ?? rupees_assets[0].id
+    const rupees_asset = rupees_assets.find(a => a.id === user_row.default_asset_id) ?? rupees_assets[0]
+    const rupees_asset_id = rupees_asset.id
     const description = parsed.data.description ?? null
     const datetime = new Date()
 
@@ -589,15 +641,11 @@ export async function create_upi_payment_core(
           datetime: null,
         },
       ]
-      const accounts = await prisma.accounting_head.findMany({
-        where: { id: { in: [user_row.default_account_id!, parsed.data.payee_account_id] }, user_id },
-      })
-      const assets = await prisma.asset.findMany({ where: { id: rupees_asset_id } })
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
           quantity: li.quantity,
           txn_value: li.txn_value,
-          asset: assets.find(a => a.id === li.asset_id)!,
+          asset: rupees_asset,
           accounting_head: accounts.find(a => a.id === li.accounting_head_id)!,
         })),
       )
