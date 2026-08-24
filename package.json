@@ -45,7 +45,6 @@
     "jose": "^6.2.3",
     "lightweight-charts": "^5.2.0",
     "mcp-handler": "^1.1.0",
-    "minio": "^8.0.7",
     "next": "16.2.9",
     "pino": "^10.3.1",
     "qrcode": "^1.5.4",

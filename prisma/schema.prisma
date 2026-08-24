@@ -215,6 +215,7 @@ model line_item {
   @@index([accounting_head_id])
   @@index([asset_id])
   @@index([external_ref])
+  @@index([datetime])
 }
 
 enum accounting_head_type {
@@ -269,6 +270,7 @@ model transaction_link {
   @@index([pending_by, pending_status])
   @@index([user_a_id])
   @@index([user_b_id])
+  @@index([txn_b_id])
 }
 
 // One row per server-side page render. Acts as the parent for slow_query

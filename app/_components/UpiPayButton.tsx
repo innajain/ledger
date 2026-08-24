@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import QRCode from 'qrcode'
 import { Button } from '@/app/_components/Button'
 import { currency_fmt } from '../_utils/currency_formatter'
 
@@ -133,7 +132,8 @@ export function UpiPayButton({
   useEffect(() => {
     if (modal !== 'qr' || !url) return
     let cancelled = false
-    QRCode.toDataURL(url, { width: 280, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
+    import('qrcode')
+      .then(mod => (mod.toDataURL ?? mod.default.toDataURL)(url, { width: 280, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } }))
       .then(d => {
         if (!cancelled) set_qr_data_url(d)
       })

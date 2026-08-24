@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useId } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useId } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { currency_fmt } from '../_utils/currency_formatter'
@@ -71,6 +71,112 @@ type Template = {
     asset: { name: string; type: string }
   }[]
 }
+
+// Memoized so keystrokes in the search input (parent state) don't re-render the whole list
+// before the debounced router.push fires. Everything it renders arrives as a prop or is
+// module-level (the Intl formatters); MaskedAmount subscribes to privacy context directly,
+// so masking stays live through the memo.
+const TransactionsCard = React.memo(function TransactionsCard({
+  dayGroups,
+  isShowingAll,
+  totalCount,
+  currentPage,
+  pageSize,
+}: {
+  dayGroups: { label: string | null; txs: Transaction[] }[]
+  isShowingAll: boolean
+  totalCount: number
+  currentPage: number
+  pageSize: number
+}) {
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
+      <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All transactions</h2>
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {isShowingAll
+                ? `All ${totalCount}`
+                : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
+            </span>
+          </div>
+        </div>
+      </div>
+      <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+        {dayGroups.map(group => (
+          <React.Fragment key={group.label ?? 'flat'}>
+            {group.label !== null && (
+              <li className="px-6 py-2 bg-slate-50 dark:bg-slate-900/40 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                {group.label}
+              </li>
+            )}
+            {group.txs.map(tx => {
+              const borderCls =
+                tx.link_severity === 'error'
+                  ? 'border-l-4 border-l-red-400 dark:border-l-red-500'
+                  : tx.link_severity === 'warning' || tx.link_severity === 'info'
+                    ? 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
+                    : ''
+              const badge =
+                tx.link_severity === 'error' ? (
+                  <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                    Rejected
+                  </span>
+                ) : tx.link_severity === 'warning' ? (
+                  <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                    Needs approval
+                  </span>
+                ) : tx.link_severity === 'info' ? (
+                  <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                    Waiting
+                  </span>
+                ) : null
+              return (
+                // Stretched-link treatment (see the home cards): the amount needs its own
+                // click-to-reveal, so it can't nest inside the row's <Link>. The Link fills
+                // the row invisibly; only the amount opts back into pointer events.
+                <li key={tx.id} className={`relative hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${borderCls}`}>
+                  <Link href={`/transactions/${tx.id}`} className="absolute inset-0 z-0" aria-label={tx.description || 'View transaction'} />
+                  <div className="relative z-10 pointer-events-none px-6 py-3.5 flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{tx.description || 'No description'}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 min-w-0">
+                        <span>
+                          {up_ampm(group.label === null ? full_datetime_fmt.format(new Date(tx.date)) : time_fmt.format(new Date(tx.date)))}
+                        </span>
+                        {tx.external_ref && (
+                          <span className="hidden sm:inline text-xs font-mono text-slate-500 dark:text-slate-400 truncate">{tx.external_ref}</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="ml-4 shrink-0 flex items-center gap-2">
+                      {badge}
+                      {/* Direction rides on the sign (kept even while masked), not on a wall of
+                          red: money in is green, money out is plain ink. */}
+                      {tx.total_book !== 0 ? (
+                        <span
+                          className={`text-lg font-semibold inline-block tabular-nums pointer-events-auto ${
+                            tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
+                          }`}
+                        >
+                          <MaskedAmount value={tx.total_book} keep_sign />
+                        </span>
+                      ) : (
+                        /* a zero net flow (e.g. a transfer) still deserves a figure, not a blank cell */
+                        <span className="text-lg font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{currency_fmt.format(0)}</span>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
+          </React.Fragment>
+        ))}
+      </ul>
+    </div>
+  )
+})
 
 export default function ClientPage({
   transactions,
@@ -271,17 +377,20 @@ export default function ClientPage({
   // Amount sorts get a flat list with full dates — day headers would interleave meaninglessly.
   // Everything formats in the ledger's own timezone so the server and client render agree.
   const dateSorted = !searchParams.sort || searchParams.sort.startsWith('date')
-  const dayGroups: { label: string | null; txs: Transaction[] }[] = []
-  if (dateSorted) {
-    for (const tx of transactions) {
-      const label = day_fmt.format(new Date(tx.date))
-      const last = dayGroups[dayGroups.length - 1]
-      if (last && last.label === label) last.txs.push(tx)
-      else dayGroups.push({ label, txs: [tx] })
+  const dayGroups = useMemo(() => {
+    const groups: { label: string | null; txs: Transaction[] }[] = []
+    if (dateSorted) {
+      for (const tx of transactions) {
+        const label = day_fmt.format(new Date(tx.date))
+        const last = groups[groups.length - 1]
+        if (last && last.label === label) last.txs.push(tx)
+        else groups.push({ label, txs: [tx] })
+      }
+    } else {
+      groups.push({ label: null, txs: transactions })
     }
-  } else {
-    dayGroups.push({ label: null, txs: transactions })
-  }
+    return groups
+  }, [transactions, dateSorted])
 
   return (
     <div className="space-y-6">
@@ -571,93 +680,7 @@ export default function ClientPage({
 
       {transactions.length > 0 ? (
         <>
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All transactions</h2>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {isShowingAll
-                      ? `All ${totalCount}`
-                      : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-              {dayGroups.map(group => (
-                <React.Fragment key={group.label ?? 'flat'}>
-                  {group.label !== null && (
-                    <li className="px-6 py-2 bg-slate-50 dark:bg-slate-900/40 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                      {group.label}
-                    </li>
-                  )}
-                  {group.txs.map(tx => {
-                    const borderCls =
-                      tx.link_severity === 'error'
-                        ? 'border-l-4 border-l-red-400 dark:border-l-red-500'
-                        : tx.link_severity === 'warning' || tx.link_severity === 'info'
-                          ? 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
-                          : ''
-                    const badge =
-                      tx.link_severity === 'error' ? (
-                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                          Rejected
-                        </span>
-                      ) : tx.link_severity === 'warning' ? (
-                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                          Needs approval
-                        </span>
-                      ) : tx.link_severity === 'info' ? (
-                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                          Waiting
-                        </span>
-                      ) : null
-                    return (
-                      // Stretched-link treatment (see the home cards): the amount needs its own
-                      // click-to-reveal, so it can't nest inside the row's <Link>. The Link fills
-                      // the row invisibly; only the amount opts back into pointer events.
-                      <li key={tx.id} className={`relative hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${borderCls}`}>
-                        <Link href={`/transactions/${tx.id}`} className="absolute inset-0 z-0" aria-label={tx.description || 'View transaction'} />
-                        <div className="relative z-10 pointer-events-none px-6 py-3.5 flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{tx.description || 'No description'}</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 min-w-0">
-                              <span>
-                                {up_ampm(group.label === null ? full_datetime_fmt.format(new Date(tx.date)) : time_fmt.format(new Date(tx.date)))}
-                              </span>
-                              {tx.external_ref && (
-                                <span className="hidden sm:inline text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
-                                  {tx.external_ref}
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <div className="ml-4 shrink-0 flex items-center gap-2">
-                            {badge}
-                            {/* Direction rides on the sign (kept even while masked), not on a wall of
-                                red: money in is green, money out is plain ink. */}
-                            {tx.total_book !== 0 ? (
-                              <span
-                                className={`text-lg font-semibold inline-block tabular-nums pointer-events-auto ${
-                                  tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
-                                }`}
-                              >
-                                <MaskedAmount value={tx.total_book} keep_sign />
-                              </span>
-                            ) : (
-                              /* a zero net flow (e.g. a transfer) still deserves a figure, not a blank cell */
-                              <span className="text-lg font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{currency_fmt.format(0)}</span>
-                            )}
-                          </div>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </React.Fragment>
-              ))}
-            </ul>
-          </div>
+          <TransactionsCard dayGroups={dayGroups} isShowingAll={isShowingAll} totalCount={totalCount} currentPage={currentPage} pageSize={pageSize} />
 
           {}
           {totalPages > 1 && !isShowingAll && (

@@ -227,3 +227,44 @@ describe('compute_timeseries_points (build + walk)', () => {
     expect(points.every(p => p.current === 100)).toBe(true)
   })
 })
+
+describe('walk_events — since mode (frozen-cache gap extension)', () => {
+  const gapEvents = () => [
+    ev({ qty: 10, book: 1000, date: day(1) }),
+    ev({ qty: 5, book: 600, date: day(3) }),
+    ev({ qty: -4, book: -500, date: day(6) }),
+  ]
+
+  it('emits exactly the days after since, identical to the tail of a full walk', () => {
+    const full = walk_events(gapEvents(), ACCOUNT, priceFor(MF.id, 150), [MF], 'all', day(8))
+    const tail = walk_events(gapEvents(), ACCOUNT, priceFor(MF.id, 150), [MF], { since: '2024-01-04' }, day(8))
+    expect(tail).toEqual(full.filter(p => p.date > '2024-01-04'))
+  })
+
+  it('today-only equals the last point of the full walk', () => {
+    const full = walk_events(gapEvents(), ACCOUNT, priceFor(MF.id, 150), [MF], 'all', day(8))
+    const todayOnly = walk_events(gapEvents(), ACCOUNT, priceFor(MF.id, 150), [MF], 'today-only', day(8))
+    expect(todayOnly).toEqual([full[full.length - 1]])
+  })
+
+  it('since mode matches the full walk for an allocation filter too', () => {
+    const events = [ev({ qty: 10, book: 1000, date: day(1) }), ev({ qty: -3, book: -350, date: day(4) })]
+    const full = walk_events(events, ALLOCATION, priceFor(MF.id, 120), [MF], 'all', day(6))
+    const tail = walk_events(events, ALLOCATION, priceFor(MF.id, 120), [MF], { since: '2024-01-03' }, day(6))
+    expect(tail).toEqual(full.filter(p => p.date > '2024-01-03'))
+  })
+
+  it('excludes future-dated events from the emitted state', () => {
+    const events = [ev({ qty: 10, book: 1000, date: day(1) }), ev({ qty: 100, book: 9999, date: day(30) })]
+    const full = walk_events(events, ACCOUNT, priceFor(MF.id, 150), [MF], 'all', day(3))
+    const todayOnly = walk_events(events, ACCOUNT, priceFor(MF.id, 150), [MF], 'today-only', day(3))
+    expect(todayOnly).toEqual([full[full.length - 1]])
+    expect(todayOnly[0].invested).toBe(1000)
+  })
+
+  it('returns [] when every event is in the future', () => {
+    const events = [ev({ qty: 10, book: 1000, date: day(30) })]
+    expect(walk_events(events, ACCOUNT, priceFor(MF.id, 150), [MF], 'today-only', day(3))).toEqual([])
+    expect(walk_events(events, ACCOUNT, priceFor(MF.id, 150), [MF], 'all', day(3))).toEqual([])
+  })
+})

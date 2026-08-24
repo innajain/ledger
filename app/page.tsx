@@ -51,10 +51,21 @@ async function Home() {
   const now = new Date()
   const this_month = month_to_date_window(now)
 
-  const [allocations, assets, { accountsToAssets: balances }, month_txns, recent_txns] = await Promise.all([
+  // Prices depend only on the (fast) asset + balances lookups, so they're chained off
+  // those and overlap the slower transaction queries instead of waiting for them. The
+  // asset table is a shared catalog — only price what this user actually holds.
+  const assetsPromise = prisma.asset.findMany()
+  const balancesPromise = get_or_compute_balances()
+  const pricesPromise = Promise.all([assetsPromise, balancesPromise]).then(([all_assets, { accountsToAssets }]) => {
+    const held = new Set<string>()
+    for (const asset_map of accountsToAssets.values()) for (const asset_id of asset_map.keys()) held.add(asset_id)
+    return get_prices_for_assets(all_assets.filter(a => held.has(a.id)))
+  })
+
+  const [allocations, assets, { accountsToAssets: balances }, month_txns, recent_txns, priceByAsset] = await Promise.all([
     prisma.accounting_head.findMany({ where: { user_id: user.id, type: 'allocation' } }),
-    prisma.asset.findMany(),
-    get_or_compute_balances(),
+    assetsPromise,
+    balancesPromise,
     // income_expense lines are what makes a transaction income or spend at all
     // (transfers/EMIs/investments carry none).
     prisma.transaction.findMany({
@@ -71,9 +82,8 @@ async function Home() {
       orderBy: { datetime: 'desc' },
       take: RECENT_TRANSACTION_COUNT,
     }),
+    pricesPromise,
   ])
-
-  const priceByAsset = await get_prices_for_assets(assets)
 
   const invest = allocations.find(a => a.name === 'Investments')
   const savings = allocations.find(a => a.name === 'Savings')

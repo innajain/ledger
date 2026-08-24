@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { get_current_user } from '@/app/_actions/auth'
+import { get_current_user, is_current_user_admin } from '@/app/_actions/auth'
 import { get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
@@ -7,7 +7,7 @@ import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
-import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
+import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
@@ -25,17 +25,19 @@ async function Page({ params }: Props) {
   if (!user) {
     return <LoggedOutNotice title="Assets" />
   }
-  const me = await prisma.user.findUnique({ where: { id: user.id }, select: { is_admin: true } })
-  const isAdmin = me?.is_admin ?? false
-
-  const asset = await prisma.asset.findUnique({
-    where: { id },
-    include: {
-      line_items: { where: { transaction: { user_id: user.id } }, include: { accounting_head: true, transaction: true } },
-      parent: true,
-      children: true,
-    },
-  })
+  // One pass over the ledger: the transactions touching this asset carry every line
+  // item the page needs, so the asset row itself stays slim and nothing is fetched twice.
+  const [isAdmin, asset, rawTransactions] = await Promise.all([
+    is_current_user_admin(),
+    prisma.asset.findUnique({
+      where: { id },
+      include: { parent: true, children: true },
+    }),
+    prisma.transaction.findMany({
+      where: { user_id: user.id, line_items: { some: { asset_id: id } } },
+      include: { line_items: { include: { accounting_head: true, asset: true } } },
+    }),
+  ])
 
   if (!asset) {
     return (
@@ -46,10 +48,16 @@ async function Page({ params }: Props) {
     )
   }
 
-  const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(asset.line_items)
+  const transactions = rawTransactions.map(normalize_txn)
+  const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()
+  for (const tx of transactions) for (const li of tx.line_items) normalizedById.set(li.id, li)
 
-  const real_line_items = asset.line_items.filter(li => li.accounting_head.type === 'account')
-  const allocation_line_items = asset.line_items.filter(li => li.accounting_head.type === 'allocation')
+  // The asset's own line items, rewired to their parent transaction — the same set the
+  // old `asset.line_items` include produced, without fetching everything twice.
+  const asset_line_items = rawTransactions.flatMap(tx => tx.line_items.filter(li => li.asset_id === id).map(li => ({ ...li, transaction: tx })))
+
+  const real_line_items = asset_line_items.filter(li => li.accounting_head.type === 'account')
+  const allocation_line_items = asset_line_items.filter(li => li.accounting_head.type === 'allocation')
 
   const priceResp = await get_price_for_asset(asset.type, asset.ticker ?? null)
   const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null

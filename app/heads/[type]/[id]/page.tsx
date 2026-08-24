@@ -10,7 +10,7 @@ import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
-import { fetch_and_normalize_transactions } from '@/app/_utils/fetch_transactions'
+import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_value'
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { get_closing_balance } from './closing_balance'
@@ -40,7 +40,7 @@ async function Page({ params }: Props) {
 
   const head = await prisma.accounting_head.findUnique({
     where: { id, user_id: user.id, type },
-    include: { line_items: { include: { asset: true, transaction: true } }, parent: true },
+    include: { parent: true },
   })
 
   if (!head) {
@@ -54,8 +54,31 @@ async function Page({ params }: Props) {
 
   const isAccount = type === 'account'
 
-  const { rawTransactions, normalizedById } = await fetch_and_normalize_transactions(head.line_items)
-  const uniqueAssets = Array.from(new Map(head.line_items.map(li => [li.asset.id, li.asset])).values())
+  // One transaction query replaces the old double fetch (head.line_items include plus a
+  // re-fetch of the same transactions); the rollup and linked-user lookups are
+  // independent, so they run alongside it.
+  const [rawTransactions, rollup, linked_user] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { user_id: user.id, line_items: { some: { accounting_head_id: head.id } } },
+      include: { line_items: { include: { accounting_head: true, asset: true } } },
+    }),
+    compute_head_rollup(head.id, user.id),
+    isAccount && head.linked_user_id
+      ? prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { id: true, username: true, upi_id: true } })
+      : null,
+  ])
+
+  const transactions = rawTransactions.map(normalize_txn)
+  const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()
+  for (const tx of transactions) for (const li of tx.line_items) normalizedById.set(li.id, li)
+
+  // The head's own line items, rewired to their parent transaction — the same set the
+  // old `head.line_items` include produced.
+  const head_line_items = rawTransactions.flatMap(tx =>
+    tx.line_items.filter(li => li.accounting_head_id === head.id).map(li => ({ ...li, transaction: tx })),
+  )
+
+  const uniqueAssets = Array.from(new Map(head_line_items.map(li => [li.asset.id, li.asset])).values())
   const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
   let acc_total = new Prisma.Decimal(0)
@@ -64,7 +87,7 @@ async function Page({ params }: Props) {
     {}
   const lineItemsWithValues: (LineItem & { _sortDate: Date })[] = []
 
-  for (const li of head.line_items) {
+  for (const li of head_line_items) {
     const n = normalizedById.get(li.id)!
     const qty = n.quantity!
     const txn_value = n.txn_value!
@@ -139,13 +162,8 @@ async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
-  const { subtree_total, children } = await compute_head_rollup(head.id, user.id)
+  const { subtree_total, children } = rollup
   const parent: HeadData['parent'] = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
-
-  const linked_user =
-    isAccount && head.linked_user_id
-      ? await prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { id: true, username: true, upi_id: true } })
-      : null
 
   let value_timeseries: HeadData['value_timeseries'] = []
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')

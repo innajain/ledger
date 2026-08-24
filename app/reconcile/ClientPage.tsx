@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useRef, useState } from 'react'
+import { memo, useCallback, useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/app/_components/Button'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
@@ -22,6 +22,208 @@ function Amount({ value }: { value: number }) {
     </span>
   )
 }
+
+// The result sections are memoized so textarea keystrokes and checkbox toggles in the parent
+// don't re-render hundreds of rows (each calling format_day). `view` is referentially stable
+// across keystrokes; only MissingInLedgerSection depends on the selection state.
+
+const MissingInLedgerSection = memo(function MissingInLedgerSection({
+  view,
+  selected,
+  toggle,
+  allocations,
+  incomeExpenses,
+  allocationId,
+  setAllocationId,
+  incomeExpenseId,
+  setIncomeExpenseId,
+  creating,
+  selectedCount,
+  onCreateMissing,
+}: {
+  view: ReconcileView
+  selected: Set<number>
+  toggle: (index: number) => void
+  allocations: HeadOpt[]
+  incomeExpenses: HeadOpt[]
+  allocationId: string
+  setAllocationId: (id: string) => void
+  incomeExpenseId: string
+  setIncomeExpenseId: (id: string) => void
+  creating: boolean
+  selectedCount: number
+  onCreateMissing: () => void
+}) {
+  const uid = useId()
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-red-200 dark:border-red-900 overflow-hidden transition-colors">
+      <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-red-50 dark:bg-red-900/20">
+        <h2 className="font-semibold text-red-800 dark:text-red-200">Missing in ledger</h2>
+        <p className="text-sm text-red-700 dark:text-red-300 mt-0.5">
+          Statement rows with no matching transaction — tick the ones to add, pick where to book them, and create them in one go
+        </p>
+      </div>
+      <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+        {view.missing_in_ledger.map(r => (
+          <li key={r.index} className="px-6 py-3 flex items-center gap-4">
+            <input
+              type="checkbox"
+              checked={selected.has(r.index)}
+              onChange={() => toggle(r.index)}
+              aria-label={`Add ${r.desc || r.ref || 'row'} (${format_day(r.date)}) to ledger`}
+              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{r.desc || r.ref || 'No description'}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {format_day(r.date)}
+                {r.ref && <span className="font-mono"> · {r.ref}</span>}
+              </p>
+            </div>
+            <Amount value={r.amount} />
+          </li>
+        ))}
+      </ul>
+      <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 flex flex-wrap items-end gap-4">
+        <div className="flex-1 min-w-40">
+          <label htmlFor={`${uid}-allocation`} className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+            Allocation
+          </label>
+          <select id={`${uid}-allocation`} value={allocationId} onChange={e => setAllocationId(e.target.value)} className={inputCls}>
+            <option value="">Select…</option>
+            {allocations.map(a => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 min-w-40">
+          <label htmlFor={`${uid}-income-expense`} className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+            Income / Expense
+          </label>
+          <select id={`${uid}-income-expense`} value={incomeExpenseId} onChange={e => setIncomeExpenseId(e.target.value)} className={inputCls}>
+            <option value="">Select…</option>
+            {incomeExpenses.map(a => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Button variant="primary" onClick={onCreateMissing} disabled={creating || selectedCount === 0}>
+          {creating ? 'Adding…' : `Add ${selectedCount} to ledger`}
+        </Button>
+      </div>
+      <p className="px-6 pb-4 text-xs text-slate-500 dark:text-slate-400">
+        Re-running this import never adds the same row twice — each entry is tagged with its bank reference. Re-categorize individual entries later if
+        needed.
+      </p>
+    </div>
+  )
+})
+
+const AmountMismatchSection = memo(function AmountMismatchSection({ view }: { view: ReconcileView }) {
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-amber-200 dark:border-amber-900 overflow-hidden transition-colors">
+      <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-amber-50 dark:bg-amber-900/20">
+        <h2 className="font-semibold text-amber-800 dark:text-amber-200">Amount mismatch</h2>
+        <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">Same reference, different amount — check these by hand</p>
+      </div>
+      <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+        {view.amount_mismatch.map(r => (
+          <li key={r.index} className="px-6 py-3 flex items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{r.desc || r.ref}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {format_day(r.date)}
+                {r.ref && <span className="font-mono"> · {r.ref}</span>}
+              </p>
+            </div>
+            <div className="text-right text-sm">
+              <p>
+                Statement: <Amount value={r.amount} />
+              </p>
+              <p>
+                Ledger: <Amount value={r.ledger_delta} />
+              </p>
+            </div>
+            <Link
+              href={`/transactions/${r.transaction_id}`}
+              className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline shrink-0"
+            >
+              View →
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+})
+
+const MissingInBankSection = memo(function MissingInBankSection({ view }: { view: ReconcileView }) {
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
+      <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+        <h2 className="font-semibold text-slate-800 dark:text-slate-200">In ledger, not on statement</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          Ledger entries in this window that no statement row matched — possible duplicates or wrong dates
+        </p>
+      </div>
+      <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+        {view.missing_in_bank.map((e, i) => (
+          <li key={`${e.transaction_id}-${i}`} className="px-6 py-3 flex items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{e.description || 'No description'}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {format_day(e.datetime)}
+                {e.external_ref && <span className="font-mono"> · {e.external_ref}</span>}
+              </p>
+            </div>
+            <Amount value={e.delta} />
+            <Link
+              href={`/transactions/${e.transaction_id}`}
+              className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline shrink-0"
+            >
+              View →
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+})
+
+const MatchedSection = memo(function MatchedSection({ view }: { view: ReconcileView }) {
+  return (
+    <details className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
+      <summary className="px-6 py-4 cursor-pointer font-semibold text-green-800 dark:text-green-300 bg-green-50 dark:bg-green-900/20">
+        Matched ({view.matched.length})
+      </summary>
+      <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+        {view.matched.map(r => (
+          <li key={r.index} className="px-6 py-3 flex items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{r.desc || r.ref || 'Row'}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {format_day(r.date)}
+                {r.ref && <span className="font-mono"> · {r.ref}</span>}
+                <span> · matched by {r.matched_by === 'ref' ? 'reference' : 'amount + date'}</span>
+              </p>
+            </div>
+            <Amount value={r.amount} />
+            <Link
+              href={`/transactions/${r.transaction_id}`}
+              className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline shrink-0"
+            >
+              View →
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </details>
+  )
+})
 
 export default function ClientPage({
   accounts,
@@ -68,12 +270,15 @@ export default function ClientPage({
     reader.readAsText(file)
   }
 
-  async function runWithRows(rows: StatementRow[]) {
-    const res = await run_reconcile(accountId, rows)
-    if (!res.success) throw new Error(res.message)
-    setView(res.data!)
-    setSelected(new Set(res.data!.missing_in_ledger.map(r => r.index)))
-  }
+  const runWithRows = useCallback(
+    async (rows: StatementRow[]) => {
+      const res = await run_reconcile(accountId, rows)
+      if (!res.success) throw new Error(res.message)
+      setView(res.data!)
+      setSelected(new Set(res.data!.missing_in_ledger.map(r => r.index)))
+    },
+    [accountId],
+  )
 
   async function handleReconcile() {
     setError(null)
@@ -96,7 +301,7 @@ export default function ClientPage({
     }
   }
 
-  async function handleCreateMissing() {
+  const handleCreateMissing = useCallback(async () => {
     if (!view || !parsed) return
     const rows = view.missing_in_ledger.filter(r => selected.has(r.index))
     if (rows.length === 0) return
@@ -118,16 +323,16 @@ export default function ClientPage({
     } finally {
       setCreating(false)
     }
-  }
+  }, [view, parsed, selected, allocationId, incomeExpenseId, accountId, runWithRows])
 
-  function toggle(index: number) {
+  const toggle = useCallback((index: number) => {
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(index)) next.delete(index)
       else next.add(index)
       return next
     })
-  }
+  }, [])
 
   const selectedCount = view ? view.missing_in_ledger.filter(r => selected.has(r.index)).length : 0
 
@@ -329,172 +534,27 @@ export default function ClientPage({
           )}
 
           {view.missing_in_ledger.length > 0 && (
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-red-200 dark:border-red-900 overflow-hidden transition-colors">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-red-50 dark:bg-red-900/20">
-                <h2 className="font-semibold text-red-800 dark:text-red-200">Missing in ledger</h2>
-                <p className="text-sm text-red-700 dark:text-red-300 mt-0.5">
-                  Statement rows with no matching transaction — tick the ones to add, pick where to book them, and create them in one go
-                </p>
-              </div>
-              <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-                {view.missing_in_ledger.map(r => (
-                  <li key={r.index} className="px-6 py-3 flex items-center gap-4">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(r.index)}
-                      onChange={() => toggle(r.index)}
-                      aria-label={`Add ${r.desc || r.ref || 'row'} (${format_day(r.date)}) to ledger`}
-                      className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{r.desc || r.ref || 'No description'}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {format_day(r.date)}
-                        {r.ref && <span className="font-mono"> · {r.ref}</span>}
-                      </p>
-                    </div>
-                    <Amount value={r.amount} />
-                  </li>
-                ))}
-              </ul>
-              <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 flex flex-wrap items-end gap-4">
-                <div className="flex-1 min-w-40">
-                  <label htmlFor={`${uid}-allocation`} className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Allocation
-                  </label>
-                  <select id={`${uid}-allocation`} value={allocationId} onChange={e => setAllocationId(e.target.value)} className={inputCls}>
-                    <option value="">Select…</option>
-                    {allocations.map(a => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex-1 min-w-40">
-                  <label htmlFor={`${uid}-income-expense`} className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Income / Expense
-                  </label>
-                  <select
-                    id={`${uid}-income-expense`}
-                    value={incomeExpenseId}
-                    onChange={e => setIncomeExpenseId(e.target.value)}
-                    className={inputCls}
-                  >
-                    <option value="">Select…</option>
-                    {incomeExpenses.map(a => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <Button variant="primary" onClick={handleCreateMissing} disabled={creating || selectedCount === 0}>
-                  {creating ? 'Adding…' : `Add ${selectedCount} to ledger`}
-                </Button>
-              </div>
-              <p className="px-6 pb-4 text-xs text-slate-500 dark:text-slate-400">
-                Re-running this import never adds the same row twice — each entry is tagged with its bank reference. Re-categorize individual entries
-                later if needed.
-              </p>
-            </div>
+            <MissingInLedgerSection
+              view={view}
+              selected={selected}
+              toggle={toggle}
+              allocations={allocations}
+              incomeExpenses={incomeExpenses}
+              allocationId={allocationId}
+              setAllocationId={setAllocationId}
+              incomeExpenseId={incomeExpenseId}
+              setIncomeExpenseId={setIncomeExpenseId}
+              creating={creating}
+              selectedCount={selectedCount}
+              onCreateMissing={handleCreateMissing}
+            />
           )}
 
-          {view.amount_mismatch.length > 0 && (
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-amber-200 dark:border-amber-900 overflow-hidden transition-colors">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-amber-50 dark:bg-amber-900/20">
-                <h2 className="font-semibold text-amber-800 dark:text-amber-200">Amount mismatch</h2>
-                <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">Same reference, different amount — check these by hand</p>
-              </div>
-              <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-                {view.amount_mismatch.map(r => (
-                  <li key={r.index} className="px-6 py-3 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{r.desc || r.ref}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {format_day(r.date)}
-                        {r.ref && <span className="font-mono"> · {r.ref}</span>}
-                      </p>
-                    </div>
-                    <div className="text-right text-sm">
-                      <p>
-                        Statement: <Amount value={r.amount} />
-                      </p>
-                      <p>
-                        Ledger: <Amount value={r.ledger_delta} />
-                      </p>
-                    </div>
-                    <Link
-                      href={`/transactions/${r.transaction_id}`}
-                      className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline shrink-0"
-                    >
-                      View →
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {view.amount_mismatch.length > 0 && <AmountMismatchSection view={view} />}
 
-          {view.missing_in_bank.length > 0 && (
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-                <h2 className="font-semibold text-slate-800 dark:text-slate-200">In ledger, not on statement</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                  Ledger entries in this window that no statement row matched — possible duplicates or wrong dates
-                </p>
-              </div>
-              <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-                {view.missing_in_bank.map((e, i) => (
-                  <li key={`${e.transaction_id}-${i}`} className="px-6 py-3 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{e.description || 'No description'}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {format_day(e.datetime)}
-                        {e.external_ref && <span className="font-mono"> · {e.external_ref}</span>}
-                      </p>
-                    </div>
-                    <Amount value={e.delta} />
-                    <Link
-                      href={`/transactions/${e.transaction_id}`}
-                      className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline shrink-0"
-                    >
-                      View →
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {view.missing_in_bank.length > 0 && <MissingInBankSection view={view} />}
 
-          {view.matched.length > 0 && (
-            <details className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
-              <summary className="px-6 py-4 cursor-pointer font-semibold text-green-800 dark:text-green-300 bg-green-50 dark:bg-green-900/20">
-                Matched ({view.matched.length})
-              </summary>
-              <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-                {view.matched.map(r => (
-                  <li key={r.index} className="px-6 py-3 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{r.desc || r.ref || 'Row'}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {format_day(r.date)}
-                        {r.ref && <span className="font-mono"> · {r.ref}</span>}
-                        <span> · matched by {r.matched_by === 'ref' ? 'reference' : 'amount + date'}</span>
-                      </p>
-                    </div>
-                    <Amount value={r.amount} />
-                    <Link
-                      href={`/transactions/${r.transaction_id}`}
-                      className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline shrink-0"
-                    >
-                      View →
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
+          {view.matched.length > 0 && <MatchedSection view={view} />}
         </>
       )}
     </div>

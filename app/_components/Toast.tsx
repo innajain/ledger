@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode } from 'react'
 import { CloseIcon } from './icons'
 
 type ToastType = 'success' | 'error' | 'info' | 'warning'
@@ -37,8 +37,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
+  const ctxValue = useMemo(() => ({ showToast }), [showToast])
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={ctxValue}>
       {children}
       <div role="status" aria-live="polite" className="fixed top-4 right-4 z-50 max-h-[calc(100vh-2rem)] overflow-y-auto space-y-2">
         {toasts.map(toast => (

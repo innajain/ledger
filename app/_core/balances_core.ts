@@ -1,8 +1,8 @@
 import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
-import { normalize_txn } from '@/app/_utils/normalize_txn'
-import { invalidate_timeseries } from '@/app/_utils/value_timeseries'
+import { normalize_line_items } from '@/app/_utils/normalize_txn'
+import { invalidate_timeseries, type TouchedEntities } from '@/app/_utils/value_timeseries'
 
 const balance_cache_key = (user_id: string) => `balances:${user_id}`
 
@@ -11,8 +11,8 @@ export type BalanceMaps = {
   assetsToAccounts: Map<string, Map<string, { qty: number; txn_value: number }>>
 }
 
-export async function invalidate_balances(user_id: string): Promise<void> {
-  await Promise.all([redis.del(balance_cache_key(user_id)), invalidate_timeseries(user_id)])
+export async function invalidate_balances(user_id: string, touched?: TouchedEntities): Promise<void> {
+  await Promise.all([redis.del(balance_cache_key(user_id)), invalidate_timeseries(user_id, touched)])
 }
 
 export async function compute_balances_core(user_id: string, invalidate_cache = false): Promise<BalanceMaps> {
@@ -36,11 +36,24 @@ export async function compute_balances_core(user_id: string, invalidate_cache = 
     return { accountsToAssets, assetsToAccounts }
   }
 
+  // Narrow select: normalization only needs head type and asset {id,type,name};
+  // full relation rows here multiply the payload of the hottest recompute in the app.
   const rawTransactions = await prisma.transaction.findMany({
     where: { user_id },
-    include: { line_items: { include: { accounting_head: true, asset: true } } },
+    select: {
+      line_items: {
+        select: {
+          accounting_head_id: true,
+          asset_id: true,
+          quantity: true,
+          txn_value: true,
+          accounting_head: { select: { type: true } },
+          asset: { select: { id: true, type: true, name: true } },
+        },
+      },
+    },
   })
-  const transactions = rawTransactions.map(normalize_txn)
+  const transactions = rawTransactions.map(t => ({ line_items: normalize_line_items(t.line_items) }))
 
   const accountsToAssets = new Map<string, Map<string, { qty: Prisma.Decimal; txn_value: Prisma.Decimal }>>()
   const assetsToAccounts = new Map<string, Map<string, { qty: Prisma.Decimal; txn_value: Prisma.Decimal }>>()
@@ -117,24 +130,34 @@ export type ClosingBalanceRow = { head_id: string; asset_id: string; qty: number
 // not just accounts. Values are book values (txn_value), not marked to market.
 // head_id null = all account-type heads; a specific head_id can be any type.
 export async function closing_balance_core(user_id: string, head_id: string | null, cutoff: Date): Promise<ClosingBalanceRow[]> {
-  const [txns, heads] = await Promise.all([
-    prisma.transaction.findMany({
-      where: {
-        user_id,
-        ...(head_id ? { line_items: { some: { accounting_head_id: head_id } } } : {}),
+  // Keep every line item of each matched transaction — null-remainder normalization
+  // needs the full balanced set — but select only the fields it reads.
+  const txns = await prisma.transaction.findMany({
+    where: {
+      user_id,
+      ...(head_id ? { line_items: { some: { accounting_head_id: head_id } } } : {}),
+    },
+    select: {
+      datetime: true,
+      line_items: {
+        select: {
+          accounting_head_id: true,
+          asset_id: true,
+          quantity: true,
+          txn_value: true,
+          datetime: true,
+          accounting_head: { select: { type: true } },
+          asset: { select: { id: true, type: true, name: true } },
+        },
       },
-      include: { line_items: { include: { accounting_head: true, asset: true } } },
-    }),
-    prisma.accounting_head.findMany({ where: { user_id }, select: { id: true, type: true } }),
-  ])
-  const head_type_by_id = new Map(heads.map(h => [h.id, h.type]))
+    },
+  })
 
   const acc = new Map<string, { qty: number; value: number }>()
-  for (const raw of txns) {
-    const t = normalize_txn(raw)
-    for (const li of t.line_items) {
+  for (const t of txns) {
+    for (const li of normalize_line_items(t.line_items)) {
       if ((li.datetime ?? t.datetime) >= cutoff) continue
-      if (head_id ? li.accounting_head_id !== head_id : head_type_by_id.get(li.accounting_head_id) !== 'account') continue
+      if (head_id ? li.accounting_head_id !== head_id : li.accounting_head.type !== 'account') continue
       const key = `${li.accounting_head_id}:${li.asset_id}`
       const e = acc.get(key) ?? { qty: 0, value: 0 }
       e.qty += li.quantity.toNumber()

@@ -7,16 +7,19 @@ function to_date(input: Date | string): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
+// Deliberately no timeZone: these format in the viewer's local zone (unlike the
+// transactions page's IST-pinned formatters).
+const day_fmt = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+const time_fmt = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+
 export function format_day(input: Date | string): string {
   const d = to_date(input)
   if (!d) return ''
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  return day_fmt.format(d)
 }
 
 export function format_datetime(input: Date | string): string {
   const d = to_date(input)
   if (!d) return ''
-  const day = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-  const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
-  return `${day}, ${time.toUpperCase()}`
+  return `${day_fmt.format(d)}, ${time_fmt.format(d).toUpperCase()}`
 }

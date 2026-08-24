@@ -22,13 +22,22 @@ export async function HomeNetWorthTrend({ userId, current, assets, networth, day
   const window = ist_day_window(new Date(), days)
   const since = window[0].start
 
-  const raw = await prisma.transaction.findMany({
-    where: {
-      user_id: userId,
-      OR: [{ datetime: { gte: since } }, { line_items: { some: { datetime: { gte: since } } } }],
-    },
-    include: { line_items: { include: { accounting_head: true, asset: true } } },
-  })
+  // Split the old OR-with-relation-subquery into two index-friendly queries: the OR
+  // form forced Postgres to walk the user's whole transaction history instead of using
+  // the (user_id, datetime) range index. The lt/gte split keeps them disjoint.
+  const txn_include = { line_items: { include: { accounting_head: true, asset: true } } }
+  const [in_window, overridden_into_window] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { user_id: userId, datetime: { gte: since } },
+      include: txn_include,
+    }),
+    prisma.transaction.findMany({
+      where: { user_id: userId, datetime: { lt: since }, line_items: { some: { datetime: { gte: since } } } },
+      include: txn_include,
+    }),
+  ])
+  const seen = new Set<string>()
+  const raw = [...in_window, ...overridden_into_window].filter(t => (seen.has(t.id) ? false : (seen.add(t.id), true)))
 
   const events = collect_networth_events(raw.map(normalize_txn))
 

@@ -1,9 +1,9 @@
 import { Prisma, asset_type } from '@/generated/prisma/client'
-import { addDays, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
 import { fromZonedTime, formatInTimeZone } from 'date-fns-tz'
 import { USER_TIMEZONE } from '@/lib/config'
 import { normalize_txn, type TransactionFull } from './normalize_txn'
-import { calculate_xirr } from './xirr_calculator'
+import { calculate_xirr_detailed } from './xirr_calculator'
 
 export type PriceLookup = (date: Date) => number | null
 
@@ -23,6 +23,19 @@ export type TimeseriesFilter =
 
 export function ist_date_key(date: Date): string {
   return formatInTimeZone(date, USER_TIMEZONE, 'yyyy-MM-dd')
+}
+
+// Plain calendar-day arithmetic on yyyy-MM-dd keys. The keys are already IST calendar
+// days, so stepping them needs no timezone machinery — the old parse/convert/format
+// round trip was an identity on the calendar day and dominated the walk's cost.
+export function next_day_key(key: string): string {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10)
+}
+
+export function prev_day_key(key: string): string {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10)
 }
 
 export function reconcile_timeseries_tail(timeseries: ValuePoint[], current: number, xirr: number | null): void {
@@ -48,6 +61,10 @@ type AllocState = Map<string, { qty: Prisma.Decimal; book: Prisma.Decimal }>
 
 type WalkState = {
   open_lots: Map<string, Lot[]>
+  // Incremental per-asset aggregates over open lots, so snapshot() is O(assets) per
+  // day instead of O(lots). book is the proportional remaining book of open lots.
+  qty_by_asset: Map<string, Prisma.Decimal>
+  book_by_asset: Map<string, Prisma.Decimal>
   alloc_state: AllocState
   cashflows: { amount: number; when: Date }[]
 }
@@ -85,6 +102,11 @@ export function build_events(transactions: TransactionFull[], filter: Timeseries
   return events
 }
 
+function add_to_asset_aggregates(state: WalkState, asset_id: string, qty: Prisma.Decimal, book: Prisma.Decimal): void {
+  state.qty_by_asset.set(asset_id, (state.qty_by_asset.get(asset_id) ?? new Prisma.Decimal(0)).add(qty))
+  state.book_by_asset.set(asset_id, (state.book_by_asset.get(asset_id) ?? new Prisma.Decimal(0)).add(book))
+}
+
 function apply_event(state: WalkState, filter: TimeseriesFilter, e: Event): void {
   if (filter.kind === 'allocation') {
     const cur = state.alloc_state.get(e.asset_id) ?? { qty: new Prisma.Decimal(0), book: new Prisma.Decimal(0) }
@@ -97,15 +119,18 @@ function apply_event(state: WalkState, filter: TimeseriesFilter, e: Event): void
     const lots = state.open_lots.get(key)!
     if (e.qty.greaterThan(0)) {
       lots.push({ qty: e.qty, original_qty: e.qty, original_book: e.book })
+      add_to_asset_aggregates(state, e.asset_id, e.qty, e.book)
     } else if (e.qty.lessThan(0)) {
       let to_consume = e.qty.neg()
       while (to_consume.greaterThan(0) && lots.length > 0) {
         const lot = lots[0]
         if (lot.qty.lessThanOrEqualTo(to_consume)) {
           to_consume = to_consume.sub(lot.qty)
+          add_to_asset_aggregates(state, e.asset_id, lot.qty.neg(), lot.original_book.mul(lot.qty).div(lot.original_qty).neg())
           lots.shift()
         } else {
           lot.qty = lot.qty.sub(to_consume)
+          add_to_asset_aggregates(state, e.asset_id, to_consume.neg(), lot.original_book.mul(to_consume).div(lot.original_qty).neg())
           to_consume = new Prisma.Decimal(0)
         }
       }
@@ -144,18 +169,9 @@ function snapshot(
     return { invested, current }
   }
 
-  const qtyByAsset = new Map<string, Prisma.Decimal>()
-  for (const [key, lots] of state.open_lots) {
-    const asset_id = key.split('|')[1]
-    for (const lot of lots) {
-      if (lot.original_qty.equals(0)) continue
-      const proportional_book = lot.original_book.mul(lot.qty).div(lot.original_qty)
-      invested = invested.add(proportional_book)
-      const cur = qtyByAsset.get(asset_id) ?? new Prisma.Decimal(0)
-      qtyByAsset.set(asset_id, cur.add(lot.qty))
-    }
-  }
-  for (const [asset_id, qty] of qtyByAsset) {
+  for (const [asset_id, qty] of state.qty_by_asset) {
+    const book = state.book_by_asset.get(asset_id) ?? new Prisma.Decimal(0)
+    invested = invested.add(book)
     const a = assetById.get(asset_id)
     if (!a) continue
     if (a.type === asset_type.rupees) {
@@ -164,15 +180,7 @@ function snapshot(
     }
     const price = priceLookups.get(asset_id)?.(date) ?? null
     if (price === null) {
-      let book_for_asset = new Prisma.Decimal(0)
-      for (const [k, lots] of state.open_lots) {
-        if (!k.endsWith(`|${asset_id}`)) continue
-        for (const lot of lots) {
-          if (lot.original_qty.equals(0)) continue
-          book_for_asset = book_for_asset.add(lot.original_book.mul(lot.qty).div(lot.original_qty))
-        }
-      }
-      current = current.add(book_for_asset)
+      current = current.add(book)
       continue
     }
     current = current.add(qty.mul(new Prisma.Decimal(price)))
@@ -180,27 +188,62 @@ function snapshot(
   return { invested, current }
 }
 
-function compute_xirr_for(state: WalkState, snap: { current: Prisma.Decimal }, date: Date): number | null {
-  if (state.cashflows.length === 0 || snap.current.equals(0)) return null
-  return calculate_xirr([...state.cashflows, { amount: snap.current.toNumber(), when: date }])
+function compute_xirr_for(
+  state: WalkState,
+  snap: { current: Prisma.Decimal },
+  date: Date,
+  warm_start?: number,
+): { xirr: number | null; raw_rate?: number } {
+  if (state.cashflows.length === 0 || snap.current.equals(0)) return { xirr: null }
+  // Append the terminal flow in place instead of copying the whole history each day.
+  state.cashflows.push({ amount: snap.current.toNumber(), when: date })
+  try {
+    const result = calculate_xirr_detailed(state.cashflows, warm_start)
+    if (!result) return { xirr: null }
+    return { xirr: result.display, raw_rate: result.raw }
+  } finally {
+    state.cashflows.pop()
+  }
 }
+
+export type WalkMode = 'all' | 'today-only' | { since: string }
 
 export function walk_events(
   events: Event[],
   filter: TimeseriesFilter,
   priceLookups: Map<string, PriceLookup>,
   assets: AssetMeta[],
-  mode: 'all' | 'today-only',
+  mode: WalkMode,
   now: Date = new Date(),
 ): ValuePoint[] {
   if (events.length === 0) return []
   const assetById = new Map(assets.map(a => [a.id, a]))
 
-  const state: WalkState = { open_lots: new Map(), alloc_state: new Map(), cashflows: [] }
+  const state: WalkState = {
+    open_lots: new Map(),
+    qty_by_asset: new Map(),
+    book_by_asset: new Map(),
+    alloc_state: new Map(),
+    cashflows: [],
+  }
   const points: ValuePoint[] = []
   const todayKey = ist_date_key(now)
+  const sinceKey = mode === 'all' ? null : mode === 'today-only' ? prev_day_key(todayKey) : mode.since
+
   let cursorKey = events[0].dateKey
   let appliedIndex = 0
+
+  if (sinceKey !== null && sinceKey >= cursorKey) {
+    // Fast-forward: apply everything up to the frozen prefix in one pass instead of
+    // stepping through every historical day.
+    while (appliedIndex < events.length && events[appliedIndex].dateKey <= sinceKey) {
+      apply_event(state, filter, events[appliedIndex])
+      appliedIndex++
+    }
+    cursorKey = next_day_key(sinceKey)
+  }
+
+  let warm_start: number | undefined
 
   while (cursorKey <= todayKey) {
     while (appliedIndex < events.length && events[appliedIndex].dateKey <= cursorKey) {
@@ -208,20 +251,22 @@ export function walk_events(
       appliedIndex++
     }
 
-    const isToday = cursorKey === todayKey
-    if (mode === 'all' || isToday) {
+    if (sinceKey === null || cursorKey > sinceKey) {
       const cursorDate = fromZonedTime(parseISO(cursorKey), USER_TIMEZONE)
       const snap = snapshot(state, filter, priceLookups, assetById, cursorDate)
+      const xirr_result = compute_xirr_for(state, snap, cursorDate, warm_start)
+      // Yesterday's converged rate is an excellent first guess for today — Newton
+      // typically finishes in 1-3 iterations instead of sweeping 8 guesses.
+      warm_start = xirr_result.raw_rate
       points.push({
         date: cursorKey,
         invested: snap.invested.toNumber(),
         current: snap.current.toNumber(),
-        xirr: compute_xirr_for(state, snap, cursorDate),
+        xirr: xirr_result.xirr,
       })
     }
 
-    const next = addDays(parseISO(cursorKey), 1)
-    cursorKey = ist_date_key(fromZonedTime(next, USER_TIMEZONE))
+    cursorKey = next_day_key(cursorKey)
   }
 
   return points
@@ -232,7 +277,7 @@ export function compute_timeseries_points(
   filter: TimeseriesFilter,
   priceLookups: Map<string, PriceLookup>,
   assets: AssetMeta[],
-  mode: 'all' | 'today-only',
+  mode: WalkMode,
   now: Date = new Date(),
 ): ValuePoint[] {
   return walk_events(build_events(transactions, filter), filter, priceLookups, assets, mode, now)

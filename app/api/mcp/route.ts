@@ -316,9 +316,14 @@ function register_tools(server: McpServer) {
       }
 
       if (args.include_timeseries && (asset.type === 'mf' || asset.type === 'etf' || asset.type === 'shares')) {
-        const series = await compute_value_timeseries(rawTransactions, { kind: 'asset', asset_id: asset.id }, [
-          { id: asset.id, type: asset.type, ticker: asset.ticker },
-        ])
+        // Bearer auth doesn't populate request context, so pass the authenticated uid
+        // explicitly — without it MCP always bypassed the frozen timeseries cache.
+        const series = await compute_value_timeseries(
+          rawTransactions,
+          { kind: 'asset', asset_id: asset.id },
+          [{ id: asset.id, type: asset.type, ticker: asset.ticker }],
+          uid,
+        )
         reconcile_timeseries_tail(series, asset_total.toNumber(), xirr)
         out.value_timeseries = series
       }
@@ -534,6 +539,7 @@ function register_tools(server: McpServer) {
           rawTransactions,
           is_account ? { kind: 'account', accounting_head_id: head.id } : { kind: 'allocation', allocation_id: head.id },
           uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
+          uid,
         )
         reconcile_timeseries_tail(series, total.toNumber(), xirr)
         out.value_timeseries = series

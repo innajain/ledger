@@ -122,8 +122,8 @@ export function TransactionLineItems({
   onRemoveItem,
   onUpdateItem,
 }: TransactionLineItemsProps) {
-  const sortedAccounts = [...accounts].sort((a, b) => a.name.localeCompare(b.name))
-  const sortedAssets = [...assets].sort((a, b) => a.name.localeCompare(b.name))
+  const sortedAccounts = useMemo(() => [...accounts].sort((a, b) => a.name.localeCompare(b.name)), [accounts])
+  const sortedAssets = useMemo(() => [...assets].sort((a, b) => a.name.localeCompare(b.name)), [assets])
 
   const preview = useMemo(() => preview_form_line_items(items, lockedItems, accounts, assets), [items, lockedItems, accounts, assets])
   const lockedOffset = lockedItems.length

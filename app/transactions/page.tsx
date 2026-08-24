@@ -4,7 +4,7 @@ import ClientPage from './ClientPage'
 import { Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { fromZonedTime } from 'date-fns-tz'
-import { normalize_txn } from '../_utils/normalize_txn'
+import { normalize_line_items } from '../_utils/normalize_txn'
 import { USER_TIMEZONE } from '@/lib/config'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
@@ -71,12 +71,16 @@ async function Page({
   const assetId = params.assetId || undefined
   const sort: SortKey = (SORT_KEYS as readonly string[]).includes(params.sort ?? '') ? (params.sort as SortKey) : 'date_desc'
 
+  // The client's filter dropdowns only read id+name; full rows would be serialized
+  // into the RSC payload for nothing.
   const [accounts, assets, templates] = await Promise.all([
     prisma.accounting_head.findMany({
       where: { user_id: user.id },
+      select: { id: true, name: true },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     prisma.asset.findMany({
+      select: { id: true, name: true },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_transaction_templates(),
@@ -138,11 +142,39 @@ async function Page({
   const requestedPageSize = pageSizeParam === 'all' ? Infinity : parseInt(pageSizeParam || '20')
   const wantsAll = pageSizeParam === 'all'
 
-  const txTotal = (t: { line_items: { accounting_head: { type: string }; txn_value: Prisma.Decimal | null }[] }) =>
-    t.line_items
-      .filter(li => li.accounting_head.type === 'account')
-      .reduce((s, li) => s.add(li.txn_value!), new Prisma.Decimal(0))
-      .toNumber()
+  // Narrow select: totals only need normalized txn_value + head type, not full
+  // asset/head rows per line item.
+  const list_select = {
+    id: true,
+    datetime: true,
+    description: true,
+    line_items: {
+      select: {
+        quantity: true,
+        txn_value: true,
+        external_ref: true,
+        accounting_head: { select: { type: true } },
+        asset: { select: { id: true, type: true, name: true } },
+      },
+    },
+  } satisfies Prisma.transactionSelect
+
+  type ListRow = Prisma.transactionGetPayload<{ select: typeof list_select }>
+
+  const toClientRow = (t: ListRow): TxForClient => {
+    const normalized = normalize_line_items(t.line_items)
+    return {
+      id: t.id,
+      date: t.datetime,
+      description: t.description,
+      external_ref: t.line_items.find(li => li.external_ref)?.external_ref ?? null,
+      total_book: normalized
+        .filter(li => li.accounting_head.type === 'account')
+        .reduce((s, li) => s.add(li.txn_value), new Prisma.Decimal(0))
+        .toNumber(),
+      link_severity: null as TxForClient['link_severity'],
+    }
+  }
 
   const needsScan = minAmount !== undefined || maxAmount !== undefined || sort === 'amount_desc' || sort === 'amount_asc'
 
@@ -152,41 +184,28 @@ async function Page({
 
   if (!needsScan) {
     const orderBy = { datetime: sort === 'date_asc' ? ('asc' as const) : ('desc' as const) }
-    totalCount = await prisma.transaction.count({ where })
+    const [count, rawTransactions] = await Promise.all([
+      prisma.transaction.count({ where }),
+      prisma.transaction.findMany({
+        where,
+        select: list_select,
+        orderBy,
+        skip: wantsAll ? 0 : (page - 1) * requestedPageSize,
+        take: wantsAll ? undefined : requestedPageSize,
+      }),
+    ])
+    totalCount = count
     pageSize = wantsAll ? totalCount : requestedPageSize
-    const rawTransactions = await prisma.transaction.findMany({
-      where,
-      include: { line_items: { include: { asset: true, accounting_head: true } } },
-      orderBy,
-      skip: wantsAll ? 0 : (page - 1) * pageSize,
-      take: wantsAll ? undefined : pageSize,
-    })
-    const transactions = rawTransactions.map(normalize_txn)
-    txForClient = transactions.map(t => ({
-      id: t.id,
-      date: t.datetime,
-      description: t.description,
-      external_ref: t.line_items.find(li => li.external_ref)?.external_ref ?? null,
-      total_book: txTotal(t),
-      link_severity: null as TxForClient['link_severity'],
-    }))
+    txForClient = rawTransactions.map(toClientRow)
   } else {
     const AMOUNT_FILTER_SCAN_CAP = 5000
     const allRaw = await prisma.transaction.findMany({
       where,
-      include: { line_items: { include: { asset: true, accounting_head: true } } },
+      select: list_select,
       orderBy: { datetime: 'desc' as const },
       take: AMOUNT_FILTER_SCAN_CAP,
     })
-    const all = allRaw.map(normalize_txn)
-    const allWithTotals: TxForClient[] = all.map(t => ({
-      id: t.id,
-      date: t.datetime,
-      description: t.description,
-      external_ref: t.line_items.find(li => li.external_ref)?.external_ref ?? null,
-      total_book: txTotal(t),
-      link_severity: null as TxForClient['link_severity'],
-    }))
+    const allWithTotals: TxForClient[] = allRaw.map(toClientRow)
     const filtered = allWithTotals.filter(tx => {
       if (minAmount !== undefined && tx.total_book < minAmount) return false
       if (maxAmount !== undefined && tx.total_book > maxAmount) return false

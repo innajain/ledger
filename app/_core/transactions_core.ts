@@ -5,6 +5,7 @@ import { validate_line_items } from '@/app/_utils/validate_line_items'
 import { assert_no_locked_lines } from '@/app/_utils/lock_date'
 import { toDecimal } from '@/app/_utils/decimal'
 import { invalidate_balances } from '@/app/_core/balances_core'
+import type { TouchedEntities } from '@/app/_utils/value_timeseries'
 import { create_links_for_transaction, sync_links_after_update, prepare_links_for_delete } from '@/app/_utils/links'
 import { notify_request_pending } from '@/app/_utils/notify_events'
 import { logger } from '@/lib/logger'
@@ -31,6 +32,21 @@ export type CreateTransactionOpts = {
 }
 
 type Tx = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
+
+// The heads/assets a write's line items actually touched, so invalidation can skip
+// unrelated frozen timeseries. Pass every line-item set involved (e.g. old + new on
+// update) — underestimating leaves a stale chart for the rest of the IST day.
+function touched_entities(...line_item_sets: { accounting_head_id: string; asset_id: string }[][]): TouchedEntities {
+  const head_ids = new Set<string>()
+  const asset_ids = new Set<string>()
+  for (const lines of line_item_sets) {
+    for (const li of lines) {
+      head_ids.add(li.accounting_head_id)
+      asset_ids.add(li.asset_id)
+    }
+  }
+  return { head_ids, asset_ids }
+}
 
 const externalRefLineSchema = z
   .string()
@@ -209,7 +225,7 @@ export async function create_transaction_core(
 
     if (replayed) return ok({ id, replayed: true }, 'Already recorded — this transaction already exists, so nothing new was created')
 
-    await invalidate_balances(user_id)
+    await invalidate_balances(user_id, touched_entities(parsed.data.line_items))
 
     for (const cp of counterparties) void notify_request_pending(cp, user_id, { description: parsed.data.description })
     return ok({ id }, 'Transaction created')
@@ -278,7 +294,7 @@ export async function create_transactions_core(
 
     const created = results.filter(r => !r.replayed)
     if (created.length > 0) {
-      await invalidate_balances(user_id)
+      await invalidate_balances(user_id, touched_entities(...items.map(i => i.line_items)))
       for (const cp of counterparties) void notify_request_pending(cp, user_id, {})
     }
     return ok(
@@ -307,10 +323,14 @@ export async function update_transaction_core(
     description = parsed.data.description
     const external_ref = opts && 'external_ref' in opts ? externalRefSchema.parse(opts.external_ref) : undefined
 
-    await prisma.$transaction(async prisma => {
+    const old_lines = await prisma.$transaction(async prisma => {
       const existing = await prisma.transaction.findUnique({
         where: { id, user_id },
-        include: { line_items: { select: { datetime: true, accounting_head: { select: { name: true, lock_date: true } } } } },
+        include: {
+          line_items: {
+            select: { datetime: true, accounting_head_id: true, asset_id: true, accounting_head: { select: { name: true, lock_date: true } } },
+          },
+        },
       })
       if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found')
 
@@ -372,9 +392,11 @@ export async function update_transaction_core(
       })
 
       await sync_links_after_update(prisma, user_id, id)
+      return existing.line_items.map(li => ({ accounting_head_id: li.accounting_head_id, asset_id: li.asset_id }))
     })
 
-    await invalidate_balances(user_id)
+    // Both the replaced and the new lines' entities changed history.
+    await invalidate_balances(user_id, touched_entities(old_lines, line_items))
 
     const pending_links = await prisma.transaction_link.findMany({
       where: {
@@ -406,18 +428,24 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
 
-    await prisma.$transaction(async tx => {
+    const deleted_lines = await prisma.$transaction(async tx => {
       const existing = await tx.transaction.findUnique({
         where: { id, user_id },
-        select: { datetime: true, line_items: { select: { datetime: true, accounting_head: { select: { name: true, lock_date: true } } } } },
+        select: {
+          datetime: true,
+          line_items: {
+            select: { datetime: true, accounting_head_id: true, asset_id: true, accounting_head: { select: { name: true, lock_date: true } } },
+          },
+        },
       })
       if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found')
       assert_no_locked_lines('delete', existing.datetime, existing.line_items)
 
       await prepare_links_for_delete(tx, user_id, id)
       await tx.transaction.delete({ where: { id, user_id } })
+      return existing.line_items.map(li => ({ accounting_head_id: li.accounting_head_id, asset_id: li.asset_id }))
     })
-    await invalidate_balances(user_id)
+    await invalidate_balances(user_id, touched_entities(deleted_lines))
     return ok()
   } catch (error) {
     return fromError(error)
@@ -509,7 +537,13 @@ export async function create_upi_payment_core(
       return { id: created.id, counterparties }
     })
 
-    await invalidate_balances(user_id)
+    await invalidate_balances(
+      user_id,
+      touched_entities([
+        { accounting_head_id: user_row.default_account_id, asset_id: rupees_asset_id },
+        { accounting_head_id: parsed.data.payee_account_id, asset_id: rupees_asset_id },
+      ]),
+    )
 
     for (const cp of counterparties) void notify_request_pending(cp, user_id, { description })
     return ok({ id }, 'Payment recorded')

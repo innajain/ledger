@@ -24,7 +24,33 @@ type PriceData = {
 
 const yf = new yahooFinance({ suppressNotices: ['yahooSurvey'] })
 
+// 3 days (not 2) so one missed daily cron run doesn't expire every key at once.
+const ETF_SPOT_TTL = 3 * 24 * 60 * 60
+const ETF_SPOT_NEGATIVE_TTL = 60 * 60
+
 const inFlightQuotes = new Map<string, Promise<{ date: Date; close: number } | null>>()
+
+async function fetch_and_cache_etf_quote(symbol: string): Promise<{ date: Date; close: number } | null> {
+  const cacheKey = `price:etf:${symbol}`
+  try {
+    const result = await yf.quote(symbol)
+    let date = result.regularMarketTime as Date
+    date.setHours(0, 0, 0, 0)
+    date = fromZonedTime(date, USER_TIMEZONE)
+    const priceData = { price: result.regularMarketPrice!, date }
+
+    await redis.setex(cacheKey, ETF_SPOT_TTL, JSON.stringify(priceData))
+
+    return { date, close: result.regularMarketPrice as number }
+  } catch (err) {
+    logger.error({ err, symbol }, 'Error fetching latest price')
+    // Negative-cache briefly so a dead symbol doesn't cost a Yahoo call per page load.
+    try {
+      await redis.setex(cacheKey, ETF_SPOT_NEGATIVE_TTL, 'null')
+    } catch {}
+    return null
+  }
+}
 
 export async function get_latest_etf_or_shares_price(symbol: string) {
   const cacheKey = `price:etf:${symbol}`
@@ -32,6 +58,7 @@ export async function get_latest_etf_or_shares_price(symbol: string) {
   try {
     const cached = await redis.get(cacheKey)
     if (cached) {
+      if (cached === 'null') return null
       const data = JSON.parse(cached) as PriceData
       return { date: new Date(data.date), close: data.price }
     }
@@ -39,22 +66,7 @@ export async function get_latest_etf_or_shares_price(symbol: string) {
     const existing = inFlightQuotes.get(cacheKey)
     if (existing) return existing
 
-    const fetchPromise = (async () => {
-      try {
-        const result = await yf.quote(symbol)
-        let date = result.regularMarketTime as Date
-        date.setHours(0, 0, 0, 0)
-        date = fromZonedTime(date, USER_TIMEZONE)
-        const priceData = { price: result.regularMarketPrice!, date }
-
-        await redis.setex(cacheKey, 2 * 24 * 60 * 60, JSON.stringify(priceData))
-
-        return { date, close: result.regularMarketPrice as number }
-      } catch (err) {
-        logger.error({ err, symbol }, 'Error fetching latest price')
-        return null
-      }
-    })().finally(() => {
+    const fetchPromise = fetch_and_cache_etf_quote(symbol).finally(() => {
       inFlightQuotes.delete(cacheKey)
     })
 
@@ -64,6 +76,31 @@ export async function get_latest_etf_or_shares_price(symbol: string) {
     logger.error({ err, symbol }, 'Error fetching latest price')
     return null
   }
+}
+
+// Cron pre-warm: refresh every held ETF/shares spot quote so page loads stop paying
+// the first blocking Yahoo round trip after the cache expires. Per-symbol errors are
+// isolated (and negative-cached by fetch_and_cache_etf_quote).
+export async function sync_etf_quotes(): Promise<{ synced: number; failed: number }> {
+  const assets = await prisma.asset.findMany({
+    where: { type: { in: [asset_type.etf, asset_type.shares] }, ticker: { not: null } },
+    select: { ticker: true },
+  })
+  const symbols = Array.from(new Set(assets.flatMap(a => (a.ticker ? [a.ticker] : []))))
+
+  let synced = 0
+  let failed = 0
+  const CONCURRENCY = 4
+  for (let i = 0; i < symbols.length; i += CONCURRENCY) {
+    await Promise.all(
+      symbols.slice(i, i + CONCURRENCY).map(async symbol => {
+        const quote = await fetch_and_cache_etf_quote(symbol)
+        if (quote) synced++
+        else failed++
+      }),
+    )
+  }
+  return { synced, failed }
 }
 
 export async function sync_nav() {

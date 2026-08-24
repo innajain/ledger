@@ -1,6 +1,6 @@
 import 'server-only'
 import yahooFinance from 'yahoo-finance2'
-import { formatInTimeZone } from 'date-fns-tz'
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
 import { redis } from '@/lib/redis'
 import { USER_TIMEZONE } from '@/lib/config'
 import { logger } from '@/lib/logger'
@@ -15,7 +15,21 @@ const yf = new yahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] 
 
 const SCHEME_MAP_TTL = 30 * 24 * 60 * 60
 const NAV_HISTORY_TTL = 7 * 24 * 60 * 60
-const ETF_HISTORY_TTL = 7 * 24 * 60 * 60
+// Envelope entries refresh once per IST day via the fetched_on check; the TTL only
+// garbage-collects abandoned symbols.
+const ETF_HISTORY_TTL = 2 * 24 * 60 * 60
+
+// One stable key per symbol. The old scheme keyed on the requested from-date, so the
+// home sparkline's daily-moving 90-day window rotated the key every day and never hit.
+const etf_history_key = (symbol: string) => `price:etf_history2:${symbol}`
+
+type EtfHistoryEnvelope = { from: string; fetched_on: string; prices: Record<string, number> }
+
+function etf_envelope_hit(env: EtfHistoryEnvelope, fromKey: string, todayKey: string): boolean {
+  // Serve only same-day data (preserves daily freshness) that reaches at least as far
+  // back as requested — a truncated range would silently fall back to book values.
+  return env.fetched_on === todayKey && env.from <= fromKey
+}
 
 const inFlightSchemeMap = new Map<string, Promise<Record<string, string>>>()
 const inFlightNavHistory = new Map<string, Promise<Map<string, number>>>()
@@ -96,36 +110,48 @@ async function get_full_nav_history(isin: string): Promise<Map<string, number> |
 }
 
 async function get_full_etf_history(symbol: string, from: Date): Promise<Map<string, number>> {
-  const cacheKey = `price:etf_history:${symbol}:${ist_date_key(from)}`
+  const todayKey = ist_date_key(new Date())
+  const fromKey = ist_date_key(from)
+  const cacheKey = etf_history_key(symbol)
+
+  let fetchFromKey = fromKey
   const cached = await redis.get(cacheKey)
   if (cached) {
-    const obj = JSON.parse(cached) as Record<string, number>
-    return new Map(Object.entries(obj))
+    try {
+      const env = JSON.parse(cached) as EtfHistoryEnvelope
+      if (etf_envelope_hit(env, fromKey, todayKey)) return new Map(Object.entries(env.prices))
+      // Only ever widen the stored range so a page needing deeper history than a
+      // previous caller never gets a truncated blob.
+      if (env.from < fetchFromKey) fetchFromKey = env.from
+    } catch (err) {
+      logger.error({ err, symbol }, 'Failed to parse cached ETF history envelope; refetching')
+    }
   }
 
-  const existing = inFlightEtfHistory.get(cacheKey)
+  const inFlightKey = `${cacheKey}:${fetchFromKey}`
+  const existing = inFlightEtfHistory.get(inFlightKey)
   if (existing) return existing
 
   const fetchPromise = (async () => {
     try {
-      const today = new Date()
-
-      const result = await yf.chart(symbol, { period1: from, period2: today, interval: '1d' })
+      const period1 = fromZonedTime(fetchFromKey, USER_TIMEZONE)
+      const result = await yf.chart(symbol, { period1, period2: new Date(), interval: '1d' })
       const map = new Map<string, number>()
       for (const row of result.quotes ?? []) {
         if (row.close == null || !row.date) continue
         const dateKey = ist_date_key(row.date)
         map.set(dateKey, row.close)
       }
-      await redis.setex(cacheKey, ETF_HISTORY_TTL, JSON.stringify(Object.fromEntries(map)))
+      const envelope: EtfHistoryEnvelope = { from: fetchFromKey, fetched_on: todayKey, prices: Object.fromEntries(map) }
+      await redis.setex(cacheKey, ETF_HISTORY_TTL, JSON.stringify(envelope))
       return map
     } catch (err) {
       logger.error({ err, symbol }, 'Error fetching ETF history')
       return new Map<string, number>()
     }
-  })().finally(() => inFlightEtfHistory.delete(cacheKey))
+  })().finally(() => inFlightEtfHistory.delete(inFlightKey))
 
-  inFlightEtfHistory.set(cacheKey, fetchPromise)
+  inFlightEtfHistory.set(inFlightKey, fetchPromise)
   return fetchPromise
 }
 
@@ -193,7 +219,7 @@ export async function get_price_lookups_for_assets(
     } else if (type === 'mf') {
       cacheable.push({ dedupKey, type, ticker, redisKey: `price:nav_history:${ticker}` })
     } else if (type === 'etf' || type === 'shares') {
-      cacheable.push({ dedupKey, type, ticker, redisKey: `price:etf_history:${ticker}:${ist_date_key(earliestDate)}` })
+      cacheable.push({ dedupKey, type, ticker, redisKey: etf_history_key(ticker) })
     } else {
       lookups.set(dedupKey, () => null)
     }
@@ -208,6 +234,8 @@ export async function get_price_lookups_for_assets(
       values = cacheable.map(() => null)
     }
 
+    const todayKey = ist_date_key(new Date())
+    const earliestKey = ist_date_key(earliestDate)
     const misses: Cacheable[] = []
     for (let i = 0; i < cacheable.length; i++) {
       const c = cacheable[i]
@@ -221,8 +249,19 @@ export async function get_price_lookups_for_assets(
         continue
       }
       try {
-        const obj = JSON.parse(raw) as Record<string, number>
-        lookups.set(c.dedupKey, build_lookup_from_history(new Map(Object.entries(obj))))
+        if (c.type === 'mf') {
+          const obj = JSON.parse(raw) as Record<string, number>
+          lookups.set(c.dedupKey, build_lookup_from_history(new Map(Object.entries(obj))))
+        } else {
+          // ETF/shares entries are envelopes; stale or too-shallow blobs go through the
+          // miss path, which widens and refreshes the stored range.
+          const env = JSON.parse(raw) as EtfHistoryEnvelope
+          if (etf_envelope_hit(env, earliestKey, todayKey)) {
+            lookups.set(c.dedupKey, build_lookup_from_history(new Map(Object.entries(env.prices))))
+          } else {
+            misses.push(c)
+          }
+        }
       } catch (err) {
         logger.error({ err, redisKey: c.redisKey }, 'Failed to parse cached history; refetching')
         misses.push(c)

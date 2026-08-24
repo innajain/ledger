@@ -233,22 +233,23 @@ export async function backfill_links_for_account(tx: Tx, user_id: string, head_i
   })
   const already = new Set(existing.map(e => e.txn_a_id))
 
-  let created = 0
-  for (const tid of txnIds) {
-    if (already.has(tid)) continue
-    await tx.transaction_link.create({
-      data: {
-        user_a_id: user_id,
-        user_b_id: counterparty_id,
-        txn_a_id: tid,
-        pending_status: 'pending',
-        pending_kind: 'change',
-        pending_by: counterparty_id,
-      },
-    })
-    created++
-  }
-  return created
+  const toCreate = txnIds.filter(tid => !already.has(tid))
+  if (toCreate.length === 0) return 0
+  // One batched insert instead of a round trip per historical transaction — this runs
+  // inside the interactive $transaction that links an account with existing history.
+  // skipDuplicates leans on @@unique([txn_a_id, user_b_id]) to stay race-safe.
+  const { count } = await tx.transaction_link.createMany({
+    data: toCreate.map(tid => ({
+      user_a_id: user_id,
+      user_b_id: counterparty_id,
+      txn_a_id: tid,
+      pending_status: 'pending' as const,
+      pending_kind: 'change' as const,
+      pending_by: counterparty_id,
+    })),
+    skipDuplicates: true,
+  })
+  return count
 }
 
 async function links_owned_by(tx: Tx, user_id: string, transaction_id: string): Promise<transaction_link[]> {

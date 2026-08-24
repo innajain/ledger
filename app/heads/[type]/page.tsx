@@ -31,20 +31,21 @@ async function Page({ params }: Props) {
     return <LoggedOutNotice title={cfg.title} />
   }
 
-  const [[heads, assets], { accountsToAssets: balances }] = await Promise.all([
-    prisma.$transaction([
-      prisma.accounting_head.findMany({
-        where: { user_id: user.id, type },
-        include: { parent: true },
-        orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-      }),
-      prisma.asset.findMany(),
-    ]),
+  const [heads, assets, { accountsToAssets: balances }] = await Promise.all([
+    prisma.accounting_head.findMany({
+      where: { user_id: user.id, type },
+      include: { parent: true },
+      orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+    }),
+    prisma.asset.findMany(),
     get_or_compute_balances(),
   ])
 
   const assetMap = new Map(assets.map(a => [a.id, a]))
-  const priceByAsset = await get_prices_for_assets(assets)
+  // The asset table is a shared catalog — only price what this user actually holds.
+  const held = new Set<string>()
+  for (const asset_map of balances.values()) for (const asset_id of asset_map.keys()) held.add(asset_id)
+  const priceByAsset = await get_prices_for_assets(assets.filter(a => held.has(a.id)))
 
   const totals = new Map(heads.map(h => [h.id, compute_head_value(balances.get(h.id) ?? new Map(), priceByAsset).toNumber()]))
 

@@ -66,10 +66,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const [user, prefs] = await Promise.all([get_current_user(), get_user_preferences()])
+  // inbox_count chains off the (react.cache-deduped) user fetch so it overlaps the
+  // preferences read instead of adding a serial round trip to every route.
+  const userPromise = get_current_user()
+  const [user, prefs, requestCount] = await Promise.all([userPromise, get_user_preferences(), userPromise.then(u => (u ? inbox_count(u.id) : 0))])
 
   const nonce = (await headers()).get('x-nonce') || undefined
-  const requestCount = user ? await inbox_count(user.id) : 0
   const persist = !!user
   const htmlClassName = prefs.theme === 'dark' ? 'dark' : ''
   return (
