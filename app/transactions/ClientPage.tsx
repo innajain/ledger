@@ -19,7 +19,6 @@ type Transaction = {
   id: string
   date: Date
   description: string | null
-  external_ref: string | null
   total_book: number
   link_severity: 'error' | 'warning' | 'info' | null
 }
@@ -145,9 +144,6 @@ const TransactionsCard = React.memo(function TransactionsCard({
                         <span>
                           {up_ampm(group.label === null ? full_datetime_fmt.format(new Date(tx.date)) : time_fmt.format(new Date(tx.date)))}
                         </span>
-                        {tx.external_ref && (
-                          <span className="hidden sm:inline text-xs font-mono text-slate-500 dark:text-slate-400 truncate">{tx.external_ref}</span>
-                        )}
                       </p>
                     </div>
                     <div className="ml-4 shrink-0 flex items-center gap-2">
@@ -203,7 +199,6 @@ export default function ClientPage({
   const uid = useId()
   const [showFilters, setShowFilters] = useState(false)
   const [searchInput, setSearchInput] = useState(searchParams.search || '')
-  const [refInput, setRefInput] = useState(searchParams.ref || '')
   const [dateFrom, setDateFrom] = useState(searchParams.dateFrom || '')
   const [dateTo, setDateTo] = useState(searchParams.dateTo || '')
   const [minAmount, setMinAmount] = useState(searchParams.minAmount || '')
@@ -220,7 +215,6 @@ export default function ClientPage({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setSearchInput(searchParams.search || '')
-    setRefInput(searchParams.ref || '')
     setDateFrom(searchParams.dateFrom || '')
     setDateTo(searchParams.dateTo || '')
     setMinAmount(searchParams.minAmount || '')
@@ -229,7 +223,6 @@ export default function ClientPage({
     setAssetId(searchParams.assetId || '')
   }, [
     searchParams.search,
-    searchParams.ref,
     searchParams.dateFrom,
     searchParams.dateTo,
     searchParams.minAmount,
@@ -312,7 +305,6 @@ export default function ClientPage({
   const applyFilters = () => {
     const query = new URLSearchParams()
     if (searchInput) query.set('search', searchInput)
-    if (refInput) query.set('ref', refInput)
     if (dateFrom) query.set('dateFrom', dateFrom)
     if (dateTo) query.set('dateTo', dateTo)
     if (minAmount) query.set('minAmount', minAmount)
@@ -325,7 +317,6 @@ export default function ClientPage({
 
   const clearFilters = () => {
     setSearchInput('')
-    setRefInput('')
     setDateFrom('')
     setDateTo('')
     setMinAmount('')
@@ -351,7 +342,6 @@ export default function ClientPage({
 
   const hasFilters = !!(
     searchParams.search ||
-    searchParams.ref ||
     searchParams.dateFrom ||
     searchParams.dateTo ||
     searchParams.minAmount ||
@@ -365,7 +355,6 @@ export default function ClientPage({
 
   const activeChips: { key: string; label: string }[] = []
   if (searchParams.search) activeChips.push({ key: 'search', label: `Search: "${searchParams.search}"` })
-  if (searchParams.ref) activeChips.push({ key: 'ref', label: `Ref: ${searchParams.ref}` })
   if (searchParams.dateFrom) activeChips.push({ key: 'dateFrom', label: `From: ${format_day(searchParams.dateFrom)}` })
   if (searchParams.dateTo) activeChips.push({ key: 'dateTo', label: `To: ${format_day(searchParams.dateTo)}` })
   if (searchParams.minAmount) activeChips.push({ key: 'minAmount', label: `Min: ${currency_fmt.format(parseFloat(searchParams.minAmount))}` })
@@ -617,20 +606,6 @@ export default function ClientPage({
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label htmlFor={`${uid}-reference`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Reference
-              </label>
-              <input
-                id={`${uid}-reference`}
-                type="text"
-                value={refInput}
-                onChange={e => setRefInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && applyFilters()}
-                placeholder="Bank / UPI ref"
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-mono text-sm"
-              />
             </div>
             <div className="md:col-span-2 flex gap-2 justify-end">
               <button

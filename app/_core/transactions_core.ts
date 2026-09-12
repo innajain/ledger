@@ -20,16 +20,9 @@ export type CreateLineItemInput = {
   txn_value?: number | null | undefined
   description?: string | null | undefined
   datetime?: Date | null | undefined
-  // bank/UPI ref of the underlying money movement — line items on account
-  // heads are the atomic flows, so refs live here
-  external_ref?: string | null | undefined
 }
 
 export type CreateTransactionOpts = {
-  // convenience: stamped onto the transaction's single account-head line
-  // (errors when several account lines make that ambiguous — use per-line
-  // external_ref on the line items instead)
-  external_ref?: string | null | undefined
   idempotency_key?: string | null | undefined
 }
 
@@ -57,13 +50,6 @@ function touched_entities(...sets: TouchedSet[]): TouchedEntities {
   return { head_ids, asset_ids, earliest_day: earliest ? ist_date_key(earliest) : undefined }
 }
 
-const externalRefLineSchema = z
-  .string()
-  .trim()
-  .max(120, 'Reference is too long')
-  .transform(val => (val === '' ? null : val))
-  .nullish()
-
 const lineItemSchema = z.object({
   accounting_head_id: z.string(),
   asset_id: z.string(),
@@ -76,20 +62,12 @@ const lineItemSchema = z.object({
     .transform(val => (val === '' ? null : val))
     .nullish(),
   datetime: z.date().nullish(),
-  external_ref: externalRefLineSchema,
 })
 
 const descriptionSchema = z
   .string()
   .trim()
   .max(2000, 'Description is too long')
-  .transform(val => (val === '' ? null : val))
-  .nullish()
-
-const externalRefSchema = z
-  .string()
-  .trim()
-  .max(120, 'Reference is too long')
   .transform(val => (val === '' ? null : val))
   .nullish()
 
@@ -103,7 +81,6 @@ const idempotencyKeySchema = z
 const createTransactionSchema = z.object({
   line_items: z.array(lineItemSchema).min(1, 'At least one line item is required'),
   description: descriptionSchema,
-  external_ref: externalRefSchema,
   idempotency_key: idempotencyKeySchema,
 })
 
@@ -184,8 +161,6 @@ async function create_transaction_in_tx(
 
   if (!is_valid) throw new ActionError('VALIDATION', message)
 
-  line_items = apply_ref_to_account_line(line_items, accounts, opts?.external_ref)
-
   const created = await tx.transaction.create({
     data: {
       datetime,
@@ -200,7 +175,6 @@ async function create_transaction_in_tx(
           asset_id: li.asset_id,
           description: li.description,
           datetime: li.datetime,
-          external_ref: li.external_ref ?? null,
         })),
       },
     },
@@ -213,29 +187,6 @@ async function create_transaction_in_tx(
   const counterparties = Array.from(new Set(accounts.map(a => a.linked_user_id).filter((x): x is string => !!x)))
   await create_links_for_transaction(tx, user_id, created.id, counterparties)
   return { id: created.id, counterparties, replayed: false }
-}
-
-// Resolve the transaction-level external_ref convenience onto line items: a
-// string stamps the single account-head line, overriding any carried ref
-// (ambiguous with several account lines — use per-line refs then); null
-// explicitly clears every line's ref; undefined leaves per-line refs alone.
-function apply_ref_to_account_line(
-  line_items: CreateLineItemInput[],
-  accounts: { id: string; type: string }[],
-  external_ref: string | null | undefined,
-): CreateLineItemInput[] {
-  if (external_ref === undefined) return line_items
-  if (external_ref === null) return line_items.map(li => ({ ...li, external_ref: null }))
-
-  const type_by_id = new Map(accounts.map(a => [a.id, a.type]))
-  const account_indexes = line_items.flatMap((li, i) => (type_by_id.get(li.accounting_head_id) === 'account' ? [i] : []))
-  if (account_indexes.length === 0) throw new ActionError('VALIDATION', 'A reference needs at least one account line to attach it to')
-  if (account_indexes.length > 1)
-    throw new ActionError(
-      'VALIDATION',
-      'The reference is ambiguous — this transaction has several account lines; set the reference on the individual line items instead',
-    )
-  return line_items.map((li, i) => (i === account_indexes[0] ? { ...li, external_ref } : li))
 }
 
 export async function create_transaction_core(
@@ -251,7 +202,6 @@ export async function create_transaction_core(
 
     const { id, counterparties, replayed } = await prisma.$transaction(async prisma =>
       create_transaction_in_tx(prisma, user_id, datetime, parsed.data.line_items, parsed.data.description, {
-        external_ref: parsed.data.external_ref,
         idempotency_key: parsed.data.idempotency_key,
       }),
     )
@@ -282,7 +232,6 @@ export type BulkTransactionInput = {
   datetime: Date
   line_items: CreateLineItemInput[]
   description?: string | null | undefined
-  external_ref?: string | null | undefined
   idempotency_key?: string | null | undefined
 }
 
@@ -302,7 +251,6 @@ export async function create_transactions_core(
             const parsed = createTransactionSchema.safeParse({
               line_items: item.line_items,
               description: item.description,
-              external_ref: item.external_ref,
               idempotency_key: item.idempotency_key,
             })
             if (!parsed.success) throw new ActionError('VALIDATION', `Transaction ${i + 1}: ${parsed.error.issues[0].message}`)
@@ -339,10 +287,7 @@ export async function create_transactions_core(
                 items[i].datetime,
                 parsed.line_items,
                 parsed.description,
-                {
-                  external_ref: parsed.external_ref,
-                  idempotency_key: parsed.idempotency_key,
-                },
+                { idempotency_key: parsed.idempotency_key },
                 caches,
               )
               for (const cp of r.counterparties) cps.add(cp)
@@ -391,7 +336,6 @@ export async function update_transaction_core(
   line_items: CreateLineItemInput[],
   datetime?: Date | undefined,
   description?: string | null | undefined,
-  opts?: { external_ref?: string | null | undefined },
 ): Promise<ActionResult> {
   try {
     const parsed = updateTransactionSchema.safeParse({ id, line_items, description })
@@ -399,7 +343,6 @@ export async function update_transaction_core(
     id = parsed.data.id
     line_items = parsed.data.line_items
     description = parsed.data.description
-    const external_ref = opts && 'external_ref' in opts ? externalRefSchema.parse(opts.external_ref) : undefined
 
     const { old_lines, old_datetime, reopened, final_description } = await prisma.$transaction(async prisma => {
       const existing = await prisma.transaction.findUnique({
@@ -446,8 +389,6 @@ export async function update_transaction_core(
 
       if (!is_valid) throw new ActionError('VALIDATION', message)
 
-      line_items = apply_ref_to_account_line(line_items, accounts, external_ref)
-
       await prisma.line_item.deleteMany({ where: { transaction_id: id } })
 
       await prisma.transaction.update({
@@ -463,7 +404,6 @@ export async function update_transaction_core(
               asset_id: li.asset_id,
               description: li.description,
               datetime: li.datetime,
-              external_ref: li.external_ref ?? null,
             })),
           },
         },
@@ -511,7 +451,6 @@ export type DeletedTransaction = {
     txn_value: Prisma.Decimal | null
     description: string | null
     datetime: Date | null
-    external_ref: string | null
   }[]
 }
 
@@ -536,7 +475,6 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
               quantity: true,
               txn_value: true,
               description: true,
-              external_ref: true,
               accounting_head: { select: { name: true, lock_date: true } },
               asset: { select: { name: true } },
             },
@@ -570,7 +508,6 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
         txn_value: li.txn_value,
         description: li.description,
         datetime: li.datetime,
-        external_ref: li.external_ref,
       })),
     })
   } catch (error) {

@@ -326,7 +326,6 @@ model transaction_attachment {
 }
 
 model line_item {
-  external_ref        String?   // Bank/UPI ref of this money movement — line items are the actual bank rows (indexed)
   id                  String    @id @default(cuid())
   transaction_id      String
   accounting_head_id  String

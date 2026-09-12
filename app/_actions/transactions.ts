@@ -55,7 +55,6 @@ export async function delete_transaction_with_snapshot(id: string): Promise<Acti
         txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
         description: li.description,
         datetime: li.datetime,
-        external_ref: li.external_ref,
       })),
     }
     return ok({ snapshot })

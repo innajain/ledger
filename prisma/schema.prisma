@@ -197,13 +197,6 @@ model line_item {
   description String?
   datetime    DateTime?
 
-  // External reference from the source system (a bank/UPI ref like
-  // "UPI-621663575718"). Line items on account heads are the atomic money
-  // movements — one bank-statement row corresponds to one line item — so the
-  // ref lives here, not on the transaction. Not unique (rare bank ref reuse);
-  // indexed for reconciliation lookups.
-  external_ref String?
-
   transaction_id String
   transaction    transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
 
@@ -219,7 +212,6 @@ model line_item {
   @@index([transaction_id])
   @@index([accounting_head_id])
   @@index([asset_id])
-  @@index([external_ref])
   @@index([datetime])
   // Trigram GIN for the description-contains branch of transaction search.
   @@index([description(ops: raw("gin_trgm_ops"))], type: Gin)

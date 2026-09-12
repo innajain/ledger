@@ -30,7 +30,6 @@ type TxForClient = {
   id: string
   date: Date
   description: string | null
-  external_ref: string | null
   total_book: number
   link_severity: 'error' | 'warning' | 'info' | null
 }
@@ -44,7 +43,6 @@ async function Page({
   searchParams: Promise<{
     page?: string
     search?: string
-    ref?: string
     dateFrom?: string
     dateTo?: string
     minAmount?: string
@@ -127,7 +125,6 @@ async function Page({
         },
       ],
     }),
-    ...(params.ref && { line_items: { some: { external_ref: { contains: params.ref, mode: 'insensitive' as Prisma.QueryMode } } } }),
     ...((dateFrom || dateTo) && {
       datetime: {
         ...(dateFrom && { gte: dateFrom }),
@@ -152,7 +149,6 @@ async function Page({
       select: {
         quantity: true,
         txn_value: true,
-        external_ref: true,
         accounting_head: { select: { type: true } },
         asset: { select: { id: true, type: true, name: true } },
       },
@@ -167,7 +163,6 @@ async function Page({
       id: t.id,
       date: t.datetime,
       description: t.description,
-      external_ref: t.line_items.find(li => li.external_ref)?.external_ref ?? null,
       total_book: normalized
         .filter(li => li.accounting_head.type === 'account')
         .reduce((s, li) => s.add(li.txn_value), new Prisma.Decimal(0))
@@ -212,8 +207,6 @@ async function Page({
         Prisma.sql`(t.description ILIKE ${like(search)} OR EXISTS (SELECT 1 FROM line_item s WHERE s.transaction_id = t.id AND s.description ILIKE ${like(search)}))`,
       )
     }
-    if (params.ref)
-      conds.push(Prisma.sql`EXISTS (SELECT 1 FROM line_item r WHERE r.transaction_id = t.id AND r.external_ref ILIKE ${like(params.ref)})`)
     if (dateFrom) conds.push(Prisma.sql`t.datetime >= ${dateFrom}`)
     if (dateTo) conds.push(Prisma.sql`t.datetime < ${dateTo}`)
     if (accountId) conds.push(Prisma.sql`EXISTS (SELECT 1 FROM line_item a WHERE a.transaction_id = t.id AND a.accounting_head_id = ${accountId})`)

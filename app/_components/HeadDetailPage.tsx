@@ -73,12 +73,11 @@ type HeadDetailPageProps = {
   config: HeadDetailConfig
   closingBalanceAction?: (head_id: string, date: string) => Promise<ActionResult<ClosingBalance>>
   // account-type heads only — reconciliation runs against a single bank account
-  canReconcile?: boolean
 }
 
 const LINE_ITEMS_PAGE = 100
 
-export function HeadDetailPage({ head, config, closingBalanceAction, canReconcile = false }: HeadDetailPageProps) {
+export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetailPageProps) {
   const router = useRouter()
   const editLink = `${config.backLink}/${head.id}/update`
   const [pay_status, set_pay_status] = useState<{ kind: 'ok'; txn_id: string } | { kind: 'err'; message: string } | null>(null)
@@ -258,35 +257,6 @@ export function HeadDetailPage({ head, config, closingBalanceAction, canReconcil
       {head.linked_user && <LinkedUserNotify targetUserId={head.linked_user.id} username={head.linked_user.username} owedAmount={head.total} />}
 
       {closingBalanceAction && <AsOfBalance headId={head.id} getClosingBalance={closingBalanceAction} />}
-
-      {canReconcile && (
-        <Card>
-          <div className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Reconcile against a statement</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                {head.lock_date
-                  ? `Verified through ${head.lock_date} — paste the next stretch of bank rows to match them line by line and move the lock forward.`
-                  : 'Paste or upload bank rows to match them against this account line by line, add whatever is missing, and lock the verified period.'}
-              </p>
-            </div>
-            <Link
-              href={`/reconcile?account=${encodeURIComponent(head.id)}`}
-              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2 justify-center sm:whitespace-nowrap"
-            >
-              <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                />
-              </svg>
-              Reconcile this account
-            </Link>
-          </div>
-        </Card>
-      )}
 
       {head.children && head.children.length > 0 && (
         <Card>
