@@ -4,7 +4,6 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Suspense, use, useEffect, useState } from 'react'
-import { RevealToggle } from './RevealToggle'
 
 const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/', label: 'Home' },
@@ -115,9 +114,6 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
 
           {}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Session-only "show every masked amount" switch. Sits left of the hamburger on
-                small screens and is the lone right-hand control once the desktop list appears. */}
-            {isLoggedIn && <RevealToggle />}
             {isLoggedIn && (
               <button
                 className="xl:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
