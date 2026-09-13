@@ -14,9 +14,11 @@ import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/Inve
 import { HomeNetWorthTrend, HomeNetWorthTrendFallback } from '@/app/_components/HomeNetWorthTrend'
 import type { AssetBalance } from '@/app/_utils/home_networth_series'
 import type { HomeRecentTransaction } from '@/app/_components/HomeRecentTransactions'
+import type { HomeUpcomingTransaction } from '@/app/_components/HomeUpcomingTransactions'
 import { profile } from '@/lib/metrics/profile'
 
 const RECENT_TRANSACTION_COUNT = 15
+const UPCOMING_TRANSACTION_COUNT = 15
 const TOP_SPEND_CATEGORIES = 4
 
 // Only the fields the summary/recent rollups and normalize_line_items read — the full
@@ -78,7 +80,7 @@ async function Home() {
     return get_prices_for_assets(all_assets.filter(a => held.has(a.id)))
   })
 
-  const [allocations, assets, { accountsToAssets: balances }, month_txns, recent_txns, priceByAsset] = await Promise.all([
+  const [allocations, assets, { accountsToAssets: balances }, month_txns, recent_txns, upcoming_txns, priceByAsset] = await Promise.all([
     prisma.accounting_head.findMany({ where: { user_id: user.id, type: 'allocation' } }),
     assetsPromise,
     balancesPromise,
@@ -98,6 +100,12 @@ async function Home() {
       select: txn_select,
       orderBy: { datetime: 'desc' },
       take: RECENT_TRANSACTION_COUNT,
+    }),
+    prisma.transaction.findMany({
+      where: { user_id: user.id, is_future: true },
+      select: txn_select,
+      orderBy: { datetime: 'asc' },
+      take: UPCOMING_TRANSACTION_COUNT,
     }),
     pricesPromise,
   ])
@@ -200,6 +208,13 @@ async function Home() {
     total_book: book_total(normalize_line_items(txn.line_items)),
   }))
 
+  const upcoming: HomeUpcomingTransaction[] = upcoming_txns.map(txn => ({
+    id: txn.id,
+    date: txn.datetime,
+    description: txn.description,
+    total_book: book_total(normalize_line_items(txn.line_items)),
+  }))
+
   return (
     <ClientPage
       welcomeMessage={welcome_message}
@@ -211,6 +226,7 @@ async function Home() {
       networthTrendSlot={networthTrendSlot}
       month={month}
       recent={recent}
+      upcoming={upcoming}
     />
   )
 }

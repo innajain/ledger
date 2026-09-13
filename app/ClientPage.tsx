@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { MaskedAmount } from './_components/MaskedAmount'
 import { HomeMonthSummary, type HomeMonthData } from './_components/HomeMonthSummary'
 import { HomeRecentTransactions, type HomeRecentTransaction } from './_components/HomeRecentTransactions'
+import { HomeUpcomingTransactions, type HomeUpcomingTransaction } from './_components/HomeUpcomingTransactions'
 
 export default function ClientPage({
   welcomeMessage,
@@ -16,6 +17,7 @@ export default function ClientPage({
   networthTrendSlot,
   month = null,
   recent = [],
+  upcoming = [],
 }: {
   welcomeMessage: string
   loggedIn?: boolean
@@ -26,6 +28,7 @@ export default function ClientPage({
   networthTrendSlot?: React.ReactNode
   month?: HomeMonthData | null
   recent?: HomeRecentTransaction[]
+  upcoming?: HomeUpcomingTransaction[]
 }) {
   return (
     <div className="space-y-6">
@@ -163,6 +166,8 @@ export default function ClientPage({
           <HomeRecentTransactions transactions={recent} />
         </div>
       )}
+
+      {loggedIn && <HomeUpcomingTransactions transactions={upcoming} />}
     </div>
   )
 }
