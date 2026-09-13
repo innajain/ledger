@@ -359,7 +359,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
               Scheduled entries — they don&apos;t affect balances until converted to real transactions.
             </p>
           </div>
-          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+          <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
             {head.future_transactions.map(ft => (
               <div key={ft.id} className="relative hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
                 <Link href={`/transactions/${ft.id}`} aria-label={ft.description || 'View future transaction'} className="absolute inset-0 z-0" />
