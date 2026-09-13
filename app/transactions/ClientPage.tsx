@@ -81,18 +81,20 @@ const TransactionsCard = React.memo(function TransactionsCard({
   totalCount,
   currentPage,
   pageSize,
+  showingFuture,
 }: {
   dayGroups: { label: string | null; txs: Transaction[] }[]
   isShowingAll: boolean
   totalCount: number
   currentPage: number
   pageSize: number
+  showingFuture: boolean
 }) {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
       <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">All transactions</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{showingFuture ? 'Future transactions' : 'All transactions'}</h2>
           <div className="flex items-center gap-4 flex-wrap">
             <span className="text-sm text-slate-500 dark:text-slate-400">
               {isShowingAll
@@ -302,6 +304,14 @@ export default function ClientPage({
     router.push(`/transactions?${query.toString()}`)
   }
 
+  const changeFuture = (future: string) => {
+    const query = new URLSearchParams(params.toString())
+    if (future === 'future') query.set('future', 'future')
+    else query.delete('future')
+    query.delete('page')
+    router.push(`/transactions?${query.toString()}`)
+  }
+
   const applyFilters = () => {
     const query = new URLSearchParams()
     if (searchInput) query.set('search', searchInput)
@@ -340,7 +350,9 @@ export default function ClientPage({
     router.push(`/transactions?${query.toString()}`)
   }
 
-  const hasFilters = !!(
+  const showingFuture = searchParams.future === 'future'
+
+  const hasOtherFilters = !!(
     searchParams.search ||
     searchParams.dateFrom ||
     searchParams.dateTo ||
@@ -349,6 +361,7 @@ export default function ClientPage({
     searchParams.accountId ||
     searchParams.assetId
   )
+  const hasFilters = hasOtherFilters || showingFuture
 
   const accountName = (id: string) => accounts.find(a => a.id === id)?.name ?? id
   const assetName = (id: string) => assets.find(a => a.id === id)?.name ?? id
@@ -361,6 +374,7 @@ export default function ClientPage({
   if (searchParams.maxAmount) activeChips.push({ key: 'maxAmount', label: `Max: ${currency_fmt.format(parseFloat(searchParams.maxAmount))}` })
   if (searchParams.accountId) activeChips.push({ key: 'accountId', label: `Account: ${accountName(searchParams.accountId)}` })
   if (searchParams.assetId) activeChips.push({ key: 'assetId', label: `Asset: ${assetName(searchParams.assetId)}` })
+  if (showingFuture) activeChips.push({ key: 'future', label: 'Future transactions' })
 
   // Rows group under day headers when the list is date-sorted (the ledger's home order).
   // Amount sorts get a flat list with full dates — day headers would interleave meaninglessly.
@@ -516,6 +530,20 @@ export default function ClientPage({
               </select>
             </div>
             <div>
+              <label htmlFor={`${uid}-type`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Type
+              </label>
+              <select
+                id={`${uid}-type`}
+                value={showingFuture ? 'future' : 'real'}
+                onChange={e => changeFuture(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="real">Real transactions</option>
+                <option value="future">Future transactions</option>
+              </select>
+            </div>
+            <div>
               <label htmlFor={`${uid}-date-from`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 From date
               </label>
@@ -655,7 +683,14 @@ export default function ClientPage({
 
       {transactions.length > 0 ? (
         <>
-          <TransactionsCard dayGroups={dayGroups} isShowingAll={isShowingAll} totalCount={totalCount} currentPage={currentPage} pageSize={pageSize} />
+          <TransactionsCard
+            dayGroups={dayGroups}
+            isShowingAll={isShowingAll}
+            totalCount={totalCount}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            showingFuture={showingFuture}
+          />
 
           {}
           {totalPages > 1 && !isShowingAll && (
@@ -706,11 +741,13 @@ export default function ClientPage({
       ) : (
         <EmptyState
           icon={<TransactionEmptyIcon />}
-          title={hasFilters ? 'No matching transactions' : 'No transactions yet'}
+          title={hasOtherFilters ? 'No matching transactions' : showingFuture ? 'No future transactions' : 'No transactions yet'}
           description={
-            hasFilters
+            hasOtherFilters
               ? 'Try adjusting your filters'
-              : 'A transaction records money moving between your accounts, allocations and categories in one balanced entry.'
+              : showingFuture
+                ? "You don't have any scheduled transactions right now."
+                : 'A transaction records money moving between your accounts, allocations and categories in one balanced entry.'
           }
           actionUrl="/transactions/create"
           actionLabel="New transaction"

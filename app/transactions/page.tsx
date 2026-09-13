@@ -5,7 +5,6 @@ import { Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { fromZonedTime } from 'date-fns-tz'
 import { normalize_line_items } from '../_utils/normalize_txn'
-import { NOT_FUTURE } from '../_utils/future_txn'
 import { USER_TIMEZONE } from '@/lib/config'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
@@ -52,6 +51,7 @@ async function Page({
     accountId?: string
     assetId?: string
     sort?: string
+    future?: string
   }>
 }) {
   const user = await get_current_user()
@@ -69,6 +69,10 @@ async function Page({
   const accountId = params.accountId || undefined
   const assetId = params.assetId || undefined
   const sort: SortKey = (SORT_KEYS as readonly string[]).includes(params.sort ?? '') ? (params.sort as SortKey) : 'date_desc'
+  // Real transactions by default, matching the transactions-only view every other
+  // balance/list surface in the app already defaults to; 'future' flips to the
+  // scheduled/draft set instead of mixing the two.
+  const showFuture = params.future === 'future'
 
   // The client's filter dropdowns only read id+name; full rows would be serialized
   // into the RSC payload for nothing.
@@ -106,7 +110,7 @@ async function Page({
 
   const where: Prisma.transactionWhereInput = {
     user_id: user.id,
-    ...NOT_FUTURE,
+    is_future: showFuture,
     ...(search && {
       OR: [
         {
@@ -203,7 +207,7 @@ async function Page({
     // line item. This used to pull up to 5000 transactions (with every line item) into
     // JS, and silently capped the count there.
     const like = (s: string) => '%' + s.replace(/[\\%_]/g, m => '\\' + m) + '%'
-    const conds: Prisma.Sql[] = [Prisma.sql`t.user_id = ${user.id}`, Prisma.sql`t.is_future = false`]
+    const conds: Prisma.Sql[] = [Prisma.sql`t.user_id = ${user.id}`, Prisma.sql`t.is_future = ${showFuture}`]
     if (search) {
       conds.push(
         Prisma.sql`(t.description ILIKE ${like(search)} OR EXISTS (SELECT 1 FROM line_item s WHERE s.transaction_id = t.id AND s.description ILIKE ${like(search)}))`,
