@@ -126,17 +126,21 @@ export async function compute_balances_core(user_id: string, invalidate_cache = 
 
 export type ClosingBalanceRow = { head_id: string; asset_id: string; qty: number; value: number }
 
-// Historical closing balance strictly before `cutoff`, computed from normalized
-// transactions so derived-remainder lines count — correct for every head type,
-// not just accounts. Values are book values (txn_value), not marked to market.
-// head_id null = all account-type heads; a specific head_id can be any type.
+// Historical (or, for a future `cutoff`, projected) closing balance strictly before
+// `cutoff`, computed from normalized transactions so derived-remainder lines count —
+// correct for every head type, not just accounts. Values are book values (txn_value),
+// not marked to market. head_id null = all account-type heads; a specific head_id can
+// be any type. A `cutoff` beyond now also pulls in scheduled (is_future) transactions
+// dated before it, projecting the balance forward; a past/present cutoff excludes them
+// as usual.
 export async function closing_balance_core(user_id: string, head_id: string | null, cutoff: Date): Promise<ClosingBalanceRow[]> {
+  const include_future = cutoff > new Date()
   // Keep every line item of each matched transaction — null-remainder normalization
   // needs the full balanced set — but select only the fields it reads.
   const txns = await prisma.transaction.findMany({
     where: {
       user_id,
-      ...NOT_FUTURE,
+      ...(include_future ? {} : NOT_FUTURE),
       ...(head_id ? { line_items: { some: { accounting_head_id: head_id } } } : {}),
       // A transaction only contributes lines with effective date (li.datetime ?? txn.datetime)
       // before the cutoff — prune the rest in SQL; the JS filter below stays authoritative.

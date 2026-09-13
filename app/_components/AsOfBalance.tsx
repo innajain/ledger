@@ -66,7 +66,8 @@ export function AsOfBalance({
         <div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Balance on a date</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Closing balance at the end of that day (book value) — handy for checking against a bank statement
+            Closing balance at the end of that day (book value) — handy for checking against a bank statement. Pick a future date to project the
+            balance forward using scheduled transactions.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -74,7 +75,6 @@ export function AsOfBalance({
             type="date"
             aria-label="Balance on date"
             value={date}
-            max={new Date().toISOString().slice(0, 10)}
             onChange={e => onDateChange(e.target.value)}
             className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
           />

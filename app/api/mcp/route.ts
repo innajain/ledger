@@ -370,7 +370,7 @@ function register_tools(server: McpServer) {
     'get_balances',
     {
       description:
-        'Per-account asset balances (quantity and book value). Optional head filter (id or name) and as_of date — as_of gives the closing balance at the END of that IST day (e.g. "Kotak at 30 Apr close" to check against a bank statement). With a head filter, as_of works for any head type, including allocations.',
+        'Per-account asset balances (quantity and book value). Optional head filter (id or name) and as_of date — as_of gives the closing balance at the END of that IST day (e.g. "Kotak at 30 Apr close" to check against a bank statement). A future as_of projects the balance forward using scheduled (future) transactions dated before it. With a head filter, as_of works for any head type, including allocations.',
       inputSchema: {
         head: z.string().optional().describe('Only this head (id or name); any type when combined with as_of, accounts otherwise'),
         as_of: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST) — closing balance at the END of that day; default: now'),
