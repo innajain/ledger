@@ -430,7 +430,7 @@ function register_tools(server: McpServer) {
           .boolean()
           .optional()
           .describe(
-            "Attach this head's future transactions (default false), each with its scheduled datetime, description, amount, a sufficient flag (whether the head will have enough balance when it lands, computed cumulatively over all of them in datetime order; null if the transaction is already overdue, i.e. dated in the past, or touches nothing on this head), and balances_after — the resulting per-asset balance once it (and every one before it) lands, empty for an overdue transaction",
+            "Attach this head's future line items (default false) — one row per line item, not per transaction (a transaction with two lines on this head, e.g. rent + brokerage against the same account, yields two rows, both linking to transaction_id). Each has its effective datetime, description, amount, a sufficient flag (whether this line's asset stays >= 0 once it lands, computed cumulatively in datetime order over all of them; null if the line item is already overdue, i.e. dated in the past), and balance_after — the resulting balance for that asset once it (and every one before it) lands, null for an overdue line item",
           ),
         from: z.string().optional().describe('With include_line_items: only lines on/after this day (dd-MM-yyyy or yyyy-MM-dd, IST)'),
         to: z.string().optional().describe('With include_line_items: only lines on/before this day (inclusive)'),
@@ -607,25 +607,32 @@ function register_tools(server: McpServer) {
         const future_asset_names = new Map<string, string>()
         for (const tx of normalized_future) for (const li of tx.line_items) future_asset_names.set(li.asset_id, li.asset.name)
 
-        out.future_transactions = compute_future_sufficiency(
-          current_balances,
-          normalized_future.map(tx => ({
-            id: tx.id,
-            datetime: tx.datetime,
-            description: tx.description,
-            line_items: tx.line_items
+        // One row per line item on this head, not per transaction — a transaction with
+        // two lines here (e.g. rent + brokerage against the same account) yields two rows.
+        const future_line_items = normalized_future
+          .flatMap(tx =>
+            tx.line_items
               .filter(li => li.accounting_head_id === head.id)
-              .map(li => ({ asset_id: li.asset_id, quantity: li.quantity, txn_value: li.txn_value })),
-          })),
-        ).map(r => ({
+              .map(li => ({
+                id: li.id,
+                transaction_id: tx.id,
+                datetime: li.datetime ?? tx.datetime,
+                description: tx.description,
+                asset_id: li.asset_id,
+                quantity: li.quantity,
+                txn_value: li.txn_value,
+              })),
+          )
+          .sort((a, b) => a.datetime.getTime() - b.datetime.getTime())
+
+        out.future_transactions = compute_future_sufficiency(current_balances, future_line_items).map(r => ({
           id: r.id,
+          transaction_id: r.transaction_id,
           datetime: r.datetime,
           description: r.description,
           amount: r.amount,
           sufficient: r.sufficient,
-          balances_after: r.per_asset_delta
-            .filter((d): d is typeof d & { balance: number } => d.balance !== null)
-            .map(d => ({ asset: future_asset_names.get(d.asset_id) ?? d.asset_id, balance: d.balance })),
+          balance_after: r.balance_after === null ? null : { asset: future_asset_names.get(r.asset_id) ?? r.asset_id, balance: r.balance_after },
         }))
       }
 

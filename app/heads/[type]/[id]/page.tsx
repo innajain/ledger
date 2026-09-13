@@ -187,20 +187,29 @@ async function Page({ params }: Props) {
 
   reconcile_timeseries_tail(value_timeseries, acc_total.toNumber(), xirr_value)
 
-  // Future transactions section: a sufficiency badge shows whether the head will have
-  // enough balance when each scheduled entry lands (walked in datetime order,
-  // cumulative, starting from this head's current real balance). A future transaction
-  // already dated in the past is overdue rather than forward-looking, so it's excluded
-  // from the walk entirely (see compute_future_sufficiency).
+  // Future transactions section: one row per line item on this head (not per transaction
+  // — a transaction with two lines here, e.g. rent + brokerage against the same account,
+  // shows as two rows), each with a sufficiency badge for whether the head will have
+  // enough balance when it lands (walked in effective-datetime order, cumulative,
+  // starting from this head's current real balance). A line item already dated in the
+  // past is overdue rather than forward-looking, so it's excluded from the walk entirely
+  // (see compute_future_sufficiency).
   const normalized_future = futureTransactions.map(normalize_txn)
-  const future_transactions = normalized_future.map(tx => ({
-    id: tx.id,
-    datetime: tx.datetime,
-    description: tx.description,
-    line_items: tx.line_items
-      .filter(li => li.accounting_head_id === head.id)
-      .map(li => ({ asset_id: li.asset_id, quantity: li.quantity, txn_value: li.txn_value })),
-  }))
+  const future_line_items = normalized_future
+    .flatMap(tx =>
+      tx.line_items
+        .filter(li => li.accounting_head_id === head.id)
+        .map(li => ({
+          id: li.id,
+          transaction_id: tx.id,
+          datetime: li.datetime ?? tx.datetime,
+          description: tx.description,
+          asset_id: li.asset_id,
+          quantity: li.quantity,
+          txn_value: li.txn_value,
+        })),
+    )
+    .sort((a, b) => a.datetime.getTime() - b.datetime.getTime())
   // Asset names for the "balance after" display — read straight off the future
   // transactions' own (normalized) line items, so it covers assets this head has never
   // held in real history yet, not just the ones already in `map`.
@@ -208,18 +217,17 @@ async function Page({ params }: Props) {
   for (const tx of normalized_future) for (const li of tx.line_items) future_asset_names.set(li.asset_id, li.asset.name)
 
   let future_transactions_for_client: HeadData['future_transactions'] = []
-  if (future_transactions.length > 0) {
+  if (future_line_items.length > 0) {
     const current_balances = new Map<string, Prisma.Decimal>()
     for (const e of Object.values(map)) current_balances.set(e.asset_id, e.total_qty)
-    future_transactions_for_client = compute_future_sufficiency(current_balances, future_transactions).map(r => ({
+    future_transactions_for_client = compute_future_sufficiency(current_balances, future_line_items).map(r => ({
       id: r.id,
+      transaction_id: r.transaction_id,
       datetime: r.datetime,
       description: r.description,
       amount: r.amount,
       sufficient: r.sufficient,
-      balances_after: r.per_asset_delta
-        .filter((d): d is typeof d & { balance: number } => d.balance !== null)
-        .map(d => ({ asset_name: future_asset_names.get(d.asset_id) ?? d.asset_id, balance: d.balance })),
+      balance_after: r.balance_after === null ? null : { asset_name: future_asset_names.get(r.asset_id) ?? r.asset_id, balance: r.balance_after },
     }))
   }
 

@@ -60,17 +60,20 @@ export type HeadData = {
   }[]
   line_items: LineItem[]
   value_timeseries?: ValuePoint[]
-  // This head's future transactions, in datetime order. `sufficient` is null when the
-  // transaction is already overdue (dated in the past) or touches nothing on this head.
-  // `balances_after` is the resulting per-asset balance once this transaction (and every
-  // one before it) lands — empty for an overdue transaction, which never updates it.
+  // This head's future line items, in effective-datetime order — one row per line item,
+  // not per transaction (a transaction with two lines here, e.g. rent + brokerage, shows
+  // as two rows, each linking to the same transaction). `sufficient` is null when the
+  // line item is already overdue (dated in the past). `balance_after` is the resulting
+  // balance for that line's asset once it (and every one before it) lands — null for an
+  // overdue line item, which never updates it.
   future_transactions?: {
     id: string
+    transaction_id: string
     datetime: string | Date
     description: string | null
     amount: number
     sufficient: boolean | null
-    balances_after: { asset_name: string; balance: number }[]
+    balance_after: { asset_name: string; balance: number } | null
   }[]
 }
 
@@ -362,7 +365,11 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
           <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
             {head.future_transactions.map(ft => (
               <div key={ft.id} className="relative hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
-                <Link href={`/transactions/${ft.id}`} aria-label={ft.description || 'View future transaction'} className="absolute inset-0 z-0" />
+                <Link
+                  href={`/transactions/${ft.transaction_id}`}
+                  aria-label={ft.description || 'View future transaction'}
+                  className="absolute inset-0 z-0"
+                />
                 <div className="relative z-10 pointer-events-none flex items-center justify-between gap-4 p-4">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-slate-900 dark:text-slate-100 truncate">{ft.description || 'No description'}</p>
@@ -395,16 +402,9 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
                         <MaskedAmount value={ft.amount} keep_sign />
                       </span>
                     </div>
-                    {ft.balances_after.length > 0 && (
+                    {ft.balance_after && (
                       <p className="text-xs text-slate-500 dark:text-slate-400 pointer-events-auto">
-                        Balance after:{' '}
-                        {ft.balances_after.map((b, i) => (
-                          <span key={b.asset_name}>
-                            {i > 0 && ', '}
-                            {ft.balances_after.length > 1 ? `${b.asset_name}: ` : ''}
-                            <MaskedAmount value={b.balance} />
-                          </span>
-                        ))}
+                        Balance after: <MaskedAmount value={ft.balance_after.balance} />
                       </p>
                     )}
                   </div>
