@@ -201,11 +201,26 @@ async function Page({ params }: Props) {
       .filter(li => li.accounting_head_id === head.id)
       .map(li => ({ asset_id: li.asset_id, quantity: li.quantity, txn_value: li.txn_value })),
   }))
+  // Asset names for the "balance after" display — read straight off the future
+  // transactions' own (normalized) line items, so it covers assets this head has never
+  // held in real history yet, not just the ones already in `map`.
+  const future_asset_names = new Map<string, string>()
+  for (const tx of normalized_future) for (const li of tx.line_items) future_asset_names.set(li.asset_id, li.asset.name)
+
   let future_transactions_for_client: HeadData['future_transactions'] = []
   if (future_transactions.length > 0) {
     const current_balances = new Map<string, Prisma.Decimal>()
     for (const e of Object.values(map)) current_balances.set(e.asset_id, e.total_qty)
-    future_transactions_for_client = compute_future_sufficiency(current_balances, future_transactions)
+    future_transactions_for_client = compute_future_sufficiency(current_balances, future_transactions).map(r => ({
+      id: r.id,
+      datetime: r.datetime,
+      description: r.description,
+      amount: r.amount,
+      sufficient: r.sufficient,
+      balances_after: r.per_asset_delta
+        .filter((d): d is typeof d & { balance: number } => d.balance !== null)
+        .map(d => ({ asset_name: future_asset_names.get(d.asset_id) ?? d.asset_id, balance: d.balance })),
+    }))
   }
 
   return (

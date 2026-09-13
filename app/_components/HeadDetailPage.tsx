@@ -62,12 +62,15 @@ export type HeadData = {
   value_timeseries?: ValuePoint[]
   // This head's future transactions, in datetime order. `sufficient` is null when the
   // transaction is already overdue (dated in the past) or touches nothing on this head.
+  // `balances_after` is the resulting per-asset balance once this transaction (and every
+  // one before it) lands — empty for an overdue transaction, which never updates it.
   future_transactions?: {
     id: string
     datetime: string | Date
     description: string | null
     amount: number
     sufficient: boolean | null
+    balances_after: { asset_name: string; balance: number }[]
   }[]
 }
 
@@ -366,6 +369,18 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       <LocalDateTime value={ft.datetime} />
                     </p>
+                    {ft.balances_after.length > 0 && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 pointer-events-auto">
+                        Balance after:{' '}
+                        {ft.balances_after.map((b, i) => (
+                          <span key={b.asset_name}>
+                            {i > 0 && ', '}
+                            {ft.balances_after.length > 1 ? `${b.asset_name}: ` : ''}
+                            <MaskedAmount value={b.balance} />
+                          </span>
+                        ))}
+                      </p>
+                    )}
                   </div>
                   <div className="ml-4 shrink-0 flex items-center gap-2">
                     {ft.sufficient !== null &&

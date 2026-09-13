@@ -20,7 +20,10 @@ export type FutureTxnRow = {
   // null when the transaction has no line items on this head's balance (nothing to
   // check), or when it's overdue (datetime already in the past — see below).
   sufficient: boolean | null
-  per_asset_delta: { asset_id: string; qty: number }[]
+  // Per asset this transaction touches: its delta here, and the resulting running
+  // balance immediately after applying it (`balance` is null when overdue, since
+  // overdue transactions never update the running balance — see below).
+  per_asset_delta: { asset_id: string; qty: number; balance: number | null }[]
 }
 
 // Walks a head's future transactions once, carrying a running per-asset Decimal balance
@@ -39,16 +42,22 @@ export function compute_future_sufficiency(
   const running = new Map(current_balances)
   const rows: FutureTxnRow[] = []
   for (const txn of future_txns) {
-    const per_asset_delta: { asset_id: string; qty: number }[] = []
+    const is_overdue = txn.datetime < now
+    const per_asset_delta: { asset_id: string; qty: number; balance: number | null }[] = []
     let amount = new Prisma.Decimal(0)
     for (const li of txn.line_items) {
       amount = amount.add(li.txn_value)
-      per_asset_delta.push({ asset_id: li.asset_id, qty: li.quantity.toNumber() })
+      let balance: number | null = null
+      if (!is_overdue) {
+        const updated = (running.get(li.asset_id) ?? new Prisma.Decimal(0)).add(li.quantity)
+        running.set(li.asset_id, updated)
+        balance = updated.toNumber()
+      }
+      per_asset_delta.push({ asset_id: li.asset_id, qty: li.quantity.toNumber(), balance })
     }
 
     let sufficient: boolean | null = null
-    if (txn.datetime >= now) {
-      for (const li of txn.line_items) running.set(li.asset_id, (running.get(li.asset_id) ?? new Prisma.Decimal(0)).add(li.quantity))
+    if (!is_overdue) {
       const touched = txn.line_items.map(li => li.asset_id)
       sufficient = touched.length > 0 ? touched.every(aid => (running.get(aid) ?? new Prisma.Decimal(0)).gte(0)) : null
     }

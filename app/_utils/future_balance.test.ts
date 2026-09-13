@@ -26,7 +26,7 @@ describe('compute_future_sufficiency', () => {
     )
     expect(rows[0].sufficient).toBe(true)
     expect(rows[0].amount).toBe(-200)
-    expect(rows[0].per_asset_delta).toEqual([{ asset_id: 'a', qty: -200 }])
+    expect(rows[0].per_asset_delta).toEqual([{ asset_id: 'a', qty: -200, balance: 300 }])
   })
 
   it('marks a single insufficient outflow as insufficient', () => {
@@ -128,6 +128,28 @@ describe('compute_future_sufficiency', () => {
   it('treats a transaction dated exactly at `now` as upcoming, not overdue', () => {
     const rows = compute_future_sufficiency(balances([['a', 100]]), [txn('t1', NOW, [{ asset_id: 'a', quantity: -50, txn_value: -50 }])], NOW)
     expect(rows[0].sufficient).toBe(true)
+  })
+
+  it('carries the resulting balance forward cumulatively across transactions', () => {
+    const rows = compute_future_sufficiency(
+      balances([['a', 100]]),
+      [
+        txn('t1', new Date('2026-10-05T00:00:00Z'), [{ asset_id: 'a', quantity: 500, txn_value: 500 }]),
+        txn('t2', new Date('2026-10-10T00:00:00Z'), [{ asset_id: 'a', quantity: -400, txn_value: -400 }]),
+      ],
+      NOW,
+    )
+    expect(rows[0].per_asset_delta).toEqual([{ asset_id: 'a', qty: 500, balance: 600 }])
+    expect(rows[1].per_asset_delta).toEqual([{ asset_id: 'a', qty: -400, balance: 200 }])
+  })
+
+  it('gives an overdue transaction a null balance instead of a stale/frozen one', () => {
+    const rows = compute_future_sufficiency(
+      balances([['a', 100]]),
+      [txn('overdue', new Date('2026-09-01T00:00:00Z'), [{ asset_id: 'a', quantity: 50, txn_value: 50 }])],
+      NOW,
+    )
+    expect(rows[0].per_asset_delta).toEqual([{ asset_id: 'a', qty: 50, balance: null }])
   })
 })
 

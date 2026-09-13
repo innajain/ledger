@@ -430,7 +430,7 @@ function register_tools(server: McpServer) {
           .boolean()
           .optional()
           .describe(
-            "Attach this head's future transactions (default false), each with its scheduled datetime, description, amount, and a sufficient flag — whether the head will have enough balance when it lands, computed cumulatively over all of them in datetime order (null if the transaction is already overdue, i.e. dated in the past, or touches nothing on this head)",
+            "Attach this head's future transactions (default false), each with its scheduled datetime, description, amount, a sufficient flag (whether the head will have enough balance when it lands, computed cumulatively over all of them in datetime order; null if the transaction is already overdue, i.e. dated in the past, or touches nothing on this head), and balances_after — the resulting per-asset balance once it (and every one before it) lands, empty for an overdue transaction",
           ),
         from: z.string().optional().describe('With include_line_items: only lines on/after this day (dd-MM-yyyy or yyyy-MM-dd, IST)'),
         to: z.string().optional().describe('With include_line_items: only lines on/before this day (inclusive)'),
@@ -602,9 +602,14 @@ function register_tools(server: McpServer) {
         })
         const current_balances = new Map<string, Prisma.Decimal>()
         for (const [asset_id, e] of by_asset_map) current_balances.set(asset_id, e.qty)
+
+        const normalized_future = futureTransactions.map(normalize_txn)
+        const future_asset_names = new Map<string, string>()
+        for (const tx of normalized_future) for (const li of tx.line_items) future_asset_names.set(li.asset_id, li.asset.name)
+
         out.future_transactions = compute_future_sufficiency(
           current_balances,
-          futureTransactions.map(normalize_txn).map(tx => ({
+          normalized_future.map(tx => ({
             id: tx.id,
             datetime: tx.datetime,
             description: tx.description,
@@ -612,7 +617,16 @@ function register_tools(server: McpServer) {
               .filter(li => li.accounting_head_id === head.id)
               .map(li => ({ asset_id: li.asset_id, quantity: li.quantity, txn_value: li.txn_value })),
           })),
-        )
+        ).map(r => ({
+          id: r.id,
+          datetime: r.datetime,
+          description: r.description,
+          amount: r.amount,
+          sufficient: r.sufficient,
+          balances_after: r.per_asset_delta
+            .filter((d): d is typeof d & { balance: number } => d.balance !== null)
+            .map(d => ({ asset: future_asset_names.get(d.asset_id) ?? d.asset_id, balance: d.balance })),
+        }))
       }
 
       return text(out)
