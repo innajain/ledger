@@ -369,8 +369,34 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       <LocalDateTime value={ft.datetime} />
                     </p>
+                  </div>
+                  <div className="ml-4 shrink-0 flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-2">
+                      {ft.sufficient !== null &&
+                        ft.amount < 0 &&
+                        (ft.sufficient ? (
+                          <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                            Enough balance
+                          </span>
+                        ) : (
+                          <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                            Could fall short
+                          </span>
+                        ))}
+                      <span
+                        className={`font-semibold pointer-events-auto ${
+                          ft.amount > 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : ft.amount < 0
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-slate-900 dark:text-slate-100'
+                        }`}
+                      >
+                        <MaskedAmount value={ft.amount} keep_sign />
+                      </span>
+                    </div>
                     {ft.balances_after.length > 0 && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 pointer-events-auto">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 pointer-events-auto">
                         Balance after:{' '}
                         {ft.balances_after.map((b, i) => (
                           <span key={b.asset_name}>
@@ -381,21 +407,6 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
                         ))}
                       </p>
                     )}
-                  </div>
-                  <div className="ml-4 shrink-0 flex items-center gap-2">
-                    {ft.sufficient !== null &&
-                      (ft.sufficient ? (
-                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
-                          Enough balance
-                        </span>
-                      ) : (
-                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                          Could fall short
-                        </span>
-                      ))}
-                    <span className="font-semibold text-slate-900 dark:text-slate-100 pointer-events-auto">
-                      <MaskedAmount value={ft.amount} keep_sign />
-                    </span>
                   </div>
                 </div>
               </div>
