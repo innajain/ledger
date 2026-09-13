@@ -5,6 +5,7 @@ import { Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { fromZonedTime } from 'date-fns-tz'
 import { normalize_line_items } from '../_utils/normalize_txn'
+import { NOT_FUTURE } from '../_utils/future_txn'
 import { USER_TIMEZONE } from '@/lib/config'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
@@ -105,6 +106,7 @@ async function Page({
 
   const where: Prisma.transactionWhereInput = {
     user_id: user.id,
+    ...NOT_FUTURE,
     ...(search && {
       OR: [
         {
@@ -201,7 +203,7 @@ async function Page({
     // line item. This used to pull up to 5000 transactions (with every line item) into
     // JS, and silently capped the count there.
     const like = (s: string) => '%' + s.replace(/[\\%_]/g, m => '\\' + m) + '%'
-    const conds: Prisma.Sql[] = [Prisma.sql`t.user_id = ${user.id}`]
+    const conds: Prisma.Sql[] = [Prisma.sql`t.user_id = ${user.id}`, Prisma.sql`t.is_future = false`]
     if (search) {
       conds.push(
         Prisma.sql`(t.description ILIKE ${like(search)} OR EXISTS (SELECT 1 FROM line_item s WHERE s.transaction_id = t.id AND s.description ILIKE ${like(search)}))`,

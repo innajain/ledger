@@ -9,6 +9,7 @@ import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_util
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
+import { NOT_FUTURE } from '@/app/_utils/future_txn'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
@@ -38,7 +39,7 @@ async function Page({ params }: Props) {
     is_current_user_admin(),
     assetPromise,
     prisma.transaction.findMany({
-      where: { user_id: user.id, line_items: { some: { asset_id: id } } },
+      where: { user_id: user.id, ...NOT_FUTURE, line_items: { some: { asset_id: id } } },
       include: { line_items: { include: { accounting_head: true, asset: true } } },
     }),
     assetPromise.then(a => (a ? get_price_for_asset(a.type, a.ticker ?? null) : null)),

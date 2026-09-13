@@ -37,6 +37,7 @@ export default function ClientPage({
   assets,
   defaults,
   updateTransaction,
+  convertFutureTransaction,
   existingAttachments = [],
   attachmentsEnabled = false,
 }: {
@@ -44,13 +45,21 @@ export default function ClientPage({
     id: string
     date: Date
     description: string | null
+    is_future: boolean
     total: number
     line_items: LineItem[]
   }
   accounts: { id: string; name: string; type: string }[]
   assets: { id: string; name: string; type: asset_type }[]
   defaults: LineItemDefaults
-  updateTransaction: (id: string, line_items: CreateLineItemInput[], datetime?: Date, description?: string | null) => Promise<ActionResult>
+  updateTransaction: (
+    id: string,
+    line_items: CreateLineItemInput[],
+    datetime?: Date,
+    description?: string | null,
+    is_future?: boolean,
+  ) => Promise<ActionResult>
+  convertFutureTransaction: (id: string) => Promise<ActionResult<{ accounting_head_ids: string[] }>>
   existingAttachments?: ExistingAttachment[]
   attachmentsEnabled?: boolean
 }) {
@@ -69,6 +78,7 @@ export default function ClientPage({
   const uid = useId()
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(transaction.date))
   const [description, setDescription] = useState(transaction.description ?? '')
+  const [isFuture, setIsFuture] = useState(transaction.is_future)
   const [items, setItems] = useState<LineItemData[]>(
     transaction.line_items.map(li => ({
       uid: new_line_uid(),
@@ -151,11 +161,28 @@ export default function ClientPage({
         description: it.description === '' ? null : it.description,
         datetime: it.datetime === '' ? null : new Date(it.datetime),
       }))
-      const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null)
+      const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null, isFuture)
       if (result.success) {
         if (pendingAttachments.length > 0) {
           await save_attachments(transaction.id, pendingAttachments)
         }
+        router.push(`/transactions/${transaction.id}`)
+      } else {
+        setError(result.message)
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function convertToReal() {
+    setError(null)
+    setBusy(true)
+    try {
+      const result = await convertFutureTransaction(transaction.id)
+      if (result.success) {
         router.push(`/transactions/${transaction.id}`)
       } else {
         setError(result.message)
@@ -180,6 +207,17 @@ export default function ClientPage({
         </Link>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Edit transaction</h1>
       </div>
+
+      {transaction.is_future && (
+        <div className="rounded-lg border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <p className="text-sm text-indigo-900 dark:text-indigo-100">
+            This is a future transaction — it doesn&apos;t affect balances until converted to a real transaction.
+          </p>
+          <Button variant="primary" onClick={convertToReal} disabled={busy} className="shrink-0">
+            {busy ? 'Converting…' : 'Convert to real transaction'}
+          </Button>
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="space-y-6">
         {}
@@ -229,6 +267,27 @@ export default function ClientPage({
                 />
               </div>
             )}
+
+            <div>
+              <label
+                htmlFor={`${uid}-is-future`}
+                className="flex items-start gap-3 cursor-pointer rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4"
+              >
+                <input
+                  id={`${uid}-is-future`}
+                  type="checkbox"
+                  checked={isFuture}
+                  onChange={e => setIsFuture(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 dark:text-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-900 dark:text-slate-100">Future transaction</span>
+                  <span className="block text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                    Won&apos;t affect balances, net worth or XIRR until converted to a real transaction.
+                  </span>
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 

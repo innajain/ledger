@@ -12,6 +12,8 @@ import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_util
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
+import { NOT_FUTURE } from '@/app/_utils/future_txn'
+import { compute_future_sufficiency } from '@/app/_utils/future_balance'
 import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_value'
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { get_closing_balance } from './closing_balance'
@@ -60,10 +62,15 @@ async function Page({ params }: Props) {
   // One transaction query replaces the old double fetch (head.line_items include plus a
   // re-fetch of the same transactions); the rollup and linked-user lookups are
   // independent, so they run alongside it.
-  const [rawTransactions, rollup, linked_user] = await Promise.all([
+  const [rawTransactions, futureTransactions, rollup, linked_user] = await Promise.all([
     prisma.transaction.findMany({
-      where: { user_id: user.id, line_items: { some: { accounting_head_id: head.id } } },
+      where: { user_id: user.id, ...NOT_FUTURE, line_items: { some: { accounting_head_id: head.id } } },
       include: { line_items: { include: { accounting_head: true, asset: true } } },
+    }),
+    prisma.transaction.findMany({
+      where: { user_id: user.id, is_future: true, line_items: { some: { accounting_head_id: head.id } } },
+      include: { line_items: { include: { accounting_head: true, asset: true } } },
+      orderBy: { datetime: 'asc' },
     }),
     compute_head_rollup(head.id, user.id),
     isAccount && head.linked_user_id
@@ -180,6 +187,27 @@ async function Page({ params }: Props) {
 
   reconcile_timeseries_tail(value_timeseries, acc_total.toNumber(), xirr_value)
 
+  // Future transactions section: a sufficiency badge shows whether the head will have
+  // enough balance when each scheduled entry lands (walked in datetime order,
+  // cumulative, starting from this head's current real balance). A future transaction
+  // already dated in the past is overdue rather than forward-looking, so it's excluded
+  // from the walk entirely (see compute_future_sufficiency).
+  const normalized_future = futureTransactions.map(normalize_txn)
+  const future_transactions = normalized_future.map(tx => ({
+    id: tx.id,
+    datetime: tx.datetime,
+    description: tx.description,
+    line_items: tx.line_items
+      .filter(li => li.accounting_head_id === head.id)
+      .map(li => ({ asset_id: li.asset_id, quantity: li.quantity, txn_value: li.txn_value })),
+  }))
+  let future_transactions_for_client: HeadData['future_transactions'] = []
+  if (future_transactions.length > 0) {
+    const current_balances = new Map<string, Prisma.Decimal>()
+    for (const e of Object.values(map)) current_balances.set(e.asset_id, e.total_qty)
+    future_transactions_for_client = compute_future_sufficiency(current_balances, future_transactions)
+  }
+
   return (
     <HeadDetailPage
       head={{
@@ -196,6 +224,7 @@ async function Page({ params }: Props) {
         breakdown,
         line_items,
         value_timeseries,
+        future_transactions: future_transactions_for_client,
       }}
       config={{ backLink: headBasePath(type), backText: cfg.backText, entityName: cfg.entityName }}
       closingBalanceAction={type === 'income_expense' ? undefined : get_closing_balance}

@@ -5,6 +5,7 @@ import ClientPage from './ClientPage'
 import { Prisma } from '@/generated/prisma/client'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { get_transaction_status, get_cancellable_links } from '@/app/_utils/links'
+import { convert_future_transaction } from '@/app/_actions/transactions'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
@@ -52,6 +53,7 @@ async function Page({ params }: Props) {
     id: tx.id,
     date: tx.datetime.toISOString(),
     description: tx.description,
+    is_future: tx.is_future,
     total: tx.line_items
       .filter(li => li.accounting_head.type === 'account')
       .reduce((sum, li) => sum.add(li.txn_value), new Prisma.Decimal(0))
@@ -78,7 +80,14 @@ async function Page({ params }: Props) {
     })),
   }
 
-  return <ClientPage transaction={txForClient} linkStatus={linkStatus ?? undefined} cancellable={cancellable} />
+  return (
+    <ClientPage
+      transaction={txForClient}
+      linkStatus={linkStatus ?? undefined}
+      cancellable={cancellable}
+      convertFutureTransaction={convert_future_transaction}
+    />
+  )
 }
 
 export default profile('/transactions/[id]', Page)

@@ -24,6 +24,7 @@ export type CreateLineItemInput = {
 
 export type CreateTransactionOpts = {
   idempotency_key?: string | null | undefined
+  is_future?: boolean
 }
 
 type Tx = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
@@ -82,12 +83,14 @@ const createTransactionSchema = z.object({
   line_items: z.array(lineItemSchema).min(1, 'At least one line item is required'),
   description: descriptionSchema,
   idempotency_key: idempotencyKeySchema,
+  is_future: z.boolean().optional(),
 })
 
 const updateTransactionSchema = z.object({
   id: z.string().min(1, 'Transaction ID is required'),
   line_items: z.array(lineItemSchema).min(1, 'At least one line item is required'),
   description: descriptionSchema,
+  is_future: z.boolean().optional(),
 })
 
 const deleteTransactionSchema = z.object({
@@ -144,11 +147,14 @@ async function create_transaction_in_tx(
       })
   if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets not found')
 
-  assert_no_locked_lines(
-    'create',
-    datetime,
-    line_items.map(li => ({ datetime: li.datetime, accounting_head: accounts.find(a => a.id === li.accounting_head_id)! })),
-  )
+  const is_future = opts?.is_future ?? false
+
+  if (!is_future)
+    assert_no_locked_lines(
+      'create',
+      datetime,
+      line_items.map(li => ({ datetime: li.datetime, accounting_head: accounts.find(a => a.id === li.accounting_head_id)! })),
+    )
 
   const { is_valid, message } = validate_line_items(
     line_items.map(li => ({
@@ -166,6 +172,7 @@ async function create_transaction_in_tx(
       datetime,
       description,
       user_id,
+      is_future,
       idempotency_key: opts?.idempotency_key ?? null,
       line_items: {
         create: line_items.map(li => ({
@@ -185,6 +192,10 @@ async function create_transaction_in_tx(
   // The fetched head rows already carry linked_user_id — no need to re-read the
   // just-written line items to find counterparties.
   const counterparties = Array.from(new Set(accounts.map(a => a.linked_user_id).filter((x): x is string => !!x)))
+  // While a transaction stays future it's a private draft: no mirror/approval is
+  // created even if it touches a linked account. Links are deferred until it becomes
+  // real — see §4.3/§4.4 (update_transaction_core).
+  if (is_future) return { id: created.id, counterparties: [], replayed: false }
   await create_links_for_transaction(tx, user_id, created.id, counterparties)
   return { id: created.id, counterparties, replayed: false }
 }
@@ -203,12 +214,14 @@ export async function create_transaction_core(
     const { id, counterparties, replayed } = await prisma.$transaction(async prisma =>
       create_transaction_in_tx(prisma, user_id, datetime, parsed.data.line_items, parsed.data.description, {
         idempotency_key: parsed.data.idempotency_key,
+        is_future: parsed.data.is_future,
       }),
     )
 
     if (replayed) return ok({ id, replayed: true }, 'Already recorded — this transaction already exists, so nothing new was created')
 
-    await invalidate_balances(user_id, touched_entities({ txn_datetime: datetime, line_items: parsed.data.line_items }))
+    // A future transaction has no balance effect yet — nothing to invalidate or notify.
+    if (!parsed.data.is_future) await invalidate_balances(user_id, touched_entities({ txn_datetime: datetime, line_items: parsed.data.line_items }))
 
     for (const cp of counterparties) void notify_request_pending(cp, user_id, { description: parsed.data.description })
     return ok({ id }, 'Transaction created')
@@ -233,6 +246,7 @@ export type BulkTransactionInput = {
   line_items: CreateLineItemInput[]
   description?: string | null | undefined
   idempotency_key?: string | null | undefined
+  is_future?: boolean
 }
 
 // All-or-nothing bulk create: every transaction commits or none do. Items whose
@@ -252,6 +266,7 @@ export async function create_transactions_core(
               line_items: item.line_items,
               description: item.description,
               idempotency_key: item.idempotency_key,
+              is_future: item.is_future,
             })
             if (!parsed.success) throw new ActionError('VALIDATION', `Transaction ${i + 1}: ${parsed.error.issues[0].message}`)
             return parsed.data
@@ -287,7 +302,7 @@ export async function create_transactions_core(
                 items[i].datetime,
                 parsed.line_items,
                 parsed.description,
-                { idempotency_key: parsed.idempotency_key },
+                { idempotency_key: parsed.idempotency_key, is_future: parsed.is_future },
                 caches,
               )
               for (const cp of r.counterparties) cps.add(cp)
@@ -315,14 +330,19 @@ export async function create_transactions_core(
     }
     const { results, counterparties } = outcome
 
-    const created = results.filter(r => !r.replayed)
-    if (created.length > 0) {
-      await invalidate_balances(user_id, touched_entities(...items.map(i => ({ txn_datetime: i.datetime, line_items: i.line_items }))))
+    // Only real creations affect balances — future ones stay inert until converted.
+    const created_real = results.map((r, i) => ({ r, item: items[i] })).filter(x => !x.r.replayed && !(x.item.is_future ?? false))
+    if (created_real.length > 0) {
+      await invalidate_balances(
+        user_id,
+        touched_entities(...created_real.map(x => ({ txn_datetime: x.item.datetime, line_items: x.item.line_items }))),
+      )
       for (const cp of counterparties) void notify_request_pending(cp, user_id, {})
     }
+    const created_count = results.filter(r => !r.replayed).length
     return ok(
       { ids: results.map(r => r.id), replayed_ids: results.filter(r => r.replayed).map(r => r.id) },
-      `Created ${created.length} transaction${created.length === 1 ? '' : 's'}${results.length > created.length ? ` (${results.length - created.length} already recorded)` : ''}`,
+      `Created ${created_count} transaction${created_count === 1 ? '' : 's'}${results.length > created_count ? ` (${results.length - created_count} already recorded)` : ''}`,
     )
   } catch (error) {
     logger.error({ err: error, action: 'create_transactions' }, 'Error creating transactions in bulk')
@@ -336,15 +356,17 @@ export async function update_transaction_core(
   line_items: CreateLineItemInput[],
   datetime?: Date | undefined,
   description?: string | null | undefined,
+  is_future?: boolean | undefined,
 ): Promise<ActionResult> {
   try {
-    const parsed = updateTransactionSchema.safeParse({ id, line_items, description })
+    const parsed = updateTransactionSchema.safeParse({ id, line_items, description, is_future })
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
     line_items = parsed.data.line_items
     description = parsed.data.description
+    is_future = parsed.data.is_future
 
-    const { old_lines, old_datetime, reopened, final_description } = await prisma.$transaction(async prisma => {
+    const { old_lines, old_datetime, reopened, final_description, existing_is_future, will_be_future } = await prisma.$transaction(async prisma => {
       const existing = await prisma.transaction.findUnique({
         where: { id, user_id },
         include: {
@@ -355,9 +377,29 @@ export async function update_transaction_core(
       })
       if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found')
 
-      // both the transaction's current lines and its would-be lines must be
-      // outside every lock — moving a txn out of a locked period is also a change
-      assert_no_locked_lines('update', existing.datetime, existing.line_items)
+      const will_be_future = is_future !== undefined ? is_future : existing.is_future
+
+      // The one blocked transition: demoting an already-real transaction that still
+      // has a live (non-rejected) counterparty copy. A rejected link leaves no active
+      // copy to retract, so it doesn't block the demotion; a future transaction can
+      // never have any link at all, so this only ever fires on real→future.
+      if (will_be_future && !existing.is_future) {
+        const link_exists = await prisma.transaction_link.findFirst({
+          where: { OR: [{ txn_a_id: id }, { txn_b_id: id }], pending_status: { not: 'rejected' } },
+          select: { id: true },
+        })
+        if (link_exists) throw new ActionError('VALIDATION', "Can't mark a transaction that's already shared with a linked user as future")
+      }
+
+      // The transaction's CURRENT stored state must be checked whenever it's currently
+      // real — demoting a real, locked transaction to future would otherwise erase its
+      // effect from a "frozen" reconciled period with no lock check at all. A future
+      // transaction's current state was never balance-affecting, so it's exempt.
+      if (!existing.is_future) {
+        // both the transaction's current lines and its would-be lines must be
+        // outside every lock — moving a txn out of a locked period is also a change
+        assert_no_locked_lines('update', existing.datetime, existing.line_items)
+      }
 
       const accounting_head_ids = Array.from(new Set(line_items.map(li => li.accounting_head_id)))
       const asset_ids = Array.from(new Set(line_items.map(li => li.asset_id)))
@@ -372,11 +414,12 @@ export async function update_transaction_core(
       })
       if (assets.length !== asset_ids.length) throw new ActionError('VALIDATION', 'One or more assets not found')
 
-      assert_no_locked_lines(
-        'update',
-        datetime ?? existing.datetime,
-        line_items.map(li => ({ datetime: li.datetime, accounting_head: accounts.find(a => a.id === li.accounting_head_id)! })),
-      )
+      if (!will_be_future)
+        assert_no_locked_lines(
+          'update',
+          datetime ?? existing.datetime,
+          line_items.map(li => ({ datetime: li.datetime, accounting_head: accounts.find(a => a.id === li.accounting_head_id)! })),
+        )
 
       const { is_valid, message } = validate_line_items(
         line_items.map(li => ({
@@ -396,6 +439,7 @@ export async function update_transaction_core(
         data: {
           datetime,
           description,
+          is_future,
           line_items: {
             create: line_items.map(li => ({
               quantity: toDecimal(li.quantity),
@@ -413,22 +457,41 @@ export async function update_transaction_core(
       // just-written line items; its return names the counterparties to notify, which
       // saves the post-commit link scan this function used to do.
       const counterparties = Array.from(new Set(accounts.map(a => a.linked_user_id).filter((x): x is string => !!x)))
-      const reopened = await sync_links_after_update(prisma, user_id, id, { counterparties })
+      // Link handling depends on the transition:
+      // - stays future / real→future: no links exist (the real→future guard above
+      //   rejected transactions with any), so there's nothing to create, sync or tear down.
+      // - future→real: its links were deferred while future — this is its first time
+      //   becoming linkable, so create them fresh (notify_request_pending on the caller's
+      //   plain variant), matching a fresh create on a shared account.
+      // - real→real: unchanged — sync what the counterparty already has.
+      let reopened: string[] = []
+      if (!will_be_future && existing.is_future) {
+        reopened = await create_links_for_transaction(prisma, user_id, id, counterparties)
+      } else if (!will_be_future) {
+        reopened = await sync_links_after_update(prisma, user_id, id, { counterparties })
+      }
       return {
         old_lines: existing.line_items.map(li => ({ accounting_head_id: li.accounting_head_id, asset_id: li.asset_id, datetime: li.datetime })),
         old_datetime: existing.datetime,
         reopened,
         final_description: description !== undefined ? description : existing.description,
+        existing_is_future: existing.is_future,
+        will_be_future,
       }
     })
 
-    // Both the replaced and the new lines' entities changed history.
-    await invalidate_balances(
-      user_id,
-      touched_entities({ txn_datetime: old_datetime, line_items: old_lines }, { txn_datetime: datetime ?? old_datetime, line_items: line_items }),
-    )
+    // Both the replaced and the new lines' entities changed history — but only when at
+    // least one side of the update is real. A future→future edit touched no balances.
+    if (!(existing_is_future && will_be_future)) {
+      await invalidate_balances(
+        user_id,
+        touched_entities({ txn_datetime: old_datetime, line_items: old_lines }, { txn_datetime: datetime ?? old_datetime, line_items: line_items }),
+      )
+    }
 
-    for (const cp of reopened) void notify_request_pending(cp, user_id, { changed: true, description: final_description ?? null })
+    // Future→real conversions create a fresh pending request (plain variant); all other
+    // reopened links are changes to an existing pending request ("changed" variant).
+    for (const cp of reopened) void notify_request_pending(cp, user_id, { changed: !existing_is_future, description: final_description ?? null })
     return ok(undefined, 'Transaction updated')
   } catch (error) {
     logger.error({ err: error, action: 'update_transaction' }, 'Error updating transaction')
@@ -466,6 +529,7 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
         select: {
           datetime: true,
           description: true,
+          is_future: true,
           attachments: { select: { id: true }, take: 1 },
           line_items: {
             select: {
@@ -482,19 +546,23 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
         },
       })
       if (!existing) throw new ActionError('NOT_FOUND', 'Transaction not found')
-      assert_no_locked_lines('delete', existing.datetime, existing.line_items)
+      // A future transaction never touched any balance, so the reconciliation lock
+      // — which only protects already-counted history — never applied to it.
+      if (!existing.is_future) assert_no_locked_lines('delete', existing.datetime, existing.line_items)
 
       await prepare_links_for_delete(tx, user_id, id)
       await tx.transaction.delete({ where: { id, user_id } })
       return existing
     })
-    await invalidate_balances(
-      user_id,
-      touched_entities({
-        txn_datetime: deleted.datetime,
-        line_items: deleted.line_items.map(li => ({ accounting_head_id: li.accounting_head_id, asset_id: li.asset_id, datetime: li.datetime })),
-      }),
-    )
+    // A future transaction never touched balances, so deleting it invalidates nothing.
+    if (!deleted.is_future)
+      await invalidate_balances(
+        user_id,
+        touched_entities({
+          txn_datetime: deleted.datetime,
+          line_items: deleted.line_items.map(li => ({ accounting_head_id: li.accounting_head_id, asset_id: li.asset_id, datetime: li.datetime })),
+        }),
+      )
     return ok({
       datetime: deleted.datetime,
       description: deleted.description,
@@ -667,4 +735,34 @@ export async function find_possible_duplicate(
     }
   }
   return null
+}
+
+// Converting a future transaction to real is just an update that flips the flag to
+// false while replaying its current line items unchanged. That reuses every guard in
+// update_transaction_core for free — the lock-date check re-applies (it was skipped
+// while future), links get created for the first time, and balances invalidate.
+export async function convert_future_transaction_core(user_id: string, id: string): Promise<ActionResult<{ accounting_head_ids: string[] }>> {
+  const existing = await prisma.transaction.findUnique({
+    where: { id, user_id },
+    include: { line_items: true },
+  })
+  if (!existing) return err('NOT_FOUND', 'Transaction not found')
+  if (!existing.is_future) return err('VALIDATION', 'Transaction is already real')
+  const accounting_head_ids = Array.from(new Set(existing.line_items.map(li => li.accounting_head_id)))
+  const res = await update_transaction_core(
+    user_id,
+    id,
+    existing.line_items.map(li => ({
+      accounting_head_id: li.accounting_head_id,
+      asset_id: li.asset_id,
+      quantity: li.quantity?.toNumber(),
+      txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
+      description: li.description,
+      datetime: li.datetime,
+    })),
+    existing.datetime,
+    existing.description,
+    false,
+  )
+  return res.success ? ok({ accounting_head_ids }, res.message) : res
 }

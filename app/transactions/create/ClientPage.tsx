@@ -47,6 +47,7 @@ export default function ClientPage({
   const uid = useId()
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()))
   const [description, setDescription] = useState('')
+  const [isFuture, setIsFuture] = useState(false)
   const defaultAccount = pickDefaultAccount(accounts, defaults, 'account')
   const defaultAllocation = pickDefaultAccount(accounts, defaults, 'allocation')
   const defaultIncomeExpense = pickDefaultAccount(accounts, defaults, 'income_expense')
@@ -242,7 +243,7 @@ export default function ClientPage({
   }
 
   async function doCreate(line_items: CreateLineItemInput[]) {
-    const result = await create_transaction(new Date(date), line_items, description || null)
+    const result = await create_transaction(new Date(date), line_items, description || null, { is_future: isFuture })
     if (result.success) {
       if (pendingAttachments.length > 0) {
         await save_attachments(result.data!.id, pendingAttachments)
@@ -345,6 +346,27 @@ export default function ClientPage({
                 <AttachmentUpload onPendingChange={setPendingAttachments} />
               </div>
             )}
+
+            <div>
+              <label
+                htmlFor={`${uid}-is-future`}
+                className="flex items-start gap-3 cursor-pointer rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4"
+              >
+                <input
+                  id={`${uid}-is-future`}
+                  type="checkbox"
+                  checked={isFuture}
+                  onChange={e => setIsFuture(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 dark:text-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-900 dark:text-slate-100">Future transaction</span>
+                  <span className="block text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                    Won&apos;t affect balances, net worth or XIRR until converted to a real transaction.
+                  </span>
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@/generated/prisma/client'
 import type { asset_type } from '@/generated/prisma/enums'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
+import { NOT_FUTURE } from '@/app/_utils/future_txn'
 import { get_price_lookups_for_assets } from '@/app/_utils/historical_price_fetcher'
 import { ist_day_window, collect_networth_events, build_networth_sparkline, type AssetBalance, type PriceAt } from '@/app/_utils/home_networth_series'
 import { HomeNetWorthSparkline, HomeNetWorthSparklineFallback } from './HomeNetWorthSparkline'
@@ -43,11 +44,11 @@ export async function HomeNetWorthTrend({ userId, current, assets, networth, day
   } satisfies Prisma.transactionSelect
   const [in_window, overridden_into_window] = await Promise.all([
     prisma.transaction.findMany({
-      where: { user_id: userId, datetime: { gte: since } },
+      where: { user_id: userId, ...NOT_FUTURE, datetime: { gte: since } },
       select: txn_select,
     }),
     prisma.transaction.findMany({
-      where: { user_id: userId, datetime: { lt: since }, line_items: { some: { datetime: { gte: since } } } },
+      where: { user_id: userId, ...NOT_FUTURE, datetime: { lt: since }, line_items: { some: { datetime: { gte: since } } } },
       select: txn_select,
     }),
   ])

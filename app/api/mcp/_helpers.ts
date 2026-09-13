@@ -231,12 +231,17 @@ export async function account_balances_for(
 
 // old_state (updates only) is the transaction's current datetime + lines, so the
 // dry run also predicts the real path's you-cannot-touch-a-locked-txn rejection.
+// Mirrors update_transaction_core's two independent lock gates: the transaction's
+// CURRENT state is only lock-checked while it's currently real (old_state.is_future
+// false), and its NEW/replacement state is only lock-checked when it won't end up
+// future (will_be_future false) — a create has no old_state, so only the latter applies.
 export async function dry_run_check(
   uid: string,
   datetime: Date,
   line_items: CreateLineItemInput[],
   description?: string | null,
-  old_state?: { datetime: Date; line_items: { datetime: Date | null; accounting_head_id: string }[] },
+  old_state?: { datetime: Date; is_future: boolean; line_items: { datetime: Date | null; accounting_head_id: string }[] },
+  will_be_future = false,
 ): Promise<Content> {
   const head_ids = [...new Set([...line_items, ...(old_state?.line_items ?? [])].map(li => li.accounting_head_id))]
   const asset_ids = [...new Set(line_items.map(li => li.asset_id))]
@@ -252,8 +257,8 @@ export async function dry_run_check(
     accounting_head: heads.find(h => h.id === li.accounting_head_id)!,
   })
   const locked =
-    (old_state ? find_locked_line(old_state.datetime, old_state.line_items.map(to_lock_line)) : null) ??
-    find_locked_line(datetime, line_items.map(to_lock_line))
+    (old_state && !old_state.is_future ? find_locked_line(old_state.datetime, old_state.line_items.map(to_lock_line)) : null) ??
+    (will_be_future ? null : find_locked_line(datetime, line_items.map(to_lock_line)))
   if (locked)
     return error_text(
       `Dry run — the real call would be rejected: account "${locked.head_name}" is reconciled and locked through ${get_indian_date_from_date_obj(locked.lock_date)}. Move the account's lock date back first if this change is intentional.`,

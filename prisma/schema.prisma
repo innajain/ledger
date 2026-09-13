@@ -164,6 +164,11 @@ model transaction {
   // inserting a duplicate — lets API/MCP clients retry interrupted calls safely.
   idempotency_key String?
 
+  // Future transactions are scheduled entries that don't affect balances,
+  // net worth, XIRR, FIFO, income/expense or any value timeseries until they
+  // are converted to real ones (a normal edit/replay of their own line items).
+  is_future Boolean @default(false)
+
   user        user                     @relation(fields: [user_id], references: [id])
   line_items  line_item[]
   attachments transaction_attachment[]
@@ -172,6 +177,7 @@ model transaction {
 
   @@unique([user_id, idempotency_key])
   @@index([user_id, datetime])
+  @@index([user_id, is_future, datetime])
   // Trigram GIN serves the list page's / MCP's case-insensitive contains search,
   // which otherwise seq-scans every transaction of the user.
   @@index([description(ops: raw("gin_trgm_ops"))], type: Gin)

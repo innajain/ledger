@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
 import { update_transaction } from './transactions_update'
+import { convert_future_transaction } from '@/app/_actions/transactions'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { profile } from '@/lib/metrics/profile'
 import { env } from '@/lib/env'
@@ -24,6 +25,7 @@ async function Page({ params }: Props) {
     id: tx.id,
     date: tx.datetime,
     description: tx.description,
+    is_future: tx.is_future,
     total: tx.line_items.reduce((s, li) => s + (li.txn_value ? Number(li.txn_value.toString()) : 0), 0),
     line_items: tx.line_items.map(li => ({
       id: li.id,
@@ -82,6 +84,7 @@ async function Page({ params }: Props) {
       assets={assetsForClient}
       defaults={defaults}
       updateTransaction={update_transaction}
+      convertFutureTransaction={convert_future_transaction}
       existingAttachments={attachmentsForClient}
       attachmentsEnabled={!!env.BLOB_READ_WRITE_TOKEN}
     />

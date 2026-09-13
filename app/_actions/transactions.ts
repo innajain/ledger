@@ -5,6 +5,7 @@ import {
   create_transaction_core,
   delete_transaction_core,
   create_upi_payment_core,
+  convert_future_transaction_core,
   type CreateLineItemInput,
   type CreateTransactionOpts,
 } from '@/app/_core/transactions_core'
@@ -19,6 +20,12 @@ export async function create_transaction(
   const user_id = await get_current_user_id()
   if (!user_id) return err('UNAUTHORIZED', 'You must be logged in to create transactions')
   return create_transaction_core(user_id, datetime, line_items, description, opts)
+}
+
+export async function convert_future_transaction(id: string): Promise<ActionResult<{ accounting_head_ids: string[] }>> {
+  const user_id = await get_current_user_id()
+  if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
+  return convert_future_transaction_core(user_id, id)
 }
 
 export async function delete_transaction(id: string): Promise<ActionResult> {

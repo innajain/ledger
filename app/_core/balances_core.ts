@@ -2,6 +2,7 @@ import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
+import { NOT_FUTURE } from '@/app/_utils/future_txn'
 import { invalidate_timeseries, type TouchedEntities } from '@/app/_utils/value_timeseries'
 
 const balance_cache_key = (user_id: string) => `balances:${user_id}`
@@ -39,7 +40,7 @@ export async function compute_balances_core(user_id: string, invalidate_cache = 
   // Narrow select: normalization only needs head type and asset {id,type,name};
   // full relation rows here multiply the payload of the hottest recompute in the app.
   const rawTransactions = await prisma.transaction.findMany({
-    where: { user_id },
+    where: { user_id, ...NOT_FUTURE },
     select: {
       line_items: {
         select: {
@@ -135,6 +136,7 @@ export async function closing_balance_core(user_id: string, head_id: string | nu
   const txns = await prisma.transaction.findMany({
     where: {
       user_id,
+      ...NOT_FUTURE,
       ...(head_id ? { line_items: { some: { accounting_head_id: head_id } } } : {}),
       // A transaction only contributes lines with effective date (li.datetime ?? txn.datetime)
       // before the cutoff — prune the rest in SQL; the JS filter below stays authoritative.

@@ -7,6 +7,7 @@ import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { asset_type } from '@/generated/prisma/enums'
 import { delete_transaction_with_snapshot } from '@/app/_actions/transactions'
 import { cancel_request } from '@/app/_actions/approvals'
+import type { ActionResult } from '@/app/_actions/_result'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { Button, ButtonLink } from '@/app/_components/Button'
 import { ChevronLeftIcon, PencilIcon, TrashIcon, CloseIcon, ErrorCircleIcon } from '@/app/_components/icons'
@@ -28,13 +29,16 @@ export default function ClientPage({
   transaction,
   linkStatus,
   cancellable = [],
+  convertFutureTransaction,
 }: {
   linkStatus?: TransactionStatus
   cancellable?: { link_id: string; other_username: string }[]
+  convertFutureTransaction: (id: string) => Promise<ActionResult<{ accounting_head_ids: string[] }>>
   transaction: {
     id: string
     date: string
     description: string | null
+    is_future: boolean
     total: number
     attachments: Attachment[]
     line_items: {
@@ -54,6 +58,7 @@ export default function ClientPage({
 }) {
   const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isConverting, setIsConverting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -91,6 +96,19 @@ export default function ClientPage({
     } catch (err: unknown) {
       setError("Couldn't cancel the request: " + (err instanceof Error ? err.message : String(err)))
       setCancelling(false)
+    }
+  }
+
+  const handleConvert = async () => {
+    setError(null)
+    setIsConverting(true)
+    try {
+      const result = await convertFutureTransaction(transaction.id)
+      if (!result.success) throw new Error(result.message)
+      router.refresh()
+    } catch (err: unknown) {
+      setError("Couldn't convert the transaction: " + (err instanceof Error ? err.message : String(err)))
+      setIsConverting(false)
     }
   }
 
@@ -176,6 +194,17 @@ export default function ClientPage({
         <ChevronLeftIcon />
         Transactions
       </Link>
+
+      {transaction.is_future && (
+        <div className="rounded-lg border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-sm text-indigo-900 dark:text-indigo-100">
+            This is a future transaction — it doesn&apos;t affect balances until converted to a real transaction.
+          </p>
+          <Button variant="primary" onClick={handleConvert} disabled={isConverting} size="sm" className="shrink-0">
+            {isConverting ? 'Converting…' : 'Convert to real transaction'}
+          </Button>
+        </div>
+      )}
 
       {}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">

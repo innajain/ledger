@@ -12,6 +12,7 @@ import {
   update_transaction_core,
   delete_transaction_core,
   create_upi_payment_core,
+  convert_future_transaction_core,
   type CreateLineItemInput,
 } from '@/app/_core/transactions_core'
 import { approve_request_core, reject_request_core } from '@/app/_core/approvals_core'
@@ -24,6 +25,8 @@ import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { get_subtree_head_ids, compute_subtree_total } from '@/app/_utils/subtree_value'
 import { normalize_txn, normalize_line_items } from '@/app/_utils/normalize_txn'
+import { compute_future_sufficiency } from '@/app/_utils/future_balance'
+import { NOT_FUTURE } from '@/app/_utils/future_txn'
 import { get_indian_date_from_date_obj } from '@/app/_utils/date'
 import {
   type ToolExtra,
@@ -87,6 +90,7 @@ const slim_txn_select = {
   id: true,
   datetime: true,
   description: true,
+  is_future: true,
   line_items: {
     select: {
       id: true,
@@ -216,7 +220,7 @@ function register_tools(server: McpServer) {
       const [asset, rawTransactions, priceResp] = await Promise.all([
         prisma.asset.findUnique({ where: { id: ref.id }, include: { parent: true, children: true } }),
         prisma.transaction.findMany({
-          where: { user_id: uid, line_items: { some: { asset_id: ref.id } } },
+          where: { user_id: uid, ...NOT_FUTURE, line_items: { some: { asset_id: ref.id } } },
           include: { line_items: { include: { accounting_head: true, asset: true } } },
         }),
         get_price_for_asset(ref.type, ref.ticker ?? null),
@@ -422,6 +426,12 @@ function register_tools(server: McpServer) {
         head: z.string().describe('Accounting head id or name'),
         include_line_items: z.boolean().optional().describe('Attach line items touching the head (default false; newest first, paginated)'),
         include_timeseries: z.boolean().optional().describe('Attach the value-over-time series (default false)'),
+        include_future_transactions: z
+          .boolean()
+          .optional()
+          .describe(
+            "Attach this head's future transactions (default false), each with its scheduled datetime, description, amount, and a sufficient flag — whether the head will have enough balance when it lands, computed cumulatively over all of them in datetime order (null if the transaction is already overdue, i.e. dated in the past, or touches nothing on this head)",
+          ),
         from: z.string().optional().describe('With include_line_items: only lines on/after this day (dd-MM-yyyy or yyyy-MM-dd, IST)'),
         to: z.string().optional().describe('With include_line_items: only lines on/before this day (inclusive)'),
         line_items_limit: z.number().int().positive().max(1000).optional().describe('Max line items returned (default 200)'),
@@ -439,7 +449,7 @@ function register_tools(server: McpServer) {
 
       const [rawTransactions, rollup, linked_user] = await Promise.all([
         prisma.transaction.findMany({
-          where: { user_id: uid, line_items: { some: { accounting_head_id: head.id } } },
+          where: { user_id: uid, ...NOT_FUTURE, line_items: { some: { accounting_head_id: head.id } } },
           include: { line_items: { include: { accounting_head: true, asset: true } } },
         }),
         head_rollup(uid, head.id, all_heads),
@@ -584,6 +594,27 @@ function register_tools(server: McpServer) {
         out.value_timeseries = series
       }
 
+      if (args.include_future_transactions) {
+        const futureTransactions = await prisma.transaction.findMany({
+          where: { user_id: uid, is_future: true, line_items: { some: { accounting_head_id: head.id } } },
+          include: { line_items: { include: { accounting_head: true, asset: true } } },
+          orderBy: { datetime: 'asc' },
+        })
+        const current_balances = new Map<string, Prisma.Decimal>()
+        for (const [asset_id, e] of by_asset_map) current_balances.set(asset_id, e.qty)
+        out.future_transactions = compute_future_sufficiency(
+          current_balances,
+          futureTransactions.map(normalize_txn).map(tx => ({
+            id: tx.id,
+            datetime: tx.datetime,
+            description: tx.description,
+            line_items: tx.line_items
+              .filter(li => li.accounting_head_id === head.id)
+              .map(li => ({ asset_id: li.asset_id, quantity: li.quantity, txn_value: li.txn_value })),
+          })),
+        )
+      }
+
       return text(out)
     },
   )
@@ -603,6 +634,12 @@ function register_tools(server: McpServer) {
         from: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST)'),
         to: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST), inclusive'),
         include_line_items: z.boolean().optional().describe("Attach each transaction's full normalized line items (default false; larger payload)"),
+        future: z
+          .enum(['exclude', 'only', 'include'])
+          .optional()
+          .describe(
+            "Future transactions (is_future = true) never appear by default ('exclude'), matching the web list page; set 'only' to list just scheduled/future ones, or 'include' to show real and future together",
+          ),
       },
       annotations: ro,
     },
@@ -619,6 +656,8 @@ function register_tools(server: McpServer) {
       const filter_head = args.head ? resolve_ref(args.head, heads_for_filter!, 'accounting head') : null
       const filter_asset = args.asset ? resolve_ref(args.asset, assets_for_filter!, 'asset') : null
       const and: Prisma.transactionWhereInput[] = []
+      if ((args.future ?? 'exclude') === 'exclude') and.push(NOT_FUTURE)
+      else if (args.future === 'only') and.push({ is_future: true })
       if (filter_head) and.push({ line_items: { some: { accounting_head_id: filter_head.id } } })
       if (filter_asset) and.push({ line_items: { some: { asset_id: filter_asset.id } } })
       const where = {
@@ -649,6 +688,7 @@ function register_tools(server: McpServer) {
             id: raw.id,
             datetime: raw.datetime,
             description: raw.description,
+            is_future: raw.is_future,
             ...(filter_head ? { head_delta: deltas.get(raw.id) } : {}),
             line_items: normalize_line_items(raw.line_items).map(li => ({
               head: li.accounting_head.name,
@@ -667,6 +707,7 @@ function register_tools(server: McpServer) {
           id: t.id,
           datetime: t.datetime,
           description: t.description,
+          is_future: t.is_future,
           amount: net_account_flow(t.line_items),
           ...(filter_head ? { head_delta: deltas.get(t.id) } : {}),
         })),
@@ -711,7 +752,7 @@ function register_tools(server: McpServer) {
       ])
       if (matching_head_ids.length > 0) or.push({ line_items: { some: { accounting_head_id: { in: matching_head_ids } } } })
       const txns = await prisma.transaction.findMany({
-        where: { user_id: uid, OR: or },
+        where: { user_id: uid, ...NOT_FUTURE, OR: or },
         orderBy: { datetime: 'desc' },
         take: 200,
         select: slim_txn_select,
@@ -783,6 +824,7 @@ function register_tools(server: McpServer) {
         id: t.id,
         datetime: t.datetime,
         description: t.description,
+        is_future: t.is_future,
         total: net_account_flow(t.line_items),
         line_items: t.line_items.map(li => ({
           head: li.accounting_head.name,
@@ -877,7 +919,7 @@ function register_tools(server: McpServer) {
       // equals the normalized one), so one slim query replaces the old two-pass
       // full-ledger scan; any legacy null row is skipped.
       const account_lines = await prisma.line_item.findMany({
-        where: { accounting_head: { type: 'account' }, transaction: { user_id: uid }, asset: { type: { not: asset_type.rupees } } },
+        where: { accounting_head: { type: 'account' }, transaction: { user_id: uid, ...NOT_FUTURE }, asset: { type: { not: asset_type.rupees } } },
         select: { asset_id: true, txn_value: true, datetime: true, transaction: { select: { datetime: true } } },
       })
       const lines_by_asset = new Map<string, typeof account_lines>()
@@ -957,7 +999,12 @@ function register_tools(server: McpServer) {
       const toDate = parse_day(to)
       toDate.setDate(toDate.getDate() + 1)
       const txns = await prisma.transaction.findMany({
-        where: { user_id: uid, datetime: { gte: fromDate, lt: toDate }, line_items: { some: { accounting_head: { type: 'income_expense' } } } },
+        where: {
+          user_id: uid,
+          ...NOT_FUTURE,
+          datetime: { gte: fromDate, lt: toDate },
+          line_items: { some: { accounting_head: { type: 'income_expense' } } },
+        },
         select: slim_txn_select,
       })
       const totals = new Map<string, number>()
@@ -999,6 +1046,12 @@ function register_tools(server: McpServer) {
           ),
         dry_run: z.boolean().optional().describe('Validate and echo the derived remainder lines without writing anything'),
         force: z.boolean().optional().describe('Create even if a possible duplicate exists'),
+        is_future: z
+          .boolean()
+          .optional()
+          .describe(
+            'Create as a future transaction (default false): a scheduled private draft that never appears on the transactions list and never affects balances, net worth or XIRR until converted with convert_future_transaction. Safe to use on linked/shared accounts (no mirror/approval is created until it becomes real).',
+          ),
       },
     },
     async (args, extra) => {
@@ -1006,7 +1059,12 @@ function register_tools(server: McpServer) {
       const [heads, assets] = await Promise.all([load_heads(uid), load_assets()])
       const line_items = await build_line_items(uid, args.line_items, { heads, assets })
       const datetime = parse_date(args.datetime)
-      if (args.dry_run) return dry_run_check(uid, datetime, line_items, args.description)
+      if (args.dry_run) {
+        const dr = await dry_run_check(uid, datetime, line_items, args.description, undefined, args.is_future ?? false)
+        if (!dr.isError && args.is_future && dr.content[0]?.type === 'text')
+          dr.content[0].text += `\n(future transaction — ${datetime.toISOString()} scheduled, no balance effect until converted)`
+        return dr
+      }
       // With an idempotency_key the exact dedup in the core supersedes the
       // heuristic guard (which would otherwise block legitimate replays).
       if (!args.force && !args.idempotency_key) {
@@ -1017,7 +1075,10 @@ function register_tools(server: McpServer) {
               'Inspect it with get_transaction; pass force:true to create anyway, or use an idempotency_key for exact dedup.',
           )
       }
-      const res = await create_transaction_core(uid, datetime, line_items, args.description, { idempotency_key: args.idempotency_key })
+      const res = await create_transaction_core(uid, datetime, line_items, args.description, {
+        idempotency_key: args.idempotency_key,
+        is_future: args.is_future,
+      })
       if (!res.success) return action_result(res)
       const balances = await account_balances_for(
         uid,
@@ -1039,6 +1100,12 @@ function register_tools(server: McpServer) {
         datetime: z.string().optional().describe('dd-MM-yyyy or ISO'),
         line_items: lineItemShape.optional().describe('Omit to keep the existing line items unchanged'),
         dry_run: z.boolean().optional().describe('Validate the replacement line items without writing anything'),
+        is_future: z
+          .boolean()
+          .optional()
+          .describe(
+            'Flip the future flag when set: true schedules the transaction (stops affecting balances until converted), false converts it to a real transaction. Required on the first edit of any future transaction a convert_future_transaction would create.',
+          ),
       },
     },
     async (args, extra) => {
@@ -1053,14 +1120,45 @@ function register_tools(server: McpServer) {
         ? await build_line_items(uid, args.line_items, { heads, assets })
         : stored_lines_to_input(existing.line_items)
       if (args.dry_run)
-        return dry_run_check(uid, args.datetime ? parse_date(args.datetime) : existing.datetime, line_items, args.description, {
-          datetime: existing.datetime,
-          line_items: existing.line_items.map(li => ({ datetime: li.datetime, accounting_head_id: li.accounting_head_id })),
-        })
-      const res = await update_transaction_core(uid, args.id, line_items, args.datetime ? parse_date(args.datetime) : undefined, args.description)
+        return dry_run_check(
+          uid,
+          args.datetime ? parse_date(args.datetime) : existing.datetime,
+          line_items,
+          args.description,
+          {
+            datetime: existing.datetime,
+            is_future: existing.is_future,
+            line_items: existing.line_items.map(li => ({ datetime: li.datetime, accounting_head_id: li.accounting_head_id })),
+          },
+          args.is_future !== undefined ? args.is_future : existing.is_future,
+        )
+      const res = await update_transaction_core(
+        uid,
+        args.id,
+        line_items,
+        args.datetime ? parse_date(args.datetime) : undefined,
+        args.description,
+        args.is_future,
+      )
       if (!res.success) return action_result(res)
       const touched = [...new Set([...existing.line_items.map(li => li.accounting_head_id), ...line_items.map(li => li.accounting_head_id)])]
       const balances = await account_balances_for(uid, touched, { heads, assets })
+      return text({ ok: true, message: res.message, account_balances: balances })
+    },
+  )
+
+  server.registerTool(
+    'convert_future_transaction',
+    {
+      description:
+        'Convert a future/scheduled transaction into a real one: it starts counting against balances, net worth, XIRR and the transactions list from that moment, and any account-head lines on linked/shared accounts create the usual mirror + approval flow (the future draft itself never did). Equivalent to editing it with is_future:false.',
+      inputSchema: { id: z.string().describe('Transaction id (must currently be a future transaction)') },
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const [res, heads, assets] = await Promise.all([convert_future_transaction_core(uid, args.id), load_heads(uid), load_assets()])
+      if (!res.success) return action_result(res)
+      const balances = await account_balances_for(uid, res.data!.accounting_head_ids, { heads, assets })
       return text({ ok: true, message: res.message, account_balances: balances })
     },
   )

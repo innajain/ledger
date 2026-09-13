@@ -8,6 +8,7 @@ import { HoldingsGrid, HoldingItem } from '@/app/_components/HoldingsGrid'
 import { Card } from '@/app/_components/Card'
 import { asset_type } from '@/generated/prisma/enums'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
+import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 import { UpiPayButton } from '@/app/_components/UpiPayButton'
 import { LinkedUserNotify } from '@/app/_components/LinkedUserNotify'
@@ -59,6 +60,15 @@ export type HeadData = {
   }[]
   line_items: LineItem[]
   value_timeseries?: ValuePoint[]
+  // This head's future transactions, in datetime order. `sufficient` is null when the
+  // transaction is already overdue (dated in the past) or touches nothing on this head.
+  future_transactions?: {
+    id: string
+    datetime: string | Date
+    description: string | null
+    amount: number
+    sufficient: boolean | null
+  }[]
 }
 
 type HeadDetailConfig = {
@@ -337,6 +347,47 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
       </Card>
 
       {head.value_timeseries && head.value_timeseries.length > 0 && <ValueChart points={head.value_timeseries} title="Value over time" />}
+
+      {head.future_transactions && head.future_transactions.length > 0 && (
+        <Card>
+          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Future transactions</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Scheduled entries — they don&apos;t affect balances until converted to real transactions.
+            </p>
+          </div>
+          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+            {head.future_transactions.map(ft => (
+              <div key={ft.id} className="relative hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
+                <Link href={`/transactions/${ft.id}`} aria-label={ft.description || 'View future transaction'} className="absolute inset-0 z-0" />
+                <div className="relative z-10 pointer-events-none flex items-center justify-between gap-4 p-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-900 dark:text-slate-100 truncate">{ft.description || 'No description'}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      <LocalDateTime value={ft.datetime} />
+                    </p>
+                  </div>
+                  <div className="ml-4 shrink-0 flex items-center gap-2">
+                    {ft.sufficient !== null &&
+                      (ft.sufficient ? (
+                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                          Enough balance
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          Could fall short
+                        </span>
+                      ))}
+                    <span className="font-semibold text-slate-900 dark:text-slate-100 pointer-events-auto">
+                      <MaskedAmount value={ft.amount} keep_sign />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   )
 }

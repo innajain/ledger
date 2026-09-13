@@ -7,6 +7,7 @@ import { Prisma } from '@/generated/prisma/client'
 import { get_or_compute_balances } from './_actions/compute_balances'
 import { compute_head_value } from '@/app/_utils/head_value'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
+import { NOT_FUTURE } from '@/app/_utils/future_txn'
 import { pick_welcome_message } from '@/app/_utils/home_welcome'
 import { month_to_date_window, summarize_income_expense, window_label, type SummaryLine } from '@/app/_utils/home_month_summary'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
@@ -86,13 +87,14 @@ async function Home() {
     prisma.transaction.findMany({
       where: {
         user_id: user.id,
+        ...NOT_FUTURE,
         datetime: { gte: this_month.from, lt: this_month.to },
         line_items: { some: { accounting_head: { type: 'income_expense' } } },
       },
       select: txn_select,
     }),
     prisma.transaction.findMany({
-      where: { user_id: user.id },
+      where: { user_id: user.id, ...NOT_FUTURE },
       select: txn_select,
       orderBy: { datetime: 'desc' },
       take: RECENT_TRANSACTION_COUNT,

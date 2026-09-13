@@ -455,6 +455,10 @@ export function register_extra_tools(server: McpServer) {
               description: z.string().nullish(),
               datetime: z.string().optional().describe('dd-MM-yyyy or ISO; default now'),
               idempotency_key: z.string().nullish(),
+              is_future: z
+                .boolean()
+                .optional()
+                .describe('Create as a future/scheduled transaction (default false) — invisible to balances until converted'),
               line_items: lineItemShape,
             }),
           )
@@ -472,6 +476,7 @@ export function register_extra_tools(server: McpServer) {
             datetime: parse_date(t.datetime),
             description: t.description,
             idempotency_key: t.idempotency_key,
+            is_future: t.is_future,
             line_items: t.line_items.map(
               (li): CreateLineItemInput => ({
                 accounting_head_id: resolve_ref(li.account, heads, 'account').id,

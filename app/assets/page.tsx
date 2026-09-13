@@ -36,7 +36,7 @@ async function Page() {
     prisma.line_item.findMany({
       where: {
         accounting_head: { type: 'account' },
-        transaction: { user_id: user.id },
+        transaction: { user_id: user.id, is_future: false },
         asset: { type: { not: asset_type.rupees } },
       },
       select: {

@@ -7,6 +7,7 @@ import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
 import { compute_head_value } from '@/app/_utils/head_value'
 import { get_subtree_head_ids } from '@/app/_utils/subtree_value'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
+import { NOT_FUTURE } from '@/app/_utils/future_txn'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { cashflows_version_key } from '@/app/_utils/value_timeseries'
 
@@ -60,6 +61,7 @@ async function fetch_subtree_cashflows(user_id: string, account_ids: string[]): 
   const rawTransactions = await prisma.transaction.findMany({
     where: {
       user_id,
+      ...NOT_FUTURE,
       line_items: { some: { accounting_head_id: { in: account_ids } } },
     },
     select: {

@@ -9,8 +9,9 @@ export async function update_transaction(
   line_items: CreateLineItemInput[],
   datetime?: Date | undefined,
   description?: string | null | undefined,
+  is_future?: boolean | undefined,
 ): Promise<ActionResult> {
   const user_id = await get_current_user_id()
   if (!user_id) return err('UNAUTHORIZED', 'You must be logged in to update transactions')
-  return update_transaction_core(user_id, id, line_items, datetime, description)
+  return update_transaction_core(user_id, id, line_items, datetime, description, is_future)
 }
