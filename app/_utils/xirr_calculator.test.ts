@@ -51,6 +51,21 @@ describe('calculate_xirr', () => {
     expect(rate).toBe(0)
   })
 
+  it('returns exactly 0 when the raw sum is only floating-point noise around zero', () => {
+    // 0.1 + 0.2 - 0.3 !== 0 in IEEE754 — a stand-in for the rounding drift that shows up
+    // once real Decimal amounts are converted to numbers for the xirr library. A head
+    // whose cashflows should net to exactly zero can end up with a tiny nonzero raw sum,
+    // which pushes the true root to (near) 0 — right where the underlying Newton-Raphson
+    // solver's relative convergence check (`|Δx| <= tolerance * |x|`) can never succeed,
+    // since it fails Newton and falls through to an unrelated, wrong fallback rate.
+    const rate = calculate_xirr([
+      { amount: 0.1, when: date(2023, 1, 1) },
+      { amount: 0.2, when: date(2023, 6, 1) },
+      { amount: -0.3, when: date(2024, 1, 1) },
+    ])
+    expect(rate).toBe(0)
+  })
+
   it('rejects absurd annualized returns from tiny time windows as noise', () => {
     const rate = calculate_xirr([
       { amount: -100, when: date(2024, 1, 1) },

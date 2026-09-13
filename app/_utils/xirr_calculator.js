@@ -15,6 +15,12 @@ export function calculate_xirr_detailed(cashflows, warm_start) {
 
   if (!(min < 0 && max > 0 && start !== end)) return null
 
+  // A near-zero raw (undiscounted) sum means the true root is at/near 0 — but Newton's
+  // relative convergence check (`|Δx| <= tol * |x|`) can never certify success that
+  // close to zero, so every guess below fails to converge and the sweep falls through
+  // to an unrelated, meaningless fallback root instead. Short-circuit before that happens.
+  if (Math.abs(sum) < 1e-6) return { raw: 0, display: 0 }
+
   // A warm start that fails in any way falls through to the standard sweep, so it can
   // only speed things up, never change which cashflow sets resolve.
   if (warm_start !== undefined && Number.isFinite(warm_start) && warm_start > -1) {
