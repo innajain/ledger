@@ -33,6 +33,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@sentry/nextjs": "^10.74.0",
     "@vercel/blob": "^2.4.1",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.4.0",

@@ -11,6 +11,8 @@ const PUBLIC_PATHS = [
   '/sitemap.xml',
   '/sw.js',
   '/manifest.webmanifest',
+  '/monitoring',
+  '/api/health',
 
   '/.well-known/oauth-authorization-server',
   '/.well-known/oauth-protected-resource',

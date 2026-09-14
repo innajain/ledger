@@ -2,7 +2,7 @@
 
 A personal finance application built with Next.js, implementing a **Triple-Entry Bookkeeping** model that enforces mathematical invariants on every transaction to guarantee data integrity.
 
-🔗 **Live:** https://ledger4-woad.vercel.app
+🔗 **Live:** https://ledger-innajains-projects.vercel.app
 
 ---
 
@@ -213,18 +213,19 @@ The user-scoped collector pulls each table holding the caller's data (heads, tra
 
 ## Technology Stack
 
-| Layer            | Technology                          |
-| ---------------- | ----------------------------------- |
-| **Framework**    | Next.js 16.2 (App Router)           |
-| **Language**     | TypeScript 6                        |
-| **UI**           | React 19, Tailwind CSS 4            |
-| **ORM**          | Prisma 7.8 (`prisma-client` engine) |
-| **Database**     | PostgreSQL (Neon Serverless)        |
-| **Cache**        | Redis (ioredis)                     |
-| **File storage** | Vercel Blob (private, proxied)      |
-| **Market data**  | Yahoo Finance, AMFI India           |
-| **Auth**         | JWT + bcryptjs                      |
-| **Returns**      | `xirr`                              |
+| Layer             | Technology                                      |
+| ----------------- | ----------------------------------------------- |
+| **Framework**     | Next.js 16.2 (App Router)                       |
+| **Language**      | TypeScript 6                                    |
+| **UI**            | React 19, Tailwind CSS 4                        |
+| **ORM**           | Prisma 7.8 (`prisma-client` engine)             |
+| **Database**      | PostgreSQL (Neon Serverless)                    |
+| **Cache**         | Redis (ioredis)                                 |
+| **File storage**  | Vercel Blob (private, proxied)                  |
+| **Observability** | Sentry (errors, traces, logs, metrics, replays) |
+| **Market data**   | Yahoo Finance, AMFI India                       |
+| **Auth**          | JWT + bcryptjs                                  |
+| **Returns**       | `xirr`                                          |
 
 ---
 
@@ -477,7 +478,7 @@ Checks performed:
 
 ---
 
-## Performance Profiling
+## Runtime Observability & Performance Profiling
 
 Every server-rendered page is wrapped with `profile()` (see [`lib/metrics/profile.ts`](lib/metrics/profile.ts)), which uses Node's `AsyncLocalStorage` to attribute work to a per-request context. Prisma is `$extends`-instrumented to count queries and time them; ioredis is wrapped to track hits/misses; `recordCompute` / `recordExternal` helpers tag explicit spans.
 
@@ -492,3 +493,15 @@ Three tables collect the data:
 Writes are fire-and-forget so profiling never blocks the response. Set `PROFILING=off` to disable the wrapper entirely (the page function runs untouched).
 
 In dev only, a separate **query toaster** ([`DevQueryToaster`](app/_components/DevQueryToaster.tsx)) subscribes to an SSE stream at `/api/dev/queries` and fires a toast per DB query / Redis op as it happens — useful for spotting N+1s and cache misses inline. Set `DEV_QUERY_TOASTS=off` to silence it; the gate also short-circuits `publishQueryEvent` so the per-event ring buffer is skipped entirely.
+
+Sentry adds the production runtime layer across browser, Node.js, and Edge runtimes:
+
+- **Errors** — route-handler failures plus App Router `error.tsx` / `global-error.tsx` boundaries
+- **Traces and metrics** — page spans carry DB, Redis, external-call, compute, and slow-query measurements; custom `ledger.*` metrics mirror the in-database profiler without including `user_id`
+- **Logs** — Pino `info` and above are forwarded; `authorization`, cookies, passwords, tokens, and secrets are redacted before transport
+- **Replay** — sessions are recorded only when an error occurs, with all text and inputs masked and all media blocked
+- **Source maps** — uploaded during Vercel builds and removed from the deployed assets; browser events tunnel through `/monitoring`
+
+Sentry is optional in local development: when `NEXT_PUBLIC_SENTRY_DSN` is unset, its SDK is disabled and the local profiler continues to work. The Vercel Marketplace integration supplies the DSN plus `SENTRY_ORG`, `SENTRY_PROJECT`, and the build-only `SENTRY_AUTH_TOKEN` in deployed environments. `sendDefaultPii` is disabled throughout.
+
+`GET /api/health` is an unauthenticated, uncached liveness/dependency probe. It checks Postgres and Redis concurrently and returns `200` when both are reachable or `503` with `status: "degraded"` otherwise. Its response exposes only service status, check time, and aggregate latency.

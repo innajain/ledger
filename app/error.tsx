@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { Button } from '@/app/_components/Button'
 import { WarningIcon } from '@/app/_components/icons'
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    console.error('Application error:', error)
+    Sentry.captureException(error)
   }, [error])
 
   return (

@@ -1,10 +1,23 @@
 import 'server-only'
 import { after } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { MetricsContext } from './context'
 
 export function persistMetrics(ctx: MetricsContext, totalMs: number): void {
+  const attributes = { route: ctx.route }
+  Sentry.metrics.count('ledger.request.count', 1, { attributes })
+  Sentry.metrics.distribution('ledger.request.duration', totalMs, { unit: 'millisecond', attributes })
+  Sentry.metrics.distribution('ledger.db.query_count', ctx.db_query_count, { attributes })
+  Sentry.metrics.distribution('ledger.db.duration', ctx.db_query_ms, { unit: 'millisecond', attributes })
+  Sentry.metrics.distribution('ledger.redis.duration', ctx.redis_ms, { unit: 'millisecond', attributes })
+  Sentry.metrics.count('ledger.redis.hit', ctx.redis_hits, { attributes })
+  Sentry.metrics.count('ledger.redis.miss', ctx.redis_misses, { attributes })
+  Sentry.metrics.distribution('ledger.external.duration', ctx.external_ms, { unit: 'millisecond', attributes })
+  Sentry.metrics.distribution('ledger.compute.duration', ctx.compute_ms, { unit: 'millisecond', attributes })
+  Sentry.metrics.count('ledger.db.slow_query', ctx.slow_queries.length, { attributes })
+
   const write = async () => {
     try {
       await prisma.server_metric.create({

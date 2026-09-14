@@ -103,9 +103,13 @@ The `/tax` page and MCP `get_tax_computation` derive a **new-regime** Indian inc
 
 Four download routes share collectors in `app/_utils/db_export.ts` and pure, unit-tested builders in `app/_utils/{csv,zip,xlsx,sql_dump}.ts` (ZIP and `.xlsx` OOXML are hand-rolled — no new deps). Table names and `WHERE` clauses are **static literals**; the lone bound param is the user id (no injection surface) — keep it that way if you extend `USER_TABLES`/`FOREIGN_KEYS`. `collect_user_export(user_id, excluded?)` is caller-scoped (and pulls referenced `asset` catalog rows even though `asset` has no `user_id`); `collect_full_dump()` walks every base table. Routes: `/api/export` (CSV-per-table ZIP) and `/api/export/xlsx` (one linked workbook, FK cells hyperlinked) both drop `password_hash` via `DEFAULT_EXCLUDED_COLUMNS`; `/api/dump` is the **caller-scoped** SQL dump (keeps every column so it restores); `/api/admin/dump` is the whole-DB SQL dump behind `require_admin` (`app/_actions/auth.ts`, backed by `user.is_admin`). Surfaced in `app/settings/` (`DataSection.tsx`, plus admin-only `AdminSection.tsx`). Note `/api/dump` used to be unscoped — it leaked all users' rows and hashes; don't reintroduce an unscoped data route.
 
-## Profiling & dev tooling
+## Runtime observability, profiling & dev tooling
 
-Pages are wrapped with `profile()` (`lib/metrics/`); metrics land in `server_metric`/`slow_query`/`web_vital` (fire-and-forget). Disable with `PROFILING=off`. In dev, a query toaster surfaces each DB/Redis op via SSE at `/api/dev/queries`; silence with `DEV_QUERY_TOASTS=off`.
+Pages are wrapped with `profile()` (`lib/metrics/`); metrics land in `server_metric`/`slow_query`/`web_vital` (fire-and-forget) and the same non-user-identifying measurements are emitted as Sentry `ledger.*` metrics/span attributes. Disable the page wrapper with `PROFILING=off`. In dev, a query toaster surfaces each DB/Redis op via SSE at `/api/dev/queries`; silence with `DEV_QUERY_TOASTS=off`.
+
+Sentry initialization is split by runtime: `instrumentation-client.ts` (browser, router transitions, error-only masked replay), `instrumentation.ts` (Next registration and `onRequestError`), and `sentry.{server,edge}.config.ts`. `app/error.tsx` and `app/global-error.tsx` capture React boundary failures. `next.config.ts` uploads source maps, deletes them after upload, and tunnels browser events through the public `/monitoring` path. Keep `sendDefaultPii: false`; never add user ids to Sentry metrics, loosen replay masking, or bypass the redaction in `lib/logger.ts`.
+
+`GET /api/health` is deliberately public so uptime checks work. It may probe Postgres/Redis and return `200`/`503`, but must remain read-only, uncached, and free of credentials, connection details, row data, or raw dependency errors. Sentry is optional when `NEXT_PUBLIC_SENTRY_DSN` is unset; `SENTRY_AUTH_TOKEN` is a build secret and must never be exposed to client code or committed.
 
 ## Code style
 

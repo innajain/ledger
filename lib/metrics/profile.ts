@@ -1,4 +1,5 @@
 import 'server-only'
+import * as Sentry from '@sentry/nextjs'
 import { headers } from 'next/headers'
 import { metricsStorage, type MetricsContext } from './context'
 import { persistMetrics } from './persist'
@@ -28,16 +29,27 @@ export function profile<Args extends unknown[], R>(route: string, fn: (...args: 
       slow_queries: [],
     }
 
-    try {
-      return await metricsStorage.run(ctx, async () => {
-        const result = await fn(...args)
+    return Sentry.startSpan({ name: route, op: 'ledger.page' }, async span => {
+      span.setAttribute('ledger.request_id', ctx.request_id)
 
-        return result
-      })
-    } finally {
-      const totalMs = performance.now() - ctx.started_at
-      persistMetrics(ctx, totalMs)
-    }
+      try {
+        return await metricsStorage.run(ctx, () => fn(...args))
+      } finally {
+        const totalMs = performance.now() - ctx.started_at
+        span.setAttributes({
+          'ledger.db.query_count': ctx.db_query_count,
+          'ledger.db.duration_ms': ctx.db_query_ms,
+          'ledger.redis.hit_count': ctx.redis_hits,
+          'ledger.redis.miss_count': ctx.redis_misses,
+          'ledger.redis.duration_ms': ctx.redis_ms,
+          'ledger.external.count': ctx.external_count,
+          'ledger.external.duration_ms': ctx.external_ms,
+          'ledger.compute.duration_ms': ctx.compute_ms,
+          'ledger.db.slow_query_count': ctx.slow_queries.length,
+        })
+        persistMetrics(ctx, totalMs)
+      }
+    })
   }
 }
 

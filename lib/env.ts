@@ -14,6 +14,7 @@ const schema = z.object({
 
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   NEXT_PUBLIC_VERCEL_BLOB_API_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 })
 
 const parsed = schema.safeParse(process.env)
