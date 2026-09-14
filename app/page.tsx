@@ -7,21 +7,16 @@ import { Prisma } from '@/generated/prisma/client'
 import { get_or_compute_balances } from './_actions/compute_balances'
 import { compute_head_value } from '@/app/_utils/head_value'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
-import { NOT_FUTURE } from '@/app/_utils/future_txn'
 import { get_inbox } from '@/app/_utils/links'
 import { pick_welcome_message } from '@/app/_utils/home_welcome'
-import { month_to_date_window, summarize_income_expense, window_label, type SummaryLine } from '@/app/_utils/home_month_summary'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
 import { HomeNetWorthTrend, HomeNetWorthTrendFallback } from '@/app/_components/HomeNetWorthTrend'
 import type { AssetBalance } from '@/app/_utils/home_networth_series'
-import type { HomeRecentTransaction } from '@/app/_components/HomeRecentTransactions'
 import type { HomeUpcomingTransaction } from '@/app/_components/HomeUpcomingTransactions'
 import type { HomeRequest } from '@/app/_components/HomeRequests'
 import { profile } from '@/lib/metrics/profile'
 
-const RECENT_TRANSACTION_COUNT = 15
 const UPCOMING_TRANSACTION_COUNT = 15
-const TOP_SPEND_CATEGORIES = 4
 
 // Only the fields the summary/recent rollups and normalize_line_items read — the full
 // accounting_head/asset relation rows multiply the payload of the first-paint page.
@@ -40,8 +35,6 @@ const txn_select = {
   },
 } satisfies Prisma.transactionSelect
 
-type HomeTxn = Prisma.transactionGetPayload<{ select: typeof txn_select }>
-
 // Book total of the account lines — the same number the transactions list shows, so the two
 // pages can never disagree about what a transaction "cost".
 function book_total(line_items: { accounting_head: { type: string }; txn_value: Prisma.Decimal }[]): number {
@@ -49,17 +42,6 @@ function book_total(line_items: { accounting_head: { type: string }; txn_value: 
     .filter(li => li.accounting_head.type === 'account')
     .reduce((sum, li) => sum.add(li.txn_value), new Prisma.Decimal(0))
     .toNumber()
-}
-
-function summary_lines(txns: HomeTxn[]): SummaryLine[] {
-  return txns.flatMap(txn =>
-    normalize_line_items(txn.line_items).map(li => ({
-      head_id: li.accounting_head_id,
-      head_name: li.accounting_head.name,
-      head_type: li.accounting_head.type,
-      txn_value: li.txn_value.toNumber(),
-    })),
-  )
 }
 
 async function Home() {
@@ -70,9 +52,6 @@ async function Home() {
     return <ClientPage welcomeMessage={welcome_message} invest={null} savings={null} networth={null} />
   }
 
-  const now = new Date()
-  const this_month = month_to_date_window(now)
-
   // The asset table is a shared catalog — only price what this user actually holds.
   const assetsPromise = prisma.asset.findMany()
   const balancesPromise = get_or_compute_balances()
@@ -82,27 +61,10 @@ async function Home() {
     return get_prices_for_assets(all_assets.filter(a => held.has(a.id)))
   })
 
-  const [allocations, assets, { accountsToAssets: balances }, month_txns, recent_txns, upcoming_txns, priceByAsset, inbox] = await Promise.all([
+  const [allocations, assets, { accountsToAssets: balances }, upcoming_txns, priceByAsset, inbox] = await Promise.all([
     prisma.accounting_head.findMany({ where: { user_id: user.id, type: 'allocation' } }),
     assetsPromise,
     balancesPromise,
-    // income_expense lines are what makes a transaction income or spend at all
-    // (transfers/EMIs/investments carry none).
-    prisma.transaction.findMany({
-      where: {
-        user_id: user.id,
-        ...NOT_FUTURE,
-        datetime: { gte: this_month.from, lt: this_month.to },
-        line_items: { some: { accounting_head: { type: 'income_expense' } } },
-      },
-      select: txn_select,
-    }),
-    prisma.transaction.findMany({
-      where: { user_id: user.id, ...NOT_FUTURE },
-      select: txn_select,
-      orderBy: { datetime: 'desc' },
-      take: RECENT_TRANSACTION_COUNT,
-    }),
     prisma.transaction.findMany({
       where: { user_id: user.id, is_future: true },
       select: txn_select,
@@ -195,22 +157,6 @@ async function Home() {
       </Suspense>
     ) : null
 
-  const this_month_summary = summarize_income_expense(summary_lines(month_txns), TOP_SPEND_CATEGORIES)
-
-  const month = {
-    spend: this_month_summary.spend,
-    income: this_month_summary.income,
-    categories: this_month_summary.categories,
-    label: window_label(this_month),
-  }
-
-  const recent: HomeRecentTransaction[] = recent_txns.map(txn => ({
-    id: txn.id,
-    date: txn.datetime,
-    description: txn.description,
-    total_book: book_total(normalize_line_items(txn.line_items)),
-  }))
-
   const upcoming: HomeUpcomingTransaction[] = upcoming_txns.map(txn => ({
     id: txn.id,
     date: txn.datetime,
@@ -239,8 +185,6 @@ async function Home() {
       savings={savings_with_value}
       networth={networth}
       networthTrendSlot={networthTrendSlot}
-      month={month}
-      recent={recent}
       upcoming={upcoming}
       requests={requests}
     />

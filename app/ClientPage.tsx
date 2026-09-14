@@ -3,8 +3,6 @@
 import React from 'react'
 import Link from 'next/link'
 import { MaskedAmount } from './_components/MaskedAmount'
-import { HomeMonthSummary, type HomeMonthData } from './_components/HomeMonthSummary'
-import { HomeRecentTransactions, type HomeRecentTransaction } from './_components/HomeRecentTransactions'
 import { HomeUpcomingTransactions, type HomeUpcomingTransaction } from './_components/HomeUpcomingTransactions'
 import { HomeRequests, type HomeRequest } from './_components/HomeRequests'
 
@@ -16,8 +14,6 @@ export default function ClientPage({
   savings,
   networth,
   networthTrendSlot,
-  month = null,
-  recent = [],
   upcoming = [],
   requests = [],
 }: {
@@ -28,8 +24,6 @@ export default function ClientPage({
   savings: { id: string; name: string; total: number } | null
   networth: number | null
   networthTrendSlot?: React.ReactNode
-  month?: HomeMonthData | null
-  recent?: HomeRecentTransaction[]
   upcoming?: HomeUpcomingTransaction[]
   requests?: HomeRequest[]
 }) {
@@ -158,17 +152,6 @@ export default function ClientPage({
           )
         })()}
       </div>
-
-      {/* How am I doing this month, and what did I just post? This month's content is
-          fixed-size (at most a handful of top-spending rows), so Recent transactions caps
-          its own scroll area to roughly match rather than stretching the shorter card into
-          empty space. */}
-      {loggedIn && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {month && <HomeMonthSummary month={month} />}
-          <HomeRecentTransactions transactions={recent} />
-        </div>
-      )}
 
       {loggedIn && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
