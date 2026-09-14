@@ -50,11 +50,25 @@ import {
   resolve_counterparty,
   account_balances_for,
 } from './_helpers'
+import { compute_tax_for_fy, serialize_tax_result } from '@/app/_core/tax_core'
+import { current_financial_year, parse_fy, fy_label } from '@/app/_utils/financial_year'
 
 const ro = { readOnlyHint: true } as const
 
 const head_type_enum = z.enum(['account', 'allocation', 'income_expense'])
 const asset_type_enum = z.enum(['rupees', 'mf', 'etf', 'shares', 'other'])
+const tax_treatment_enum = z.enum([
+  'salary_17_1',
+  'perquisite_17_2',
+  'exempt',
+  'other_sources',
+  'stcg_slab',
+  'stcg_111a',
+  'ltcg_112a',
+  'gift_56_2_x',
+  'tax_paid',
+  'not_income',
+])
 
 // Mirrors ALLOWED_TYPES in app/api/upload/route.ts
 const ATTACHMENT_TYPE_BY_EXT: Record<string, string> = {
@@ -227,6 +241,12 @@ export function register_extra_tools(server: McpServer) {
           .optional()
           .describe('account only: reconciliation lock (dd-MM-yyyy or yyyy-MM-dd) — writes touching line items on/before this day are rejected'),
         clear_lock_date: z.boolean().optional().describe('Remove the reconciliation lock'),
+        tax_treatment: tax_treatment_enum
+          .optional()
+          .describe(
+            'income/expense only: how this head counts toward income tax (new regime). salary_17_1 = §17(1) salary, perquisite_17_2 = §17(2) perks, exempt = employer PF/exempt allowances, other_sources = bank interest/residual slab-rate, stcg_slab = debt MF §50AA, stcg_111a = STT-paid equity short-term 20%, ltcg_112a = STT-paid equity long-term 12.5% over ₹1.25L, gift_56_2_x = ₹56(2)(x) gifts (all-or-nothing), tax_paid = TDS/advance/self-assessment credit, not_income = cashbacks/discounts/reimbursements',
+          ),
+        clear_tax_treatment: z.boolean().optional().describe('Remove the tax treatment (head becomes unclassified)'),
       },
     },
     async (args, extra) => {
@@ -236,7 +256,10 @@ export function register_extra_tools(server: McpServer) {
       if (args.parent && args.clear_parent) return error_text('Give either parent or clear_parent, not both')
       if (args.linked_username && args.clear_linked_user) return error_text('Give either linked_username or clear_linked_user, not both')
       if (args.lock_date && args.clear_lock_date) return error_text('Give either lock_date or clear_lock_date, not both')
+      if (args.tax_treatment && args.clear_tax_treatment) return error_text('Give either tax_treatment or clear_tax_treatment, not both')
       const lock_date = args.clear_lock_date ? null : args.lock_date ? parse_day(args.lock_date) : undefined
+      const tax_treatment = args.clear_tax_treatment ? null : (args.tax_treatment ?? undefined)
+      // null = clear, value = set, undefined = keep
       const parent_id = args.clear_parent
         ? null
         : args.parent
@@ -253,7 +276,18 @@ export function register_extra_tools(server: McpServer) {
         linked_user_id = found.data!.id
       }
       return action_result(
-        await update_account_core(uid, target.id, args.name, undefined, parent_id, args.is_active, args.is_placeholder, linked_user_id, lock_date),
+        await update_account_core(
+          uid,
+          target.id,
+          args.name,
+          undefined,
+          parent_id,
+          args.is_active,
+          args.is_placeholder,
+          linked_user_id,
+          lock_date,
+          tax_treatment,
+        ),
       )
     },
   )
@@ -705,6 +739,42 @@ export function register_extra_tools(server: McpServer) {
       await del(att.url)
       await prisma.transaction_attachment.delete({ where: { id: att.id } })
       return text({ ok: true, message: 'Attachment deleted' })
+    },
+  )
+
+  server.registerTool(
+    'get_tax_computation',
+    {
+      description:
+        'New-regime income tax computation for a financial year, computed live from the user\'s income/expense heads (never stored — backdating a transaction moves it). Defaults to the current financial year; pass fy as the start year ("2026") or a range ("2026-27"). Use this for tax liability rather than summing heads by hand. Returns the full computation (salary, standard deduction, interest, capital-gain heads, §87A rebate, cess, credits), the per-head breakdown backing each line, and any unclassified heads (non-zero net) that are being excluded — classify those with update_head tax_treatment before trusting the number.',
+      inputSchema: {
+        fy: z.string().optional().describe('Financial year as a start year "2026" or range "2026-27"; default current'),
+        include_future: z
+          .boolean()
+          .optional()
+          .describe(
+            "Fold scheduled (is_future) transactions in, turning the year-to-date figure into a full-year projection built from the user's own forecast. Default false. Only meaningful if the rest of the year is actually scheduled — check per_head against expectations before relying on it.",
+          ),
+      },
+      annotations: ro,
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const fy = args.fy ? parse_fy(args.fy) : current_financial_year(new Date())
+      if (fy === null) return error_text(`Unrecognised financial year "${args.fy}" — use a start year like 2026 or a range like "2026-27"`)
+      const include_future = args.include_future ?? false
+      const serialized = serialize_tax_result(await compute_tax_for_fy(uid, fy, include_future))
+      return text({
+        fy,
+        fy_label: fy_label(fy),
+        include_future,
+        basis: include_future ? 'projected — includes scheduled transactions' : 'year to date — actuals only',
+        computation: serialized.computation,
+        per_head: serialized.per_head,
+        unclassified_heads: serialized.unclassified_heads,
+        unclassified_total: serialized.unclassified_heads.reduce((s, h) => s + h.net, 0),
+        note: 'total_income excludes unclassified heads — classify them with update_head tax_treatment before trusting the number',
+      })
     },
   )
 

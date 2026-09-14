@@ -76,6 +76,11 @@ model accounting_head {
   // IST day are verified against the real account and cannot be touched.
   lock_date DateTime?
 
+  // Income-tax treatment (income/expense type only). Null = unclassified — the
+  // /tax page warns about it; valid value = how this head counts towards the
+  // taxpayer's liability under the new regime. Enforced in application code.
+  tax_treatment tax_treatment?
+
   parent_id String?
   parent    accounting_head?  @relation("AccountingHeadHierarchy", fields: [parent_id], references: [id])
   children  accounting_head[] @relation("AccountingHeadHierarchy")
@@ -246,6 +251,22 @@ enum pending_status {
 enum pending_kind {
   change
   deletion
+}
+
+// How an income/expense head counts toward income tax liability (new regime
+// only). Null = unclassified. Broken out rather than a free-text tag so the
+// computation module can switch on it exhaustively.
+enum tax_treatment {
+  salary_17_1     // §17(1) salary — gross, incl. employee PF
+  perquisite_17_2 // §17(2) perquisites
+  exempt          // employer PF, exempt allowances — income, not taxable
+  other_sources   // bank interest, residual — slab rate
+  stcg_slab       // debt MF §50AA — always short-term, slab rate
+  stcg_111a       // equity/equity MF with STT — 20%
+  ltcg_112a       // equity/equity MF with STT — 12.5% above ₹1,25,000
+  gift_56_2_x     // aggregate ≤ ₹50,000 exempt, else fully taxable
+  tax_paid        // TDS / advance tax / self-assessment — a CREDIT, not income
+  not_income      // cashbacks, discounts, reimbursements
 }
 
 // Cross-user approval link between two users' copies of a shared transaction.

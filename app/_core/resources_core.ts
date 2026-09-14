@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import type { accounting_head_type, asset_type } from '@/generated/prisma/client'
+import type { accounting_head_type, asset_type, tax_treatment } from '@/generated/prisma/client'
 import { get_latest_etf_or_shares_price, get_nav } from '@/app/_utils/price_fetcher'
 import { invalidate_balances } from '@/app/_core/balances_core'
 import { backfill_links_for_account } from '@/app/_utils/links'
@@ -90,6 +90,7 @@ export async function update_account_core(
   is_placeholder?: boolean | undefined,
   linked_user_id?: string | null | undefined,
   lock_date?: Date | null | undefined,
+  tax_treatment?: tax_treatment | null | undefined,
 ): Promise<ActionResult> {
   try {
     const parsed = updateAccountSchema.safeParse({ id, name })
@@ -105,6 +106,12 @@ export async function update_account_core(
     const effective_lock = lock_date === undefined ? existing.lock_date : lock_date
     if (effective_lock != null && (type ?? existing.type) !== 'account')
       throw new ActionError('VALIDATION', 'A lock date applies to accounts only — clear it before changing the type')
+
+    // same post-update trick for the tax treatment: a type change away from
+    // 'income_expense' must not strand a classification on a non-classifiable head
+    const effective_tax = tax_treatment === undefined ? existing.tax_treatment : tax_treatment
+    if (effective_tax != null && (type ?? existing.type) !== 'income_expense')
+      throw new ActionError('VALIDATION', 'A tax treatment applies to income/expense heads only — clear it before changing the type')
 
     if (parent_id) {
       if (parent_id === id) throw new ActionError('VALIDATION', 'parent cannot be the account itself')
@@ -155,6 +162,7 @@ export async function update_account_core(
             ...(is_placeholder !== undefined ? { is_placeholder } : {}),
             ...(linked_update !== undefined ? { linked_user_id: linked_update } : {}),
             ...(lock_date !== undefined ? { lock_date } : {}),
+            ...(tax_treatment !== undefined ? { tax_treatment } : {}),
           },
         })
         return newly_linked ? await backfill_links_for_account(tx, user_id, id, linked_update!) : 0

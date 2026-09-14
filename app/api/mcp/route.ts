@@ -1288,6 +1288,7 @@ const handler = createMcpHandler(
       'When importing bank/UPI statements: set idempotency_key on every create so retries and re-imports never double-post, use get_balances with as_of to verify closing balances, and create_transactions for atomic bulk inserts. ' +
       'Mutating tools echo the resulting account balances — sanity-check them against what the user expects. ' +
       "Approval tools (approve/reject/cancel/revert/accept_all_from) change a linked counterparty's ledger too — state clearly what will happen before acting. " +
+      'Use get_tax_computation for tax liability rather than summing heads by hand; if it reports unclassified heads, fix them with update_head tax_treatment before trusting the number. ' +
       'Dates accept dd-MM-yyyy or yyyy-MM-dd (IST) everywhere; datetimes also accept ISO.',
   },
   { streamableHttpEndpoint: '/api/mcp', disableSse: true },

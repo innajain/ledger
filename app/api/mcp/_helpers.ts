@@ -39,7 +39,7 @@ export const load_heads = (uid: string) =>
   prisma.accounting_head.findMany({
     where: { user_id: uid },
     orderBy: [{ type: 'asc' }, { order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-    select: { id: true, name: true, type: true, is_active: true, linked_user_id: true, parent_id: true, lock_date: true },
+    select: { id: true, name: true, type: true, is_active: true, linked_user_id: true, parent_id: true, lock_date: true, tax_treatment: true },
   })
 
 export const load_assets = () =>

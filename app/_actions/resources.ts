@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { get_current_user_id, require_admin } from '@/app/_actions/auth'
-import type { accounting_head_type, asset_type } from '@/generated/prisma/client'
+import type { accounting_head_type, asset_type, tax_treatment } from '@/generated/prisma/client'
 import {
   find_user_by_username_core,
   create_account_core,
@@ -42,10 +42,11 @@ export async function update_account(
   is_placeholder?: boolean | undefined,
   linked_user_id?: string | null | undefined,
   lock_date?: Date | null | undefined,
+  tax_treatment?: tax_treatment | null | undefined,
 ): Promise<ActionResult> {
   const user_id = await get_current_user_id()
   if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
-  return update_account_core(user_id, id, name, type, parent_id, is_active, is_placeholder, linked_user_id, lock_date)
+  return update_account_core(user_id, id, name, type, parent_id, is_active, is_placeholder, linked_user_id, lock_date, tax_treatment)
 }
 
 export async function delete_account(id: string): Promise<ActionResult> {

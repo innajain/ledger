@@ -13,11 +13,13 @@ const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/heads/income_expense', label: 'Income & Expenses' },
   { href: '/transactions', label: 'Transactions' },
   { href: '/requests', label: 'Requests' },
+  { href: '/tax', label: 'Tax' },
   { href: '/settings', label: 'Settings' },
 ]
 
-// Desktop links sit at the tighter px-3 until 2xl so all eight fit on one row at the xl breakpoint;
+// Nine links: the desktop row needs the 2xl breakpoint (tighter px-3 until 2xl);
 // whitespace-nowrap guarantees a label can never wrap and grow the h-16 header.
+// Below 2xl the overflow menu (hamburger) takes over.
 const navLinkClasses = (active: boolean, block = false) =>
   `${block ? 'block px-4 ' : 'px-3 2xl:px-4 '}py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
     active
@@ -103,7 +105,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
 
           {}
           {isLoggedIn && (
-            <ul className="hidden xl:flex flex-nowrap gap-1 2xl:gap-2 list-none p-0 m-0 ml-auto">
+            <ul className="hidden 2xl:flex flex-nowrap gap-1 2xl:gap-2 list-none p-0 m-0 ml-auto">
               {NAV_ITEMS.map(item => (
                 <li key={item.href}>
                   <NavLink href={item.href} label={item.label} active={isActive(item.href)} badge={item.href === '/requests' ? requestCount : 0} />
@@ -116,7 +118,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
           <div className="flex items-center gap-2 shrink-0">
             {isLoggedIn && (
               <button
-                className="xl:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className="2xl:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 onClick={toggleMenu}
                 aria-label="Toggle menu"
                 aria-expanded={isMenuOpen}
@@ -137,7 +139,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
 
         {}
         {isLoggedIn && isMenuOpen && (
-          <div className="xl:hidden pb-4 animate-slide-in-up">
+          <div className="2xl:hidden pb-4 animate-slide-in-up">
             <ul className="flex flex-col gap-1 list-none p-0 m-0">
               {NAV_ITEMS.map(item => (
                 <li key={item.href}>
