@@ -2,7 +2,7 @@
 
 A personal finance application built with Next.js, implementing a **Triple-Entry Bookkeeping** model that enforces mathematical invariants on every transaction to guarantee data integrity.
 
-🔗 **Live:** https://ledger-innajains-projects.vercel.app
+🔗 **Live:** https://ledger.shreyansh.online
 
 ---
 
