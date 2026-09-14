@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Suspense, use, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type NavLeaf = { href: string; label: string }
 type NavGroup = { label: string; children: NavLeaf[] }
@@ -13,7 +13,8 @@ const is_group = (e: NavEntry): e is NavGroup => 'children' in e
 
 // The three head lists collapse into one dropdown — they are the same page with
 // a different type, and inlining all three was what pushed the row past the
-// breakpoint. Seven top-level entries fit at xl.
+// breakpoint. Requests is reached from the home page card; Tax from the
+// Income & Expenses list, which is the only place its numbers come from.
 const NAV_ITEMS: NavEntry[] = [
   { href: '/', label: 'Home' },
   { href: '/assets', label: 'Assets' },
@@ -26,14 +27,15 @@ const NAV_ITEMS: NavEntry[] = [
     ],
   },
   { href: '/transactions', label: 'Transactions' },
-  { href: '/requests', label: 'Requests' },
-  { href: '/tax', label: 'Tax' },
-  { href: '/settings', label: 'Settings' },
 ]
 
-// Seven top-level links: the desktop row fits at the xl breakpoint (tighter px-3
+// Settings lives outside NAV_ITEMS: it renders as a gear beside the hamburger, so
+// it is reachable at every width without costing a slot in the row.
+const SETTINGS_HREF = '/settings'
+
+// Four top-level links: the desktop row fits from the lg breakpoint (tighter px-3
 // until 2xl); whitespace-nowrap guarantees a label can never wrap and grow the
-// h-16 header. Below xl the overflow menu (hamburger) takes over.
+// h-16 header. Below lg the overflow menu (hamburger) takes over.
 const navLinkClasses = (active: boolean, block = false) =>
   `${block ? 'block px-4 ' : 'px-3 2xl:px-4 '}py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
     active
@@ -41,37 +43,22 @@ const navLinkClasses = (active: boolean, block = false) =>
       : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
   }`
 
-// The count may arrive as a promise so the layout can stream the shell without
-// waiting on the inbox query — the badge fills in when the count resolves.
-function Badge({ value }: { value: number | Promise<number> }) {
-  const n = typeof value === 'number' ? value : use(value)
-  if (n <= 0) return null
-  return (
-    <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-semibold rounded-full bg-red-600 text-white">{n}</span>
-  )
-}
-
 function NavLink({
   href,
   label,
   active,
   block = false,
   onClick,
-  badge = 0,
 }: {
   href: string
   label: string
   active: boolean
   block?: boolean
   onClick?: () => void
-  badge?: number | Promise<number>
 }) {
   return (
     <Link href={href} className={`${navLinkClasses(active, block)} inline-flex items-center gap-2`} onClick={onClick}>
       {label}
-      <Suspense fallback={null}>
-        <Badge value={badge} />
-      </Suspense>
     </Link>
   )
 }
@@ -132,7 +119,7 @@ function NavDropdown({ group, isActive }: { group: NavGroup; isActive: (path: st
   )
 }
 
-export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: boolean; requestCount?: number | Promise<number> }) {
+export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
 
@@ -175,13 +162,13 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
 
           {}
           {isLoggedIn && (
-            <ul className="hidden xl:flex flex-nowrap gap-1 2xl:gap-2 list-none p-0 m-0 ml-auto">
+            <ul className="hidden lg:flex flex-nowrap gap-1 2xl:gap-2 list-none p-0 m-0 ml-auto">
               {NAV_ITEMS.map(item =>
                 is_group(item) ? (
                   <NavDropdown key={item.label} group={item} isActive={isActive} />
                 ) : (
                   <li key={item.href}>
-                    <NavLink href={item.href} label={item.label} active={isActive(item.href)} badge={item.href === '/requests' ? requestCount : 0} />
+                    <NavLink href={item.href} label={item.label} active={isActive(item.href)} />
                   </li>
                 ),
               )}
@@ -189,10 +176,33 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
           )}
 
           {}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 ml-2">
+            {isLoggedIn && (
+              <Link
+                href={SETTINGS_HREF}
+                onClick={closeMenu}
+                aria-label="Settings"
+                aria-current={isActive(SETTINGS_HREF) ? 'page' : undefined}
+                className={`p-2 rounded-lg transition-colors ${
+                  isActive(SETTINGS_HREF)
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                <svg aria-hidden="true" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </Link>
+            )}
             {isLoggedIn && (
               <button
-                className="xl:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className="lg:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 onClick={toggleMenu}
                 aria-label="Toggle menu"
                 aria-expanded={isMenuOpen}
@@ -213,7 +223,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
 
         {}
         {isLoggedIn && isMenuOpen && (
-          <div className="xl:hidden pb-4 animate-slide-in-up">
+          <div className="lg:hidden pb-4 animate-slide-in-up">
             <ul className="flex flex-col gap-1 list-none p-0 m-0">
               {NAV_ITEMS.map(item =>
                 is_group(item) ? (
@@ -233,14 +243,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
                   </li>
                 ) : (
                   <li key={item.href}>
-                    <NavLink
-                      href={item.href}
-                      label={item.label}
-                      active={isActive(item.href)}
-                      block
-                      onClick={closeMenu}
-                      badge={item.href === '/requests' ? requestCount : 0}
-                    />
+                    <NavLink href={item.href} label={item.label} active={isActive(item.href)} block onClick={closeMenu} />
                   </li>
                 ),
               )}

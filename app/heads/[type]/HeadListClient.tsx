@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { Prisma } from '@/generated/prisma/client'
 import type { accounting_head_type } from '@/generated/prisma/enums'
-import { Button } from '@/app/_components/Button'
+import { Button, ButtonLink } from '@/app/_components/Button'
 import { HierarchyTree, useHideEmpty } from '@/app/_components/HierarchyTree'
 import { PageHeader } from '@/app/_components/PageHeader'
 import { EmptyState } from '@/app/_components/EmptyState'
@@ -28,7 +28,17 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
 
   return (
     <div className="space-y-6">
-      <PageHeader title={cfg.title} description={cfg.listDescription} createUrl={`${base}/create`} createLabel={cfg.createLabel} />
+      <PageHeader
+        title={cfg.title}
+        description={cfg.listDescription}
+        createUrl={`${base}/create`}
+        createLabel={cfg.createLabel}
+        actions={cfg.relatedLinks?.map(l => (
+          <ButtonLink key={l.href} href={l.href} variant="secondary" className="sm:whitespace-nowrap">
+            {l.label}
+          </ButtonLink>
+        ))}
+      />
       {heads.length > 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
           <div className="flex items-center justify-between mb-4">

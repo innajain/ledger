@@ -21,6 +21,9 @@ export type HeadConfig = {
 
   showNegativeAssetBadges: boolean
 
+  /** Secondary links in the list header — pages derived from these heads. */
+  relatedLinks?: { href: string; label: string }[]
+
   entityName: string
   backText: string
 }
@@ -66,6 +69,9 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
     emptyIcon: IncomeExpenseEmptyIcon,
     accentBorderClass: 'border-l-violet-500',
     showNegativeAssetBadges: false,
+    // The tax computation is built entirely from these heads' treatments, so this
+    // list is the only sensible place to reach it from.
+    relatedLinks: [{ href: '/tax', label: 'Tax' }],
     entityName: 'Income / Expense',
     backText: 'Income & Expenses',
   },

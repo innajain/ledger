@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic'
 import Navbar from './_components/Navbar'
 import { get_current_user } from './_actions/auth'
 import { get_user_preferences } from './_actions/preferences'
-import { inbox_count } from './_utils/links'
 import { ThemeProvider } from './_components/ThemeProvider'
 import { PrivacyProvider } from './_components/PrivacyProvider'
 import { ToastProvider } from './_components/Toast'
@@ -70,11 +69,8 @@ export default async function RootLayout({
   children: React.ReactNode
 }>) {
   // Only the user row (theme + masking prefs stamp the <html> element) blocks the first
-  // flush; the inbox count streams into the Navbar badge as a promise instead of gating
-  // every route on the link-count query.
-  const userPromise = get_current_user()
-  const [user, prefs, nonce] = await Promise.all([userPromise, get_user_preferences(), headers().then(h => h.get('x-nonce') || undefined)])
-  const requestCount = userPromise.then(u => (u ? inbox_count(u.id) : 0))
+  // flush.
+  const [user, prefs, nonce] = await Promise.all([get_current_user(), get_user_preferences(), headers().then(h => h.get('x-nonce') || undefined)])
   const persist = !!user
   const htmlClassName = prefs.theme === 'dark' ? 'dark' : ''
   return (
@@ -98,7 +94,7 @@ export default async function RootLayout({
             <ToastProvider>
               {DEV_QUERY_TOASTS_ENABLED && <DevQueryToaster />}
               <div className="min-h-screen flex flex-col">
-                <Navbar isLoggedIn={!!user} requestCount={requestCount} />
+                <Navbar isLoggedIn={!!user} />
                 {}
                 <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
 
