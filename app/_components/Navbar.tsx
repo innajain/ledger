@@ -3,23 +3,37 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Suspense, use, useEffect, useState } from 'react'
+import { Suspense, use, useEffect, useRef, useState } from 'react'
 
-const NAV_ITEMS: { href: string; label: string }[] = [
+type NavLeaf = { href: string; label: string }
+type NavGroup = { label: string; children: NavLeaf[] }
+type NavEntry = NavLeaf | NavGroup
+
+const is_group = (e: NavEntry): e is NavGroup => 'children' in e
+
+// The three head lists collapse into one dropdown — they are the same page with
+// a different type, and inlining all three was what pushed the row past the
+// breakpoint. Seven top-level entries fit at xl.
+const NAV_ITEMS: NavEntry[] = [
   { href: '/', label: 'Home' },
   { href: '/assets', label: 'Assets' },
-  { href: '/heads/account', label: 'Accounts' },
-  { href: '/heads/allocation', label: 'Allocations' },
-  { href: '/heads/income_expense', label: 'Income & Expenses' },
+  {
+    label: 'Heads',
+    children: [
+      { href: '/heads/account', label: 'Accounts' },
+      { href: '/heads/allocation', label: 'Allocations' },
+      { href: '/heads/income_expense', label: 'Income & Expenses' },
+    ],
+  },
   { href: '/transactions', label: 'Transactions' },
   { href: '/requests', label: 'Requests' },
   { href: '/tax', label: 'Tax' },
   { href: '/settings', label: 'Settings' },
 ]
 
-// Nine links: the desktop row needs the 2xl breakpoint (tighter px-3 until 2xl);
-// whitespace-nowrap guarantees a label can never wrap and grow the h-16 header.
-// Below 2xl the overflow menu (hamburger) takes over.
+// Seven top-level links: the desktop row fits at the xl breakpoint (tighter px-3
+// until 2xl); whitespace-nowrap guarantees a label can never wrap and grow the
+// h-16 header. Below xl the overflow menu (hamburger) takes over.
 const navLinkClasses = (active: boolean, block = false) =>
   `${block ? 'block px-4 ' : 'px-3 2xl:px-4 '}py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
     active
@@ -59,6 +73,62 @@ function NavLink({
         <Badge value={badge} />
       </Suspense>
     </Link>
+  )
+}
+
+// Desktop-only disclosure for a NavGroup. Closes on outside click and Escape so
+// it never strands itself open behind a navigation.
+function NavDropdown({ group, isActive }: { group: NavGroup; isActive: (path: string) => boolean }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLLIElement>(null)
+  const active = group.children.some(c => isActive(c.href))
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <li ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        className={`${navLinkClasses(active)} inline-flex items-center gap-1`}
+      >
+        {group.label}
+        <svg
+          aria-hidden="true"
+          className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <ul className="absolute right-0 mt-1 min-w-52 p-1 rounded-lg list-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg">
+          {group.children.map(c => (
+            <li key={c.href}>
+              <NavLink href={c.href} label={c.label} active={isActive(c.href)} block onClick={() => setOpen(false)} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }
 
@@ -105,12 +175,16 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
 
           {}
           {isLoggedIn && (
-            <ul className="hidden 2xl:flex flex-nowrap gap-1 2xl:gap-2 list-none p-0 m-0 ml-auto">
-              {NAV_ITEMS.map(item => (
-                <li key={item.href}>
-                  <NavLink href={item.href} label={item.label} active={isActive(item.href)} badge={item.href === '/requests' ? requestCount : 0} />
-                </li>
-              ))}
+            <ul className="hidden xl:flex flex-nowrap gap-1 2xl:gap-2 list-none p-0 m-0 ml-auto">
+              {NAV_ITEMS.map(item =>
+                is_group(item) ? (
+                  <NavDropdown key={item.label} group={item} isActive={isActive} />
+                ) : (
+                  <li key={item.href}>
+                    <NavLink href={item.href} label={item.label} active={isActive(item.href)} badge={item.href === '/requests' ? requestCount : 0} />
+                  </li>
+                ),
+              )}
             </ul>
           )}
 
@@ -118,7 +192,7 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
           <div className="flex items-center gap-2 shrink-0">
             {isLoggedIn && (
               <button
-                className="2xl:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className="xl:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 onClick={toggleMenu}
                 aria-label="Toggle menu"
                 aria-expanded={isMenuOpen}
@@ -139,20 +213,37 @@ export default function Navbar({ isLoggedIn, requestCount = 0 }: { isLoggedIn: b
 
         {}
         {isLoggedIn && isMenuOpen && (
-          <div className="2xl:hidden pb-4 animate-slide-in-up">
+          <div className="xl:hidden pb-4 animate-slide-in-up">
             <ul className="flex flex-col gap-1 list-none p-0 m-0">
-              {NAV_ITEMS.map(item => (
-                <li key={item.href}>
-                  <NavLink
-                    href={item.href}
-                    label={item.label}
-                    active={isActive(item.href)}
-                    block
-                    onClick={closeMenu}
-                    badge={item.href === '/requests' ? requestCount : 0}
-                  />
-                </li>
-              ))}
+              {NAV_ITEMS.map(item =>
+                is_group(item) ? (
+                  // No disclosure on mobile — the menu is already a list, so the
+                  // group just becomes a labelled, indented section.
+                  <li key={item.label}>
+                    <div className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                      {item.label}
+                    </div>
+                    <ul className="flex flex-col gap-1 list-none p-0 m-0 pl-3">
+                      {item.children.map(c => (
+                        <li key={c.href}>
+                          <NavLink href={c.href} label={c.label} active={isActive(c.href)} block onClick={closeMenu} />
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ) : (
+                  <li key={item.href}>
+                    <NavLink
+                      href={item.href}
+                      label={item.label}
+                      active={isActive(item.href)}
+                      block
+                      onClick={closeMenu}
+                      badge={item.href === '/requests' ? requestCount : 0}
+                    />
+                  </li>
+                ),
+              )}
             </ul>
           </div>
         )}

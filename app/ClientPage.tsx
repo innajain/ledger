@@ -6,6 +6,7 @@ import { MaskedAmount } from './_components/MaskedAmount'
 import { HomeMonthSummary, type HomeMonthData } from './_components/HomeMonthSummary'
 import { HomeRecentTransactions, type HomeRecentTransaction } from './_components/HomeRecentTransactions'
 import { HomeUpcomingTransactions, type HomeUpcomingTransaction } from './_components/HomeUpcomingTransactions'
+import { HomeRequests, type HomeRequest } from './_components/HomeRequests'
 
 export default function ClientPage({
   welcomeMessage,
@@ -18,6 +19,7 @@ export default function ClientPage({
   month = null,
   recent = [],
   upcoming = [],
+  requests = [],
 }: {
   welcomeMessage: string
   loggedIn?: boolean
@@ -29,6 +31,7 @@ export default function ClientPage({
   month?: HomeMonthData | null
   recent?: HomeRecentTransaction[]
   upcoming?: HomeUpcomingTransaction[]
+  requests?: HomeRequest[]
 }) {
   return (
     <div className="space-y-6">
@@ -167,7 +170,12 @@ export default function ClientPage({
         </div>
       )}
 
-      {loggedIn && <HomeUpcomingTransactions transactions={upcoming} />}
+      {loggedIn && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <HomeUpcomingTransactions transactions={upcoming} />
+          <HomeRequests requests={requests} />
+        </div>
+      )}
     </div>
   )
 }

@@ -226,7 +226,7 @@ export default function ClientPage({
               transaction.total > 0
                 ? 'text-green-600 dark:text-green-400'
                 : transaction.total < 0
-                  ? 'text-red-600 dark:text-red-400'
+                  ? 'text-slate-900 dark:text-slate-100'
                   : 'text-slate-500 dark:text-slate-400'
             }`}
           >

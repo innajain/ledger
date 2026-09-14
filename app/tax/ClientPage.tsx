@@ -25,7 +25,7 @@ const TREATMENT_OPTIONS: { value: tax_treatment; label: string }[] = [
   { value: 'not_income', label: 'Not taxable (expenses, contras, cashbacks)' },
 ]
 
-type Row = { label: string; value: number | null; emphasize?: boolean }
+type Row = { label: string; value: number | null; emphasize?: boolean; indent?: boolean; note?: string }
 
 function ComputationCard({ rows, booleanRows = [] }: { rows: Row[]; booleanRows?: { label: string; value: boolean }[] }) {
   return (
@@ -35,9 +35,18 @@ function ComputationCard({ rows, booleanRows = [] }: { rows: Row[]; booleanRows?
           row.value === null ? null : (
             <div
               key={row.label}
-              className={`flex items-center justify-between gap-4 px-6 py-3 ${row.emphasize ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-sm text-slate-700 dark:text-slate-300'}`}
+              className={`flex items-center justify-between gap-4 py-3 ${row.indent ? 'pl-12 pr-6' : 'px-6'} ${
+                row.emphasize
+                  ? 'font-semibold text-slate-900 dark:text-slate-100'
+                  : row.indent
+                    ? 'text-sm text-slate-500 dark:text-slate-400'
+                    : 'text-sm text-slate-700 dark:text-slate-300'
+              }`}
             >
-              <span>{row.label}</span>
+              <span>
+                {row.label}
+                {row.note && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{row.note}</span>}
+              </span>
               <MaskedAmount value={row.value} />
             </div>
           ),
@@ -102,8 +111,17 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
     { label: 'LTCG §112A taxable', value: c.ltcg_112a_taxable },
   ]
 
+  const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`
+  const slabRows: Row[] = c.slab_breakdown.map(s => ({
+    label: s.to === null ? `Above ${inr(s.from)}` : `${inr(s.from)} – ${inr(s.to)}`,
+    note: `${(s.rate * 100).toFixed(s.rate * 100 === Math.round(s.rate * 100) ? 0 : 1)}% on ${inr(Math.round(s.taxable))}`,
+    value: s.tax,
+    indent: true,
+  }))
+
   const taxRows: Row[] = [
     { label: 'Tax at slabs', value: c.tax_at_slabs },
+    ...slabRows,
     { label: 'Tax §111A (equity STCG)', value: c.tax_111a },
     { label: 'Tax §112A (equity LTCG)', value: c.tax_112a },
     { label: 'Tax before rebate', value: c.tax_before_rebate, emphasize: true },

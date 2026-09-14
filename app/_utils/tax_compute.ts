@@ -20,7 +20,17 @@ export type TaxInput = {
   gift_non_relative_total: Prisma.Decimal
 }
 
+// One row per slab actually reached. `to: null` is the open-ended top slab.
+export type SlabRow = {
+  from: number
+  to: number | null
+  rate: number
+  taxable: Prisma.Decimal
+  tax: Prisma.Decimal
+}
+
 export type TaxComputation = {
+  slab_breakdown: SlabRow[]
   salary_17_1: Prisma.Decimal
   perquisites_17_2: Prisma.Decimal
   gross_salary: Prisma.Decimal
@@ -78,17 +88,22 @@ export const FY_2026_27: TaxRules = {
 
 const ZERO = new Prisma.Decimal(0)
 
-function tax_at_slabs(income: Prisma.Decimal, slabs: TaxRules['slabs']): Prisma.Decimal {
+function tax_at_slabs(income: Prisma.Decimal, slabs: TaxRules['slabs']): { tax: Prisma.Decimal; breakdown: SlabRow[] } {
   let tax = ZERO
   let prev = ZERO
+  const breakdown: SlabRow[] = []
   for (const [threshold, rate] of slabs) {
     if (income.lessThanOrEqualTo(prev)) break
     const upper = new Prisma.Decimal(threshold === Infinity ? income.toString() : threshold)
     const taxable = Prisma.Decimal.min(income, upper).sub(prev)
-    tax = tax.add(taxable.mul(rate))
+    const slab_tax = taxable.mul(rate)
+    // Emit the nil slab too — seeing the first ₹4L taxed at nothing is the point
+    // of showing a breakdown at all.
+    breakdown.push({ from: prev.toNumber(), to: threshold === Infinity ? null : threshold, rate, taxable, tax: slab_tax })
+    tax = tax.add(slab_tax)
     prev = upper
   }
-  return tax
+  return { tax, breakdown }
 }
 
 function compute_surcharge(total_income: Prisma.Decimal, base_tax: Prisma.Decimal, surcharge_slabs: TaxRules['surcharge']): Prisma.Decimal {
@@ -136,7 +151,7 @@ export function compute_tax(input: TaxInput, rules: TaxRules): TaxComputation {
   const total_income = normal_rate_income.add(stcg_111a).add(ltcg_112a_taxable)
 
   // Tax computation
-  const tax_at_slab_rate = tax_at_slabs(normal_rate_income, rules.slabs)
+  const { tax: tax_at_slab_rate, breakdown: slab_breakdown } = tax_at_slabs(normal_rate_income, rules.slabs)
   const tax_111a = stcg_111a.mul(rules.stcg_111a_rate)
   const tax_112a = ltcg_112a_taxable.mul(rules.ltcg_112a.rate)
   const tax_before_rebate = tax_at_slab_rate.add(tax_111a).add(tax_112a)
@@ -163,6 +178,7 @@ export function compute_tax(input: TaxInput, rules: TaxRules): TaxComputation {
   const advance_tax_required = balance_payable.greaterThanOrEqualTo(rules.advance_tax_threshold)
 
   return {
+    slab_breakdown,
     salary_17_1,
     perquisites_17_2,
     gross_salary,

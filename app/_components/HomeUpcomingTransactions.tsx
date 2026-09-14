@@ -46,7 +46,7 @@ export function HomeUpcomingTransactions({ transactions }: { transactions: HomeU
                 {tx.total_book !== 0 && (
                   <span
                     className={`shrink-0 text-sm font-semibold tabular-nums pointer-events-auto ${
-                      tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
                     }`}
                   >
                     <MaskedAmount value={tx.total_book} keep_sign />

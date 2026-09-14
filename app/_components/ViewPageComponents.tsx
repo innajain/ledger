@@ -219,13 +219,7 @@ export function LineItemRow({
 
         <div className="text-right shrink-0">
           <div
-            className={`text-lg font-semibold ${
-              displayed_amount > 0
-                ? 'text-green-600 dark:text-green-400'
-                : displayed_amount < 0
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-slate-900 dark:text-slate-100'
-            }`}
+            className={`text-lg font-semibold ${displayed_amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'}`}
           >
             <MaskedAmount value={displayed_amount} />
           </div>

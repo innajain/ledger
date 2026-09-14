@@ -22,9 +22,11 @@ export type TaxCoreResult = {
 // JSON-safe shape for crossing the server→client (page) and server→tool (MCP)
 // boundary. Both consumers get the exact same rendering, so any divergence
 // between /tax and get_tax_computation is a routing bug, not a rounding one.
+export type SerializedSlabRow = { from: number; to: number | null; rate: number; taxable: number; tax: number }
+
 export type SerializedComputation = {
-  [K in keyof TaxComputation]: TaxComputation[K] extends boolean ? boolean : number
-}
+  [K in Exclude<keyof TaxComputation, 'slab_breakdown'>]: TaxComputation[K] extends boolean ? boolean : number
+} & { slab_breakdown: SerializedSlabRow[] }
 
 export type SerializedTaxCoreResult = {
   computation: SerializedComputation
@@ -36,6 +38,7 @@ export function serialize_tax_result(r: TaxCoreResult): SerializedTaxCoreResult 
   const c = r.computation
   return {
     computation: {
+      slab_breakdown: c.slab_breakdown.map(s => ({ ...s, taxable: s.taxable.toNumber(), tax: s.tax.toNumber() })),
       salary_17_1: c.salary_17_1.toNumber(),
       perquisites_17_2: c.perquisites_17_2.toNumber(),
       gross_salary: c.gross_salary.toNumber(),

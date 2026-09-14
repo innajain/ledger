@@ -8,6 +8,7 @@ import { get_or_compute_balances } from './_actions/compute_balances'
 import { compute_head_value } from '@/app/_utils/head_value'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
 import { NOT_FUTURE } from '@/app/_utils/future_txn'
+import { get_inbox } from '@/app/_utils/links'
 import { pick_welcome_message } from '@/app/_utils/home_welcome'
 import { month_to_date_window, summarize_income_expense, window_label, type SummaryLine } from '@/app/_utils/home_month_summary'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
@@ -15,6 +16,7 @@ import { HomeNetWorthTrend, HomeNetWorthTrendFallback } from '@/app/_components/
 import type { AssetBalance } from '@/app/_utils/home_networth_series'
 import type { HomeRecentTransaction } from '@/app/_components/HomeRecentTransactions'
 import type { HomeUpcomingTransaction } from '@/app/_components/HomeUpcomingTransactions'
+import type { HomeRequest } from '@/app/_components/HomeRequests'
 import { profile } from '@/lib/metrics/profile'
 
 const RECENT_TRANSACTION_COUNT = 15
@@ -80,7 +82,7 @@ async function Home() {
     return get_prices_for_assets(all_assets.filter(a => held.has(a.id)))
   })
 
-  const [allocations, assets, { accountsToAssets: balances }, month_txns, recent_txns, upcoming_txns, priceByAsset] = await Promise.all([
+  const [allocations, assets, { accountsToAssets: balances }, month_txns, recent_txns, upcoming_txns, priceByAsset, inbox] = await Promise.all([
     prisma.accounting_head.findMany({ where: { user_id: user.id, type: 'allocation' } }),
     assetsPromise,
     balancesPromise,
@@ -108,6 +110,7 @@ async function Home() {
       take: UPCOMING_TRANSACTION_COUNT,
     }),
     pricesPromise,
+    get_inbox(user.id),
   ])
 
   const invest = allocations.find(a => a.name === 'Investments')
@@ -215,6 +218,18 @@ async function Home() {
     total_book: book_total(normalize_line_items(txn.line_items)),
   }))
 
+  // get_inbox already sign-flips the preview into this user's frame, so the
+  // amount here reads the same direction as it will on /requests.
+  const requests: HomeRequest[] = inbox.map(item => ({
+    link_id: item.link_id,
+    status: item.status,
+    kind: item.kind,
+    other_username: item.other_username,
+    description: item.description,
+    datetime: item.datetime,
+    amount: item.preview.reduce((s, p) => s + (p.txn_value ?? p.quantity ?? 0), 0),
+  }))
+
   return (
     <ClientPage
       welcomeMessage={welcome_message}
@@ -227,6 +242,7 @@ async function Home() {
       month={month}
       recent={recent}
       upcoming={upcoming}
+      requests={requests}
     />
   )
 }

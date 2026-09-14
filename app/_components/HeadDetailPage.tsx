@@ -392,11 +392,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
                         ))}
                       <span
                         className={`font-semibold pointer-events-auto ${
-                          ft.amount > 0
-                            ? 'text-green-600 dark:text-green-400'
-                            : ft.amount < 0
-                              ? 'text-red-600 dark:text-red-400'
-                              : 'text-slate-900 dark:text-slate-100'
+                          ft.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
                         }`}
                       >
                         <MaskedAmount value={ft.amount} keep_sign />
