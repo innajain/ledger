@@ -88,14 +88,18 @@ export function validate_line_items(
       if (!account_qty_sum.equals(0))
         return {
           is_valid: false,
-          message: `The sum of quantities in account-type heads for asset ${group.name} should be zero when there are either no allocation or no income/expense line items`,
+          message:
+            `The sum of quantities in account-type heads for asset ${group.name} should be zero when there are either no allocation or no income/expense line items ` +
+            `(it is ${account_qty_sum.toString()}). Either add the missing side — one allocation line and one income/expense line, each free to omit its quantity so it is derived — or balance the account lines against each other, as a transfer does.`,
         }
       if (group.asset_type !== asset_type.rupees) {
         const account_txn_value_sum = group.account.reduce((acc, li) => acc.add(li.txn_value ?? 0), new Prisma.Decimal(0))
         if (!account_txn_value_sum.equals(0))
           return {
             is_valid: false,
-            message: `The sum of txn values in account-type heads for asset ${group.name} should be zero when there are either no allocation or no income/expense line items`,
+            message:
+              `The sum of txn values in account-type heads for asset ${group.name} should be zero when there are either no allocation or no income/expense line items ` +
+              `(it is ${account_txn_value_sum.toString()}). Either add the missing side — one allocation line and one income/expense line, each free to omit its txn_value so it is derived — or balance the account lines against each other, as a transfer does.`,
           }
       }
     }

@@ -44,6 +44,7 @@ import {
   parse_date,
   parse_day,
   lineItemShape,
+  ist_datetime,
   templateLineItemShape,
   build_line_items,
   require_admin,
@@ -190,12 +191,17 @@ export function register_extra_tools(server: McpServer) {
     'create_head',
     {
       description:
-        'Create an accounting head: an account (bank/wallet/person/broker), allocation (bucket like Savings/Investments) or income_expense category. Optionally nest under a parent of the same type, or link an account head to another user by username — transactions touching a linked account then sync to that user for approval. Prefer reusing existing heads (list_heads / find_similar_transactions) over creating near-duplicates.',
+        'Create an accounting head: an account (bank/wallet/person/broker), allocation (bucket like Savings/Investments) or income_expense category. Optionally nest under a parent of the same type, or link an account head to another user by username — transactions touching a linked account then sync to that user for approval. Prefer reusing existing heads (list_heads / find_similar_transactions) over creating near-duplicates. An income_expense head can carry a tax_treatment so it feeds get_tax_computation instead of landing in its unclassified list.',
       inputSchema: {
         name: z.string(),
         type: head_type_enum,
         parent: z.string().optional().describe('Parent head id or name (same type) to nest under'),
         linked_username: z.string().optional().describe('account type only: link to this user for cross-user sync'),
+        tax_treatment: tax_treatment_enum
+          .optional()
+          .describe(
+            'income/expense only: how this head counts toward income tax (new regime). salary_17_1 = §17(1) salary, perquisite_17_2 = §17(2) perks, exempt = employer PF/exempt allowances, other_sources = bank interest/residual slab-rate, stcg_slab = debt MF §50AA, stcg_111a = STT-paid equity short-term 20%, ltcg_112a = STT-paid equity long-term 12.5% over ₹1.25L, gift_56_2_x = ₹56(2)(x) gifts (all-or-nothing), tax_paid = TDS/advance/self-assessment credit, not_income = cashbacks/discounts/reimbursements',
+          ),
       },
     },
     async (args, extra) => {
@@ -215,7 +221,7 @@ export function register_extra_tools(server: McpServer) {
         if (!found.success) return action_result(found)
         linked_user_id = found.data!.id
       }
-      const res = await create_account_core(uid, args.name, args.type, parent_id, linked_user_id)
+      const res = await create_account_core(uid, args.name, args.type, parent_id, linked_user_id, args.tax_treatment ?? null)
       if (!res.success) return action_result(res)
       const created = await prisma.accounting_head.findFirst({ where: { user_id: uid, name: args.name.trim() }, select: { id: true } })
       return text({ ok: true, id: created?.id, message: 'Head created' })
@@ -226,7 +232,7 @@ export function register_extra_tools(server: McpServer) {
     'update_head',
     {
       description:
-        'Update an accounting head: rename, move under a new parent (or clear_parent for top level), enable/disable via is_active (false archives it — hidden from pickers, history kept; this is the right way to retire a head), mark as placeholder (grouping-only), link/unlink another user (accounts only; unlinking is blocked while shared transactions exist), or set/clear a reconciliation lock_date (accounts only: line items dated on/before that IST day are verified against the real account and every write touching them is rejected until the lock is moved back).',
+        'Update an accounting head: rename, move under a new parent (or clear_parent for top level), enable/disable via is_active (false archives it — hidden from pickers, history kept; this is the right way to retire a head), mark as placeholder (grouping-only), link/unlink another user (accounts only; unlinking is blocked while shared transactions exist), set/clear a reconciliation lock_date (accounts only: line items dated on/before that IST day are verified against the real account and every write touching them is rejected until the lock is moved back), or set/clear a tax_treatment (income/expense only: how the head counts toward income tax — unclassified heads are excluded from get_tax_computation).',
       inputSchema: {
         head: z.string().describe('Head id or name'),
         name: z.string().optional(),
@@ -513,7 +519,7 @@ export function register_extra_tools(server: McpServer) {
             is_future: t.is_future,
             line_items: t.line_items.map(
               (li): CreateLineItemInput => ({
-                accounting_head_id: resolve_ref(li.account, heads, 'account').id,
+                accounting_head_id: resolve_ref(li.head ?? li.account!, heads, 'accounting head').id,
                 asset_id: resolve_ref(li.asset, assets, 'asset').id,
                 quantity: li.quantity ?? undefined,
                 txn_value: li.txn_value,
@@ -530,7 +536,7 @@ export function register_extra_tools(server: McpServer) {
         const hit = await find_first_bulk_duplicate(uid, built, heads)
         if (hit)
           return error_text(
-            `Possible duplicate at transaction ${hit.index + 1} — nothing was created. Existing transaction ${hit.dupe.id} (${hit.dupe.datetime.toISOString()}, "${hit.dupe.description ?? ''}") already moves ${hit.dupe.amount} on the same account within ±1 day. Pass force:true to create anyway, or give each item an idempotency_key.`,
+            `Possible duplicate at transaction ${hit.index + 1} — nothing was created. Existing transaction ${hit.dupe.id} (${ist_datetime(hit.dupe.datetime)} IST, "${hit.dupe.description ?? ''}") already moves ${hit.dupe.amount} on the same account within ±1 day. Pass force:true to create anyway, or give each item an idempotency_key.`,
           )
       }
       const res = await create_transactions_core(uid, built)
@@ -625,13 +631,18 @@ export function register_extra_tools(server: McpServer) {
       description:
         'Approve every pending change request from one counterparty in a single shot, auto-balancing each onto the given account of yours. Equivalent to approving them one by one — the counterparty sees all of them accepted.',
       inputSchema: {
-        from: z.string().describe('Counterparty username (or user id, e.g. other_id from list_requests)'),
+        // `from` means a start date in every other tool — name the counterparty
+        // arg distinctly, but keep the old spelling working.
+        from_user: z.string().optional().describe('Counterparty username (or user id, e.g. other_id from list_requests)'),
+        from: z.string().optional().describe('Deprecated alias of from_user — this is a username, never a date'),
         account: z.string().describe('Your own (non-linked) account to balance every approved copy onto'),
       },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const cp = await resolve_counterparty(uid, args.from)
+      const counterparty = args.from_user ?? args.from
+      if (!counterparty) return error_text('Give the counterparty as from_user (a username, not a date)')
+      const cp = await resolve_counterparty(uid, counterparty)
       const own = (await load_heads(uid)).filter(h => h.type === 'account' && !h.linked_user_id)
       const account_id = resolve_ref(args.account, own, 'account').id
       return action_result(await accept_all_from_core(uid, cp.id, account_id))
@@ -657,7 +668,8 @@ export function register_extra_tools(server: McpServer) {
       description:
         'Attach a file to a transaction (receipt, bill, statement extract). Provide the content as UTF-8 text (content_text — for .txt/.json) or base64 (content_base64 — for images/PDF). Allowed types: jpeg/png/gif/webp/heic images, pdf, plain text, json; max 10 MB. content_type is inferred from the filename extension when omitted.',
       inputSchema: {
-        transaction_id: z.string(),
+        id: z.string().optional().describe('Transaction id (same arg name as get_transaction/update_transaction/delete_transaction)'),
+        transaction_id: z.string().optional().describe('Alias of id'),
         filename: z.string(),
         content_text: z.string().optional().describe('UTF-8 file content (use for text/JSON)'),
         content_base64: z.string().optional().describe('Base64 file content (use for images/PDF)'),
@@ -666,7 +678,9 @@ export function register_extra_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const tx = await prisma.transaction.findFirst({ where: { id: args.transaction_id, user_id: uid }, select: { id: true } })
+      const txn_id = args.id ?? args.transaction_id
+      if (!txn_id) return error_text('Give the transaction as id')
+      const tx = await prisma.transaction.findFirst({ where: { id: txn_id, user_id: uid }, select: { id: true } })
       if (!tx) return error_text('Transaction not found')
       if ((args.content_text == null) === (args.content_base64 == null)) return error_text('Provide exactly one of content_text or content_base64')
       const ext = args.filename.split('.').pop()?.toLowerCase() ?? ''
@@ -773,7 +787,13 @@ export function register_extra_tools(server: McpServer) {
         per_head: serialized.per_head,
         unclassified_heads: serialized.unclassified_heads,
         unclassified_total: serialized.unclassified_heads.reduce((s, h) => s + h.net, 0),
-        note: 'total_income excludes unclassified heads — classify them with update_head tax_treatment before trusting the number',
+        // Only warn when there is something to warn about — a standing caveat on a
+        // fully classified year trains the reader to ignore it on the year that isn't.
+        ...(serialized.unclassified_heads.length
+          ? {
+              note: 'total_income excludes the unclassified_heads listed above — classify them with update_head tax_treatment before trusting the number',
+            }
+          : {}),
       })
     },
   )

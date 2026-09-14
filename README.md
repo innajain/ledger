@@ -289,6 +289,8 @@ model accounting_head {
   order_index    Int?
   parent_id      String?
   linked_user_id String?              // cross-user link; Pay button uses the linked user's profile UPI
+  lock_date      DateTime?            // account only: reconciliation lock — writes touching lines on/before this IST day are rejected
+  tax_treatment  tax_treatment?       // income_expense only: how this head counts toward income tax (see "Income Tax")
 }
 
 model asset {
@@ -404,6 +406,31 @@ For Blob, the script drains prod into memory (path + bytes + content-type), then
 DIRECT_URL="$(grep '^PROD_DATABASE_URL=' .env | sed -E 's/^PROD_DATABASE_URL=//; s/^"(.*)"$/\1/; s/-pooler\././')" \
   DATABASE_URL="${DIRECT_URL}&connect_timeout=30" pnpm exec prisma migrate deploy
 ```
+
+---
+
+## Income Tax
+
+`/tax` computes an Indian **new-regime** income-tax liability from the ledger itself. It is **derived, never stored** — a back-dated transaction changes last month's number, and there is no snapshot to go stale.
+
+Each `income_expense` head carries an optional `tax_treatment` saying how it counts:
+
+| Treatment                         | Meaning                                                                                       |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| `salary_17_1` / `perquisite_17_2` | §17(1) salary and §17(2) perquisites — together the gross salary, less the standard deduction |
+| `exempt`                          | Employer PF and exempt allowances — excluded entirely                                         |
+| `other_sources`                   | Bank interest and residual slab-rate income                                                   |
+| `stcg_slab`                       | Debt MF gains taxed at slab (§50AA)                                                           |
+| `stcg_111a` / `ltcg_112a`         | STT-paid equity, at their special rates (112A exempt up to ₹1.25L)                            |
+| `gift_56_2_x`                     | §56(2)(x) gifts — all-or-nothing above the threshold                                          |
+| `tax_paid`                        | TDS / advance / self-assessment tax, credited against the liability                           |
+| `not_income`                      | Cashbacks, discounts, reimbursements                                                          |
+
+A head left **unclassified is excluded and warned about**, never silently treated as zero — classify it before trusting the total.
+
+- `app/_utils/tax_compute.ts` — pure, unit-tested slab / §87A rebate / cess engine. The year's rules are a config constant (`FY_2026_27`), so an annual change is a data edit.
+- `app/_core/tax_core.ts` — the FY rollup, taking an explicit `user_id` so the page and MCP `get_tax_computation` share one implementation. It normalizes each transaction **in full** before filtering line items by effective date (`normalize_line_items` derives the null-remainder leg from the account lines and throws if given a filtered subset).
+- A "project to year end" toggle folds scheduled (`is_future`) transactions in, turning the year-to-date figure into a full-year projection built from the user's own forecast.
 
 ---
 

@@ -41,6 +41,7 @@ import {
   parse_date,
   parse_day,
   lineItemShape,
+  ist_datetime,
   build_line_items,
   stored_lines_to_input,
   find_possible_duplicate,
@@ -421,7 +422,7 @@ function register_tools(server: McpServer) {
     'get_head',
     {
       description:
-        'Full detail for one accounting head (account / allocation / income_expense, by id or name), mirroring its web page: current value, subtree rollup total + immediate children, XIRR, parent, linked user (accounts), and holdings aggregated by asset. Pass include_line_items for every line touching the head (with FIFO remaining_quantity for accounts); include_timeseries for the value-over-time series (priced holdings only).',
+        'Full detail for one accounting head (account / allocation / income_expense, by id or name), mirroring its web page: current value, subtree rollup total + immediate children, XIRR, parent, linked user (accounts), tax_treatment (income/expense — how it counts toward income tax; null means unclassified and excluded from get_tax_computation) and holdings aggregated by asset. Pass include_line_items for every line touching the head (with FIFO remaining_quantity for accounts); include_timeseries for the value-over-time series (priced holdings only).',
       inputSchema: {
         head: z.string().describe('Accounting head id or name'),
         include_line_items: z.boolean().optional().describe('Attach line items touching the head (default false; newest first, paginated)'),
@@ -442,7 +443,7 @@ function register_tools(server: McpServer) {
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const all_heads = await load_heads(uid)
-      const ref = resolve_ref(args.head, all_heads, 'account')
+      const ref = resolve_ref(args.head, all_heads, 'accounting head')
       const head = await prisma.accounting_head.findFirst({ where: { id: ref.id, user_id: uid }, include: { parent: true } })
       if (!head) return { content: [{ type: 'text', text: 'Head not found' }], isError: true }
       const is_account = head.type === 'account'
@@ -551,6 +552,7 @@ function register_tools(server: McpServer) {
         parent: head.parent ? head.parent.name : null,
         linked_user: linked_user ? { username: linked_user.username, upi_id: linked_user.upi_id } : null,
         lock_date: head.lock_date ? get_indian_date_from_date_obj(head.lock_date) : null,
+        tax_treatment: head.tax_treatment,
         xirr,
         by_asset,
       }
@@ -744,7 +746,11 @@ function register_tools(server: McpServer) {
         'Use this BEFORE create_transaction/update_transaction (and whenever the user gives a terse instruction like "log my barber 150" or "add a swiggy order") to learn which account, allocation and income/expense heads the user themselves picked for similar entries, instead of guessing or asking. ' +
         'The query is tokenized; a transaction matches if any word appears in its description OR in one of its head names, and results are ranked by how many distinct words matched, then by recency. Returns the same line_item shape as get_transaction.',
       inputSchema: {
-        query: z.string().describe('Free-text hint, e.g. a merchant or category ("barber haircut", "swiggy lunch", "rent")'),
+        search: z
+          .string()
+          .optional()
+          .describe('Free-text hint, e.g. a merchant or category ("barber haircut", "swiggy lunch", "rent"). Same arg name as list_transactions'),
+        query: z.string().optional().describe('Alias of search'),
         limit: z.number().int().positive().max(20).optional().describe('Max transactions to return (default 5)'),
       },
       annotations: ro,
@@ -752,9 +758,11 @@ function register_tools(server: McpServer) {
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const take = args.limit ?? 5
+      const needle = args.search ?? args.query
+      if (!needle) return error_text('Give the free-text hint as search')
       const tokens = [
         ...new Set(
-          args.query
+          needle
             .toLowerCase()
             .split(/\s+/)
             .filter(t => t.length >= 2),
@@ -884,14 +892,27 @@ function register_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      // lock_date is a day-precision IST field — serialize as dd-MM-yyyy (raw
-      // Date would JSON-ify to a UTC instant reading one day early)
-      const as_ist_day = <T extends { lock_date: Date | null }>(h: T) => ({
-        ...h,
-        lock_date: h.lock_date ? get_indian_date_from_date_obj(h.lock_date) : null,
-      })
-      const heads = (await load_heads(uid)).filter(h => !args.type || h.type === args.type)
-      if (!args.include_values) return text(heads.filter(h => args.include_inactive || h.is_active).map(as_ist_day))
+      const all_heads = await load_heads(uid)
+      const name_by_id = new Map(all_heads.map(h => [h.id, h.name]))
+      // Most of a head's nullable fields are null, and a hundred rows of `null`
+      // is pure noise in the reader's context — emit only what is set. lock_date
+      // is day-precision IST, so it serializes as dd-MM-yyyy (a raw Date would
+      // JSON-ify to a UTC instant reading one day early), and parent comes with
+      // its name so the hierarchy is readable without a second id-joining pass.
+      const as_row = <T extends { lock_date: Date | null; parent_id: string | null; linked_user_id: string | null; tax_treatment: string | null }>(
+        h: T,
+      ) => {
+        const { lock_date, parent_id, linked_user_id, tax_treatment, ...rest } = h
+        return {
+          ...rest,
+          ...(parent_id ? { parent_id, parent: name_by_id.get(parent_id) ?? null } : {}),
+          ...(linked_user_id ? { linked_user_id } : {}),
+          ...(lock_date ? { lock_date: get_indian_date_from_date_obj(lock_date) } : {}),
+          ...(tax_treatment ? { tax_treatment } : {}),
+        }
+      }
+      const heads = all_heads.filter(h => !args.type || h.type === args.type)
+      if (!args.include_values) return text(heads.filter(h => args.include_inactive || h.is_active).map(as_row))
 
       const [{ accountsToAssets }, assets] = await Promise.all([compute_balances_core(uid), load_assets()])
       // Values only consult prices for assets present in the balance maps —
@@ -906,7 +927,7 @@ function register_tools(server: McpServer) {
           return { head: h, value: compute_head_value(assetMap, priceByAsset).toNumber(), nonzero }
         })
         .filter(r => args.include_inactive || r.head.is_active || r.nonzero)
-        .map(r => ({ ...as_ist_day(r.head), value: r.value }))
+        .map(r => ({ ...as_row(r.head), value: r.value }))
       return text(rows)
     },
   )
@@ -1083,7 +1104,7 @@ function register_tools(server: McpServer) {
       if (args.dry_run) {
         const dr = await dry_run_check(uid, datetime, line_items, args.description, undefined, args.is_future ?? false)
         if (!dr.isError && args.is_future && dr.content[0]?.type === 'text')
-          dr.content[0].text += `\n(future transaction — ${datetime.toISOString()} scheduled, no balance effect until converted)`
+          dr.content[0].text += `\n(future transaction — ${ist_datetime(datetime)} IST scheduled, no balance effect until converted)`
         return dr
       }
       // With an idempotency_key the exact dedup in the core supersedes the
@@ -1092,7 +1113,7 @@ function register_tools(server: McpServer) {
         const dupe = await find_possible_duplicate(uid, datetime, line_items, new Map(heads.map(h => [h.id, h.type])))
         if (dupe)
           return error_text(
-            `Possible duplicate — not created. Existing transaction ${dupe.id} (${dupe.datetime.toISOString()}, "${dupe.description ?? ''}") already moves ${dupe.amount} on the same account within ±1 day. ` +
+            `Possible duplicate — not created. Existing transaction ${dupe.id} (${ist_datetime(dupe.datetime)} IST, "${dupe.description ?? ''}") already moves ${dupe.amount} on the same account within ±1 day. ` +
               'Inspect it with get_transaction; pass force:true to create anyway, or use an idempotency_key for exact dedup.',
           )
       }
@@ -1289,7 +1310,8 @@ const handler = createMcpHandler(
       'Mutating tools echo the resulting account balances — sanity-check them against what the user expects. ' +
       "Approval tools (approve/reject/cancel/revert/accept_all_from) change a linked counterparty's ledger too — state clearly what will happen before acting. " +
       'Use get_tax_computation for tax liability rather than summing heads by hand; if it reports unclassified heads, fix them with update_head tax_treatment before trusting the number. ' +
-      'Dates accept dd-MM-yyyy or yyyy-MM-dd (IST) everywhere; datetimes also accept ISO.',
+      'Dates accept dd-MM-yyyy or yyyy-MM-dd (IST) everywhere; datetimes also accept ISO. ' +
+      'Datetimes come back as UTC instants paired with a datetime_ist field — quote and re-send the IST one, since an instant after 18:30Z belongs to the next IST day.',
   },
   { streamableHttpEndpoint: '/api/mcp', disableSse: true },
 )

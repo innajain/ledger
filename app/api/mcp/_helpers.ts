@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import type { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
+import { formatInTimeZone } from 'date-fns-tz'
+import { USER_TIMEZONE } from '@/lib/config'
 import { get_date_obj_from_indian_date, get_indian_date_from_date_obj } from '@/app/_utils/date'
 import { validate_line_items } from '@/app/_utils/validate_line_items'
 import { find_locked_line } from '@/app/_utils/lock_date'
@@ -23,8 +25,28 @@ export type ContentBlock = { type: 'text'; text: string } | { type: 'image'; dat
 export type Content = { content: ContentBlock[]; isError?: boolean }
 
 export function text(value: unknown): Content {
-  return { content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }] }
+  return { content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(annotate_ist(value), null, 2) }] }
 }
+
+// Every datetime we emit is a UTC instant; every datetime we accept is an IST
+// day. An instant past 18:30Z therefore reads as the *previous* day to a caller
+// that only sees the Z string — so a model summarising its own write, or
+// round-tripping the date back into another call, silently slips a day. Pair
+// each one with its IST rendering at the single point where tool output is
+// serialised, so no individual tool can forget.
+function annotate_ist(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(annotate_ist)
+  if (value instanceof Date || value === null || typeof value !== 'object') return value
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = annotate_ist(v)
+    const d = v instanceof Date ? v : typeof v === 'string' && ISO_INSTANT.test(v) ? new Date(v) : null
+    if (d && (k === 'datetime' || k.endsWith('_datetime')) && !isNaN(d.getTime())) out[`${k}_ist`] = ist_datetime(d)
+  }
+  return out
+}
+
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/
 
 export function error_text(message: string): Content {
   return { content: [{ type: 'text', text: message }], isError: true }
@@ -53,16 +75,47 @@ export type AssetsCatalog = Awaited<ReturnType<typeof load_assets>>
 // Per-invocation reuse of already-loaded catalogs — never cache these across requests.
 export type PreloadedCatalogs = { heads?: HeadsCatalog; assets?: AssetsCatalog }
 
+const MAX_CANDIDATES_PER_GROUP = 25
+
+function cap(names: string[]): string {
+  if (names.length <= MAX_CANDIDATES_PER_GROUP) return names.join(', ')
+  return `${names.slice(0, MAX_CANDIDATES_PER_GROUP).join(', ')} … and ${names.length - MAX_CANDIDATES_PER_GROUP} more`
+}
+
 function format_candidates<T extends { name: string; type?: string; is_active?: boolean }>(list: T[]): string {
   const active = list.filter(x => x.is_active !== false)
-  if (!active.some(x => x.type)) return active.map(x => x.name).join(', ') || 'none'
+  if (!active.some(x => x.type)) return cap(active.map(x => x.name)) || 'none'
   const groups = new Map<string, string[]>()
   for (const x of active) {
     const k = x.type ?? 'other'
     if (!groups.has(k)) groups.set(k, [])
     groups.get(k)!.push(x.name)
   }
-  return [...groups].map(([k, names]) => `${k}: ${names.join(', ')}`).join('; ') || 'none'
+  return [...groups].map(([k, names]) => `${k}: ${cap(names)}`).join('; ') || 'none'
+}
+
+function edit_distance(a: string, b: string): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i]
+    for (let j = 1; j <= b.length; j++) row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    prev = row
+  }
+  return prev[b.length]
+}
+
+// A typo ("Grocieries") should come back as a suggestion, not as a wall of every
+// name we hold — an agent can act on "did you mean", but has to guess from a list.
+function nearest(ref: string, list: { name: string; is_active?: boolean }[]): string[] {
+  const r = ref.trim().toLowerCase()
+  const budget = Math.max(2, Math.floor(r.length / 3))
+  return list
+    .filter(x => x.is_active !== false)
+    .map(x => ({ name: x.name, d: edit_distance(r, x.name.toLowerCase()) }))
+    .filter(x => x.d <= budget)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 5)
+    .map(x => x.name)
 }
 
 export function resolve_ref<T extends { id: string; name: string; type?: string; is_active?: boolean }>(ref: string, list: T[], kind: string): T {
@@ -73,8 +126,18 @@ export function resolve_ref<T extends { id: string; name: string; type?: string;
   if (byName) return byName
   const partial = list.filter(x => x.is_active !== false && x.name.toLowerCase().includes(r.toLowerCase()))
   if (partial.length === 1) return partial[0]
-  if (partial.length > 1) throw new Error(`Ambiguous ${kind} "${ref}" — matches ${partial.map(x => x.name).join(', ')}. Use the exact name or id.`)
-  throw new Error(`No ${kind} matching "${ref}". Valid options — ${format_candidates(list)}`)
+  if (partial.length > 1) throw new Error(`Ambiguous ${kind} "${ref}" — matches ${cap(partial.map(x => x.name))}. Use the exact name or id.`)
+  const suggestions = nearest(r, list)
+  const did_you_mean = suggestions.length ? ` Did you mean ${suggestions.join(', ')}?` : ''
+  throw new Error(`No ${kind} matching "${ref}".${did_you_mean} Valid options — ${format_candidates(list)}`)
+}
+
+// Every datetime we emit is a UTC instant, but every datetime we accept is an
+// IST day — so an instant after 18:30 UTC reads as the *previous* day to a
+// caller that only sees the Z string. Pair the two so a model round-tripping a
+// date back into a write can't slip a day.
+export function ist_datetime(date: Date): string {
+  return formatInTimeZone(date, USER_TIMEZONE, 'dd-MM-yyyy HH:mm')
 }
 
 export function net_account_flow(
@@ -107,13 +170,14 @@ export function parse_day(s: string): Date {
 export const lineItemShape = z
   .array(
     z.object({
-      account: z.string().describe('Accounting head: exact id or name'),
+      head: z.string().optional().describe('Accounting head: exact id or name (any type). Alias of account — give one or the other'),
+      account: z.string().optional().describe('Same as head, kept for compatibility — an accounting head of any type, not just an account'),
       asset: z.string().describe('Asset: exact id or name'),
       quantity: z
         .number()
-        .optional()
+        .nullish()
         .describe(
-          'Signed quantity. REQUIRED on every account head. On allocation heads omit it on exactly one line, and on income/expense heads omit it on exactly one line — those are auto-derived as the balancing remainder.',
+          'Signed quantity. REQUIRED on every account head. On allocation heads omit it (or pass null) on exactly one line, and on income/expense heads on exactly one line — those are auto-derived as the balancing remainder.',
         ),
       txn_value: z
         .number()
@@ -129,11 +193,17 @@ export const lineItemShape = z
     }),
   )
   .min(1, 'At least one line item is required')
+  .superRefine((items, ctx) => {
+    items.forEach((li, i) => {
+      if (!li.head && !li.account) ctx.addIssue({ code: 'custom', path: [i, 'head'], message: 'Give the accounting head as head (or account)' })
+    })
+  })
 
 export const templateLineItemShape = z
   .array(
     z.object({
-      account: z.string().describe('Accounting head: exact id or name'),
+      head: z.string().optional().describe('Accounting head: exact id or name (any type). Alias of account — give one or the other'),
+      account: z.string().optional().describe('Same as head, kept for compatibility'),
       asset: z.string().describe('Asset: exact id or name'),
       quantity: z.number().nullish().describe('Optional prefill quantity — template lines need not balance'),
       txn_value: z.number().nullish().describe('Optional prefill rupee value (non-rupee assets only)'),
@@ -141,9 +211,15 @@ export const templateLineItemShape = z
     }),
   )
   .min(1, 'At least one line item is required')
+  .superRefine((items, ctx) => {
+    items.forEach((li, i) => {
+      if (!li.head && !li.account) ctx.addIssue({ code: 'custom', path: [i, 'head'], message: 'Give the accounting head as head (or account)' })
+    })
+  })
 
 type LineItemArg = {
-  account: string
+  head?: string
+  account?: string
   asset: string
   quantity?: number | null
   txn_value?: number | null
@@ -154,7 +230,7 @@ type LineItemArg = {
 export async function build_line_items(uid: string, items: LineItemArg[], preloaded?: PreloadedCatalogs): Promise<CreateLineItemInput[]> {
   const [heads, assets] = await Promise.all([preloaded?.heads ?? load_heads(uid), preloaded?.assets ?? load_assets()])
   return items.map(li => ({
-    accounting_head_id: resolve_ref(li.account, heads, 'account').id,
+    accounting_head_id: resolve_ref(li.head ?? li.account!, heads, 'accounting head').id,
     asset_id: resolve_ref(li.asset, assets, 'asset').id,
     quantity: li.quantity ?? undefined,
     txn_value: li.txn_value,

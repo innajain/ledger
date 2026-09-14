@@ -51,6 +51,7 @@ export async function create_account_core(
   type: accounting_head_type,
   parent_id?: string | null,
   linked_user_id?: string | null,
+  tax_treatment?: tax_treatment | null,
 ): Promise<ActionResult> {
   try {
     const parsed = createAccountSchema.safeParse({ name })
@@ -59,13 +60,17 @@ export async function create_account_core(
 
     const linked = await resolve_linked_user(user_id, type, linked_user_id ?? null, null)
 
+    // same rule update_account_core enforces: only income/expense heads classify
+    if (tax_treatment != null && type !== 'income_expense')
+      throw new ActionError('VALIDATION', 'A tax treatment applies to income/expense heads only')
+
     if (parent_id) {
       const parent = await prisma.accounting_head.findUnique({ where: { id: parent_id, user_id }, select: { id: true } })
       if (!parent) throw new ActionError('VALIDATION', 'Invalid parent account')
     }
 
     await prisma.accounting_head.create({
-      data: { name, type, user_id, parent_id, linked_user_id: linked },
+      data: { name, type, user_id, parent_id, linked_user_id: linked, tax_treatment: tax_treatment ?? null },
     })
     // No invalidation: a brand-new head has zero line items, so no cached balances or
     // frozen timeseries can reference it.
