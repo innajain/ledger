@@ -12,11 +12,14 @@ Sentry.init({
   sendDefaultPii: false,
   enableLogs: true,
   enableMetrics: true,
-  tracesSampleRate: 1,
+  tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0.1),
   integrations: [
     Sentry.pinoIntegration({
       error: { levels: ['error', 'fatal'], handled: true },
-      log: { levels: ['info', 'warn', 'error', 'fatal'] },
+      // warn and above only: persistMetrics emits one info log per render, so
+      // forwarding info would spend the log quota on routine request traffic.
+      // Those stay on stdout, where the platform log drain picks them up.
+      log: { levels: ['warn', 'error', 'fatal'] },
     }),
   ],
 })

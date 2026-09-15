@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { ActionError, ActionResult, ok, err } from './_result'
 import { rate_limit } from '@/lib/rate_limit'
 import { redis } from '@/lib/redis'
-import { audit, logger } from '@/lib/logger'
+import { audit, auditRef, logger } from '@/lib/logger'
 import { reportUnexpectedError } from '@/lib/action_error'
 import {
   authenticate,
@@ -68,7 +68,7 @@ export async function sign_up(payload: { username: string; password: string }): 
   try {
     const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
     if (!(await rate_limit(`signup:ip:${ip}`, 5, 60 * 60))) {
-      logger.warn({ event: 'auth.denied', action: 'auth.sign_up', reason: 'rate_limited' }, 'sign-up denied')
+      logger.warn({ event: 'auth.denied', action: 'auth.sign_up', reason: 'rate_limited', ip_ref: auditRef(ip) }, 'sign-up denied')
       return err('VALIDATION', 'Too many sign-ups from this network. Please try again later.')
     }
 
@@ -93,14 +93,18 @@ export async function log_in(payload: z.infer<typeof AuthSchema>): Promise<Actio
       rate_limit(`login:ip:${ip}`, 10, 60),
       rate_limit(`login:user:${username.toLowerCase()}`, 5, 5 * 60),
     ])
+    const subject_ref = auditRef(username.toLowerCase())
     if (!within_ip || !within_user) {
-      logger.warn({ event: 'auth.denied', action: 'auth.login', reason: 'rate_limited' }, 'login denied')
+      logger.warn(
+        { event: 'auth.denied', action: 'auth.login', reason: 'rate_limited', subject_ref, ip_ref: auditRef(ip), limit: within_ip ? 'user' : 'ip' },
+        'login denied',
+      )
       return err('UNAUTHORIZED', 'Too many attempts. Please wait a minute and try again.')
     }
 
     const userRec = await authenticate(username, password)
     if (!userRec) {
-      logger.warn({ event: 'auth.denied', action: 'auth.login', reason: 'invalid_credentials' }, 'login denied')
+      logger.warn({ event: 'auth.denied', action: 'auth.login', reason: 'invalid_credentials', subject_ref, ip_ref: auditRef(ip) }, 'login denied')
       return err('UNAUTHORIZED', 'Wrong username or password')
     }
 
@@ -116,7 +120,9 @@ export async function log_in(payload: z.infer<typeof AuthSchema>): Promise<Actio
 
 export async function log_out(): Promise<ActionResult> {
   try {
-    const user_id = await get_current_user_id()
+    // Clear the cookie first and resolve the actor afterwards: identifying who
+    // logged out is a nice-to-have, but a failure there must never leave the
+    // caller holding a live session.
     const cookieStore = await cookies()
     cookieStore.set({
       name: token_name,
@@ -124,7 +130,11 @@ export async function log_out(): Promise<ActionResult> {
       path: '/',
       expires: new Date(0),
     })
-    audit('auth.logout', user_id ?? undefined)
+    try {
+      audit('auth.logout', (await get_current_user_id()) ?? undefined)
+    } catch (error) {
+      logger.warn({ err: error, event: 'operation.degraded', action: 'auth.logout' }, 'logged out but could not identify the actor')
+    }
     return ok(undefined, 'Logged out')
   } catch (error) {
     return fromCatch(error, 'auth.logout')

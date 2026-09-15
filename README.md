@@ -213,19 +213,19 @@ The user-scoped collector pulls each table holding the caller's data (heads, tra
 
 ## Technology Stack
 
-| Layer             | Technology                                      |
-| ----------------- | ----------------------------------------------- |
-| **Framework**     | Next.js 16.2 (App Router)                       |
-| **Language**      | TypeScript 6                                    |
-| **UI**            | React 19, Tailwind CSS 4                        |
-| **ORM**           | Prisma 7.8 (`prisma-client` engine)             |
-| **Database**      | PostgreSQL (Neon Serverless)                    |
-| **Cache**         | Redis (ioredis)                                 |
-| **File storage**  | Vercel Blob (private, proxied)                  |
-| **Observability** | Sentry (errors, traces, logs, metrics, replays) |
-| **Market data**   | Yahoo Finance, AMFI India                       |
-| **Auth**          | JWT + bcryptjs                                  |
-| **Returns**       | `xirr`                                          |
+| Layer             | Technology                                          |
+| ----------------- | --------------------------------------------------- |
+| **Framework**     | Next.js 16.2 (App Router)                           |
+| **Language**      | TypeScript 6                                        |
+| **UI**            | React 19, Tailwind CSS 4                            |
+| **ORM**           | Prisma 7.8 (`prisma-client` engine)                 |
+| **Database**      | PostgreSQL (Neon Serverless)                        |
+| **Cache**         | Redis (ioredis)                                     |
+| **File storage**  | Vercel Blob (private, proxied)                      |
+| **Observability** | Sentry (errors, traces, logs), Pino, in-DB profiler |
+| **Market data**   | Yahoo Finance, AMFI India                           |
+| **Auth**          | JWT + bcryptjs                                      |
+| **Returns**       | `xirr`                                              |
 
 ---
 
@@ -497,12 +497,15 @@ In dev only, a separate **query toaster** ([`DevQueryToaster`](app/_components/D
 Sentry adds the production runtime layer across browser, Node.js, and Edge runtimes:
 
 - **Errors** — route-handler failures plus App Router `error.tsx` / `global-error.tsx` boundaries; caught server-action failures pass through `reportActionError()` so unexpected exceptions are still reported while validation/not-found outcomes remain normal control flow
-- **Traces and metrics** — page spans carry DB, Redis, external-call, compute, and slow-query measurements; custom `ledger.*` metrics mirror the in-database profiler without including `user_id`
-- **Logs** — Pino `info` and above are forwarded as structured JSON in production (pretty-printed locally); `authorization`, cookies, passwords, push keys, tokens, and secrets are redacted before transport
-- **Audit events** — successful financial, auth, settings, attachment, and admin mutations emit `event: "audit"` with a stable one-way `actor_ref` plus safe counts/booleans; raw user IDs, descriptions, amounts, account names, and filenames are not included
-- **Replay** — sessions are recorded only when an error occurs, with all text and inputs masked and all media blocked
+- **Traces** — page spans carry DB, Redis, external-call, compute, and slow-query measurements as `ledger.*` attributes, never `user_id`. Sampled at 10% by default; override with `SENTRY_TRACES_SAMPLE_RATE` (server/edge) or `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` (browser). The authoritative per-request numbers live in Postgres, so a low trace rate costs no profiling fidelity
+- **Logs** — Pino `warn` and above are forwarded to Sentry; `info` (including one `request.completed` per render) stays on stdout for the platform log drain, so routine traffic doesn't spend the log quota. `authorization`, cookies, passwords, push keys, tokens, and secrets are redacted before transport
+- **Audit events** — successful financial, auth, settings, attachment, and admin mutations emit `event: "audit"` with a stable one-way `actor_ref` plus safe counts/booleans; raw user IDs, descriptions, amounts, account names, and filenames are not included. Failed logins emit `event: "auth.denied"` with a hashed `subject_ref`/`ip_ref`, so repeated attempts against one account are correlatable without logging the username
+- **No Session Replay and no console forwarding** — both were removed deliberately. Recorded DOM and raw `console` text are the two channels most likely to carry account names, amounts, and descriptions past the server-side redaction, and neither survives the rule that this project logs no financial detail
 - **Source maps** — uploaded during Vercel builds and removed from the deployed assets; browser events tunnel through `/monitoring`
 
 Sentry is optional in local development: when `NEXT_PUBLIC_SENTRY_DSN` is unset, its SDK is disabled and the local profiler plus stdout logs continue to work. The Vercel Marketplace integration supplies the DSN plus `SENTRY_ORG`, `SENTRY_PROJECT`, and the build-only `SENTRY_AUTH_TOKEN` in deployed environments. `sendDefaultPii` is disabled throughout. Set `LEDGER_LOG_LEVEL` (`debug`, `info`, `warn`, or `error`) to override the default Pino level.
 
-`GET /api/health` is an unauthenticated, uncached liveness/dependency probe. It checks Postgres and Redis concurrently and returns `200` when both are reachable or `503` with `status: "degraded"` otherwise. Its response exposes only service status, check time, and aggregate latency.
+Health checks are split so that the cheap one can stay wide open:
+
+- `GET /api/health` — **liveness**. Unauthenticated, uncached, touches no dependency; `200` whenever the process is serving.
+- `GET /api/health/ready` — **readiness**. Probes Postgres and Redis concurrently and returns `200`, or `503` with `status: "degraded"` and a per-dependency `ok`/`unreachable`. Never cached — a cached readiness probe reports health it did not observe — and rate limited to 10/min per IP instead, so it can't be used to drive DB connections on demand. Both expose only status, check time, and aggregate latency; raw driver errors carry hosts and credentials and are never returned.

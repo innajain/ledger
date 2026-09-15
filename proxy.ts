@@ -13,6 +13,7 @@ const PUBLIC_PATHS = [
   '/manifest.webmanifest',
   '/monitoring',
   '/api/health',
+  '/api/health/ready',
 
   '/.well-known/oauth-authorization-server',
   '/.well-known/oauth-protected-resource',

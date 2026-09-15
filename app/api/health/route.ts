@@ -1,24 +1,13 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { redis } from '@/lib/redis'
 
 export const dynamic = 'force-dynamic'
 
+// Liveness only: is this process up and serving? It deliberately touches no
+// dependency, so it stays cheap enough to leave unauthenticated and uncached.
+// The Postgres/Redis probe lives at /api/health/ready, which is rate limited.
 export async function GET() {
-  const startedAt = performance.now()
-  const [database, cache] = await Promise.allSettled([prisma.$queryRaw`SELECT 1`, redis.ping()])
-  const healthy = database.status === 'fulfilled' && cache.status === 'fulfilled'
-
   return NextResponse.json(
-    {
-      status: healthy ? 'ok' : 'degraded',
-      service: 'ledger',
-      checked_at: new Date().toISOString(),
-      latency_ms: Math.round(performance.now() - startedAt),
-    },
-    {
-      status: healthy ? 200 : 503,
-      headers: { 'Cache-Control': 'no-store' },
-    },
+    { status: 'ok', service: 'ledger', checked_at: new Date().toISOString() },
+    { status: 200, headers: { 'Cache-Control': 'no-store' } },
   )
 }
