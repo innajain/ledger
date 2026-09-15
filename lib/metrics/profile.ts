@@ -14,7 +14,7 @@ export function profile<Args extends unknown[], R>(route: string, fn: (...args: 
     const user_id = h.get('x-user-id') ?? undefined
 
     const ctx: MetricsContext = {
-      request_id: crypto.randomUUID(),
+      request_id: h.get('x-request-id') ?? crypto.randomUUID(),
       route,
       user_id,
       started_at: performance.now(),

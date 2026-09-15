@@ -4,8 +4,9 @@ import { assert_no_locked_lines } from '@/app/_utils/lock_date'
 import { notify_request_rejected } from '@/app/_utils/notify_events'
 import { invalidate_balances } from '@/app/_core/balances_core'
 import type { TouchedEntities } from '@/app/_utils/value_timeseries'
-import { logger } from '@/lib/logger'
-import { ActionResult, ok, fromError, ActionError } from '@/app/_actions/_result'
+import { audit } from '@/lib/logger'
+import { ActionResult, ok, ActionError } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 
 const no_touched = (): TouchedEntities => ({ head_ids: [], asset_ids: [] })
@@ -56,10 +57,10 @@ export async function approve_request_core(
     })
 
     await Promise.all([invalidate_balances(me, touched_mine), invalidate_balances(other_id, touched_theirs)])
+    audit('approval.approve', me)
     return ok(undefined, 'Request approved')
   } catch (error) {
-    logger.error({ err: error, action: 'approve_request' }, 'approve_request failed')
-    return fromError(error)
+    return reportActionError(error, { action: 'approval.approve', entity: 'transaction_link' })
   }
 }
 
@@ -143,10 +144,10 @@ export async function accept_all_from_core(
     )
 
     await Promise.all([invalidate_balances(me, touched_mine), invalidate_balances(counterparty_id, touched_theirs)])
+    audit('approval.accept_all', me, { approved_count: approved })
     return ok({ approved }, `Approved ${approved} request${approved === 1 ? '' : 's'}`)
   } catch (error) {
-    logger.error({ err: error, action: 'accept_all_from' }, 'accept_all_from failed')
-    return fromError(error)
+    return reportActionError(error, { action: 'approval.accept_all', entity: 'transaction_link' })
   }
 }
 
@@ -197,10 +198,10 @@ export async function cancel_request_core(me: string, link_id: string): Promise<
     })
 
     if (reverted) await Promise.all([invalidate_balances(me, touched_mine), invalidate_balances(other_id, touched_theirs)])
+    audit('approval.cancel', me, { reverted })
     return ok(undefined, reverted ? 'Cancelled — reverted to the approved version' : 'Request cancelled')
   } catch (error) {
-    logger.error({ err: error, action: 'cancel_request' }, 'cancel_request failed')
-    return fromError(error)
+    return reportActionError(error, { action: 'approval.cancel', entity: 'transaction_link' })
   }
 }
 
@@ -223,9 +224,10 @@ export async function reject_request_core(me: string, link_id: string): Promise<
     })
 
     void notify_request_rejected(proposer_id, me, description)
+    audit('approval.reject', me)
     return ok(undefined, 'Request rejected')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'approval.reject', entity: 'transaction_link' })
   }
 }
 
@@ -247,9 +249,9 @@ export async function revert_request_core(
     })
 
     await Promise.all([invalidate_balances(me, touched.mine), invalidate_balances(other_id, touched.theirs)])
+    audit('approval.revert', me)
     return ok(undefined, 'Reverted to the approved version')
   } catch (error) {
-    logger.error({ err: error, action: 'revert_request' }, 'revert_request failed')
-    return fromError(error)
+    return reportActionError(error, { action: 'approval.revert', entity: 'transaction_link' })
   }
 }

@@ -2,7 +2,8 @@
 
 import { get_current_user_id } from '@/app/_actions/auth'
 import { find_possible_duplicate, type CreateLineItemInput, type PossibleDuplicate } from '@/app/_core/transactions_core'
-import { ActionResult, ok, err, fromError } from '@/app/_actions/_result'
+import { ActionResult, ok, err } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
 
 export async function check_possible_duplicate(
   datetime: Date,
@@ -13,6 +14,6 @@ export async function check_possible_duplicate(
   try {
     return ok({ duplicate: await find_possible_duplicate(user_id, datetime, line_items) })
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'transaction.check_duplicate' })
   }
 }

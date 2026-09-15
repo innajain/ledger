@@ -14,7 +14,9 @@ import {
   reorder_heads_core,
   reorder_assets_core,
 } from '@/app/_core/resources_core'
-import { ActionResult, err, fromError } from './_result'
+import { ActionResult, err } from './_result'
+import { reportActionError } from '@/lib/action_error'
+import { audit } from '@/lib/logger'
 
 export async function find_user_by_username(username: string): Promise<ActionResult<{ id: string; username: string }>> {
   const me = await get_current_user_id()
@@ -61,12 +63,15 @@ export async function create_asset(
   ticker?: string | null | undefined,
   parent_id?: string | null | undefined,
 ): Promise<ActionResult> {
+  let admin_id: string
   try {
-    await require_admin()
+    admin_id = await require_admin()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'asset.require_admin.create', entity: 'asset' })
   }
-  return create_asset_core(name, type, ticker, parent_id)
+  const result = await create_asset_core(name, type, ticker, parent_id)
+  if (result.success) audit('asset.create', admin_id, { asset_type: type })
+  return result
 }
 
 export async function update_asset(
@@ -78,21 +83,27 @@ export async function update_asset(
   is_active?: boolean | undefined,
   is_placeholder?: boolean | undefined,
 ): Promise<ActionResult> {
+  let admin_id: string
   try {
-    await require_admin()
+    admin_id = await require_admin()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'asset.require_admin.update', entity: 'asset' })
   }
-  return update_asset_core(id, name, type, ticker, parent_id, is_active, is_placeholder)
+  const result = await update_asset_core(id, name, type, ticker, parent_id, is_active, is_placeholder)
+  if (result.success) audit('asset.update', admin_id)
+  return result
 }
 
 export async function delete_asset(id: string): Promise<ActionResult> {
+  let admin_id: string
   try {
-    await require_admin()
+    admin_id = await require_admin()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'asset.require_admin.delete', entity: 'asset' })
   }
-  return delete_asset_core(id)
+  const result = await delete_asset_core(id)
+  if (result.success) audit('asset.delete', admin_id)
+  return result
 }
 
 const updateHierarchyOrderSchema = z.object({
@@ -117,9 +128,11 @@ export async function update_hierarchy_order(input: {
       if (!user_id) return err('UNAUTHORIZED', 'unauthorized')
       return reorder_heads_core(user_id, parent_id, ordered_ids)
     }
-    await require_admin()
-    return reorder_assets_core(parent_id, ordered_ids)
+    const admin_id = await require_admin()
+    const result = await reorder_assets_core(parent_id, ordered_ids)
+    if (result.success) audit('asset.reorder', admin_id, { item_count: ordered_ids.length })
+    return result
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'resource.reorder' })
   }
 }

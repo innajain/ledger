@@ -71,6 +71,8 @@ function nextWithSecurity(requestHeaders: Headers, formAction?: string): NextRes
   requestHeaders.set('x-nonce', nonce)
   const res = NextResponse.next({ request: { headers: requestHeaders } })
   res.headers.set('Content-Security-Policy', csp)
+  const requestId = requestHeaders.get('x-request-id')
+  if (requestId) res.headers.set('x-request-id', requestId)
   return res
 }
 
@@ -81,6 +83,8 @@ export async function proxy(request: NextRequest) {
   requestHeaders.delete('x-user-id')
   requestHeaders.delete('x-username')
   requestHeaders.delete('x-token-iat')
+  requestHeaders.delete('x-request-id')
+  requestHeaders.set('x-request-id', crypto.randomUUID())
 
   if (isPublicPath(pathname)) {
     let formAction: string | undefined

@@ -9,7 +9,8 @@ import {
   type CreateLineItemInput,
   type CreateTransactionOpts,
 } from '@/app/_core/transactions_core'
-import { ActionResult, err, ok, fromError } from './_result'
+import { ActionResult, err, ok } from './_result'
+import { reportActionError } from '@/lib/action_error'
 
 export async function create_transaction(
   datetime: Date,
@@ -66,7 +67,7 @@ export async function delete_transaction_with_snapshot(id: string): Promise<Acti
     }
     return ok({ snapshot })
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'transaction.delete_with_snapshot' })
   }
 }
 

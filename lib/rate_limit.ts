@@ -1,6 +1,6 @@
 import 'server-only'
 import { redis } from '@/lib/redis'
-import { logger } from '@/lib/logger'
+import { auditRef, logger } from '@/lib/logger'
 
 export async function rate_limit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
   try {
@@ -11,7 +11,7 @@ export async function rate_limit(key: string, limit: number, windowSeconds: numb
     const count = Number(results?.[1]?.[1] ?? 0)
     return count <= limit
   } catch (err) {
-    logger.warn({ err, key }, 'rate_limit check failed; allowing request')
+    logger.warn({ err, key_ref: auditRef(key), event: 'operation.degraded', action: 'rate_limit.check', fail_open: true }, 'rate limit check failed')
     return true
   }
 }

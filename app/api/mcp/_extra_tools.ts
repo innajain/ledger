@@ -53,6 +53,7 @@ import {
 } from './_helpers'
 import { compute_tax_for_fy, serialize_tax_result } from '@/app/_core/tax_core'
 import { current_financial_year, parse_fy, fy_label } from '@/app/_utils/financial_year'
+import { audit } from '@/lib/logger'
 
 const ro = { readOnlyHint: true } as const
 
@@ -330,6 +331,7 @@ export function register_extra_tools(server: McpServer) {
       const parent_id = args.parent ? resolve_ref(args.parent, await load_assets(), 'asset').id : null
       const res = await create_asset_core(args.name, args.type, args.ticker, parent_id)
       if (!res.success) return action_result(res)
+      audit('asset.create', uid, { asset_type: args.type, surface: 'mcp' })
       const created = await prisma.asset.findUnique({ where: { name: args.name.trim() }, select: { id: true } })
       return text({ ok: true, id: created?.id, message: 'Asset created' })
     },
@@ -369,7 +371,9 @@ export function register_extra_tools(server: McpServer) {
             ).id
           : undefined
       const ticker = args.clear_ticker ? null : args.ticker
-      return action_result(await update_asset_core(target.id, args.name, args.type, ticker, parent_id, args.is_active, args.is_placeholder))
+      const result = await update_asset_core(target.id, args.name, args.type, ticker, parent_id, args.is_active, args.is_placeholder)
+      if (result.success) audit('asset.update', uid, { surface: 'mcp' })
+      return action_result(result)
     },
   )
 
@@ -384,7 +388,9 @@ export function register_extra_tools(server: McpServer) {
       const uid = get_uid(extra as ToolExtra)
       await require_admin(uid)
       const target = resolve_ref(args.asset, await load_assets(), 'asset')
-      return action_result(await delete_asset_core(target.id))
+      const result = await delete_asset_core(target.id)
+      if (result.success) audit('asset.delete', uid, { surface: 'mcp' })
+      return action_result(result)
     },
   )
 
@@ -411,7 +417,9 @@ export function register_extra_tools(server: McpServer) {
       const assets = await load_assets()
       const parent_id = args.parent ? resolve_ref(args.parent, assets, 'asset').id : null
       const ids = args.ordered.map(r => resolve_ref(r, assets, 'asset').id)
-      return action_result(await reorder_assets_core(parent_id, ids))
+      const result = await reorder_assets_core(parent_id, ids)
+      if (result.success) audit('asset.reorder', uid, { item_count: ids.length, surface: 'mcp' })
+      return action_result(result)
     },
   )
 
@@ -695,6 +703,7 @@ export function register_extra_tools(server: McpServer) {
       const att = await prisma.transaction_attachment.create({
         data: { transaction_id: tx.id, url: blob.url, pathname: blob.pathname, filename: args.filename, content_type, size: body.length },
       })
+      audit('attachment.save', uid, { attachment_count: 1, surface: 'mcp' })
       return text({ ok: true, attachment_id: att.id, message: 'Attachment saved' })
     },
   )
@@ -752,6 +761,7 @@ export function register_extra_tools(server: McpServer) {
       if (!att) return error_text('Attachment not found')
       await del(att.url)
       await prisma.transaction_attachment.delete({ where: { id: att.id } })
+      audit('attachment.delete', uid, { surface: 'mcp' })
       return text({ ok: true, message: 'Attachment deleted' })
     },
   )

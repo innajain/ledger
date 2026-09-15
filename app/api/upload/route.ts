@@ -1,6 +1,7 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { get_current_user } from '@/app/_actions/auth'
+import { reportUnexpectedError } from '@/lib/action_error'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'application/pdf', 'text/plain', 'application/json']
 
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     })
     return NextResponse.json(jsonResponse)
   } catch (e) {
-    console.error('[upload] handleUpload failed:', e)
-    return NextResponse.json({ error: (e as Error).message }, { status: 400 })
+    reportUnexpectedError(e, { action: 'attachment.upload', route: '/api/upload', entity: 'attachment' })
+    return NextResponse.json({ error: 'Upload failed' }, { status: 400 })
   }
 }

@@ -6,6 +6,25 @@ import { logger } from '@/lib/logger'
 import type { MetricsContext } from './context'
 
 export function persistMetrics(ctx: MetricsContext, totalMs: number): void {
+  logger.info(
+    {
+      event: 'request.completed',
+      request_id: ctx.request_id,
+      route: ctx.route,
+      duration_ms: Math.round(totalMs),
+      db_query_count: ctx.db_query_count,
+      db_duration_ms: Math.round(ctx.db_query_ms),
+      redis_hit_count: ctx.redis_hits,
+      redis_miss_count: ctx.redis_misses,
+      redis_duration_ms: Math.round(ctx.redis_ms),
+      external_count: ctx.external_count,
+      external_duration_ms: Math.round(ctx.external_ms),
+      compute_duration_ms: Math.round(ctx.compute_ms),
+      slow_query_count: ctx.slow_queries.length,
+    },
+    'request completed',
+  )
+
   const attributes = { route: ctx.route }
   Sentry.metrics.count('ledger.request.count', 1, { attributes })
   Sentry.metrics.distribution('ledger.request.duration', totalMs, { unit: 'millisecond', attributes })

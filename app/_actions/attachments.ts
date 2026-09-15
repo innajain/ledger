@@ -4,7 +4,9 @@ import { del } from '@vercel/blob'
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { env } from '@/lib/env'
-import { ActionResult, ok, err, fromError } from './_result'
+import { ActionResult, ok, err } from './_result'
+import { reportActionError } from '@/lib/action_error'
+import { audit } from '@/lib/logger'
 
 function is_trusted_blob_ref(url: string, pathname: string): boolean {
   if (!pathname || pathname.includes('..')) return false
@@ -41,9 +43,10 @@ export async function save_attachments(transaction_id: string, attachments: Atta
     await prisma.transaction_attachment.createMany({
       data: attachments.map(a => ({ transaction_id, ...a })),
     })
+    audit('attachment.save', user_id, { attachment_count: attachments.length })
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'attachment.save' })
   }
 }
 
@@ -60,8 +63,9 @@ export async function delete_attachment(attachment_id: string): Promise<ActionRe
 
     await del(attachment.url)
     await prisma.transaction_attachment.delete({ where: { id: attachment_id } })
+    audit('attachment.delete', user_id)
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'attachment.delete' })
   }
 }

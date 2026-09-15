@@ -6,9 +6,11 @@ import { prisma } from '@/lib/prisma'
 import { isProd } from '@/lib/env'
 import type { user } from '@/generated/prisma/client'
 import { z } from 'zod'
-import { ActionResult, ok, err } from './_result'
+import { ActionError, ActionResult, ok, err } from './_result'
 import { rate_limit } from '@/lib/rate_limit'
 import { redis } from '@/lib/redis'
+import { audit, logger } from '@/lib/logger'
+import { reportUnexpectedError } from '@/lib/action_error'
 import {
   authenticate,
   sign_token,
@@ -22,8 +24,10 @@ import {
 
 const token_name = 'ledger_token'
 
-function fromCatch(error: unknown): ActionResult<never> {
+function fromCatch(error: unknown, action: string): ActionResult<never> {
   if (error instanceof z.ZodError) return err('VALIDATION', error.issues[0].message)
+  if (error instanceof ActionError) return err(error.code, error.message)
+  reportUnexpectedError(error, { action })
   const detail = error instanceof Error ? error.message : 'Unknown error'
   return err('SERVER', isProd() ? 'Something went wrong. Please try again.' : detail)
 }
@@ -38,7 +42,11 @@ const is_token_revoked = cache(async (uid: string, iat: number | undefined): Pro
   try {
     const cutoff = await redis.get(revoke_key(uid))
     return cutoff !== null && iat < Number(cutoff)
-  } catch {
+  } catch (error) {
+    logger.warn(
+      { err: error, event: 'operation.degraded', action: 'auth.session_revocation_check', fail_open: true },
+      'session revocation check failed',
+    )
     return false
   }
 })
@@ -59,7 +67,10 @@ async function set_session_cookie(token: string): Promise<void> {
 export async function sign_up(payload: { username: string; password: string }): Promise<ActionResult> {
   try {
     const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    if (!(await rate_limit(`signup:ip:${ip}`, 5, 60 * 60))) return err('VALIDATION', 'Too many sign-ups from this network. Please try again later.')
+    if (!(await rate_limit(`signup:ip:${ip}`, 5, 60 * 60))) {
+      logger.warn({ event: 'auth.denied', action: 'auth.sign_up', reason: 'rate_limited' }, 'sign-up denied')
+      return err('VALIDATION', 'Too many sign-ups from this network. Please try again later.')
+    }
 
     const res = await sign_up_core(payload)
     if (!res.success) return res
@@ -68,7 +79,7 @@ export async function sign_up(payload: { username: string; password: string }): 
     await set_session_cookie(token)
     return ok(undefined, 'Account created')
   } catch (error) {
-    return fromCatch(error)
+    return fromCatch(error, 'auth.sign_up')
   }
 }
 
@@ -82,22 +93,30 @@ export async function log_in(payload: z.infer<typeof AuthSchema>): Promise<Actio
       rate_limit(`login:ip:${ip}`, 10, 60),
       rate_limit(`login:user:${username.toLowerCase()}`, 5, 5 * 60),
     ])
-    if (!within_ip || !within_user) return err('UNAUTHORIZED', 'Too many attempts. Please wait a minute and try again.')
+    if (!within_ip || !within_user) {
+      logger.warn({ event: 'auth.denied', action: 'auth.login', reason: 'rate_limited' }, 'login denied')
+      return err('UNAUTHORIZED', 'Too many attempts. Please wait a minute and try again.')
+    }
 
     const userRec = await authenticate(username, password)
-    if (!userRec) return err('UNAUTHORIZED', 'Wrong username or password')
+    if (!userRec) {
+      logger.warn({ event: 'auth.denied', action: 'auth.login', reason: 'invalid_credentials' }, 'login denied')
+      return err('UNAUTHORIZED', 'Wrong username or password')
+    }
 
     const token = await sign_token({ uid: userRec.id, username: userRec.username })
     await set_session_cookie(token)
 
+    audit('auth.login', userRec.id)
     return ok(undefined, 'Logged in')
   } catch (error) {
-    return fromCatch(error)
+    return fromCatch(error, 'auth.login')
   }
 }
 
 export async function log_out(): Promise<ActionResult> {
   try {
+    const user_id = await get_current_user_id()
     const cookieStore = await cookies()
     cookieStore.set({
       name: token_name,
@@ -105,9 +124,10 @@ export async function log_out(): Promise<ActionResult> {
       path: '/',
       expires: new Date(0),
     })
+    audit('auth.logout', user_id ?? undefined)
     return ok(undefined, 'Logged out')
   } catch (error) {
-    return fromCatch(error)
+    return fromCatch(error, 'auth.logout')
   }
 }
 
@@ -190,12 +210,18 @@ export const is_current_user_admin = cache(async (): Promise<boolean> => {
 
 export async function require_admin(): Promise<string> {
   const id = await get_current_user_id()
-  if (!id) throw new Error('Your session has expired — log in again')
+  if (!id) {
+    logger.warn({ event: 'auth.denied', action: 'auth.require_admin', reason: 'no_session' }, 'admin access denied')
+    throw new ActionError('UNAUTHORIZED', 'Your session has expired — log in again')
+  }
   const user = await prisma.user.findUnique({
     where: { id },
     select: { is_admin: true },
   })
-  if (!user?.is_admin) throw new Error('Admin access is required')
+  if (!user?.is_admin) {
+    logger.warn({ event: 'auth.denied', action: 'auth.require_admin', reason: 'not_admin' }, 'admin access denied')
+    throw new ActionError('UNAUTHORIZED', 'Admin access is required')
+  }
   return id
 }
 
@@ -211,7 +237,7 @@ export async function change_password(payload: { current_password: string; new_p
     await set_session_cookie(token)
     return ok(undefined, 'Password changed')
   } catch (error) {
-    return fromCatch(error)
+    return fromCatch(error, 'auth.change_password')
   }
 }
 
@@ -227,6 +253,6 @@ export async function change_username(payload: { new_username: string; password:
     await set_session_cookie(token)
     return ok(undefined, 'Username changed')
   } catch (error) {
-    return fromCatch(error)
+    return fromCatch(error, 'auth.change_username')
   }
 }

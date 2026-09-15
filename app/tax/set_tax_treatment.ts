@@ -2,8 +2,9 @@
 
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
-import { ActionResult, ok, err, fromError } from '@/app/_actions/_result'
-import { logger } from '@/lib/logger'
+import { ActionResult, ok, err } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
+import { audit } from '@/lib/logger'
 import type { tax_treatment } from '@/generated/prisma/client'
 
 // Tag an income/expense head with a tax treatment (or clear it, null).
@@ -20,9 +21,9 @@ export async function set_tax_treatment(head_id: string, treatment: tax_treatmen
     if (!existing) return err('NOT_FOUND', 'head not found')
     if (existing.type !== 'income_expense') return err('VALIDATION', 'A tax treatment applies to income/expense heads only')
     await prisma.accounting_head.update({ where: { id: head_id, user_id }, data: { tax_treatment: treatment } })
+    audit('tax_treatment.set', user_id, { configured: treatment !== null })
     return ok()
   } catch (error) {
-    logger.error({ err: error }, 'set_tax_treatment failed')
-    return fromError(error)
+    return reportActionError(error, { action: 'tax_treatment.set' })
   }
 }

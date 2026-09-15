@@ -33,9 +33,7 @@ export function AdminSection() {
       if (!res || res.length === 0) {
         showToast('All transactions are valid', 'success')
       } else {
-        const details = res.map(r => `id: ${r.id} — ${r.message}`).join('\n')
-        console.error(`Invalid transactions found (${res.length}):\n\n${details}`)
-        showToast(`Invalid transactions found (${res.length}). See console for details.`, 'warning')
+        showToast(`Invalid transactions found (${res.length}).`, 'warning')
       }
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : String(err), 'error')
@@ -69,7 +67,7 @@ export function AdminSection() {
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Validate transactions</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                Run the integrity checker against every transaction. Any failures are logged to the browser console.
+                Run the integrity checker against every transaction. The result count is recorded in the server audit log.
               </p>
             </div>
             <Button variant="secondary" className="shrink-0" onClick={handleValidate} disabled={validating}>

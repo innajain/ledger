@@ -2,7 +2,7 @@ import 'server-only'
 import webpush from 'web-push'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
-import { logger } from '@/lib/logger'
+import { auditRef, logger } from '@/lib/logger'
 
 let configured = false
 function ensure_configured(): boolean {
@@ -40,13 +40,22 @@ export async function send_push_to_user(user_id: string, payload: PushPayload): 
       } catch (e) {
         const status = (e as { statusCode?: number }).statusCode
         if (status === 404 || status === 410) stale.push(sub.endpoint)
-        else logger.error({ err: e, user_id, status }, 'web push send failed')
+        else
+          logger.error(
+            { err: e, user_ref: auditRef(user_id), status, event: 'operation.failed', action: 'notification.push' },
+            'web push send failed',
+          )
       }
     }),
   )
 
   if (stale.length > 0) {
-    await prisma.push_subscription.deleteMany({ where: { endpoint: { in: stale } } }).catch(() => {})
+    await prisma.push_subscription.deleteMany({ where: { endpoint: { in: stale } } }).catch(error => {
+      logger.warn(
+        { err: error, user_ref: auditRef(user_id), stale_count: stale.length, event: 'operation.degraded', action: 'notification.cleanup_stale' },
+        'failed to remove stale push subscriptions',
+      )
+    })
   }
   return delivered
 }

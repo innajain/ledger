@@ -2,6 +2,7 @@ import 'server-only'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
 
 export const AUTH_CODE_TTL_MS = 5 * 60 * 1000
 export const ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000
@@ -127,6 +128,8 @@ export async function resolve_access_token(access_token: string): Promise<{ user
   // last_used_at is a coarse display value, not an expiry input — throttle the
   // write so a busy agent session doesn't turn every read into row churn.
   if (!row.last_used_at || Date.now() - row.last_used_at.getTime() > LAST_USED_WRITE_INTERVAL_MS)
-    void prisma.mcp_access_token.update({ where: { id: row.id }, data: { last_used_at: new Date() } }).catch(() => {})
+    void prisma.mcp_access_token
+      .update({ where: { id: row.id }, data: { last_used_at: new Date() } })
+      .catch(error => logger.warn({ err: error, event: 'operation.degraded', action: 'mcp.token_touch' }, 'failed to update MCP token usage'))
   return { user_id: row.user_id, client_id: row.client_id, scope: row.scope ?? DEFAULT_SCOPE }
 }

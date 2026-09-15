@@ -10,8 +10,9 @@ import { invalidate_balances } from '@/app/_core/balances_core'
 import type { TouchedEntities } from '@/app/_utils/value_timeseries'
 import { create_links_for_transaction, sync_links_after_update, prepare_links_for_delete } from '@/app/_utils/links'
 import { notify_request_pending } from '@/app/_utils/notify_events'
-import { logger } from '@/lib/logger'
-import { ActionResult, ok, err, fromError, ActionError } from '@/app/_actions/_result'
+import { audit } from '@/lib/logger'
+import { ActionResult, ok, err, ActionError } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
 
 export type CreateLineItemInput = {
   accounting_head_id: string
@@ -218,12 +219,20 @@ export async function create_transaction_core(
       }),
     )
 
-    if (replayed) return ok({ id, replayed: true }, 'Already recorded — this transaction already exists, so nothing new was created')
+    if (replayed) {
+      audit('transaction.replay', user_id)
+      return ok({ id, replayed: true }, 'Already recorded — this transaction already exists, so nothing new was created')
+    }
 
     // A future transaction has no balance effect yet — nothing to invalidate or notify.
     if (!parsed.data.is_future) await invalidate_balances(user_id, touched_entities({ txn_datetime: datetime, line_items: parsed.data.line_items }))
 
     for (const cp of counterparties) void notify_request_pending(cp, user_id, { description: parsed.data.description })
+    audit('transaction.create', user_id, {
+      line_item_count: parsed.data.line_items.length,
+      counterparty_count: counterparties.length,
+      future: parsed.data.is_future ?? false,
+    })
     return ok({ id }, 'Transaction created')
   } catch (error) {
     // Concurrent create with the same idempotency_key: the unique constraint is
@@ -234,10 +243,12 @@ export async function create_transaction_core(
         where: { user_id_idempotency_key: { user_id, idempotency_key: key } },
         select: { id: true },
       })
-      if (existing) return ok({ id: existing.id, replayed: true }, 'Already recorded — this transaction already exists, so nothing new was created')
+      if (existing) {
+        audit('transaction.replay', user_id)
+        return ok({ id: existing.id, replayed: true }, 'Already recorded — this transaction already exists, so nothing new was created')
+      }
     }
-    logger.error({ err: error, action: 'create_transaction' }, 'Error creating transaction')
-    return fromError(error)
+    return reportActionError(error, { action: 'transaction.create', entity: 'transaction' })
   }
 }
 
@@ -340,13 +351,18 @@ export async function create_transactions_core(
       for (const cp of counterparties) void notify_request_pending(cp, user_id, {})
     }
     const created_count = results.filter(r => !r.replayed).length
+    audit('transaction.create_bulk', user_id, {
+      requested_count: results.length,
+      created_count,
+      replayed_count: results.length - created_count,
+      counterparty_count: counterparties.length,
+    })
     return ok(
       { ids: results.map(r => r.id), replayed_ids: results.filter(r => r.replayed).map(r => r.id) },
       `Created ${created_count} transaction${created_count === 1 ? '' : 's'}${results.length > created_count ? ` (${results.length - created_count} already recorded)` : ''}`,
     )
   } catch (error) {
-    logger.error({ err: error, action: 'create_transactions' }, 'Error creating transactions in bulk')
-    return fromError(error)
+    return reportActionError(error, { action: 'transaction.create_bulk', entity: 'transaction' })
   }
 }
 
@@ -492,10 +508,15 @@ export async function update_transaction_core(
     // Future→real conversions create a fresh pending request (plain variant); all other
     // reopened links are changes to an existing pending request ("changed" variant).
     for (const cp of reopened) void notify_request_pending(cp, user_id, { changed: !existing_is_future, description: final_description ?? null })
+    audit('transaction.update', user_id, {
+      line_item_count: line_items.length,
+      was_future: existing_is_future,
+      future: will_be_future,
+      counterparty_count: reopened.length,
+    })
     return ok(undefined, 'Transaction updated')
   } catch (error) {
-    logger.error({ err: error, action: 'update_transaction' }, 'Error updating transaction')
-    return fromError(error)
+    return reportActionError(error, { action: 'transaction.update', entity: 'transaction' })
   }
 }
 
@@ -563,6 +584,11 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
           line_items: deleted.line_items.map(li => ({ accounting_head_id: li.accounting_head_id, asset_id: li.asset_id, datetime: li.datetime })),
         }),
       )
+    audit('transaction.delete', user_id, {
+      line_item_count: deleted.line_items.length,
+      future: deleted.is_future,
+      had_attachments: deleted.attachments.length > 0,
+    })
     return ok({
       datetime: deleted.datetime,
       description: deleted.description,
@@ -579,7 +605,7 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
       })),
     })
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'transaction.delete', entity: 'transaction' })
   }
 }
 
@@ -680,10 +706,10 @@ export async function create_upi_payment_core(
     )
 
     for (const cp of counterparties) void notify_request_pending(cp, user_id, { description })
+    audit('transaction.create_upi_payment', user_id, { counterparty_count: counterparties.length })
     return ok({ id }, 'Payment recorded')
   } catch (error) {
-    logger.error({ err: error, action: 'create_upi_payment' }, 'Error creating UPI payment')
-    return fromError(error)
+    return reportActionError(error, { action: 'transaction.create_upi_payment', entity: 'transaction' })
   }
 }
 

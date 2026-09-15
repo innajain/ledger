@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { ActionResult, ok, err, fromError } from '@/app/_actions/_result'
+import { ActionResult, ok, err } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
+import { audit } from '@/lib/logger'
 
 export type LineItemDefaults = {
   default_account_id: string | null
@@ -63,9 +65,10 @@ export async function update_own_upi_core(user_id: string, upi_id: string | null
       value = parsed.data
     }
     const updated = await prisma.user.update({ where: { id: user_id }, data: { upi_id: value }, select: { upi_id: true } })
+    audit('preferences.set_upi', user_id, { configured: updated.upi_id !== null })
     return ok({ upi_id: updated.upi_id }, 'UPI ID saved')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'preferences.set_upi' })
   }
 }
 
@@ -108,9 +111,12 @@ export async function update_line_item_defaults_core(user_id: string, input: Lin
       data: parsed,
       select: { default_account_id: true, default_allocation_id: true, default_income_expense_id: true, default_asset_id: true },
     })
+    audit('preferences.set_defaults', user_id, {
+      configured_count: Object.values(updated).filter(Boolean).length,
+    })
     return ok(updated, 'Defaults saved')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'preferences.set_defaults' })
   }
 }
 
@@ -139,11 +145,12 @@ export async function update_user_preferences_core(user_id: string, input: Parti
       select: { theme: true, masking_enabled: true, mask_threshold: true, graphs_visible: true },
     })
     const theme: ThemeChoice = updated.theme === 'light' || updated.theme === 'dark' ? updated.theme : 'system'
+    audit('preferences.update', user_id, { field_count: Object.keys(parsed).length })
     return ok(
       { theme, masking_enabled: updated.masking_enabled, mask_threshold: updated.mask_threshold, graphs_visible: updated.graphs_visible },
       'Preferences saved',
     )
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'preferences.update' })
   }
 }

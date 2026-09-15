@@ -3,7 +3,9 @@
 import { prisma } from '@/lib/prisma'
 import { validate_line_items } from '@/app/_utils/validate_line_items'
 import { get_current_user_id } from '@/app/_actions/auth'
-import { ActionResult, ok, err, fromError } from '@/app/_actions/_result'
+import { ActionResult, ok, err } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
+import { audit } from '@/lib/logger'
 
 export type MyTxnValidation = {
   checked: number
@@ -26,8 +28,9 @@ export async function validate_my_txns(): Promise<ActionResult<MyTxnValidation>>
       const { is_valid, message } = validate_line_items(txn.line_items)
       if (!is_valid) invalid.push({ id: txn.id, datetime: txn.datetime.toISOString(), description: txn.description, message })
     }
+    audit('transaction.validate_mine', user_id, { checked_count: transactions.length, invalid_count: invalid.length })
     return ok({ checked: transactions.length, invalid })
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'transaction.validate_mine' })
   }
 }

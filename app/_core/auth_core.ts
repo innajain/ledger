@@ -4,7 +4,9 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
 import { redis } from '@/lib/redis'
-import { ActionResult, ok, err, fromError } from '@/app/_actions/_result'
+import { ActionResult, ok, err } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
+import { audit } from '@/lib/logger'
 
 export const JWT_EXPIRY_DAYS = 7
 export const JWT_EXPIRY_SECONDS = JWT_EXPIRY_DAYS * 24 * 60 * 60
@@ -63,9 +65,10 @@ export async function sign_up_core(payload: { username: string; password: string
 
     const password_hash = await bcrypt.hash(password, 10)
     const created = await prisma.user.create({ data: { username, password_hash }, select: { id: true, username: true } })
+    audit('auth.sign_up', created.id)
     return ok(created, 'Account created')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'auth.sign_up' })
   }
 }
 
@@ -84,9 +87,10 @@ export async function change_password_core(user_id: string, payload: { current_p
     await prisma.user.update({ where: { id: user_id }, data: { password_hash: new_password_hash } })
 
     await revoke_sessions_before(user_id, Math.floor(Date.now() / 1000))
+    audit('auth.change_password', user_id)
     return ok(undefined, 'Password changed')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'auth.change_password' })
   }
 }
 
@@ -109,8 +113,9 @@ export async function change_username_core(
     if (userRec.username === new_username) return err('VALIDATION', 'New username must be different from your current username')
 
     await prisma.user.update({ where: { id: user_id }, data: { username: new_username } })
+    audit('auth.change_username', user_id)
     return ok({ username: new_username }, 'Username changed')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'auth.change_username' })
   }
 }

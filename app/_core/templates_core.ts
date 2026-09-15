@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { toDecimal } from '@/app/_utils/decimal'
-import { ActionResult, ok, err, fromError } from '@/app/_actions/_result'
+import { ActionResult, ok, err } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
+import { audit } from '@/lib/logger'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 
 type TemplatePayload = Awaited<ReturnType<typeof prisma.transaction_template.create>>
@@ -41,9 +43,10 @@ export async function create_transaction_template_core(
       },
       include: { line_items: true },
     })
+    audit('template.create', user_id, { line_item_count: line_items.length })
     return ok(template as TemplateWithLineItems, 'Template created')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'template.create' })
   }
 }
 
@@ -92,17 +95,19 @@ export async function update_transaction_template_core(
       },
       include: { line_items: true },
     })
+    audit('template.update', user_id, { line_item_count: line_items.length })
     return ok(template as TemplateWithLineItems, 'Template updated')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'template.update' })
   }
 }
 
 export async function delete_transaction_template_core(user_id: string, id: string): Promise<ActionResult> {
   try {
     await prisma.transaction_template.delete({ where: { id, user_id } })
+    audit('template.delete', user_id)
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'template.delete' })
   }
 }

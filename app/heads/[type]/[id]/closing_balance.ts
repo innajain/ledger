@@ -4,7 +4,8 @@ import { get_current_user_id } from '@/app/_actions/auth'
 import { prisma } from '@/lib/prisma'
 import { closing_balance_core } from '@/app/_core/balances_core'
 import { get_date_obj_from_indian_date } from '@/app/_utils/date'
-import { ActionResult, ok, err, fromError } from '@/app/_actions/_result'
+import { ActionResult, ok, err } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
 
 export type ClosingBalance = { rows: { asset_name: string; qty: number; value: number }[]; total_value: number }
 
@@ -30,6 +31,6 @@ export async function get_closing_balance(head_id: string, date: string): Promis
     const rows = raw.map(r => ({ asset_name: name_by_id.get(r.asset_id) ?? r.asset_id, qty: r.qty, value: r.value }))
     return ok({ rows, total_value: Math.round(rows.reduce((s, r) => s + r.value, 0) * 100) / 100 })
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'balance.close' })
   }
 }

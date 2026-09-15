@@ -5,7 +5,9 @@ import { get_latest_etf_or_shares_price, get_nav } from '@/app/_utils/price_fetc
 import { invalidate_balances } from '@/app/_core/balances_core'
 import { backfill_links_for_account } from '@/app/_utils/links'
 import { notify_request_pending } from '@/app/_utils/notify_events'
-import { ActionResult, ok, err, fromError, ActionError } from '@/app/_actions/_result'
+import { ActionResult, ok, err, ActionError } from '@/app/_actions/_result'
+import { reportActionError } from '@/lib/action_error'
+import { audit } from '@/lib/logger'
 
 async function resolve_linked_user(
   user_id: string,
@@ -37,7 +39,7 @@ export async function find_user_by_username_core(me: string, username: string): 
     if (user.id === me) return err('VALIDATION', 'That is your own account')
     return ok(user)
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'user.find' })
   }
 }
 
@@ -74,9 +76,10 @@ export async function create_account_core(
     })
     // No invalidation: a brand-new head has zero line items, so no cached balances or
     // frozen timeseries can reference it.
+    audit('account.create', user_id, { account_type: type, linked: linked !== null })
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'account.create', entity: 'accounting_head' })
   }
 }
 
@@ -179,9 +182,10 @@ export async function update_account_core(
     // an actual type change needs the coarse flush.
     if (type !== undefined && type !== existing.type) await invalidate_balances(user_id)
     if (newly_linked && backfilled > 0) void notify_request_pending(linked_update!, user_id)
+    audit('account.update', user_id, { newly_linked, backfilled_count: backfilled })
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'account.update', entity: 'accounting_head' })
   }
 }
 
@@ -196,9 +200,10 @@ export async function delete_account_core(user_id: string, id: string): Promise<
     // No invalidation: the required line_item relation defaults to Restrict, so delete
     // only succeeds for a head with zero line items — nothing cached can change.
     await prisma.accounting_head.delete({ where: { id, user_id } })
+    audit('account.delete', user_id)
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'account.delete', entity: 'accounting_head' })
   }
 }
 
@@ -233,7 +238,7 @@ export async function create_asset_core(
     await prisma.asset.create({ data: { name, type, ticker, parent_id } })
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'asset.create', entity: 'asset' })
   }
 }
 
@@ -309,7 +314,7 @@ export async function update_asset_core(
     if (count === 0) throw new ActionError('VALIDATION', 'asset changed while updating — retry')
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'asset.update', entity: 'asset' })
   }
 }
 
@@ -324,7 +329,7 @@ export async function delete_asset_core(id: string): Promise<ActionResult> {
     await prisma.asset.delete({ where: { id } })
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'asset.delete', entity: 'asset' })
   }
 }
 
@@ -352,9 +357,10 @@ export async function reorder_heads_core(user_id: string, parent_id: string | nu
       FROM unnest(${ids}::text[], ${positions}::int[]) AS t(id, ord)
       WHERE accounting_head.id = t.id AND accounting_head.user_id = ${user_id}
     `
+    audit('account.reorder', user_id, { item_count: ids.length })
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'account.reorder', entity: 'accounting_head' })
   }
 }
 
@@ -381,6 +387,6 @@ export async function reorder_assets_core(parent_id: string | null, ordered_ids:
     `
     return ok()
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'asset.reorder', entity: 'asset' })
   }
 }

@@ -1,12 +1,17 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { send_push_to_user } from './push'
+import { auditRef, logger } from '@/lib/logger'
 
 async function username_of(user_id: string): Promise<string> {
   try {
     const u = await prisma.user.findUnique({ where: { id: user_id }, select: { username: true } })
     return u?.username ?? 'someone'
-  } catch {
+  } catch (error) {
+    logger.warn(
+      { err: error, user_ref: auditRef(user_id), event: 'operation.degraded', action: 'notification.resolve_sender' },
+      'failed to resolve notification sender',
+    )
     return 'someone'
   }
 }
@@ -39,7 +44,12 @@ export function notify_request_pending(
           body: `@${from} ${verb}${desc}`,
           url: '/requests',
         })
-      } catch {}
+      } catch (error) {
+        logger.warn(
+          { err: error, user_ref: auditRef(target_user_id), event: 'operation.degraded', action: 'notification.pending' },
+          'failed to send approval notification',
+        )
+      }
     })(),
   )
 }
@@ -55,7 +65,12 @@ export function notify_request_rejected(target_user_id: string, from_user_id: st
           body: `A shared transaction needs your attention${desc}`,
           url: '/requests',
         })
-      } catch {}
+      } catch (error) {
+        logger.warn(
+          { err: error, user_ref: auditRef(target_user_id), event: 'operation.degraded', action: 'notification.rejected' },
+          'failed to send rejection notification',
+        )
+      }
     })(),
   )
 }

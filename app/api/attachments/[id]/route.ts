@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { env } from '@/lib/env'
+import { logger } from '@/lib/logger'
 
 const BLOB_HOST_SUFFIX = '.blob.vercel-storage.com'
 
@@ -36,7 +37,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const response = await fetch(fetch_url, {
     headers: { authorization: `Bearer ${env.BLOB_READ_WRITE_TOKEN}` },
   })
-  if (!response.ok || !response.body) return NextResponse.json({ error: 'Blob fetch failed', status: response.status }, { status: 502 })
+  if (!response.ok || !response.body) {
+    logger.warn(
+      { event: 'operation.degraded', action: 'attachment.download', route: '/api/attachments/[id]', upstream_status: response.status },
+      'blob fetch failed',
+    )
+    return NextResponse.json({ error: 'Blob fetch failed', status: response.status }, { status: 502 })
+  }
 
   return new Response(response.body, {
     headers: {

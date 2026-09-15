@@ -4,8 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { send_push_to_user } from '@/app/_utils/push'
 import { rate_limit } from '@/lib/rate_limit'
-import { logger } from '@/lib/logger'
-import { ActionResult, ok, err, fromError } from './_result'
+import { ActionResult, ok, err } from './_result'
+import { reportActionError } from '@/lib/action_error'
+import { audit } from '@/lib/logger'
 
 type SubscriptionInput = {
   endpoint: string
@@ -23,10 +24,10 @@ export async function save_push_subscription(sub: SubscriptionInput): Promise<Ac
       create: { user_id: me, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
       update: { user_id: me, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
     })
+    audit('notification.subscription.save', me)
     return ok(undefined, 'Notifications enabled')
   } catch (error) {
-    logger.error({ err: error, action: 'save_push_subscription' }, 'save_push_subscription failed')
-    return fromError(error)
+    return reportActionError(error, { action: 'notification.subscription.save', entity: 'push_subscription' })
   }
 }
 
@@ -35,9 +36,10 @@ export async function delete_push_subscription(endpoint: string): Promise<Action
     const me = await get_current_user_id()
     if (!me) return err('UNAUTHORIZED', 'unauthorized')
     await prisma.push_subscription.deleteMany({ where: { endpoint, user_id: me } })
+    audit('notification.subscription.delete', me)
     return ok(undefined, 'Notifications disabled')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'notification.subscription.delete', entity: 'push_subscription' })
   }
 }
 
@@ -51,9 +53,10 @@ export async function send_test_notification(): Promise<ActionResult<{ delivered
       body: 'Test notification ✓ — push is working.',
       url: '/',
     })
+    audit('notification.test', me, { delivered_count: delivered })
     return ok({ delivered }, delivered > 0 ? 'Test notification sent' : 'No active subscription on any device yet')
   } catch (error) {
-    return fromError(error)
+    return reportActionError(error, { action: 'notification.test' })
   }
 }
 
@@ -86,9 +89,9 @@ export async function notify_linked_user(target_user_id: string, message: string
       url: '/',
     })
 
+    audit('notification.linked_user', me, { delivered_count: delivered })
     return ok({ delivered }, delivered > 0 ? 'Notification sent' : "Sent — but they don't have notifications enabled")
   } catch (error) {
-    logger.error({ err: error, action: 'notify_linked_user' }, 'notify_linked_user failed')
-    return fromError(error)
+    return reportActionError(error, { action: 'notification.linked_user' })
   }
 }

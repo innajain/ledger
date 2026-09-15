@@ -480,7 +480,7 @@ Checks performed:
 
 ## Runtime Observability & Performance Profiling
 
-Every server-rendered page is wrapped with `profile()` (see [`lib/metrics/profile.ts`](lib/metrics/profile.ts)), which uses Node's `AsyncLocalStorage` to attribute work to a per-request context. Prisma is `$extends`-instrumented to count queries and time them; ioredis is wrapped to track hits/misses; `recordCompute` / `recordExternal` helpers tag explicit spans.
+Every server-rendered page is wrapped with `profile()` (see [`lib/metrics/profile.ts`](lib/metrics/profile.ts)), which uses Node's `AsyncLocalStorage` to attribute work to a per-request context. `proxy.ts` creates a trusted `x-request-id`, forwards it to the application and returns it on the response; Pino records that ID together with the active Sentry `trace_id` / `span_id`. Prisma is `$extends`-instrumented to count queries and time them; ioredis is wrapped to track hits/misses; `recordCompute` / `recordExternal` helpers tag explicit spans. Each profiled render emits one `request.completed` JSON log with its duration and DB/Redis/external/compute totals.
 
 Three tables collect the data:
 
@@ -496,12 +496,13 @@ In dev only, a separate **query toaster** ([`DevQueryToaster`](app/_components/D
 
 Sentry adds the production runtime layer across browser, Node.js, and Edge runtimes:
 
-- **Errors** — route-handler failures plus App Router `error.tsx` / `global-error.tsx` boundaries
+- **Errors** — route-handler failures plus App Router `error.tsx` / `global-error.tsx` boundaries; caught server-action failures pass through `reportActionError()` so unexpected exceptions are still reported while validation/not-found outcomes remain normal control flow
 - **Traces and metrics** — page spans carry DB, Redis, external-call, compute, and slow-query measurements; custom `ledger.*` metrics mirror the in-database profiler without including `user_id`
-- **Logs** — Pino `info` and above are forwarded; `authorization`, cookies, passwords, tokens, and secrets are redacted before transport
+- **Logs** — Pino `info` and above are forwarded as structured JSON in production (pretty-printed locally); `authorization`, cookies, passwords, push keys, tokens, and secrets are redacted before transport
+- **Audit events** — successful financial, auth, settings, attachment, and admin mutations emit `event: "audit"` with a stable one-way `actor_ref` plus safe counts/booleans; raw user IDs, descriptions, amounts, account names, and filenames are not included
 - **Replay** — sessions are recorded only when an error occurs, with all text and inputs masked and all media blocked
 - **Source maps** — uploaded during Vercel builds and removed from the deployed assets; browser events tunnel through `/monitoring`
 
-Sentry is optional in local development: when `NEXT_PUBLIC_SENTRY_DSN` is unset, its SDK is disabled and the local profiler continues to work. The Vercel Marketplace integration supplies the DSN plus `SENTRY_ORG`, `SENTRY_PROJECT`, and the build-only `SENTRY_AUTH_TOKEN` in deployed environments. `sendDefaultPii` is disabled throughout.
+Sentry is optional in local development: when `NEXT_PUBLIC_SENTRY_DSN` is unset, its SDK is disabled and the local profiler plus stdout logs continue to work. The Vercel Marketplace integration supplies the DSN plus `SENTRY_ORG`, `SENTRY_PROJECT`, and the build-only `SENTRY_AUTH_TOKEN` in deployed environments. `sendDefaultPii` is disabled throughout. Set `LEDGER_LOG_LEVEL` (`debug`, `info`, `warn`, or `error`) to override the default Pino level.
 
 `GET /api/health` is an unauthenticated, uncached liveness/dependency probe. It checks Postgres and Redis concurrently and returns `200` when both are reachable or `503` with `status: "degraded"` otherwise. Its response exposes only service status, check time, and aggregate latency.
