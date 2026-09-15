@@ -36,15 +36,16 @@ model user {
   mask_threshold  Int     @default(50000)
   graphs_visible  Boolean @default(false)
 
-  accounting_heads      accounting_head[]      @relation("HeadOwner")
-  linked_from_heads     accounting_head[]      @relation("HeadLinkedUser")
-  transactions          transaction[]
-  transaction_templates transaction_template[]
-  links_as_a            transaction_link[]     @relation("LinkUserA")
-  links_as_b            transaction_link[]     @relation("LinkUserB")
-  push_subscriptions    push_subscription[]
-  mcp_oauth_codes       mcp_oauth_code[]
-  mcp_access_tokens     mcp_access_token[]
+  accounting_heads       accounting_head[]       @relation("HeadOwner")
+  linked_from_heads      accounting_head[]       @relation("HeadLinkedUser")
+  transactions           transaction[]
+  transaction_templates  transaction_template[]
+  links_as_a             transaction_link[]      @relation("LinkUserA")
+  links_as_b             transaction_link[]      @relation("LinkUserB")
+  push_subscriptions     push_subscription[]
+  mcp_oauth_codes        mcp_oauth_code[]
+  mcp_access_tokens      mcp_access_token[]
+  mcp_attachment_uploads mcp_attachment_upload[]
 }
 
 // A browser Web Push subscription for a user. One row per device/browser; a
@@ -150,7 +151,7 @@ model line_item_template {
   asset_id String
   asset    asset  @relation(fields: [asset_id], references: [id])
 
-  quantity   Decimal? @db.Decimal(14, 4)
+  quantity  Decimal? @db.Decimal(14, 4)
   txn_value Decimal? @db.Decimal(14, 4)
 
   @@index([transaction_template_id])
@@ -174,11 +175,12 @@ model transaction {
   // are converted to real ones (a normal edit/replay of their own line items).
   is_future Boolean @default(false)
 
-  user        user                     @relation(fields: [user_id], references: [id])
-  line_items  line_item[]
-  attachments transaction_attachment[]
-  txn_a_links transaction_link[]       @relation("txn_a_links")
-  txn_b_links transaction_link[]       @relation("txn_b_links")
+  user          user                     @relation(fields: [user_id], references: [id])
+  line_items    line_item[]
+  attachments   transaction_attachment[]
+  txn_a_links   transaction_link[]       @relation("txn_a_links")
+  txn_b_links   transaction_link[]       @relation("txn_b_links")
+  upload_grants mcp_attachment_upload[]
 
   @@unique([user_id, idempotency_key])
   @@index([user_id, datetime])
@@ -217,7 +219,7 @@ model line_item {
   asset_id String
   asset    asset  @relation(fields: [asset_id], references: [id])
 
-  quantity   Decimal? @db.Decimal(14, 4)
+  quantity  Decimal? @db.Decimal(14, 4)
   txn_value Decimal? @db.Decimal(14, 4)
 
   @@index([transaction_id])
@@ -257,16 +259,16 @@ enum pending_kind {
 // only). Null = unclassified. Broken out rather than a free-text tag so the
 // computation module can switch on it exhaustively.
 enum tax_treatment {
-  salary_17_1     // §17(1) salary — gross, incl. employee PF
+  salary_17_1 // §17(1) salary — gross, incl. employee PF
   perquisite_17_2 // §17(2) perquisites
-  exempt          // employer PF, exempt allowances — income, not taxable
-  other_sources   // bank interest, residual — slab rate
-  stcg_slab       // debt MF §50AA — always short-term, slab rate
-  stcg_111a       // equity/equity MF with STT — 20%
-  ltcg_112a       // equity/equity MF with STT — 12.5% above ₹1,25,000
-  gift_56_2_x     // aggregate ≤ ₹50,000 exempt, else fully taxable
-  tax_paid        // TDS / advance tax / self-assessment — a CREDIT, not income
-  not_income      // cashbacks, discounts, reimbursements
+  exempt // employer PF, exempt allowances — income, not taxable
+  other_sources // bank interest, residual — slab rate
+  stcg_slab // debt MF §50AA — always short-term, slab rate
+  stcg_111a // equity/equity MF with STT — 20%
+  ltcg_112a // equity/equity MF with STT — 12.5% above ₹1,25,000
+  gift_56_2_x // aggregate ≤ ₹50,000 exempt, else fully taxable
+  tax_paid // TDS / advance tax / self-assessment — a CREDIT, not income
+  not_income // cashbacks, discounts, reimbursements
 }
 
 // Cross-user approval link between two users' copies of a shared transaction.
@@ -306,15 +308,15 @@ model server_metric {
   user_id String?
   route   String
 
-  total_ms          Int
-  db_query_count    Int @default(0)
-  db_query_ms       Int @default(0)
-  redis_hits        Int @default(0)
-  redis_misses      Int @default(0)
-  redis_ms          Int @default(0)
-  external_count    Int @default(0)
-  external_ms       Int @default(0)
-  compute_ms        Int @default(0)
+  total_ms       Int
+  db_query_count Int @default(0)
+  db_query_ms    Int @default(0)
+  redis_hits     Int @default(0)
+  redis_misses   Int @default(0)
+  redis_ms       Int @default(0)
+  external_count Int @default(0)
+  external_ms    Int @default(0)
+  compute_ms     Int @default(0)
 
   created_at DateTime @default(now())
 
@@ -347,8 +349,8 @@ model web_vital {
   route String // concrete pathname from window.location.pathname
 
   // 'LCP' | 'INP' | 'FCP' | 'TTFB' | 'CLS'
-  name  String
-  value Float
+  name   String
+  value  Float
   // 'good' | 'needs-improvement' | 'poor'
   rating String?
 
@@ -370,8 +372,8 @@ model web_vital {
 
 // A self-registered OAuth client (one per AI app / connector instance).
 model mcp_oauth_client {
-  id            String  @id @default(cuid())
-  client_id     String  @unique
+  id            String   @id @default(cuid())
+  client_id     String   @unique
   // Hashed client secret; null for public clients (PKCE, token_endpoint_auth_method "none").
   client_secret String?
   client_name   String?
@@ -423,4 +425,26 @@ model mcp_access_token {
 
   @@index([client_id])
   @@index([user_id])
+}
+
+// A one-time capability grant letting an MCP client PUT an attachment's bytes
+// straight to /api/mcp/upload/<token>, so the file never has to pass through a
+// tool argument. Token stored sha256-hashed, like mcp_oauth_code.
+model mcp_attachment_upload {
+  id             String    @id @default(cuid())
+  token_hash     String    @unique
+  user_id        String
+  transaction_id String
+  filename       String
+  content_type   String
+  expires_at     DateTime
+  consumed_at    DateTime?
+  created_at     DateTime  @default(now())
+
+  user        user        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transaction transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([transaction_id])
+  @@index([expires_at])
 }

@@ -1,4 +1,4 @@
-import { createMcpHandler, withMcpAuth } from 'mcp-handler'
+import { createMcpHandler, withMcpAuth, getPublicOrigin } from 'mcp-handler'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { Prisma, asset_type } from '@/generated/prisma/client'
@@ -1318,11 +1318,18 @@ const handler = createMcpHandler(
 
 const authedHandler = withMcpAuth(
   handler,
-  async (_req, bearer) => {
+  async (req, bearer) => {
     if (!bearer) return undefined
     const resolved = await resolve_access_token(bearer)
     if (!resolved) return undefined
-    return { token: bearer, clientId: resolved.client_id, scopes: resolved.scope.split(' '), extra: { userId: resolved.user_id } }
+    // Carry the public origin through to tool handlers, which run outside the
+    // request scope and otherwise cannot build an absolute URL.
+    return {
+      token: bearer,
+      clientId: resolved.client_id,
+      scopes: resolved.scope.split(' '),
+      extra: { userId: resolved.user_id, origin: getPublicOrigin(req) },
+    }
   },
   { required: true },
 )

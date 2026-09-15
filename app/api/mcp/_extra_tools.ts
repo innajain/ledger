@@ -35,6 +35,7 @@ import {
   type ToolExtra,
   type Content,
   get_uid,
+  get_origin,
   text,
   error_text,
   action_result,
@@ -54,6 +55,14 @@ import {
 import { compute_tax_for_fy, serialize_tax_result } from '@/app/_core/tax_core'
 import { current_financial_year, parse_fy, fy_label } from '@/app/_utils/financial_year'
 import { audit } from '@/lib/logger'
+import {
+  ATTACHMENT_TYPE_BY_EXT,
+  ALLOWED_ATTACHMENT_TYPES,
+  MAX_ATTACHMENT_BYTES,
+  MAX_INLINE_ATTACHMENT_BYTES,
+  verify_attachment_bytes,
+} from '@/app/_utils/attachment_content'
+import { create_upload_grant, UPLOAD_TOKEN_TTL_MS } from '@/lib/mcp/attachment_upload'
 
 const ro = { readOnlyHint: true } as const
 
@@ -71,21 +80,6 @@ const tax_treatment_enum = z.enum([
   'tax_paid',
   'not_income',
 ])
-
-// Mirrors ALLOWED_TYPES in app/api/upload/route.ts
-const ATTACHMENT_TYPE_BY_EXT: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  gif: 'image/gif',
-  webp: 'image/webp',
-  heic: 'image/heic',
-  pdf: 'application/pdf',
-  txt: 'text/plain',
-  json: 'application/json',
-}
-const ALLOWED_ATTACHMENT_TYPES = new Set(Object.values(ATTACHMENT_TYPE_BY_EXT))
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 
 function blob_fetch_url(att_url: string, pathname: string): string | null {
   if (env.NEXT_PUBLIC_VERCEL_BLOB_API_URL) return `${new URL(env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin}/${pathname}`
@@ -674,7 +668,7 @@ export function register_extra_tools(server: McpServer) {
     'add_attachment',
     {
       description:
-        'Attach a file to a transaction (receipt, bill, statement extract). Provide the content as UTF-8 text (content_text — for .txt/.json) or base64 (content_base64 — for images/PDF). Allowed types: jpeg/png/gif/webp/heic images, pdf, plain text, json; max 10 MB. content_type is inferred from the filename extension when omitted.',
+        'Attach a SMALL file to a transaction inline (a note, a JSON extract, a tiny image) — up to 64 KB. For a PDF, photo or anything larger, do NOT base64 it here: call request_attachment_upload instead and PUT the bytes, which is both faster and safer. Provide the content as UTF-8 text (content_text — for .txt/.json) or base64 (content_base64). Allowed types: jpeg/png/gif/webp/heic images, pdf, plain text, json. content_type is inferred from the filename extension when omitted.',
       inputSchema: {
         id: z.string().optional().describe('Transaction id (same arg name as get_transaction/update_transaction/delete_transaction)'),
         transaction_id: z.string().optional().describe('Alias of id'),
@@ -697,14 +691,84 @@ export function register_extra_tools(server: McpServer) {
         return error_text(`Unsupported attachment type "${content_type ?? ext}" — allowed: ${[...ALLOWED_ATTACHMENT_TYPES].join(', ')}`)
       const body = args.content_text != null ? Buffer.from(args.content_text, 'utf8') : Buffer.from(args.content_base64!, 'base64')
       if (body.length === 0) return error_text('Attachment content is empty')
-      if (body.length > MAX_ATTACHMENT_BYTES) return error_text('Attachment too large (max 10 MB)')
+      // Past this size the base64 has to be emitted by the model itself, where a
+      // single wrong character yields a corrupt file that still uploads cleanly.
+      // Send the caller to the upload-URL flow rather than let that happen.
+      if (body.length > MAX_INLINE_ATTACHMENT_BYTES)
+        return error_text(
+          `Too large to attach inline (${Math.round(body.length / 1024)} KB; the inline limit is ${MAX_INLINE_ATTACHMENT_BYTES / 1024} KB). ` +
+            `Call request_attachment_upload with this id and filename, then PUT the file to the URL it returns.`,
+        )
+      const checked = verify_attachment_bytes(body, content_type)
+      if (!checked.ok) return error_text(checked.error)
       if (!env.BLOB_READ_WRITE_TOKEN) return error_text('Blob storage is not configured on this server')
-      const blob = await put(`attachments/${Date.now()}-${args.filename}`, body, { access: 'private', contentType: content_type })
+      const blob = await put(`attachments/${Date.now()}-${args.filename}`, body, { access: 'private', contentType: checked.content_type })
       const att = await prisma.transaction_attachment.create({
-        data: { transaction_id: tx.id, url: blob.url, pathname: blob.pathname, filename: args.filename, content_type, size: body.length },
+        data: {
+          transaction_id: tx.id,
+          url: blob.url,
+          pathname: blob.pathname,
+          filename: args.filename,
+          content_type: checked.content_type,
+          size: body.length,
+        },
       })
       audit('attachment.save', uid, { attachment_count: 1, surface: 'mcp' })
       return text({ ok: true, attachment_id: att.id, message: 'Attachment saved' })
+    },
+  )
+
+  server.registerTool(
+    'request_attachment_upload',
+    {
+      description:
+        'Start attaching a LARGE file (PDF, photo, scan) to a transaction. Returns a one-time URL; PUT the file bytes to it and the attachment is saved — the file never passes through this conversation, so nothing is transcribed and nothing can be corrupted. Run the returned curl_command as-is. The URL works once and expires in 10 minutes. For content under 64 KB that you already have as text, add_attachment is simpler.',
+      inputSchema: {
+        id: z.string().optional().describe('Transaction id (same arg name as get_transaction/update_transaction/delete_transaction)'),
+        transaction_id: z.string().optional().describe('Alias of id'),
+        filename: z.string().describe('Name to store the file under, e.g. Contract_Note_15-Sep-2026.pdf'),
+        file_path: z.string().optional().describe('Local path to the file, used only to build curl_command for you — the server never reads it'),
+        content_type: z.string().optional().describe('MIME type; inferred from the filename extension when omitted'),
+      },
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const txn_id = args.id ?? args.transaction_id
+      if (!txn_id) return error_text('Give the transaction as id')
+      const tx = await prisma.transaction.findFirst({ where: { id: txn_id, user_id: uid }, select: { id: true } })
+      if (!tx) return error_text('Transaction not found')
+
+      const ext = args.filename.split('.').pop()?.toLowerCase() ?? ''
+      const content_type = args.content_type ?? ATTACHMENT_TYPE_BY_EXT[ext]
+      if (!content_type || !ALLOWED_ATTACHMENT_TYPES.has(content_type))
+        return error_text(`Unsupported attachment type "${content_type ?? ext}" — allowed: ${[...ALLOWED_ATTACHMENT_TYPES].join(', ')}`)
+
+      if (!env.BLOB_READ_WRITE_TOKEN) return error_text('Blob storage is not configured on this server')
+
+      const origin = get_origin(extra as ToolExtra)
+      if (!origin) return error_text('Could not determine this server origin — use add_attachment for small files instead')
+
+      const { token, expires_at } = await create_upload_grant({
+        user_id: uid,
+        transaction_id: tx.id,
+        filename: args.filename,
+        content_type,
+      })
+      const upload_url = `${origin}/api/mcp/upload/${token}`
+      const local = args.file_path ?? `/path/to/${args.filename}`
+
+      audit('attachment.upload_requested', uid, { surface: 'mcp' })
+      return text({
+        upload_url,
+        method: 'PUT',
+        curl_command: `curl -sS -X PUT --data-binary @'${local}' -H 'Content-Type: ${content_type}' '${upload_url}'`,
+        filename: args.filename,
+        content_type,
+        max_bytes: MAX_ATTACHMENT_BYTES,
+        expires_at,
+        expires_in_seconds: UPLOAD_TOKEN_TTL_MS / 1000,
+        next: 'Run curl_command. It prints the saved attachment_id on success; no further tool call is needed.',
+      })
     },
   )
 

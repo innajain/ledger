@@ -1,8 +1,9 @@
 import 'server-only'
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import { random_token, hash_token } from '@/lib/mcp/tokens'
 
 export const AUTH_CODE_TTL_MS = 5 * 60 * 1000
 export const ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000
@@ -11,13 +12,8 @@ export const REFRESH_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000
 export const SUPPORTED_SCOPES = ['ledger'] as const
 export const DEFAULT_SCOPE = 'ledger'
 
-export function random_token(bytes = 32): string {
-  return randomBytes(bytes).toString('base64url')
-}
-
-export function hash_token(raw: string): string {
-  return createHash('sha256').update(raw).digest('hex')
-}
+// Re-exported so existing callers keep importing these from oauth.
+export { random_token, hash_token }
 
 export function verify_pkce(code_verifier: string, code_challenge: string): boolean {
   const computed = createHash('sha256').update(code_verifier).digest('base64url')

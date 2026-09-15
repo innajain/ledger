@@ -25,7 +25,10 @@ function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true
   if (pathname.startsWith('/_next/') || pathname.startsWith('/public/') || pathname.startsWith('/api/cron/')) return true
 
-  if (pathname === '/api/mcp' || pathname.startsWith('/api/oauth/')) return true
+  // /api/mcp does its own bearer auth; /api/mcp/upload/<token> authenticates on
+  // the one-time token in the path. Both are matched narrowly — this must not
+  // become a blanket startsWith('/api/mcp') that opens future sub-routes by default.
+  if (pathname === '/api/mcp' || pathname.startsWith('/api/mcp/upload/') || pathname.startsWith('/api/oauth/')) return true
   return false
 }
 
