@@ -92,10 +92,17 @@ async function Page({ params }: Props) {
   const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
   let acc_total = new Prisma.Decimal(0)
+  // Book value — what the transactions actually recorded, never marked to market. Summed
+  // over every line item (not just the assets left in `map`), so a fully exited holding
+  // still contributes its realized cost the way acc_total does.
+  let book_total = new Prisma.Decimal(0)
   const cashflows: { amount: number; when: Date }[] = []
   const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
     {}
   const lineItemsWithValues: (LineItem & { _sortDate: Date })[] = []
+  // Decimal-precision copy of each line item's lot, for the FIFO pass below —
+  // lineItemsWithValues has already been flattened to numbers for the client.
+  const lots: { id: string; asset_id: string; asset_type: asset_type; qty: Prisma.Decimal; book: Prisma.Decimal; date: Date }[] = []
 
   for (const li of head_line_items) {
     const n = normalizedById.get(li.id)!
@@ -106,6 +113,7 @@ async function Page({ params }: Props) {
     const current_value = compute_current_value(asset.type, qty, priceDecimal, txn_value)
 
     acc_total = acc_total.add(current_value)
+    book_total = book_total.add(txn_value)
     cashflows.push({ amount: -txn_value.toNumber(), when: li.datetime ?? li.transaction.datetime })
 
     if (!map[asset.id])
@@ -134,17 +142,38 @@ async function Page({ params }: Props) {
       remaining_quantity: null,
       _sortDate: li.datetime ?? li.transaction.datetime,
     })
+    lots.push({ id: li.id, asset_id: asset.id, asset_type: asset.type, qty, book: txn_value, date: li.datetime ?? li.transaction.datetime })
   }
 
+  // FIFO within this head, one queue per asset: which buy lots are still open. Feeds the
+  // per-row remaining badge (accounts only, as before) and the invested total below.
+  const remaining_by_id = compute_fifo_remaining(
+    lots.filter(l => l.asset_type !== asset_type.rupees).map(l => ({ id: l.id, group_key: l.asset_id, qty: l.qty, date: l.date })),
+  )
+
   if (isAccount) {
-    const remaining_by_id = compute_fifo_remaining(
-      lineItemsWithValues
-        .filter(li => li.asset_type !== asset_type.rupees)
-        .map(li => ({ id: li.id, group_key: li.asset_id!, qty: new Prisma.Decimal(li.quantity), date: li._sortDate })),
-    )
     for (const li of lineItemsWithValues) {
       li.remaining_quantity = remaining_by_id.has(li.id) ? remaining_by_id.get(li.id)!.toNumber() : null
     }
+  }
+
+  // Invested — the cost basis of what the head still holds, the same measure the asset
+  // page calls "Current investment": open lots at their own purchase cost, prorated when
+  // a lot is part-sold, plus rupees at face value (cash's cost basis is itself). It
+  // parts ways with book value only once units are sold, because book keeps the
+  // proceeds-vs-cost difference of the closed lots — a fully exited holding leaves its
+  // realized gain sitting in book while contributing nothing here.
+  let invested_total = new Prisma.Decimal(0)
+  let holds_non_rupees = false
+  for (const lot of lots) {
+    if (lot.asset_type === asset_type.rupees) {
+      invested_total = invested_total.add(lot.book)
+      continue
+    }
+    holds_non_rupees = true
+    if (!lot.qty.greaterThan(0)) continue
+    const remaining = remaining_by_id.get(lot.id)
+    if (remaining && remaining.greaterThan(0)) invested_total = invested_total.add(lot.book.mul(remaining).div(lot.qty))
   }
 
   lineItemsWithValues.sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime())
@@ -172,7 +201,7 @@ async function Page({ params }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
-  const { subtree_total, children } = rollup
+  const { subtree_total, subtree_book, children } = rollup
   const parent: HeadData['parent'] = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
 
   let value_timeseries: HeadData['value_timeseries'] = []
@@ -241,7 +270,12 @@ async function Page({ params }: Props) {
         id: head.id,
         name: head.name,
         total: acc_total.toNumber(),
+        book_total: book_total.toNumber(),
+        // Cost figures only say something on a head that holds priced assets; on a
+        // rupees-only one they'd both just restate the balance.
+        invested_total: holds_non_rupees ? invested_total.toNumber() : null,
         subtree_total,
+        subtree_book,
         children,
         parent,
         linked_user,

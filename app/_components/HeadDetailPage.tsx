@@ -37,8 +37,16 @@ export type HeadData = {
   id: string
   name: string
   total: number
+  // Cost recorded on the transactions, unmarked to market. Equal to `total` for a head
+  // that only ever held rupees, which is why the card hides it in that case.
+  book_total?: number | null
+  // Cost basis of what the head still holds (FIFO open lots + rupees at face value) —
+  // the head-level twin of the asset page's "Current investment". Null on a head with no
+  // priced assets, where it would only restate the balance.
+  invested_total?: number | null
 
   subtree_total?: number | null
+  subtree_book?: number | null
 
   children?: { id: string; name: string; link: string; total: number }[]
 
@@ -95,6 +103,21 @@ type HeadDetailPageProps = {
 }
 
 const LINE_ITEMS_PAGE = 100
+
+// Book and current value coincide for a head that only ever held rupees, so printing both
+// would just be the same number twice. Compared at paise — the resolution the amounts are
+// displayed at — so a sub-paise pricing artefact doesn't sprout a redundant line.
+function book_differs(book: number | null | undefined, current: number): book is number {
+  return book !== null && book !== undefined && Math.round(book * 100) !== Math.round(current * 100)
+}
+
+function Amount({ value }: { value: number }) {
+  return (
+    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+      <MaskedAmount value={value} />
+    </p>
+  )
+}
 
 export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetailPageProps) {
   const router = useRouter()
@@ -232,22 +255,27 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
         fields={[
           {
             label: head.subtree_total != null ? 'Total value (this one only)' : 'Total value',
-            value: (
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                <MaskedAmount value={head.total} />
-              </p>
-            ),
+            value: <Amount value={head.total} />,
           },
+          // Same pair the asset page carries, in the same order: cost of what's still
+          // held, then everything posted. Both only once the head holds a priced asset —
+          // on a rupees-only one they'd just restate the balance twice.
+          ...(head.invested_total != null
+            ? [
+                { label: 'Current investment', value: <Amount value={head.invested_total} /> },
+                ...(head.book_total != null ? [{ label: 'Total book value', value: <Amount value={head.book_total} /> }] : []),
+              ]
+            : book_differs(head.book_total, head.total)
+              ? [{ label: 'Total book value', value: <Amount value={head.book_total} /> }]
+              : []),
           ...(head.subtree_total != null
             ? [
-                {
-                  label: 'Total value (with sub-accounts)',
-                  value: (
-                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                      <MaskedAmount value={head.subtree_total} />
-                    </p>
-                  ),
-                },
+                { label: 'Total value (with sub-accounts)', value: <Amount value={head.subtree_total} /> },
+                // No invested twin for the subtree: it rolls up from cached per-head
+                // balances, which carry no lot history to run FIFO over.
+                ...(book_differs(head.subtree_book, head.subtree_total)
+                  ? [{ label: 'Total book value (with sub-accounts)', value: <Amount value={head.subtree_book} /> }]
+                  : []),
               ]
             : []),
           ...(head.xirr !== undefined && head.xirr !== null
