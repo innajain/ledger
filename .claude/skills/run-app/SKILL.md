@@ -98,6 +98,10 @@ inputs fill, React state stays empty, and the login button stays `disabled`
 forever. No console error, no failed request, so it reads as a selector
 problem. The production build is fine, and is the more faithful target anyway.
 
+Restarting after a code change: kill the server by PID. `pkill -f next-server`
+matches the shell running that very command, so it kills the caller — the tool
+call dies with exit 144 and the build never starts.
+
 ## 7. Drive it
 
 Playwright is installed globally, not in the repo, and Chromium is

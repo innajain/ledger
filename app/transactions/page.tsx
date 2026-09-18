@@ -5,6 +5,7 @@ import { Prisma } from '@/generated/prisma/client'
 import type { Metadata } from 'next'
 import { fromZonedTime } from 'date-fns-tz'
 import { normalize_line_items } from '../_utils/normalize_txn'
+import { is_future_txn_due } from '../_utils/future_txn'
 import { USER_TIMEZONE } from '@/lib/config'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
@@ -32,6 +33,8 @@ type TxForClient = {
   description: string | null
   total_book: number
   link_severity: 'error' | 'warning' | 'info' | null
+  /** Scheduled for today (IST) or earlier — only ever true on the future list. */
+  is_due: boolean
 }
 
 const SORT_KEYS = ['date_desc', 'date_asc', 'amount_desc', 'amount_asc'] as const
@@ -163,6 +166,9 @@ async function Page({
 
   type ListRow = Prisma.transactionGetPayload<{ select: typeof list_select }>
 
+  // One `now` for the whole page, so two rows either side of an IST midnight can't
+  // disagree about what "today" is (same rule as the home card).
+  const now = new Date()
   const toClientRow = (t: ListRow): TxForClient => {
     const normalized = normalize_line_items(t.line_items)
     return {
@@ -174,6 +180,8 @@ async function Page({
         .reduce((s, li) => s.add(li.txn_value), new Prisma.Decimal(0))
         .toNumber(),
       link_severity: null as TxForClient['link_severity'],
+      // Only the future list can have due rows; a real transaction is always in the past.
+      is_due: showFuture && is_future_txn_due(t.datetime, now),
     }
   }
 

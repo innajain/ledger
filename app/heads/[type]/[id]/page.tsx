@@ -12,7 +12,7 @@ import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_util
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
-import { NOT_FUTURE } from '@/app/_utils/future_txn'
+import { NOT_FUTURE, is_future_txn_due } from '@/app/_utils/future_txn'
 import { compute_future_sufficiency } from '@/app/_utils/future_balance'
 import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_value'
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
@@ -218,6 +218,9 @@ async function Page({ params }: Props) {
 
   let future_transactions_for_client: HeadData['future_transactions'] = []
   if (future_line_items.length > 0) {
+    // One `now` for every row, so two either side of an IST midnight can't disagree
+    // about what "today" is (same rule as the home card and the transactions list).
+    const now = new Date()
     const current_balances = new Map<string, Prisma.Decimal>()
     for (const e of Object.values(map)) current_balances.set(e.asset_id, e.total_qty)
     future_transactions_for_client = compute_future_sufficiency(current_balances, future_line_items).map(r => ({
@@ -226,6 +229,7 @@ async function Page({ params }: Props) {
       datetime: r.datetime,
       description: r.description,
       amount: r.amount,
+      due: is_future_txn_due(r.datetime, now),
       sufficient: r.sufficient,
       balance_after: r.balance_after === null ? null : { asset_name: future_asset_names.get(r.asset_id) ?? r.asset_id, balance: r.balance_after },
     }))

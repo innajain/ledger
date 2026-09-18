@@ -21,6 +21,8 @@ type Transaction = {
   description: string | null
   total_book: number
   link_severity: 'error' | 'warning' | 'info' | null
+  /** Scheduled for today (IST) or earlier — only ever true on the future list. */
+  is_due: boolean
 }
 
 // The whole ledger lives in IST (lib/config USER_TIMEZONE), so day headers and row times
@@ -149,6 +151,11 @@ const TransactionsCard = React.memo(function TransactionsCard({
                       </p>
                     </div>
                     <div className="ml-4 shrink-0 flex items-center gap-2">
+                      {tx.is_due && (
+                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          Due
+                        </span>
+                      )}
                       {badge}
                       {/* Direction rides on the sign (kept even while masked), not on a wall of
                           red: money in is green, money out is plain ink. */}
