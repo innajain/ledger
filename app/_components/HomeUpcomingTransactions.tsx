@@ -10,6 +10,8 @@ export type HomeUpcomingTransaction = {
   description: string | null
   /** Book total of the account lines — the same number the transactions list shows. */
   total_book: number
+  /** Scheduled for today (IST) or earlier — waiting to be converted to a real transaction. */
+  is_due: boolean
 }
 
 export function HomeUpcomingTransactions({ transactions }: { transactions: HomeUpcomingTransaction[] }) {
@@ -39,8 +41,13 @@ export function HomeUpcomingTransactions({ transactions }: { transactions: HomeU
               <div className="relative z-10 pointer-events-none flex items-center justify-between gap-3 px-6 py-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{tx.description || 'No description'}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                     <LocalDateTime value={tx.date} />
+                    {tx.is_due && (
+                      <span className="shrink-0 font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                        Due
+                      </span>
+                    )}
                   </p>
                 </div>
                 {tx.total_book !== 0 && (

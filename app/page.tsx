@@ -9,6 +9,7 @@ import { compute_head_value } from '@/app/_utils/head_value'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
 import { get_inbox } from '@/app/_utils/links'
 import { pick_welcome_message } from '@/app/_utils/home_welcome'
+import { is_future_txn_due } from '@/app/_utils/future_txn'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
 import { HomeNetWorthTrend, HomeNetWorthTrendFallback } from '@/app/_components/HomeNetWorthTrend'
 import type { AssetBalance } from '@/app/_utils/home_networth_series'
@@ -157,11 +158,16 @@ async function Home() {
       </Suspense>
     ) : null
 
+  // One `now` for the whole list, so two rows either side of an IST midnight can't
+  // disagree about what "today" is. Decided on the server: the client re-rendering
+  // against its own clock/timezone would hydrate differently.
+  const now = new Date()
   const upcoming: HomeUpcomingTransaction[] = upcoming_txns.map(txn => ({
     id: txn.id,
     date: txn.datetime,
     description: txn.description,
     total_book: book_total(normalize_line_items(txn.line_items)),
+    is_due: is_future_txn_due(txn.datetime, now),
   }))
 
   // get_inbox already sign-flips the preview into this user's frame, so the
