@@ -50,3 +50,26 @@ export function count_empty_subtrees<T extends { id: string; is_active: boolean 
   }
   return count
 }
+
+/**
+ * A group that holds nothing itself and has exactly one visible child is pure scaffolding — the row
+ * and its child say the same thing twice ("Bank ▸ Kotak", both ₹13,811.23). This walks such wrappers
+ * away and returns the node that should actually be rendered in their place, repeating for a chain of
+ * them (A ▸ B ▸ C collapses to C).
+ *
+ * A wrapper with money of its own is never folded: its "Held directly" amount would vanish with it.
+ * Nor is an inactive node on either side, which the tree renders under its own rule.
+ */
+export function fold_single_child<T extends { id: string; is_active: boolean }>(
+  node: HierarchyNode<T>,
+  totals: Map<string, number>,
+  visible_children: (node: HierarchyNode<T>) => HierarchyNode<T>[],
+): HierarchyNode<T> {
+  let current = node
+  while (current.item.is_active && is_zero_total(totals.get(current.item.id) || 0)) {
+    const children = visible_children(current)
+    if (children.length !== 1 || !children[0].item.is_active) return current
+    current = children[0]
+  }
+  return current
+}

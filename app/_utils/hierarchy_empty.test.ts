@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { aggregate_total, count_empty_subtrees, is_empty_subtree, is_zero_total, type HierarchyNode } from './hierarchy_empty'
+import { aggregate_total, count_empty_subtrees, fold_single_child, is_empty_subtree, is_zero_total, type HierarchyNode } from './hierarchy_empty'
 
 type Item = { id: string; is_active: boolean }
 
@@ -100,5 +100,52 @@ describe('count_empty_subtrees', () => {
   it('still counts an active empty parent that contains inactive empty children', () => {
     const tree = [node('live', [node('closed-a', [], false), node('closed-b', [], false)]), node('kotak')]
     expect(count_empty_subtrees(tree, new Map([['kotak', 100]]))).toBe(1)
+  })
+})
+
+describe('fold_single_child', () => {
+  const all = (n: HierarchyNode<Item>) => n.children
+
+  it('renders an empty wrapper as its only child', () => {
+    const tree = node('bank', [node('kotak')])
+    expect(fold_single_child(tree, new Map([['kotak', 13811.23]]), all).item.id).toBe('kotak')
+  })
+
+  it('collapses a chain of wrappers down to the one row that matters', () => {
+    const tree = node('a', [node('b', [node('c')])])
+    expect(fold_single_child(tree, new Map([['c', 5]]), all).item.id).toBe('c')
+  })
+
+  it('keeps a wrapper that holds money of its own', () => {
+    const tree = node('other-people', [node('meal-provider')])
+    const totals = new Map([
+      ['other-people', -30000],
+      ['meal-provider', -4560],
+    ])
+    expect(fold_single_child(tree, totals, all).item.id).toBe('other-people')
+  })
+
+  it('keeps a wrapper with more than one child', () => {
+    const tree = node('cash', [node('wallet'), node('coin-pouch')])
+    expect(fold_single_child(tree, new Map([['wallet', 1770]]), all).item.id).toBe('cash')
+  })
+
+  it('keeps a leaf as itself', () => {
+    expect(fold_single_child(node('kotak'), new Map(), all).item.id).toBe('kotak')
+  })
+
+  it('folds against the visible children, not every child', () => {
+    const tree = node('bank', [node('kotak'), node('closed-idfc')])
+    const totals = new Map([['kotak', 13811.23]])
+    const visible = (n: HierarchyNode<Item>) => n.children.filter(c => !is_empty_subtree(c, totals))
+    expect(fold_single_child(tree, totals, visible).item.id).toBe('kotak')
+    expect(fold_single_child(tree, totals, all).item.id).toBe('bank')
+  })
+
+  it('never folds an inactive node away, on either side', () => {
+    const parent = node('bank', [node('kotak', [], false)])
+    expect(fold_single_child(parent, new Map([['kotak', 5]]), all).item.id).toBe('bank')
+    const inactiveParent = node('bank', [node('kotak')], false)
+    expect(fold_single_child(inactiveParent, new Map([['kotak', 5]]), all).item.id).toBe('bank')
   })
 })

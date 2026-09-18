@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { update_hierarchy_order } from '@/app/_actions/resources'
-import { aggregate_total, count_empty_subtrees, is_empty_subtree, is_zero_total } from '@/app/_utils/hierarchy_empty'
+import { aggregate_total, count_empty_subtrees, fold_single_child, is_empty_subtree, is_zero_total } from '@/app/_utils/hierarchy_empty'
 import { useToast } from './Toast'
 import { MaskedAmount } from './MaskedAmount'
 
@@ -266,7 +266,21 @@ export function HierarchyTree<T extends BaseItem>({
     onHiddenCountChange?.(hiddenCount)
   }, [hiddenCount, onHiddenCountChange])
 
-  function renderNode(node: Node<T>, depth: number = 0): React.ReactElement | null {
+  const visibleChildrenOf = useCallback(
+    (n: Node<T>) => (hideZero ? n.children.filter(child => !is_empty_subtree(child, totals)) : n.children),
+    [hideZero, totals],
+  )
+
+  function renderNode(inputNode: Node<T>, depth: number = 0): React.ReactElement | null {
+    // Prune the whole subtree only when nothing inside it carries value — a node with a
+    // non-zero descendant always stays reachable, even when its children cancel out.
+    if (hideZero && is_empty_subtree(inputNode, totals)) return null
+
+    // A group with nothing of its own and a single child renders as that child — the two
+    // rows would otherwise repeat the same name-and-amount. Suspended while reordering,
+    // where the real parent/child structure is what you're editing.
+    const node = reorderEnabled ? inputNode : fold_single_child(inputNode, totals, visibleChildrenOf)
+
     const item = node.item
     const isExpanded = !!expanded[item.id]
     const isDragging = draggedId === item.id
@@ -275,11 +289,7 @@ export function HierarchyTree<T extends BaseItem>({
     const ownCurr = totals.get(item.id) || 0
     const displayCurr = aggregateCurr(node)
 
-    // Prune the whole subtree only when nothing inside it carries value — a node with a
-    // non-zero descendant always stays reachable, even when its children cancel out.
-    if (hideZero && is_empty_subtree(node, totals)) return null
-
-    const visibleChildren = hideZero ? node.children.filter(child => !is_empty_subtree(child, totals)) : node.children
+    const visibleChildren = visibleChildrenOf(node)
     const showSelfRow = !hideZero || !is_zero_total(ownCurr)
 
     const canDrag = reorderEnabled && !!scope
