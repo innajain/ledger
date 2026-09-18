@@ -44,4 +44,6 @@ next-env.d.ts
 /generated/
 .env*
 
-.claude
+# Local Claude Code state stays out; checked-in skills are shared tooling.
+.claude/*
+!.claude/skills/
