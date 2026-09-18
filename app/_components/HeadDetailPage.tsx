@@ -62,16 +62,19 @@ export type HeadData = {
   value_timeseries?: ValuePoint[]
   // This head's future line items, in effective-datetime order — one row per line item,
   // not per transaction (a transaction with two lines here, e.g. rent + brokerage, shows
-  // as two rows, each linking to the same transaction). `sufficient` is null when the
-  // line item is already overdue (dated in the past). `balance_after` is the resulting
-  // balance for that line's asset once it (and every one before it) lands — null for an
-  // overdue line item, which never updates it.
+  // as two rows, each linking to the same transaction). `due` marks a line dated on or
+  // before the end of today IST — the whole day, so it can be due and still forward-looking
+  // (later today), which is why it is separate from `sufficient` being null: that means the
+  // line is already overdue (dated before now) and excluded from the walk. `balance_after`
+  // is the resulting balance for that line's asset once it (and every one before it) lands
+  // — null for an overdue line item, which never updates it.
   future_transactions?: {
     id: string
     transaction_id: string
     datetime: string | Date
     description: string | null
     amount: number
+    due: boolean
     sufficient: boolean | null
     balance_after: { asset_name: string; balance: number } | null
   }[]
@@ -373,8 +376,13 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
                 <div className="relative z-10 pointer-events-none flex items-center justify-between gap-4 p-4">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-slate-900 dark:text-slate-100 truncate">{ft.description || 'No description'}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
                       <LocalDateTime value={ft.datetime} />
+                      {ft.due && (
+                        <span className="shrink-0 font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          Due
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="ml-4 shrink-0 flex flex-col items-end gap-1">

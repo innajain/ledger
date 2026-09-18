@@ -26,7 +26,7 @@ import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_util
 import { get_subtree_head_ids, compute_subtree_total } from '@/app/_utils/subtree_value'
 import { normalize_txn, normalize_line_items } from '@/app/_utils/normalize_txn'
 import { compute_future_sufficiency } from '@/app/_utils/future_balance'
-import { NOT_FUTURE } from '@/app/_utils/future_txn'
+import { NOT_FUTURE, is_future_txn_due } from '@/app/_utils/future_txn'
 import { get_indian_date_from_date_obj } from '@/app/_utils/date'
 import {
   type ToolExtra,
@@ -431,7 +431,7 @@ function register_tools(server: McpServer) {
           .boolean()
           .optional()
           .describe(
-            "Attach this head's future line items (default false) — one row per line item, not per transaction (a transaction with two lines on this head, e.g. rent + brokerage against the same account, yields two rows, both linking to transaction_id). Each has its effective datetime, description, amount, a sufficient flag (whether this line's asset stays >= 0 once it lands, computed cumulatively in datetime order over all of them; null if the line item is already overdue, i.e. dated in the past), and balance_after — the resulting balance for that asset once it (and every one before it) lands, null for an overdue line item",
+            "Attach this head's future line items (default false) — one row per line item, not per transaction (a transaction with two lines on this head, e.g. rent + brokerage against the same account, yields two rows, both linking to transaction_id). Each has its effective datetime, description, amount, a due flag (dated on or before the END of today IST — the whole day, so something scheduled for later today is already due), a sufficient flag (whether this line's asset stays >= 0 once it lands, computed cumulatively in datetime order over all of them; null if the line item is already overdue, i.e. dated before now), and balance_after — the resulting balance for that asset once it (and every one before it) lands, null for an overdue line item",
           ),
         from: z.string().optional().describe('With include_line_items: only lines on/after this day (dd-MM-yyyy or yyyy-MM-dd, IST)'),
         to: z.string().optional().describe('With include_line_items: only lines on/before this day (inclusive)'),
@@ -627,12 +627,15 @@ function register_tools(server: McpServer) {
           )
           .sort((a, b) => a.datetime.getTime() - b.datetime.getTime())
 
+        // One `now` for every row, matching the web pages.
+        const now = new Date()
         out.future_transactions = compute_future_sufficiency(current_balances, future_line_items).map(r => ({
           id: r.id,
           transaction_id: r.transaction_id,
           datetime: r.datetime,
           description: r.description,
           amount: r.amount,
+          due: is_future_txn_due(r.datetime, now),
           sufficient: r.sufficient,
           balance_after: r.balance_after === null ? null : { asset: future_asset_names.get(r.asset_id) ?? r.asset_id, balance: r.balance_after },
         }))
@@ -661,7 +664,7 @@ function register_tools(server: McpServer) {
           .enum(['exclude', 'only', 'include'])
           .optional()
           .describe(
-            "Future transactions (is_future = true) never appear by default ('exclude'), matching the web list page; set 'only' to list just scheduled/future ones, or 'include' to show real and future together",
+            "Future transactions (is_future = true) never appear by default ('exclude'), matching the web list page; set 'only' to list just scheduled/future ones, or 'include' to show real and future together. Each future row carries due: true when it is dated on or before the END of today IST (the whole day, so something scheduled for later today is already due) — it is waiting on convert_future_transaction",
           ),
       },
       annotations: ro,
@@ -705,6 +708,8 @@ function register_tools(server: McpServer) {
         }
       }
 
+      // One `now` for every row's due flag, matching the web pages.
+      const now = new Date()
       if (args.include_line_items) {
         return text(
           txns.map(raw => ({
@@ -712,6 +717,7 @@ function register_tools(server: McpServer) {
             datetime: raw.datetime,
             description: raw.description,
             is_future: raw.is_future,
+            ...(raw.is_future ? { due: is_future_txn_due(raw.datetime, now) } : {}),
             ...(filter_head ? { head_delta: deltas.get(raw.id) } : {}),
             line_items: normalize_line_items(raw.line_items).map(li => ({
               head: li.accounting_head.name,
@@ -731,6 +737,7 @@ function register_tools(server: McpServer) {
           datetime: t.datetime,
           description: t.description,
           is_future: t.is_future,
+          ...(t.is_future ? { due: is_future_txn_due(t.datetime, now) } : {}),
           amount: net_account_flow(t.line_items),
           ...(filter_head ? { head_delta: deltas.get(t.id) } : {}),
         })),
@@ -854,6 +861,7 @@ function register_tools(server: McpServer) {
         datetime: t.datetime,
         description: t.description,
         is_future: t.is_future,
+        ...(t.is_future ? { due: is_future_txn_due(t.datetime) } : {}),
         total: net_account_flow(t.line_items),
         line_items: t.line_items.map(li => ({
           head: li.accounting_head.name,
