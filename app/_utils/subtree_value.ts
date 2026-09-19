@@ -56,22 +56,6 @@ export function compute_subtree_total(
   return total
 }
 
-// Book value of a subtree — the cost recorded on the transactions, never marked to
-// market. It's the same walk as compute_subtree_total with the pricing step dropped, so
-// for a rupees-only subtree the two agree exactly.
-export function compute_subtree_book(
-  subtree_ids: Set<string>,
-  balances: Map<string, Map<string, { qty: number; txn_value: number }>>,
-): Prisma.Decimal {
-  let total = new Prisma.Decimal(0)
-  for (const head_id of subtree_ids) {
-    const assetMap = balances.get(head_id)
-    if (!assetMap) continue
-    for (const { txn_value } of assetMap.values()) total = total.add(new Prisma.Decimal(txn_value))
-  }
-  return total
-}
-
 const HEAD_ROUTE: Record<accounting_head_type, string> = {
   account: '/heads/account',
   income_expense: '/heads/income_expense',
@@ -84,10 +68,12 @@ export function head_detail_link(type: accounting_head_type, id: string): string
 
 export type ChildHeadSummary = { id: string; name: string; link: string; total: number }
 
-export async function compute_head_rollup(
-  root_id: string,
-  user_id: string,
-): Promise<{ subtree_total: number | null; subtree_book: number | null; children: ChildHeadSummary[] }> {
+// The head's immediate children, each carrying the total of its own whole subtree. The
+// root's subtree total is deliberately not returned: the head page reports on one scope
+// at a time (see the ScopeToggle), and it computes the subtree figures live from line
+// items when the reader asks for them, which is what gives that view a FIFO cost basis
+// these cached balances cannot supply.
+export async function compute_head_rollup(root_id: string, user_id: string): Promise<{ children: ChildHeadSummary[] }> {
   const [all_heads, { accountsToAssets: balances }] = await Promise.all([
     prisma.accounting_head.findMany({
       where: { user_id },
@@ -96,7 +82,7 @@ export async function compute_head_rollup(
     get_or_compute_balances(),
   ])
   const subtree_ids = get_subtree_head_ids(root_id, all_heads)
-  if (subtree_ids.size <= 1) return { subtree_total: null, subtree_book: null, children: [] }
+  if (subtree_ids.size <= 1) return { children: [] }
 
   const subtree_asset_ids = new Set<string>()
   for (const head_id of subtree_ids) for (const asset_id of balances.get(head_id)?.keys() ?? []) subtree_asset_ids.add(asset_id)
@@ -106,9 +92,6 @@ export async function compute_head_rollup(
   })
   const price_by_asset = await get_prices_for_assets(subtree_assets)
   const asset_type_by_id = new Map(subtree_assets.map(a => [a.id, a.type]))
-
-  const subtree_total = compute_subtree_total(subtree_ids, balances, asset_type_by_id, price_by_asset).toNumber()
-  const subtree_book = compute_subtree_book(subtree_ids, balances).toNumber()
 
   const children: ChildHeadSummary[] = all_heads
     .filter(h => h.parent_id === root_id)
@@ -120,5 +103,5 @@ export async function compute_head_rollup(
     }))
   children.sort((a, b) => b.total - a.total)
 
-  return { subtree_total, subtree_book, children }
+  return { children }
 }

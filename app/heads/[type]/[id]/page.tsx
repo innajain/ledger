@@ -115,11 +115,10 @@ async function Page({ params, searchParams }: Props) {
   // over every line item (not just the assets left in `map`), so a fully exited holding
   // still contributes its realized cost the way acc_total does.
   let book_total = new Prisma.Decimal(0)
-  // The same two figures for the root head alone. In the subtree view they back the
-  // "this one only" comparison row, computed from the very line items the page is
-  // already walking rather than a second rollup, so the two numbers can never disagree.
+  // The root head's own value, whatever the page is scoped to. Nothing in the details
+  // card prints it — it is the basis for the things that settle against this head alone
+  // (UPI, "you owe"), which a subtree total would overstate.
   let own_total = new Prisma.Decimal(0)
-  let own_book = new Prisma.Decimal(0)
   const cashflows: { amount: number; when: Date }[] = []
   const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
     {}
@@ -138,10 +137,7 @@ async function Page({ params, searchParams }: Props) {
 
     acc_total = acc_total.add(current_value)
     book_total = book_total.add(txn_value)
-    if (li.accounting_head_id === head.id) {
-      own_total = own_total.add(current_value)
-      own_book = own_book.add(txn_value)
-    }
+    if (li.accounting_head_id === head.id) own_total = own_total.add(current_value)
     cashflows.push({ amount: -txn_value.toNumber(), when: li.datetime ?? li.transaction.datetime })
 
     if (!map[asset.id])
@@ -244,7 +240,7 @@ async function Page({ params, searchParams }: Props) {
     xirr_value = calculate_xirr(cashflows)
   }
 
-  const { subtree_total, subtree_book, children } = rollup
+  const { children } = rollup
   const parent: HeadData['parent'] = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
 
   // undefined in the default view so the frozen cache still applies there; only the
@@ -320,24 +316,15 @@ async function Page({ params, searchParams }: Props) {
       head={{
         id: head.id,
         name: head.name,
-        // Everything below is scoped: in the subtree view these already cover the head
-        // and its descendants, which is why the rollup rows drop out there.
+        // Every figure here is on the active scope — the details card shows one scope's
+        // numbers and nothing else, so the reader never has to work out which total the
+        // holdings and line items below belong to.
         total: acc_total.toNumber(),
         book_total: book_total.toNumber(),
         // Cost figures only say something on a head that holds priced assets; on a
         // rupees-only one they'd both just restate the balance.
         invested_total: holds_non_rupees ? invested_total.toNumber() : null,
-        // The head on its own — the comparison row in the subtree view, and the basis
-        // for anything that settles against this head alone (UPI, "you owe"), which a
-        // subtree total would overstate.
         own_total: own_total.toNumber(),
-        own_book: own_book.toNumber(),
-        // Cached-balance rollup, shown only in the default view. In the subtree view the
-        // headline figures are the rollup, computed live from the same line items the
-        // rest of the page lists — printing the cached pair beside them would invite a
-        // rounding-level disagreement between two numbers that mean the same thing.
-        subtree_total: scope === 'subtree' ? null : subtree_total,
-        subtree_book: scope === 'subtree' ? null : subtree_book,
         children,
         parent,
         linked_user,

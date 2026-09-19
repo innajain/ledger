@@ -50,14 +50,11 @@ export type HeadData = {
   // priced assets, where it would only restate the balance.
   invested_total?: number | null
 
-  // This head on its own. In the subtree view the figures above cover the descendants
-  // too, so this is what the "this one only" comparison row prints — and what anything
-  // settling against this head alone (UPI, "you owe") must use.
+  // This head on its own. Not displayed — in the subtree view the figures above cover
+  // the descendants too, and this is what anything settling against this head alone
+  // (UPI, "you owe") has to use instead, since a sub-account's money settles against
+  // that sub-account.
   own_total?: number | null
-  own_book?: number | null
-
-  subtree_total?: number | null
-  subtree_book?: number | null
 
   children?: { id: string; name: string; link: string; total: number }[]
 
@@ -282,18 +279,17 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
       <InfoCard
         title={`${config.entityName} details`}
         fields={[
-          {
-            // Three cases, one label: plain when nothing else is in play, "(this one
-            // only)" when the cached rollup is printed below it, and the scope suffix
-            // when the page itself is scoped to the subtree.
-            label: inSubtree ? `Total value${scopeSuffix}` : head.subtree_total != null ? 'Total value (this one only)' : 'Total value',
-            value: <Amount value={head.total} />,
-          },
+          // Every figure in this card is on one scope — the one the toggle names. Mixing
+          // a "this one only" row with a "with sub-accounts" row was the old behaviour
+          // and it made the card ambiguous: two totals, no way to tell at a glance which
+          // one the holdings and line items below belonged to. The other scope is one
+          // click away, and the sub-heads card below still lists each child's total.
+          { label: `Total value${scopeSuffix}`, value: <Amount value={head.total} /> },
           // Same pair the asset page carries, in the same order: cost of what's still
           // held, then everything posted. Both only once the head holds a priced asset —
-          // on a rupees-only one they'd just restate the balance twice. Unlike the cached
-          // rollup below, these survive the scope switch: the subtree view walks the real
-          // line items, so it has the lot history FIFO needs.
+          // on a rupees-only one they'd just restate the balance twice. They survive the
+          // scope switch because both views walk the real line items, so either has the
+          // lot history FIFO needs.
           ...(head.invested_total != null
             ? [
                 { label: `Current investment${scopeSuffix}`, value: <Amount value={head.invested_total} /> },
@@ -302,27 +298,6 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
             : book_differs(head.book_total, head.total)
               ? [{ label: `Total book value${scopeSuffix}`, value: <Amount value={head.book_total} /> }]
               : []),
-          // The mirror of the rollup rows below: in the subtree view the headline is the
-          // whole subtree, so the head on its own becomes the secondary figure.
-          ...(inSubtree
-            ? [
-                { label: 'Total value (this one only)', value: <Amount value={ownTotal} /> },
-                ...(book_differs(head.own_book, ownTotal)
-                  ? [{ label: 'Total book value (this one only)', value: <Amount value={head.own_book} /> }]
-                  : []),
-              ]
-            : []),
-          ...(head.subtree_total != null
-            ? [
-                { label: `Total value (with ${subEntityLabel})`, value: <Amount value={head.subtree_total} /> },
-                // No invested twin for the subtree: it rolls up from cached per-head
-                // balances, which carry no lot history to run FIFO over. Switching the
-                // page into the subtree view is what gets you one.
-                ...(book_differs(head.subtree_book, head.subtree_total)
-                  ? [{ label: `Total book value (with ${subEntityLabel})`, value: <Amount value={head.subtree_book} /> }]
-                  : []),
-              ]
-            : []),
           ...(head.xirr !== undefined && head.xirr !== null
             ? [
                 {
