@@ -177,10 +177,10 @@ export async function update_account_core(
       },
       { timeout: 30_000 },
     )
-    // The balances cache and frozen timeseries read only line-item head/asset ids plus the
-    // head *type* — renames/reparents/lock dates/archiving change nothing cached, so only
-    // an actual type change needs the coarse flush.
-    if (type !== undefined && type !== existing.type) await invalidate_balances(user_id)
+    // Head types affect balances; parent changes affect subtree frozen timeseries.
+    // Flush all of the user's series to cover both old and new ancestors after a move.
+    if ((type !== undefined && type !== existing.type) || (parent_id !== undefined && parent_id !== existing.parent_id))
+      await invalidate_balances(user_id)
     if (newly_linked && backfilled > 0) void notify_request_pending(linked_update!, user_id)
     audit('account.update', user_id, { newly_linked, backfilled_count: backfilled })
     return ok()
