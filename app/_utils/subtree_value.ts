@@ -5,28 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { get_or_compute_balances } from '@/app/_actions/compute_balances'
 import { get_prices_for_assets } from './price_fetcher'
 import { compute_current_value } from './compute_current_value'
-
-export function get_subtree_head_ids(root_id: string, heads: { id: string; parent_id: string | null }[]): Set<string> {
-  const childrenByParent = new Map<string, string[]>()
-  for (const h of heads) {
-    if (!h.parent_id) continue
-    const arr = childrenByParent.get(h.parent_id) ?? []
-    arr.push(h.id)
-    childrenByParent.set(h.parent_id, arr)
-  }
-
-  const ids = new Set<string>([root_id])
-  const stack = [root_id]
-  while (stack.length > 0) {
-    const current = stack.pop()!
-    for (const child_id of childrenByParent.get(current) ?? []) {
-      if (ids.has(child_id)) continue
-      ids.add(child_id)
-      stack.push(child_id)
-    }
-  }
-  return ids
-}
+import { get_subtree_head_ids } from './head_tree'
 
 // The heads an "including sub-heads" view covers: the root plus every descendant. Slim
 // on purpose — the page needs these ids before it can query transactions, so this runs
