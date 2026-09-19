@@ -136,6 +136,13 @@ interface LineItemRowProps {
   lineItemDescription?: string | null
   assetType: asset_type
   remainingQuantity?: number | null
+  /**
+   * The accounting head this line sits on. Only passed where the surrounding page does
+   * not already imply it — a head page scoped to a whole subtree, where a row could have
+   * come from any sub-head.
+   */
+  headName?: string | null
+  headLink?: string | null
 }
 
 export function LineItemRow({
@@ -149,6 +156,8 @@ export function LineItemRow({
   lineItemDescription,
   assetType,
   remainingQuantity,
+  headName,
+  headLink,
 }: LineItemRowProps) {
   const is_depleted = remainingQuantity !== undefined && remainingQuantity !== null && remainingQuantity === 0
   const displayed_amount = bookValue !== null && bookValue !== undefined ? bookValue : quantity
@@ -172,6 +181,19 @@ export function LineItemRow({
             >
               {title}
             </Link>
+            {headName &&
+              (headLink ? (
+                <Link
+                  href={headLink}
+                  className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                >
+                  {headName}
+                </Link>
+              ) : (
+                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                  {headName}
+                </span>
+              ))}
             {showAssetTag &&
               (assetLink ? (
                 <Link

@@ -371,10 +371,14 @@ function register_tools(server: McpServer) {
     'get_balances',
     {
       description:
-        'Per-account asset balances (quantity and book value). Optional head filter (id or name) and as_of date — as_of gives the closing balance at the END of that IST day (e.g. "Kotak at 30 Apr close" to check against a bank statement). A future as_of projects the balance forward using scheduled (future) transactions dated before it. With a head filter, as_of works for any head type, including allocations.',
+        'Per-account asset balances (quantity and book value). Optional head filter (id or name) and as_of date — as_of gives the closing balance at the END of that IST day (e.g. "Kotak at 30 Apr close" to check against a bank statement). A future as_of projects the balance forward using scheduled (future) transactions dated before it. With a head filter, as_of works for any head type, including allocations. A parent head often holds nothing itself — its money sits in its sub-heads — so pass include_subheads when a filtered head comes back empty or you want the group total.',
       inputSchema: {
         head: z.string().optional().describe('Only this head (id or name); any type when combined with as_of, accounts otherwise'),
         as_of: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST) — closing balance at the END of that day; default: now'),
+        include_subheads: z
+          .boolean()
+          .optional()
+          .describe('With head: also cover its descendants (default false). Rows stay per head, so you can see which sub-head holds what.'),
       },
       annotations: ro,
     },
@@ -382,6 +386,8 @@ function register_tools(server: McpServer) {
       const uid = get_uid(extra as ToolExtra)
       const [heads, assets] = await Promise.all([load_heads(uid), load_assets()])
       const filter_head = args.head ? resolve_ref(args.head, heads, 'accounting head') : null
+      // null = no head filter at all. Otherwise the head, plus its descendants when asked.
+      const filter_head_ids = filter_head ? (args.include_subheads ? get_subtree_head_ids(filter_head.id, heads) : new Set([filter_head.id])) : null
       const headById = new Map(heads.map(h => [h.id, h]))
       const assetById = new Map(assets.map(a => [a.id, a]))
       const rows: Record<string, unknown>[] = []
@@ -389,7 +395,7 @@ function register_tools(server: McpServer) {
       if (args.as_of) {
         const cutoff = parse_day(args.as_of)
         cutoff.setDate(cutoff.getDate() + 1)
-        const closing = await closing_balance_core(uid, filter_head?.id ?? null, cutoff)
+        const closing = await closing_balance_core(uid, filter_head_ids ? [...filter_head_ids] : null, cutoff)
         for (const r of closing) {
           if (Math.abs(r.qty) < 1e-9 && Math.abs(r.value) < 1e-9 && !filter_head) continue
           rows.push({
@@ -407,7 +413,7 @@ function register_tools(server: McpServer) {
       for (const [headId, assetMap] of accountsToAssets) {
         const head = headById.get(headId)
         if (!head || head.type !== 'account') continue
-        if (filter_head && head.id !== filter_head.id) continue
+        if (filter_head_ids && !filter_head_ids.has(head.id)) continue
         for (const [assetId, bal] of assetMap) {
           if (Math.abs(bal.qty) < 1e-9 && Math.abs(bal.txn_value) < 1e-9 && !filter_head) continue
           rows.push({ account: head.name, asset: assetById.get(assetId)?.name ?? assetId, qty: bal.qty, value: bal.txn_value })
@@ -422,9 +428,15 @@ function register_tools(server: McpServer) {
     'get_head',
     {
       description:
-        'Full detail for one accounting head (account / allocation / income_expense, by id or name), mirroring its web page: current value, subtree rollup total + immediate children, XIRR, parent, linked user (accounts), tax_treatment (income/expense — how it counts toward income tax; null means unclassified and excluded from get_tax_computation) and holdings aggregated by asset. Pass include_line_items for every line touching the head (with FIFO remaining_quantity for accounts); include_timeseries for the value-over-time series (priced holdings only).',
+        'Full detail for one accounting head (account / allocation / income_expense, by id or name), mirroring its web page: current value, subtree rollup total + immediate children, XIRR, parent, linked user (accounts), tax_treatment (income/expense — how it counts toward income tax; null means unclassified and excluded from get_tax_computation) and holdings aggregated by asset. Pass include_line_items for every line touching the head (with FIFO remaining_quantity for accounts); include_timeseries for the value-over-time series (priced holdings only). A parent head often holds nothing itself — total 0 with a non-zero subtree_total means the money is in its sub-heads; pass include_subheads to report on the whole subtree instead (total, by_asset, XIRR, line items, timeseries and future transactions all widen, and own_total keeps the head-only figure).',
       inputSchema: {
         head: z.string().describe('Accounting head id or name'),
+        include_subheads: z
+          .boolean()
+          .optional()
+          .describe(
+            'Report on this head AND all its descendants rather than the head alone (default false). Every figure widens; own_total stays the head-only value, and line items carry the head each sits on.',
+          ),
         include_line_items: z.boolean().optional().describe('Attach line items touching the head (default false; newest first, paginated)'),
         include_timeseries: z.boolean().optional().describe('Attach the value-over-time series (default false)'),
         include_future_transactions: z
@@ -448,9 +460,15 @@ function register_tools(server: McpServer) {
       if (!head) return { content: [{ type: 'text', text: 'Head not found' }], isError: true }
       const is_account = head.type === 'account'
 
+      // The heads this call reports on. A head with no descendants collapses back to the
+      // head-only view, so include_subheads on a leaf is a no-op rather than a different
+      // (and identical) shape of answer.
+      const scoped_head_ids = args.include_subheads ? get_subtree_head_ids(head.id, all_heads) : new Set([head.id])
+      const in_subtree = scoped_head_ids.size > 1
+
       const [rawTransactions, rollup, linked_user] = await Promise.all([
         prisma.transaction.findMany({
-          where: { user_id: uid, ...NOT_FUTURE, line_items: { some: { accounting_head_id: head.id } } },
+          where: { user_id: uid, ...NOT_FUTURE, line_items: { some: { accounting_head_id: { in: [...scoped_head_ids] } } } },
           include: { line_items: { include: { accounting_head: true, asset: true } } },
         }),
         head_rollup(uid, head.id, all_heads),
@@ -463,12 +481,15 @@ function register_tools(server: McpServer) {
       const normalizedById = new Map<string, (typeof normalized_txns)[number]['line_items'][number]>()
       for (const tx of normalized_txns) for (const li of tx.line_items) normalizedById.set(li.id, li)
       const head_line_items = rawTransactions.flatMap(tx =>
-        tx.line_items.filter(li => li.accounting_head_id === head.id).map(li => ({ ...li, transaction: tx })),
+        tx.line_items.filter(li => scoped_head_ids.has(li.accounting_head_id)).map(li => ({ ...li, transaction: tx })),
       )
       const uniqueAssets = Array.from(new Map(head_line_items.map(li => [li.asset.id, li.asset])).values())
       const priceByAsset = await get_prices_for_assets(uniqueAssets)
 
       let total = new Prisma.Decimal(0)
+      // The root head on its own — the head-only figure the subtree view still reports,
+      // computed from the very lines being walked so the two can never disagree.
+      let own_total = new Prisma.Decimal(0)
       const cashflows: { amount: number; when: Date }[] = []
       const by_asset_map = new Map<string, { name: string; type: asset_type; qty: Prisma.Decimal; book: Prisma.Decimal }>()
       const lines: {
@@ -482,6 +503,7 @@ function register_tools(server: McpServer) {
         datetime: Date
         description: string | null
         remaining_quantity: number | null
+        head: string | null
       }[] = []
 
       for (const li of head_line_items) {
@@ -490,6 +512,7 @@ function register_tools(server: McpServer) {
         const priceDecimal = priceData ? new Prisma.Decimal(priceData.price) : null
         const current_value = compute_current_value(li.asset.type, n.quantity, priceDecimal, n.txn_value)
         total = total.add(current_value)
+        if (li.accounting_head_id === head.id) own_total = own_total.add(current_value)
         cashflows.push({ amount: -n.txn_value.toNumber(), when: li.datetime ?? li.transaction.datetime })
 
         const e = by_asset_map.get(li.asset.id) ?? {
@@ -513,15 +536,28 @@ function register_tools(server: McpServer) {
           datetime: li.datetime ?? li.transaction.datetime,
           description: li.description ?? li.transaction.description,
           remaining_quantity: null,
+          // Which head the line sits on — only meaningful once more than one is in scope.
+          head: in_subtree ? li.accounting_head.name : null,
         })
       }
 
       if (is_account) {
         const lineById = new Map(head_line_items.map(li => [li.id, li]))
+        // Keyed by head as well as asset: units bought in one sub-account are not the
+        // units sold from a sibling, so a shared queue would close the wrong lots. With a
+        // single head in scope this is the old per-asset grouping.
         const remaining_by_id = compute_fifo_remaining(
           lines
             .filter(l => l.asset_type !== asset_type.rupees)
-            .map(l => ({ id: l.id, group_key: lineById.get(l.id)!.asset.id, qty: new Prisma.Decimal(l.quantity), date: l.datetime })),
+            .map(l => {
+              const src = lineById.get(l.id)!
+              return {
+                id: l.id,
+                group_key: `${src.accounting_head_id}|${src.asset.id}`,
+                qty: new Prisma.Decimal(l.quantity),
+                date: l.datetime,
+              }
+            }),
         )
         for (const l of lines) l.remaining_quantity = remaining_by_id.has(l.id) ? remaining_by_id.get(l.id)!.toNumber() : null
       }
@@ -546,7 +582,11 @@ function register_tools(server: McpServer) {
         id: head.id,
         name: head.name,
         type: head.type,
+        // What every figure below covers. 'subtree' = this head plus its descendants.
+        scope: in_subtree ? 'subtree' : 'self',
         total: total.toNumber(),
+        // Only differs from total in the subtree view, where it is this head alone.
+        own_total: own_total.toNumber(),
         subtree_total,
         children,
         parent: head.parent ? head.parent.name : null,
@@ -582,13 +622,18 @@ function register_tools(server: McpServer) {
           datetime: l.datetime,
           description: l.description,
           remaining_quantity: l.remaining_quantity,
+          ...(l.head ? { head: l.head } : {}),
         }))
       }
 
       if (args.include_timeseries && uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')) {
+        // undefined outside the subtree view, so the ordinary series keeps its cache.
+        const series_head_ids = in_subtree ? [...scoped_head_ids] : undefined
         const series = await compute_value_timeseries(
           normalized_txns,
-          is_account ? { kind: 'account', accounting_head_id: head.id } : { kind: 'allocation', allocation_id: head.id },
+          is_account
+            ? { kind: 'account', accounting_head_id: head.id, head_ids: series_head_ids }
+            : { kind: 'allocation', allocation_id: head.id, head_ids: series_head_ids },
           uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
           uid,
         )
@@ -598,7 +643,7 @@ function register_tools(server: McpServer) {
 
       if (args.include_future_transactions) {
         const futureTransactions = await prisma.transaction.findMany({
-          where: { user_id: uid, is_future: true, line_items: { some: { accounting_head_id: head.id } } },
+          where: { user_id: uid, is_future: true, line_items: { some: { accounting_head_id: { in: [...scoped_head_ids] } } } },
           include: { line_items: { include: { accounting_head: true, asset: true } } },
           orderBy: { datetime: 'asc' },
         })
@@ -609,12 +654,13 @@ function register_tools(server: McpServer) {
         const future_asset_names = new Map<string, string>()
         for (const tx of normalized_future) for (const li of tx.line_items) future_asset_names.set(li.asset_id, li.asset.name)
 
-        // One row per line item on this head, not per transaction — a transaction with
-        // two lines here (e.g. rent + brokerage against the same account) yields two rows.
+        // One row per line item in scope, not per transaction — a transaction with two
+        // lines here (e.g. rent + brokerage against the same account) yields two rows. In
+        // the subtree view sufficiency is judged against the combined per-asset balance.
         const future_line_items = normalized_future
           .flatMap(tx =>
             tx.line_items
-              .filter(li => li.accounting_head_id === head.id)
+              .filter(li => scoped_head_ids.has(li.accounting_head_id))
               .map(li => ({
                 id: li.id,
                 transaction_id: tx.id,

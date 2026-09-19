@@ -26,6 +26,8 @@ export type HeadConfig = {
 
   entityName: string
   backText: string
+  /** Plural noun for this head type's descendants — "sub-accounts", "sub-categories". */
+  subEntityLabel: string
 }
 
 export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
@@ -43,6 +45,7 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
     showNegativeAssetBadges: true,
     entityName: 'Account',
     backText: 'Accounts',
+    subEntityLabel: 'sub-accounts',
   },
   allocation: {
     title: 'Allocations',
@@ -57,6 +60,7 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
     showNegativeAssetBadges: true,
     entityName: 'Allocation',
     backText: 'Allocations',
+    subEntityLabel: 'sub-allocations',
   },
   income_expense: {
     title: 'Income & Expenses',
@@ -74,5 +78,6 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
     relatedLinks: [{ href: '/tax', label: 'Tax' }],
     entityName: 'Income / Expense',
     backText: 'Income & Expenses',
+    subEntityLabel: 'sub-categories',
   },
 }

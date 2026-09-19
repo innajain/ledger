@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { Prisma, asset_type } from '@/generated/prisma/client'
 import {
   build_events,
+  filter_head_ids,
   walk_events,
   compute_timeseries_points,
   ist_date_key,
@@ -93,6 +94,29 @@ describe('walk_events — FIFO lot accounting (account filter)', () => {
     expect(points[0].invested).toBe(600)
   })
 
+  it("keeps a FIFO queue per head, so a sibling head cannot close another head's lots", () => {
+    // The subtree view walks several heads at once. A sell in one sub-account must
+    // consume that sub-account's own lot; sharing one queue per asset would let it eat
+    // the sibling's cheaper lot and misreport the remaining book value.
+    const events = [
+      ev({ accounting_head_id: 'a', qty: 10, book: 1000, date: day(1) }),
+      ev({ accounting_head_id: 'b', qty: 10, book: 2000, date: day(2) }),
+      ev({ accounting_head_id: 'b', qty: -10, book: -2000, date: day(3) }),
+    ]
+    const points = walk_events(
+      events,
+      { kind: 'account', accounting_head_id: 'a', head_ids: ['a', 'b'] },
+      priceFor(MF.id, 150),
+      [MF],
+      'today-only',
+      day(3),
+    )
+
+    // Only head a's 10 units survive, at head a's own cost — not head b's.
+    expect(points[0].invested).toBe(1000)
+    expect(points[0].current).toBe(1500)
+  })
+
   it('computes a positive XIRR for a held gain over time', () => {
     const events = [ev({ qty: 10, book: 1000, date: day(1) })]
 
@@ -176,6 +200,34 @@ describe('build_events', () => {
     const events = build_events(txns(makeTxn('t1', day(1))), { kind: 'asset', asset_id: 'rupees' })
     expect(events).toHaveLength(1)
     expect(events[0].accounting_head_id).toBe('bank')
+  })
+
+  it('head_ids widens an account filter to the whole subtree', () => {
+    const events = build_events(txns(makeTxn('t1', day(1))), { kind: 'account', accounting_head_id: 'bank', head_ids: ['bank', 'exp'] })
+    expect(events.map(e => e.accounting_head_id).sort()).toEqual(['bank', 'exp'])
+  })
+
+  it('head_ids replaces the anchor id rather than adding to it', () => {
+    // A subtree list always contains its own root, so a list that omits it is asking for
+    // exactly the heads named — the anchor id must not sneak back in.
+    const events = build_events(txns(makeTxn('t1', day(1))), { kind: 'allocation', allocation_id: 'food', head_ids: ['exp'] })
+    expect(events.map(e => e.accounting_head_id)).toEqual(['exp'])
+  })
+
+  it('ignores an empty head_ids list and falls back to the anchor head', () => {
+    const events = build_events(txns(makeTxn('t1', day(1))), { kind: 'account', accounting_head_id: 'bank', head_ids: [] })
+    expect(events.map(e => e.accounting_head_id)).toEqual(['bank'])
+  })
+})
+
+describe('filter_head_ids', () => {
+  it('is the anchor head alone when no subtree is given', () => {
+    expect([...filter_head_ids({ kind: 'account', accounting_head_id: 'bank' })]).toEqual(['bank'])
+    expect([...filter_head_ids({ kind: 'allocation', allocation_id: 'food' })]).toEqual(['food'])
+  })
+
+  it('is the given subtree when there is one', () => {
+    expect([...filter_head_ids({ kind: 'account', accounting_head_id: 'bank', head_ids: ['bank', 'child'] })].sort()).toEqual(['bank', 'child'])
   })
 })
 

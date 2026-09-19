@@ -10,9 +10,18 @@ import type { ClosingBalance } from '@/app/heads/[type]/[id]/closing_balance'
 export function AsOfBalance({
   headId,
   getClosingBalance,
+  includeSubheads = false,
+  subEntityLabel = 'sub-heads',
 }: {
   headId: string
-  getClosingBalance: (head_id: string, date: string) => Promise<ActionResult<ClosingBalance>>
+  getClosingBalance: (head_id: string, date: string, include_subheads?: boolean) => Promise<ActionResult<ClosingBalance>>
+  /**
+   * Follows the head page's scope toggle, so this card never reports a narrower set than
+   * the rest of the page. Callers key the component on it, so a flip remounts rather than
+   * leaving the previous scope's answer on screen under the new label.
+   */
+  includeSubheads?: boolean
+  subEntityLabel?: string
 }) {
   const [date, setDate] = useState('')
   const [busy, setBusy] = useState(false)
@@ -33,7 +42,7 @@ export function AsOfBalance({
     setBusy(true)
     setError(null)
     try {
-      const res = await getClosingBalance(headId, chosen)
+      const res = await getClosingBalance(headId, chosen, includeSubheads)
       if (seq !== seqRef.current) return
       if (!res.success) throw new Error(res.message)
       setResult({ date: chosen, balance: res.data! })
@@ -66,8 +75,8 @@ export function AsOfBalance({
         <div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Balance on a date</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Closing balance at the end of that day (book value) — handy for checking against a bank statement. Pick a future date to project the
-            balance forward using scheduled transactions.
+            Closing balance at the end of that day (book value){includeSubheads ? `, including ${subEntityLabel}` : ''} — handy for checking against a
+            bank statement. Pick a future date to project the balance forward using scheduled transactions.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

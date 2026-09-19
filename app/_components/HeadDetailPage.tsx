@@ -13,6 +13,7 @@ import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 import { UpiPayButton } from '@/app/_components/UpiPayButton'
 import { LinkedUserNotify } from '@/app/_components/LinkedUserNotify'
 import { AsOfBalance } from '@/app/_components/AsOfBalance'
+import { ScopeToggle, type HeadScopeValue } from '@/app/_components/ScopeToggle'
 import { LockIcon, CloseIcon } from '@/app/_components/icons'
 import { create_upi_payment } from '@/app/_actions/transactions'
 import type { ActionResult } from '@/app/_actions/_result'
@@ -31,6 +32,10 @@ export type LineItem = {
   line_item_description: string | null
   asset_type: asset_type
   remaining_quantity?: number | null
+  // The head this line actually sits on — set only in the subtree view, where the page
+  // you are on no longer implies it.
+  head_name?: string | null
+  head_link?: string | null
 }
 
 export type HeadData = {
@@ -44,6 +49,12 @@ export type HeadData = {
   // the head-level twin of the asset page's "Current investment". Null on a head with no
   // priced assets, where it would only restate the balance.
   invested_total?: number | null
+
+  // This head on its own. In the subtree view the figures above cover the descendants
+  // too, so this is what the "this one only" comparison row prints — and what anything
+  // settling against this head alone (UPI, "you owe") must use.
+  own_total?: number | null
+  own_book?: number | null
 
   subtree_total?: number | null
   subtree_book?: number | null
@@ -93,12 +104,20 @@ type HeadDetailConfig = {
   backText: string
   entityName: string
   holdingsTitle?: string
+  /** Plural noun for this head type's descendants — "sub-accounts", "sub-categories". */
+  subEntityLabel?: string
 }
 
 type HeadDetailPageProps = {
   head: HeadData
   config: HeadDetailConfig
-  closingBalanceAction?: (head_id: string, date: string) => Promise<ActionResult<ClosingBalance>>
+  /**
+   * Which heads the figures on this page cover. 'subtree' means the head plus its
+   * descendants; the toggle that switches it only renders when there are descendants to
+   * include.
+   */
+  scope?: HeadScopeValue
+  closingBalanceAction?: (head_id: string, date: string, include_subheads?: boolean) => Promise<ActionResult<ClosingBalance>>
   // account-type heads only — reconciliation runs against a single bank account
 }
 
@@ -119,9 +138,17 @@ function Amount({ value }: { value: number }) {
   )
 }
 
-export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetailPageProps) {
+export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAction }: HeadDetailPageProps) {
   const router = useRouter()
   const editLink = `${config.backLink}/${head.id}/update`
+  const subEntityLabel = config.subEntityLabel ?? 'sub-heads'
+  const inSubtree = scope === 'subtree'
+  const hasChildren = !!head.children && head.children.length > 0
+  // The head's own balance, whatever the page is scoped to. It is what a UPI settlement
+  // or a "you owe" line is about — money sitting in a sub-account settles against that
+  // sub-account, not against this one.
+  const ownTotal = head.own_total ?? head.total
+  const scopeSuffix = inSubtree ? ` (with ${subEntityLabel})` : ''
   const [pay_status, set_pay_status] = useState<{ kind: 'ok'; txn_id: string } | { kind: 'err'; message: string } | null>(null)
   const [visibleLineItems, setVisibleLineItems] = useState(LINE_ITEMS_PAGE)
 
@@ -172,6 +199,8 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
         </Link>
       )}
 
+      {hasChildren && <ScopeToggle active={scope} subEntityLabel={subEntityLabel} />}
+
       {head.lock_date && (
         <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2.5 flex items-center gap-2.5">
           <LockIcon className="w-4 h-4 text-amber-700 dark:text-amber-300 shrink-0" />
@@ -196,11 +225,11 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
               Send money via UPI{head.linked_user ? ` to @${head.linked_user.username}` : ''}
             </p>
             <p className="text-xs font-mono text-green-700 dark:text-green-300 break-all">{head.upi_id}</p>
-            {head.total < 0 && (
+            {ownTotal < 0 && (
               <p className="text-xs text-green-700 dark:text-green-300 mt-1">
                 You owe{' '}
                 <span className="font-semibold">
-                  <MaskedAmount value={-head.total} />
+                  <MaskedAmount value={-ownTotal} />
                 </span>{' '}
                 — pre-filled below
               </p>
@@ -210,8 +239,8 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
             upi_id={head.upi_id}
             payee_name={head.name}
             mark_paid_label="Log transaction"
-            initial_amount={head.total < 0 ? -head.total : undefined}
-            initial_note={head.total < 0 ? 'reimbursement. balance settled' : undefined}
+            initial_amount={ownTotal < 0 ? -ownTotal : undefined}
+            initial_note={ownTotal < 0 ? 'reimbursement. balance settled' : undefined}
             on_mark_paid={handle_mark_paid}
           />
         </div>
@@ -254,27 +283,43 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
         title={`${config.entityName} details`}
         fields={[
           {
-            label: head.subtree_total != null ? 'Total value (this one only)' : 'Total value',
+            // Three cases, one label: plain when nothing else is in play, "(this one
+            // only)" when the cached rollup is printed below it, and the scope suffix
+            // when the page itself is scoped to the subtree.
+            label: inSubtree ? `Total value${scopeSuffix}` : head.subtree_total != null ? 'Total value (this one only)' : 'Total value',
             value: <Amount value={head.total} />,
           },
           // Same pair the asset page carries, in the same order: cost of what's still
           // held, then everything posted. Both only once the head holds a priced asset —
-          // on a rupees-only one they'd just restate the balance twice.
+          // on a rupees-only one they'd just restate the balance twice. Unlike the cached
+          // rollup below, these survive the scope switch: the subtree view walks the real
+          // line items, so it has the lot history FIFO needs.
           ...(head.invested_total != null
             ? [
-                { label: 'Current investment', value: <Amount value={head.invested_total} /> },
-                ...(head.book_total != null ? [{ label: 'Total book value', value: <Amount value={head.book_total} /> }] : []),
+                { label: `Current investment${scopeSuffix}`, value: <Amount value={head.invested_total} /> },
+                ...(head.book_total != null ? [{ label: `Total book value${scopeSuffix}`, value: <Amount value={head.book_total} /> }] : []),
               ]
             : book_differs(head.book_total, head.total)
-              ? [{ label: 'Total book value', value: <Amount value={head.book_total} /> }]
+              ? [{ label: `Total book value${scopeSuffix}`, value: <Amount value={head.book_total} /> }]
               : []),
+          // The mirror of the rollup rows below: in the subtree view the headline is the
+          // whole subtree, so the head on its own becomes the secondary figure.
+          ...(inSubtree
+            ? [
+                { label: 'Total value (this one only)', value: <Amount value={ownTotal} /> },
+                ...(book_differs(head.own_book, ownTotal)
+                  ? [{ label: 'Total book value (this one only)', value: <Amount value={head.own_book} /> }]
+                  : []),
+              ]
+            : []),
           ...(head.subtree_total != null
             ? [
-                { label: 'Total value (with sub-accounts)', value: <Amount value={head.subtree_total} /> },
+                { label: `Total value (with ${subEntityLabel})`, value: <Amount value={head.subtree_total} /> },
                 // No invested twin for the subtree: it rolls up from cached per-head
-                // balances, which carry no lot history to run FIFO over.
+                // balances, which carry no lot history to run FIFO over. Switching the
+                // page into the subtree view is what gets you one.
                 ...(book_differs(head.subtree_book, head.subtree_total)
-                  ? [{ label: 'Total book value (with sub-accounts)', value: <Amount value={head.subtree_book} /> }]
+                  ? [{ label: `Total book value (with ${subEntityLabel})`, value: <Amount value={head.subtree_book} /> }]
                   : []),
               ]
             : []),
@@ -301,14 +346,24 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
         ]}
       />
 
-      {head.linked_user && <LinkedUserNotify targetUserId={head.linked_user.id} username={head.linked_user.username} owedAmount={head.total} />}
+      {head.linked_user && <LinkedUserNotify targetUserId={head.linked_user.id} username={head.linked_user.username} owedAmount={ownTotal} />}
 
-      {closingBalanceAction && <AsOfBalance headId={head.id} getClosingBalance={closingBalanceAction} />}
+      {closingBalanceAction && (
+        <AsOfBalance
+          // Remount on a scope flip: the card holds a computed balance for the old scope,
+          // and there is no honest way to keep showing it under the new one.
+          key={scope}
+          headId={head.id}
+          getClosingBalance={closingBalanceAction}
+          includeSubheads={inSubtree}
+          subEntityLabel={subEntityLabel}
+        />
+      )}
 
       {head.children && head.children.length > 0 && (
         <Card>
           <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sub-{config.entityName.toLowerCase()}s</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 capitalize">{subEntityLabel}</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {head.children.length} sub-{head.children.length !== 1 ? 'entries' : 'entry'} — totals include everything under them
             </p>
@@ -336,7 +391,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
         </Card>
       )}
 
-      <HoldingsGrid title={config.holdingsTitle || 'Held in assets'} items={holdingsItems} linkLabel="View asset →" />
+      <HoldingsGrid title={`${config.holdingsTitle || 'Held in assets'}${scopeSuffix}`} items={holdingsItems} linkLabel="View asset →" />
 
       {}
       <Card>
@@ -345,6 +400,7 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {head.line_items.length} item
             {head.line_items.length !== 1 ? 's' : ''}
+            {inSubtree && ` across this ${config.entityName.toLowerCase()} and its ${subEntityLabel}`}
           </p>
         </div>
 
@@ -365,6 +421,8 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
                 lineItemDescription={li.line_item_description}
                 assetType={li.asset_type}
                 remainingQuantity={li.remaining_quantity}
+                headName={li.head_name}
+                headLink={li.head_link}
               />
             ))}
             {head.line_items.length > visibleLineItems && (
@@ -383,7 +441,9 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
         )}
       </Card>
 
-      {head.value_timeseries && head.value_timeseries.length > 0 && <ValueChart points={head.value_timeseries} title="Value over time" />}
+      {head.value_timeseries && head.value_timeseries.length > 0 && (
+        <ValueChart points={head.value_timeseries} title={`Value over time${scopeSuffix}`} />
+      )}
 
       {head.future_transactions && head.future_transactions.length > 0 && (
         <Card>
@@ -391,6 +451,8 @@ export function HeadDetailPage({ head, config, closingBalanceAction }: HeadDetai
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Future transactions</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Scheduled entries — they don&apos;t affect balances until converted to real transactions.
+              {inSubtree &&
+                ` Sufficiency is judged against the combined balance of this ${config.entityName.toLowerCase()} and its ${subEntityLabel}.`}
             </p>
           </div>
           <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">

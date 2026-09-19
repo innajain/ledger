@@ -28,6 +28,14 @@ export function get_subtree_head_ids(root_id: string, heads: { id: string; paren
   return ids
 }
 
+// The heads an "including sub-heads" view covers: the root plus every descendant. Slim
+// on purpose — the page needs these ids before it can query transactions, so this runs
+// ahead of the rollup rather than alongside it.
+export async function load_subtree_head_ids(root_id: string, user_id: string): Promise<Set<string>> {
+  const heads = await prisma.accounting_head.findMany({ where: { user_id }, select: { id: true, parent_id: true } })
+  return get_subtree_head_ids(root_id, heads)
+}
+
 export function compute_subtree_total(
   subtree_ids: Set<string>,
   balances: Map<string, Map<string, { qty: number; txn_value: number }>>,

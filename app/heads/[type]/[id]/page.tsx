@@ -14,13 +14,23 @@ import { compute_fifo_remaining } from '@/app/_utils/fifo'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { NOT_FUTURE, is_future_txn_due } from '@/app/_utils/future_txn'
 import { compute_future_sufficiency } from '@/app/_utils/future_balance'
-import { compute_head_rollup, head_detail_link } from '@/app/_utils/subtree_value'
+import { compute_head_rollup, head_detail_link, load_subtree_head_ids } from '@/app/_utils/subtree_value'
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { get_closing_balance } from './closing_balance'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
-type Props = { params: Promise<{ type: string; id: string }> }
+type Props = {
+  params: Promise<{ type: string; id: string }>
+  searchParams?: Promise<{ scope?: string }>
+}
+
+// Which heads the page reports on. 'self' is this head alone (the default, and what the
+// page has always shown); 'subtree' widens every figure on the page — totals, holdings,
+// line items, XIRR, chart, future transactions, balance-on-a-date — to the head plus its
+// descendants. It rides in the URL so the view is shareable and the server can scope the
+// queries instead of shipping both datasets to the browser.
+export type HeadScope = 'self' | 'subtree'
 
 // react.cache so generateMetadata and the page share one fetch per request.
 const get_head_row = cache((id: string, user_id: string, type: accounting_head_type) =>
@@ -36,8 +46,9 @@ export async function generateMetadata({ params }: Props) {
   return { title: head?.name ?? HEAD_CONFIG[type].title }
 }
 
-async function Page({ params }: Props) {
+async function Page({ params, searchParams }: Props) {
   const { type, id } = await params
+  const requested_scope: HeadScope = (await searchParams)?.scope === 'subtree' ? 'subtree' : 'self'
   if (!isHeadType(type)) notFound()
   const cfg = HEAD_CONFIG[type]
 
@@ -59,16 +70,24 @@ async function Page({ params }: Props) {
 
   const isAccount = type === 'account'
 
+  // The heads every query below is scoped to. Only the subtree view pays for the extra
+  // lookup; the default view knows its one id without touching the DB. A head with no
+  // descendants collapses back to the self view — a hand-typed ?scope=subtree on a leaf
+  // should render the ordinary page, not an "including sub-heads" one that includes none.
+  const scoped_head_ids = requested_scope === 'subtree' ? await load_subtree_head_ids(head.id, user.id) : new Set([head.id])
+  const scope: HeadScope = scoped_head_ids.size > 1 ? 'subtree' : 'self'
+  const scoped_id_filter = { accounting_head_id: { in: [...scoped_head_ids] } }
+
   // One transaction query replaces the old double fetch (head.line_items include plus a
   // re-fetch of the same transactions); the rollup and linked-user lookups are
   // independent, so they run alongside it.
   const [rawTransactions, futureTransactions, rollup, linked_user] = await Promise.all([
     prisma.transaction.findMany({
-      where: { user_id: user.id, ...NOT_FUTURE, line_items: { some: { accounting_head_id: head.id } } },
+      where: { user_id: user.id, ...NOT_FUTURE, line_items: { some: scoped_id_filter } },
       include: { line_items: { include: { accounting_head: true, asset: true } } },
     }),
     prisma.transaction.findMany({
-      where: { user_id: user.id, is_future: true, line_items: { some: { accounting_head_id: head.id } } },
+      where: { user_id: user.id, is_future: true, line_items: { some: scoped_id_filter } },
       include: { line_items: { include: { accounting_head: true, asset: true } } },
       orderBy: { datetime: 'asc' },
     }),
@@ -82,10 +101,10 @@ async function Page({ params }: Props) {
   const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()
   for (const tx of transactions) for (const li of tx.line_items) normalizedById.set(li.id, li)
 
-  // The head's own line items, rewired to their parent transaction — the same set the
-  // old `head.line_items` include produced.
+  // The line items in scope, rewired to their parent transaction — this head's own in
+  // the default view, the whole subtree's in the "including sub-heads" one.
   const head_line_items = rawTransactions.flatMap(tx =>
-    tx.line_items.filter(li => li.accounting_head_id === head.id).map(li => ({ ...li, transaction: tx })),
+    tx.line_items.filter(li => scoped_head_ids.has(li.accounting_head_id)).map(li => ({ ...li, transaction: tx })),
   )
 
   const uniqueAssets = Array.from(new Map(head_line_items.map(li => [li.asset.id, li.asset])).values())
@@ -96,13 +115,18 @@ async function Page({ params }: Props) {
   // over every line item (not just the assets left in `map`), so a fully exited holding
   // still contributes its realized cost the way acc_total does.
   let book_total = new Prisma.Decimal(0)
+  // The same two figures for the root head alone. In the subtree view they back the
+  // "this one only" comparison row, computed from the very line items the page is
+  // already walking rather than a second rollup, so the two numbers can never disagree.
+  let own_total = new Prisma.Decimal(0)
+  let own_book = new Prisma.Decimal(0)
   const cashflows: { amount: number; when: Date }[] = []
   const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
     {}
   const lineItemsWithValues: (LineItem & { _sortDate: Date })[] = []
   // Decimal-precision copy of each line item's lot, for the FIFO pass below —
   // lineItemsWithValues has already been flattened to numbers for the client.
-  const lots: { id: string; asset_id: string; asset_type: asset_type; qty: Prisma.Decimal; book: Prisma.Decimal; date: Date }[] = []
+  const lots: { id: string; head_id: string; asset_id: string; asset_type: asset_type; qty: Prisma.Decimal; book: Prisma.Decimal; date: Date }[] = []
 
   for (const li of head_line_items) {
     const n = normalizedById.get(li.id)!
@@ -114,6 +138,10 @@ async function Page({ params }: Props) {
 
     acc_total = acc_total.add(current_value)
     book_total = book_total.add(txn_value)
+    if (li.accounting_head_id === head.id) {
+      own_total = own_total.add(current_value)
+      own_book = own_book.add(txn_value)
+    }
     cashflows.push({ amount: -txn_value.toNumber(), when: li.datetime ?? li.transaction.datetime })
 
     if (!map[asset.id])
@@ -140,15 +168,30 @@ async function Page({ params }: Props) {
       line_item_description: li.description,
       asset_type: asset.type,
       remaining_quantity: null,
+      // Which head the line actually sits on. Only rendered in the subtree view, where a
+      // row's own head is no longer implied by the page you are on.
+      head_name: scope === 'subtree' ? li.accounting_head.name : null,
+      head_link: scope === 'subtree' ? head_detail_link(li.accounting_head.type, li.accounting_head_id) : null,
       _sortDate: li.datetime ?? li.transaction.datetime,
     })
-    lots.push({ id: li.id, asset_id: asset.id, asset_type: asset.type, qty, book: txn_value, date: li.datetime ?? li.transaction.datetime })
+    lots.push({
+      id: li.id,
+      head_id: li.accounting_head_id,
+      asset_id: asset.id,
+      asset_type: asset.type,
+      qty,
+      book: txn_value,
+      date: li.datetime ?? li.transaction.datetime,
+    })
   }
 
-  // FIFO within this head, one queue per asset: which buy lots are still open. Feeds the
+  // FIFO one queue per head *and* asset: which buy lots are still open. Keying on the
+  // head as well matters in the subtree view — units bought in one sub-account are not
+  // the units sold from a sibling, and a shared queue would close the wrong lots. In the
+  // default view every line shares one head, so the key is the asset as before. Feeds the
   // per-row remaining badge (accounts only, as before) and the invested total below.
   const remaining_by_id = compute_fifo_remaining(
-    lots.filter(l => l.asset_type !== asset_type.rupees).map(l => ({ id: l.id, group_key: l.asset_id, qty: l.qty, date: l.date })),
+    lots.filter(l => l.asset_type !== asset_type.rupees).map(l => ({ id: l.id, group_key: `${l.head_id}|${l.asset_id}`, qty: l.qty, date: l.date })),
   )
 
   if (isAccount) {
@@ -204,30 +247,38 @@ async function Page({ params }: Props) {
   const { subtree_total, subtree_book, children } = rollup
   const parent: HeadData['parent'] = head.parent ? { name: head.parent.name, link: head_detail_link(head.parent.type, head.parent.id) } : null
 
+  // undefined in the default view so the frozen cache still applies there; only the
+  // subtree series opts out of caching (see compute_value_timeseries).
+  const subtree_head_id_list = scope === 'subtree' ? [...scoped_head_ids] : undefined
+
   let value_timeseries: HeadData['value_timeseries'] = []
   const has_priced_asset = uniqueAssets.some(a => a.type === 'mf' || a.type === 'etf' || a.type === 'shares')
   if (has_priced_asset) {
     value_timeseries = await compute_value_timeseries(
       transactions,
-      isAccount ? { kind: 'account', accounting_head_id: head.id } : { kind: 'allocation', allocation_id: head.id },
+      isAccount
+        ? { kind: 'account', accounting_head_id: head.id, head_ids: subtree_head_id_list }
+        : { kind: 'allocation', allocation_id: head.id, head_ids: subtree_head_id_list },
       uniqueAssets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker })),
     )
   }
 
   reconcile_timeseries_tail(value_timeseries, acc_total.toNumber(), xirr_value)
 
-  // Future transactions section: one row per line item on this head (not per transaction
-  // — a transaction with two lines here, e.g. rent + brokerage against the same account,
-  // shows as two rows), each with a sufficiency badge for whether the head will have
-  // enough balance when it lands (walked in effective-datetime order, cumulative,
-  // starting from this head's current real balance). A line item already dated in the
-  // past is overdue rather than forward-looking, so it's excluded from the walk entirely
-  // (see compute_future_sufficiency).
+  // Future transactions section: one row per line item in scope (not per transaction —
+  // a transaction with two lines here, e.g. rent + brokerage against the same account,
+  // shows as two rows), each with a sufficiency badge for whether there will be enough
+  // balance when it lands (walked in effective-datetime order, cumulative, starting from
+  // the current real balance). In the subtree view the walk runs on the combined
+  // per-asset balance, so the badge answers "will the group cover this", not "will this
+  // one sub-head". A line item already dated in the past is overdue rather than
+  // forward-looking, so it's excluded from the walk entirely (see
+  // compute_future_sufficiency).
   const normalized_future = futureTransactions.map(normalize_txn)
   const future_line_items = normalized_future
     .flatMap(tx =>
       tx.line_items
-        .filter(li => li.accounting_head_id === head.id)
+        .filter(li => scoped_head_ids.has(li.accounting_head_id))
         .map(li => ({
           id: li.id,
           transaction_id: tx.id,
@@ -269,13 +320,24 @@ async function Page({ params }: Props) {
       head={{
         id: head.id,
         name: head.name,
+        // Everything below is scoped: in the subtree view these already cover the head
+        // and its descendants, which is why the rollup rows drop out there.
         total: acc_total.toNumber(),
         book_total: book_total.toNumber(),
         // Cost figures only say something on a head that holds priced assets; on a
         // rupees-only one they'd both just restate the balance.
         invested_total: holds_non_rupees ? invested_total.toNumber() : null,
-        subtree_total,
-        subtree_book,
+        // The head on its own — the comparison row in the subtree view, and the basis
+        // for anything that settles against this head alone (UPI, "you owe"), which a
+        // subtree total would overstate.
+        own_total: own_total.toNumber(),
+        own_book: own_book.toNumber(),
+        // Cached-balance rollup, shown only in the default view. In the subtree view the
+        // headline figures are the rollup, computed live from the same line items the
+        // rest of the page lists — printing the cached pair beside them would invite a
+        // rounding-level disagreement between two numbers that mean the same thing.
+        subtree_total: scope === 'subtree' ? null : subtree_total,
+        subtree_book: scope === 'subtree' ? null : subtree_book,
         children,
         parent,
         linked_user,
@@ -287,7 +349,8 @@ async function Page({ params }: Props) {
         value_timeseries,
         future_transactions: future_transactions_for_client,
       }}
-      config={{ backLink: headBasePath(type), backText: cfg.backText, entityName: cfg.entityName }}
+      config={{ backLink: headBasePath(type), backText: cfg.backText, entityName: cfg.entityName, subEntityLabel: cfg.subEntityLabel }}
+      scope={scope}
       closingBalanceAction={type === 'income_expense' ? undefined : get_closing_balance}
       // the reconcile picker only lists real, active accounts — don't offer a link that lands unselectable
     />

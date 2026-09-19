@@ -129,11 +129,17 @@ export type ClosingBalanceRow = { head_id: string; asset_id: string; qty: number
 // Historical (or, for a future `cutoff`, projected) closing balance strictly before
 // `cutoff`, computed from normalized transactions so derived-remainder lines count —
 // correct for every head type, not just accounts. Values are book values (txn_value),
-// not marked to market. head_id null = all account-type heads; a specific head_id can
-// be any type. A `cutoff` beyond now also pulls in scheduled (is_future) transactions
-// dated before it, projecting the balance forward; a past/present cutoff excludes them
-// as usual.
-export async function closing_balance_core(user_id: string, head_id: string | null, cutoff: Date): Promise<ClosingBalanceRow[]> {
+// not marked to market. head null = all account-type heads; a specific head can be any
+// type. Passing an array scopes to that whole set — a head plus its descendants, for the
+// "including sub-heads" view — and still returns one row per head/asset pair, so the
+// caller decides whether to aggregate. A `cutoff` beyond now also pulls in scheduled
+// (is_future) transactions dated before it, projecting the balance forward; a
+// past/present cutoff excludes them as usual.
+export async function closing_balance_core(user_id: string, head_id: string | string[] | null, cutoff: Date): Promise<ClosingBalanceRow[]> {
+  const head_ids = head_id === null ? null : new Set(Array.isArray(head_id) ? head_id : [head_id])
+  // An empty set would match nothing and read as "every account" in the SQL below —
+  // treat it as the empty answer it is rather than silently widening the scope.
+  if (head_ids && head_ids.size === 0) return []
   const include_future = cutoff > new Date()
   // Keep every line item of each matched transaction — null-remainder normalization
   // needs the full balanced set — but select only the fields it reads.
@@ -141,7 +147,7 @@ export async function closing_balance_core(user_id: string, head_id: string | nu
     where: {
       user_id,
       ...(include_future ? {} : NOT_FUTURE),
-      ...(head_id ? { line_items: { some: { accounting_head_id: head_id } } } : {}),
+      ...(head_ids ? { line_items: { some: { accounting_head_id: { in: [...head_ids] } } } } : {}),
       // A transaction only contributes lines with effective date (li.datetime ?? txn.datetime)
       // before the cutoff — prune the rest in SQL; the JS filter below stays authoritative.
       OR: [{ datetime: { lt: cutoff } }, { line_items: { some: { datetime: { lt: cutoff } } } }],
@@ -166,7 +172,7 @@ export async function closing_balance_core(user_id: string, head_id: string | nu
   for (const t of txns) {
     for (const li of normalize_line_items(t.line_items)) {
       if ((li.datetime ?? t.datetime) >= cutoff) continue
-      if (head_id ? li.accounting_head_id !== head_id : li.accounting_head.type !== 'account') continue
+      if (head_ids ? !head_ids.has(li.accounting_head_id) : li.accounting_head.type !== 'account') continue
       const key = `${li.accounting_head_id}:${li.asset_id}`
       const e = acc.get(key) ?? { qty: 0, value: 0 }
       e.qty += li.quantity.toNumber()

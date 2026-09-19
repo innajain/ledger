@@ -16,10 +16,21 @@ export type ValuePoint = {
   xirr: number | null
 }
 
+// `head_ids`, on the head-shaped filters, widens the series from the single head to a
+// whole subtree (the head plus its descendants). The bare id stays the anchor — it is
+// what identifies the series to a caller and what the frozen cache keys off — so a
+// subtree series is "this head, including sub-heads", not an anonymous set.
 export type TimeseriesFilter =
   | { kind: 'asset'; asset_id: string }
-  | { kind: 'account'; accounting_head_id: string }
-  | { kind: 'allocation'; allocation_id: string }
+  | { kind: 'account'; accounting_head_id: string; head_ids?: string[] }
+  | { kind: 'allocation'; allocation_id: string; head_ids?: string[] }
+
+// The heads a head-shaped filter covers: the subtree when one was given, else just the
+// anchor head.
+export function filter_head_ids(filter: Exclude<TimeseriesFilter, { kind: 'asset' }>): Set<string> {
+  if (filter.head_ids && filter.head_ids.length > 0) return new Set(filter.head_ids)
+  return new Set([filter.kind === 'account' ? filter.accounting_head_id : filter.allocation_id])
+}
 
 export function ist_date_key(date: Date): string {
   return formatInTimeZone(date, USER_TIMEZONE, 'yyyy-MM-dd')
@@ -74,16 +85,15 @@ type WalkState = {
 // pure-CPU step over a full ledger, so it must not run twice.
 export function build_events(transactions: NormalizedTransaction[], filter: TimeseriesFilter): Event[] {
   const events: Event[] = []
+  // One Set for the whole walk — a subtree filter would otherwise re-scan its id array
+  // once per line item.
+  const head_ids = filter.kind === 'asset' ? new Set<string>() : filter_head_ids(filter)
   for (const tx of transactions) {
     for (const li of tx.line_items) {
       if (filter.kind === 'asset') {
         if (li.asset.id !== filter.asset_id) continue
         if (li.accounting_head.type !== 'account') continue
-      } else if (filter.kind === 'account') {
-        if (li.accounting_head.id !== filter.accounting_head_id) continue
-      } else {
-        if (li.accounting_head.id !== filter.allocation_id) continue
-      }
+      } else if (!head_ids.has(li.accounting_head.id)) continue
       const date = li.datetime ?? tx.datetime
       events.push({
         asset_id: li.asset.id,

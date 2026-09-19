@@ -84,6 +84,13 @@ export async function compute_value_timeseries(
   assets: { id: string; type: asset_type; ticker: string | null }[],
   explicit_user_id?: string,
 ): Promise<ValuePoint[]> {
+  // Subtree series are never frozen. invalidate_timeseries DELs frozen keys by the head
+  // ids a write touched, which would leave every ancestor's subtree series stale — a
+  // write to a child would not invalidate the parent's "including sub-heads" chart. A
+  // fresh walk is the honest answer until invalidation learns to climb the tree.
+  if (filter.kind !== 'asset' && filter.head_ids && filter.head_ids.length > 0)
+    return compute_value_timeseries_uncached(transactions, filter, assets, 'all')
+
   const user_id = explicit_user_id ?? (await get_current_user_id())
   if (!user_id) return compute_value_timeseries_uncached(transactions, filter, assets, 'all')
 
