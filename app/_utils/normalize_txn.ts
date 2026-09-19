@@ -85,6 +85,18 @@ export function normalize_line_items<T extends NormalizableLineItem>(
   return copies as (T & { quantity: Prisma.Decimal; txn_value: Prisma.Decimal })[]
 }
 
-export function normalize_txn(txn: TransactionFull): NormalizedTransaction {
-  return { ...txn, line_items: normalize_line_items(txn.line_items) as NormalizedLineItem[] }
+/** Anything with normalizable line items — the shape normalize_txn actually reads. */
+export type NormalizableTransaction = { line_items: NormalizableLineItem[] }
+
+/**
+ * Structural rather than tied to TransactionFull, so a caller can `select` just the
+ * columns it needs instead of pulling whole `accounting_head` and `asset` rows onto every
+ * line item. On a busy subtree that is megabytes of duplicated columns over the wire.
+ * The return type carries the caller's own fields through, so nothing downstream loses
+ * type information by fetching less.
+ */
+export function normalize_txn<T extends NormalizableTransaction>(
+  txn: T,
+): Omit<T, 'line_items'> & { line_items: (T['line_items'][number] & { quantity: Prisma.Decimal; txn_value: Prisma.Decimal })[] } {
+  return { ...txn, line_items: normalize_line_items(txn.line_items) }
 }

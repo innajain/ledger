@@ -1,4 +1,4 @@
-import { Prisma, asset_type } from '@/generated/prisma/client'
+import { Prisma, asset_type, accounting_head_type } from '@/generated/prisma/client'
 import { parseISO } from 'date-fns'
 import { fromZonedTime, formatInTimeZone } from 'date-fns-tz'
 import { USER_TIMEZONE } from '@/lib/config'
@@ -83,7 +83,22 @@ type WalkState = {
 // Takes already-normalized transactions — every page/tool that renders a timeseries has
 // normalized the same array moments earlier, and normalization is the most expensive
 // pure-CPU step over a full ledger, so it must not run twice.
-export function build_events(transactions: NormalizedTransaction[], filter: TimeseriesFilter): Event[] {
+/**
+ * The minimal transaction shape the walk reads. Structural so a caller can `select` only
+ * these columns rather than hydrating whole accounting_head/asset rows per line item.
+ */
+export type TimeseriesTransaction = {
+  datetime: Date
+  line_items: {
+    datetime: Date | null
+    quantity: Prisma.Decimal
+    txn_value: Prisma.Decimal
+    accounting_head: { id: string; type: accounting_head_type }
+    asset: { id: string; type: asset_type }
+  }[]
+}
+
+export function build_events(transactions: TimeseriesTransaction[], filter: TimeseriesFilter): Event[] {
   const events: Event[] = []
   // One Set for the whole walk — a subtree filter would otherwise re-scan its id array
   // once per line item.

@@ -102,8 +102,11 @@ const slim_txn_select = {
       txn_value: true,
       description: true,
       datetime: true,
-      accounting_head: { select: { name: true, type: true } },
-      asset: { select: { id: true, type: true, name: true } },
+      // id and ticker are here for get_head: the timeseries filter matches on head id,
+      // and price lookups need the ticker. Both are small enough not to be worth a
+      // second near-identical select.
+      accounting_head: { select: { id: true, name: true, type: true } },
+      asset: { select: { id: true, type: true, name: true, ticker: true } },
     },
   },
 } satisfies Prisma.transactionSelect
@@ -470,7 +473,9 @@ function register_tools(server: McpServer) {
       const [rawTransactions, rollup, linked_user] = await Promise.all([
         prisma.transaction.findMany({
           where: { user_id: uid, ...NOT_FUTURE, line_items: { some: { accounting_head_id: { in: [...scoped_head_ids] } } } },
-          include: { line_items: { include: { accounting_head: true, asset: true } } },
+          // Whole accounting_head/asset rows per line item are megabytes of duplicated
+          // columns on a busy subtree — see head_txn_select on the web page.
+          select: slim_txn_select,
         }),
         head_rollup(uid, head.id, all_heads),
         is_account && head.linked_user_id
@@ -645,7 +650,7 @@ function register_tools(server: McpServer) {
       if (args.include_future_transactions) {
         const futureTransactions = await prisma.transaction.findMany({
           where: { user_id: uid, is_future: true, line_items: { some: { accounting_head_id: { in: [...scoped_head_ids] } } } },
-          include: { line_items: { include: { accounting_head: true, asset: true } } },
+          select: slim_txn_select,
           orderBy: { datetime: 'asc' },
         })
         const current_balances = new Map<string, Prisma.Decimal>()
