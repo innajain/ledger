@@ -37,6 +37,8 @@ import {
   action_result,
   load_heads,
   load_assets,
+  load_groups,
+  resolve_group_refs,
   resolve_ref,
   net_account_flow,
   parse_date,
@@ -49,6 +51,7 @@ import {
   account_balances_for,
   dry_run_check,
 } from './_helpers'
+import { groups_for_transactions_core, groups_for_transaction_core } from '@/app/_core/groups_core'
 import { register_extra_tools } from './_extra_tools'
 
 async function head_rollup(
@@ -709,6 +712,7 @@ function register_tools(server: McpServer) {
         search: z.string().optional().describe('Case-insensitive match on the transaction description'),
         head: z.string().optional().describe('Only transactions touching this accounting head (id or name)'),
         asset: z.string().optional().describe('Only transactions touching this asset (id or name)'),
+        group: z.string().optional().describe("Only transactions in this transaction group (id or name, e.g. 'Eating out') — see list_groups"),
         from: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST)'),
         to: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST), inclusive'),
         include_line_items: z.boolean().optional().describe("Attach each transaction's full normalized line items (default false; larger payload)"),
@@ -730,14 +734,20 @@ function register_tools(server: McpServer) {
         toDate = parse_day(args.to)
         toDate.setDate(toDate.getDate() + 1)
       }
-      const [heads_for_filter, assets_for_filter] = await Promise.all([args.head ? load_heads(uid) : null, args.asset ? load_assets() : null])
+      const [heads_for_filter, assets_for_filter, groups_for_filter] = await Promise.all([
+        args.head ? load_heads(uid) : null,
+        args.asset ? load_assets() : null,
+        args.group ? load_groups(uid) : null,
+      ])
       const filter_head = args.head ? resolve_ref(args.head, heads_for_filter!, 'accounting head') : null
       const filter_asset = args.asset ? resolve_ref(args.asset, assets_for_filter!, 'asset') : null
+      const filter_group = args.group ? resolve_ref(args.group, groups_for_filter!, 'transaction group') : null
       const and: Prisma.transactionWhereInput[] = []
       if ((args.future ?? 'exclude') === 'exclude') and.push(NOT_FUTURE)
       else if (args.future === 'only') and.push({ is_future: true })
       if (filter_head) and.push({ line_items: { some: { accounting_head_id: filter_head.id } } })
       if (filter_asset) and.push({ line_items: { some: { asset_id: filter_asset.id } } })
+      if (filter_group) and.push({ group_members: { some: { group_id: filter_group.id } } })
       const where = {
         user_id: uid,
         ...(args.search ? { description: { contains: args.search, mode: 'insensitive' as const } } : {}),
@@ -760,6 +770,17 @@ function register_tools(server: McpServer) {
         }
       }
 
+      // One batched lookup for the page's labels, rather than a join that would
+      // duplicate every transaction row once per group it is in.
+      const groups_by_txn = await groups_for_transactions_core(
+        uid,
+        txns.map(t => t.id),
+      )
+      const group_names = (id: string) => {
+        const names = (groups_by_txn.get(id) ?? []).map(g => g.name)
+        return names.length > 0 ? { groups: names } : {}
+      }
+
       // One `now` for every row's due flag, matching the web pages.
       const now = new Date()
       if (args.include_line_items) {
@@ -770,6 +791,7 @@ function register_tools(server: McpServer) {
             description: raw.description,
             is_future: raw.is_future,
             ...(raw.is_future ? { due: is_future_txn_due(raw.datetime, now) } : {}),
+            ...group_names(raw.id),
             ...(filter_head ? { head_delta: deltas.get(raw.id) } : {}),
             line_items: normalize_line_items(raw.line_items).map(li => ({
               head: li.accounting_head.name,
@@ -790,6 +812,7 @@ function register_tools(server: McpServer) {
           description: t.description,
           is_future: t.is_future,
           ...(t.is_future ? { due: is_future_txn_due(t.datetime, now) } : {}),
+          ...group_names(t.id),
           amount: net_account_flow(t.line_items),
           ...(filter_head ? { head_delta: deltas.get(t.id) } : {}),
         })),
@@ -898,10 +921,13 @@ function register_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const raw = await prisma.transaction.findFirst({
-        where: { id: args.id, user_id: uid },
-        include: { line_items: { include: { accounting_head: true, asset: true } }, attachments: true, txn_a_links: true, txn_b_links: true },
-      })
+      const [raw, groups] = await Promise.all([
+        prisma.transaction.findFirst({
+          where: { id: args.id, user_id: uid },
+          include: { line_items: { include: { accounting_head: true, asset: true } }, attachments: true, txn_a_links: true, txn_b_links: true },
+        }),
+        groups_for_transaction_core(uid, args.id),
+      ])
       if (!raw) return error_text('Transaction not found')
       const t = normalize_txn(raw)
       const links = [...raw.txn_a_links, ...raw.txn_b_links]
@@ -914,6 +940,7 @@ function register_tools(server: McpServer) {
         description: t.description,
         is_future: t.is_future,
         ...(t.is_future ? { due: is_future_txn_due(t.datetime) } : {}),
+        groups: groups.map(g => g.name),
         total: net_account_flow(t.line_items),
         line_items: t.line_items.map(li => ({
           head: li.accounting_head.name,
@@ -1154,6 +1181,12 @@ function register_tools(server: McpServer) {
           .describe(
             'Create as a future transaction (default false): a scheduled private draft that never appears on the transactions list and never affects balances, net worth or XIRR until converted with convert_future_transaction. Safe to use on linked/shared accounts (no mirror/approval is created until it becomes real).',
           ),
+        groups: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Transaction groups to file this under (ids or names, e.g. ['Eating out']). Labels only — they change no balance. Every name must already exist; call list_groups first and create_group for a new one.",
+          ),
       },
     },
     async (args, extra) => {
@@ -1180,6 +1213,7 @@ function register_tools(server: McpServer) {
       const res = await create_transaction_core(uid, datetime, line_items, args.description, {
         idempotency_key: args.idempotency_key,
         is_future: args.is_future,
+        group_ids: await resolve_group_refs(uid, args.groups),
       })
       if (!res.success) return action_result(res)
       const balances = await account_balances_for(
@@ -1207,6 +1241,12 @@ function register_tools(server: McpServer) {
           .optional()
           .describe(
             'Flip the future flag when set: true schedules the transaction (stops affecting balances until converted), false converts it to a real transaction. Required on the first edit of any future transaction a convert_future_transaction would create.',
+          ),
+        groups: z
+          .array(z.string())
+          .optional()
+          .describe(
+            'REPLACE the transaction groups (ids or names) when given; omit to leave them alone, pass [] to clear them. Groups are never mirrored to a linked user and never re-open an approval.',
           ),
       },
     },
@@ -1241,6 +1281,7 @@ function register_tools(server: McpServer) {
         args.datetime ? parse_date(args.datetime) : undefined,
         args.description,
         args.is_future,
+        await resolve_group_refs(uid, args.groups),
       )
       if (!res.success) return action_result(res)
       const touched = [...new Set([...existing.line_items.map(li => li.accounting_head_id), ...line_items.map(li => li.accounting_head_id)])]
@@ -1279,6 +1320,9 @@ function register_tools(server: McpServer) {
       const deleted = res.data!
       const snapshot = {
         datetime: deleted.datetime,
+        // Group ids, which create_transaction's `groups` arg accepts as-is, so the
+        // snapshot restores the labels along with the entry.
+        ...(deleted.group_ids.length > 0 ? { groups: deleted.group_ids } : {}),
         description: deleted.description,
         line_items: deleted.line_items.map(li => ({
           account: li.account_name,

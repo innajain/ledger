@@ -79,6 +79,23 @@ export const load_assets = () =>
     select: { id: true, name: true, type: true, ticker: true, is_active: true, parent_id: true },
   })
 
+export const load_groups = (uid: string) =>
+  prisma.transaction_group.findMany({ where: { user_id: uid }, orderBy: { name: 'asc' }, select: { id: true, name: true } })
+
+export type GroupsCatalog = Awaited<ReturnType<typeof load_groups>>
+
+/**
+ * Turn a list of group ids/names into ids, the same id-or-name resolution every
+ * other ref arg gets. `undefined` stays undefined so the caller can tell "leave
+ * the groups alone" apart from "clear them" ([]).
+ */
+export async function resolve_group_refs(uid: string, refs: string[] | undefined, preloaded?: GroupsCatalog): Promise<string[] | undefined> {
+  if (refs === undefined) return undefined
+  if (refs.length === 0) return []
+  const catalog = preloaded ?? (await load_groups(uid))
+  return refs.map(r => resolve_ref(r, catalog, 'transaction group').id)
+}
+
 export type HeadsCatalog = Awaited<ReturnType<typeof load_heads>>
 export type AssetsCatalog = Awaited<ReturnType<typeof load_assets>>
 // Per-invocation reuse of already-loaded catalogs — never cache these across requests.

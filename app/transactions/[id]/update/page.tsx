@@ -4,6 +4,7 @@ import ClientPage from './ClientPage'
 import { update_transaction } from './transactions_update'
 import { convert_future_transaction } from '@/app/_actions/transactions'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
+import { list_group_names_core, groups_for_transaction_core } from '@/app/_core/groups_core'
 import { profile } from '@/lib/metrics/profile'
 import { env } from '@/lib/env'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
@@ -46,7 +47,7 @@ async function Page({ params }: Props) {
   const ref_head_ids = [...new Set(tx.line_items.map(li => li.accounting_head_id))]
   const ref_asset_ids = [...new Set(tx.line_items.map(li => li.asset_id))]
 
-  const [accounts, assets, defaults] = await Promise.all([
+  const [accounts, assets, defaults, allGroups, ownGroups] = await Promise.all([
     prisma.accounting_head.findMany({
       where: { user_id: user.id, OR: [{ is_active: true, is_placeholder: false }, { id: { in: ref_head_ids } }] },
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
@@ -56,6 +57,8 @@ async function Page({ params }: Props) {
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_line_item_defaults(),
+    list_group_names_core(user.id),
+    groups_for_transaction_core(user.id, tx.id),
   ])
 
   const accountsForClient = accounts.map(a => ({
@@ -83,6 +86,8 @@ async function Page({ params }: Props) {
       accounts={accountsForClient}
       assets={assetsForClient}
       defaults={defaults}
+      groups={allGroups}
+      selectedGroupIds={ownGroups.map(g => g.id)}
       updateTransaction={update_transaction}
       convertFutureTransaction={convert_future_transaction}
       existingAttachments={attachmentsForClient}

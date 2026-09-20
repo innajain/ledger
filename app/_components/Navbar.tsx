@@ -27,13 +27,14 @@ const NAV_ITEMS: NavEntry[] = [
     ],
   },
   { href: '/transactions', label: 'Transactions' },
+  { href: '/groups', label: 'Groups' },
 ]
 
 // Settings lives outside NAV_ITEMS: it renders as a gear beside the hamburger, so
 // it is reachable at every width without costing a slot in the row.
 const SETTINGS_HREF = '/settings'
 
-// Four top-level links: the desktop row fits from the lg breakpoint (tighter px-3
+// Five top-level links: the desktop row fits from the lg breakpoint (tighter px-3
 // until 2xl); whitespace-nowrap guarantees a label can never wrap and grow the
 // h-16 header. Below lg the overflow menu (hamburger) takes over.
 const navLinkClasses = (active: boolean, block = false) =>

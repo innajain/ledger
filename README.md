@@ -160,6 +160,14 @@ When the payee balance is negative (you owe them), the amount and `reimbursement
 
 Reusable transaction shapes (rent, SIPs, payday splits). Stored as `transaction_template` + `line_item_template` rows; cascade-deleted with the user. Quick-load passes a chosen template into a fresh transaction via `sessionStorage` to prefill line items.
 
+### Transaction Groups
+
+Free-form labels over whole transactions — "Eating out", "Goa trip" — so a set of similar entries can be pulled back up and totalled. Many-to-many (`transaction_group` + `transaction_group_member`), scoped to one user and **never shared across a linked-account mirror**: each side labels its own ledger.
+
+Grouping is purely descriptive. It feeds no balance, net worth, XIRR, FIFO or income/expense figure, so group writes invalidate no cache. A group's headline number is the same signed book flow the transactions list shows per row; scheduled (`is_future`) members are counted separately and excluded from the total, since they move no balance anywhere else either.
+
+`/groups` lists every group with its count and net; `/groups/[id]` shows what is in one, with a remove control. On the transaction create/edit forms a chip picker assigns groups and can create one inline. `/transactions?groupId=…` filters the list, and each row shows the groups it carries.
+
 ### Line-Item Defaults
 
 Per-user defaults — one head per type plus a default asset — are pre-selected on new line items. Falls back to the first available head of each type when the saved one is deactivated.
@@ -313,8 +321,29 @@ model transaction {
   datetime        DateTime
   description     String?
   idempotency_key String?                  // Client dedup token; unique per user — replays return the existing txn
+  is_future       Boolean                  @default(false) // scheduled draft; affects no balance until converted
   line_items      line_item[]
   attachments     transaction_attachment[]
+  group_members   transaction_group_member[]
+}
+
+// A user-defined label over whole transactions ("Eating out", "Goa trip").
+// Descriptive only — membership moves no balance. Name unique per user.
+model transaction_group {
+  id          String   @id @default(cuid())
+  user_id     String
+  name        String
+  description String?
+  created_at  DateTime @default(now())
+}
+
+// Many-to-many join; both sides cascade.
+model transaction_group_member {
+  transaction_id String
+  group_id       String
+  created_at     DateTime @default(now())
+
+  @@id([transaction_id, group_id])
 }
 
 model transaction_attachment {

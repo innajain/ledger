@@ -39,6 +39,8 @@ export default function ClientPage({
     date: string
     description: string | null
     is_future: boolean
+    /** Transaction groups it belongs to — labels only, no effect on any figure. */
+    groups: { id: string; name: string }[]
     total: number
     attachments: Attachment[]
     line_items: {
@@ -112,7 +114,9 @@ export default function ClientPage({
     }
   }
 
-  const groups: Record<string, typeof transaction.line_items> = {
+  // Named for what it is now that `transaction.groups` (the user's own labels) is
+  // also in scope: this one buckets line items by head type for the three cards.
+  const linesByType: Record<string, typeof transaction.line_items> = {
     account: [],
     allocation: [],
     income_expense: [],
@@ -120,8 +124,8 @@ export default function ClientPage({
 
   for (const li of transaction.line_items) {
     const t = li.accounting_head_type ?? 'account'
-    if (!groups[t]) groups[t] = []
-    groups[t].push(li)
+    if (!linesByType[t]) linesByType[t] = []
+    linesByType[t].push(li)
   }
 
   const headTypeConfig = {
@@ -215,6 +219,20 @@ export default function ClientPage({
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               <LocalDateTime value={transaction.date} />
             </p>
+            {transaction.groups.length > 0 && (
+              <ul className="flex flex-wrap gap-2 mt-3">
+                {transaction.groups.map(g => (
+                  <li key={g.id}>
+                    <Link
+                      href={`/groups/${g.id}`}
+                      className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-sm text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                    >
+                      {g.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
@@ -301,7 +319,7 @@ export default function ClientPage({
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line items</h2>
 
         {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
-          const items = groups[typeKey] || []
+          const items = linesByType[typeKey] || []
           if (!items || items.length === 0) return null
 
           const config = headTypeConfig[typeKey]

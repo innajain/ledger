@@ -40,6 +40,8 @@ export type DeletedTransactionSnapshot = {
   datetime: string
   description: string | null
   had_attachments: boolean
+  /** Groups it was in — re-applied on undo, since group membership is restorable. */
+  group_ids: string[]
   line_items: CreateLineItemInput[]
 }
 
@@ -56,6 +58,7 @@ export async function delete_transaction_with_snapshot(id: string): Promise<Acti
       datetime: deleted.datetime.toISOString(),
       description: deleted.description,
       had_attachments: deleted.had_attachments,
+      group_ids: deleted.group_ids,
       line_items: deleted.line_items.map(li => ({
         accounting_head_id: li.accounting_head_id,
         asset_id: li.asset_id,

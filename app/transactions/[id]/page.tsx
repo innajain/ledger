@@ -6,6 +6,7 @@ import { Prisma } from '@/generated/prisma/client'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { get_transaction_status, get_cancellable_links } from '@/app/_utils/links'
 import { convert_future_transaction } from '@/app/_actions/transactions'
+import { groups_for_transaction_core } from '@/app/_core/groups_core'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
@@ -34,10 +35,11 @@ async function Page({ params }: Props) {
 
   // The link helpers take only (user_id, id) and never read the transaction row, so all
   // three queries start together; for a missing txn their results are simply discarded.
-  const [rawTx, linkStatus, cancellable] = await Promise.all([
+  const [rawTx, linkStatus, cancellable, groups] = await Promise.all([
     get_txn(user.id, id),
     get_transaction_status(user.id, id),
     get_cancellable_links(user.id, id),
+    groups_for_transaction_core(user.id, id),
   ])
   if (!rawTx)
     return (
@@ -54,6 +56,7 @@ async function Page({ params }: Props) {
     date: tx.datetime.toISOString(),
     description: tx.description,
     is_future: tx.is_future,
+    groups,
     total: tx.line_items
       .filter(li => li.accounting_head.type === 'account')
       .reduce((sum, li) => sum.add(li.txn_value), new Prisma.Decimal(0))
