@@ -7,13 +7,13 @@ import { PageHeader } from '@/app/_components/PageHeader'
 import { Card } from '@/app/_components/Card'
 import { Button } from '@/app/_components/Button'
 import { EmptyState } from '@/app/_components/EmptyState'
-import { GroupEmptyIcon } from '@/app/_components/EmptyStateIcons'
+import { TagEmptyIcon } from '@/app/_components/EmptyStateIcons'
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { useToast } from '@/app/_components/Toast'
-import { create_transaction_group } from '@/app/_actions/groups'
+import { create_transaction_tag } from '@/app/_actions/tags'
 
-export type GroupRow = {
+export type TagRow = {
   id: string
   name: string
   description: string | null
@@ -29,7 +29,7 @@ export type GroupRow = {
 const IST = 'Asia/Kolkata'
 const day_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: IST, day: 'numeric', month: 'short', year: 'numeric' })
 
-export default function ClientPage({ groups }: { groups: GroupRow[] }) {
+export default function ClientPage({ tags }: { tags: TagRow[] }) {
   const router = useRouter()
   const uid = useId()
   const { showToast } = useToast()
@@ -44,7 +44,7 @@ export default function ClientPage({ groups }: { groups: GroupRow[] }) {
     setError(null)
     setBusy(true)
     try {
-      const res = await create_transaction_group({ name, description: description || null })
+      const res = await create_transaction_tag({ name, description: description || null })
       if (!res.success) {
         setError(res.message)
         return
@@ -52,7 +52,7 @@ export default function ClientPage({ groups }: { groups: GroupRow[] }) {
       setName('')
       setDescription('')
       setCreating(false)
-      showToast('Group created', 'success')
+      showToast('Tag created', 'success')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -64,12 +64,12 @@ export default function ClientPage({ groups }: { groups: GroupRow[] }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Groups"
+        title="Tags"
         description="Label similar transactions — “Eating out”, “Goa trip” — and see what the whole bundle comes to."
         actions={
-          groups.length > 0 && !creating ? (
+          tags.length > 0 && !creating ? (
             <Button variant="primary" onClick={() => setCreating(true)}>
-              New group
+              New tag
             </Button>
           ) : undefined
         }
@@ -117,34 +117,34 @@ export default function ClientPage({ groups }: { groups: GroupRow[] }) {
                 Cancel
               </Button>
               <Button type="submit" variant="primary" disabled={busy || name.trim() === ''}>
-                {busy ? 'Creating…' : 'Create group'}
+                {busy ? 'Creating…' : 'Create tag'}
               </Button>
             </div>
           </form>
         </Card>
       )}
 
-      {groups.length === 0 ? (
+      {tags.length === 0 ? (
         !creating && (
           <div className="space-y-4">
             <EmptyState
-              icon={<GroupEmptyIcon />}
-              title="No groups yet"
-              description="A group is a label you hang on whole transactions — every dinner and lunch, or everything from one trip. It changes no balance; it just lets you pull the set back up and see the total."
+              icon={<TagEmptyIcon />}
+              title="No tags yet"
+              description="A tag is a label you hang on whole transactions — every dinner and lunch, or everything from one trip. It changes no balance; it just lets you pull the set back up and see the total."
             />
             <div className="flex justify-center">
               <Button variant="primary" onClick={() => setCreating(true)}>
-                Create your first group
+                Create your first tag
               </Button>
             </div>
           </div>
         )
       ) : (
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {groups.map(g => (
+          {tags.map(g => (
             <li key={g.id}>
               <Link
-                href={`/groups/${g.id}`}
+                href={`/tags/${g.id}`}
                 className="block h-full bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
               >
                 <div className="flex items-start justify-between gap-3">

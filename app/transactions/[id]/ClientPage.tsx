@@ -39,8 +39,8 @@ export default function ClientPage({
     date: string
     description: string | null
     is_future: boolean
-    /** Transaction groups it belongs to — labels only, no effect on any figure. */
-    groups: { id: string; name: string }[]
+    /** Transaction tags it belongs to — labels only, no effect on any figure. */
+    tags: { id: string; name: string }[]
     total: number
     attachments: Attachment[]
     line_items: {
@@ -114,7 +114,7 @@ export default function ClientPage({
     }
   }
 
-  // Named for what it is now that `transaction.groups` (the user's own labels) is
+  // Named for what it is now that `transaction.tags` (the user's own labels) is
   // also in scope: this one buckets line items by head type for the three cards.
   const linesByType: Record<string, typeof transaction.line_items> = {
     account: [],
@@ -219,12 +219,12 @@ export default function ClientPage({
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               <LocalDateTime value={transaction.date} />
             </p>
-            {transaction.groups.length > 0 && (
+            {transaction.tags.length > 0 && (
               <ul className="flex flex-wrap gap-2 mt-3">
-                {transaction.groups.map(g => (
+                {transaction.tags.map(g => (
                   <li key={g.id}>
                     <Link
-                      href={`/groups/${g.id}`}
+                      href={`/tags/${g.id}`}
                       className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-sm text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                     >
                       {g.name}

@@ -32,7 +32,7 @@ export const AssetEmptyIcon = () => (
   </svg>
 )
 
-export const GroupEmptyIcon = () => (
+export const TagEmptyIcon = () => (
   <svg className={baseClasses} {...baseProps}>
     <path
       {...pathProps}

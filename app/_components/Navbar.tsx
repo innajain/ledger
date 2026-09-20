@@ -27,7 +27,7 @@ const NAV_ITEMS: NavEntry[] = [
     ],
   },
   { href: '/transactions', label: 'Transactions' },
-  { href: '/groups', label: 'Groups' },
+  { href: '/tags', label: 'Tags' },
 ]
 
 // Settings lives outside NAV_ITEMS: it renders as a gear beside the hamburger, so

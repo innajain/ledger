@@ -9,7 +9,7 @@ import { toDecimal } from '@/app/_utils/decimal'
 import { invalidate_balances } from '@/app/_core/balances_core'
 import type { TouchedEntities } from '@/app/_utils/value_timeseries'
 import { create_links_for_transaction, sync_links_after_update, prepare_links_for_delete } from '@/app/_utils/links'
-import { attach_transaction_groups, apply_transaction_groups, load_own_group_ids } from '@/app/_core/groups_core'
+import { attach_transaction_tags, apply_transaction_tags, load_own_tag_ids } from '@/app/_core/tags_core'
 import { notify_request_pending } from '@/app/_utils/notify_events'
 import { audit } from '@/lib/logger'
 import { ActionResult, ok, err, ActionError } from '@/app/_actions/_result'
@@ -28,11 +28,11 @@ export type CreateTransactionOpts = {
   idempotency_key?: string | null | undefined
   is_future?: boolean
   /**
-   * Transaction groups (app/_core/groups_core.ts) this transaction joins. Purely a
+   * Transaction tags (app/_core/tags_core.ts) this transaction joins. Purely a
    * label — membership affects no balance, so it needs no invalidation and is never
    * mirrored onto a linked user's copy.
    */
-  group_ids?: string[] | null | undefined
+  tag_ids?: string[] | null | undefined
 }
 
 type Tx = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
@@ -87,14 +87,14 @@ const idempotencyKeySchema = z
   .transform(val => (val === '' ? null : val))
   .nullish()
 
-const groupIdsSchema = z.array(z.string().trim().min(1)).nullish()
+const tagIdsSchema = z.array(z.string().trim().min(1)).nullish()
 
 const createTransactionSchema = z.object({
   line_items: z.array(lineItemSchema).min(1, 'At least one line item is required'),
   description: descriptionSchema,
   idempotency_key: idempotencyKeySchema,
   is_future: z.boolean().optional(),
-  group_ids: groupIdsSchema,
+  tag_ids: tagIdsSchema,
 })
 
 const updateTransactionSchema = z.object({
@@ -102,9 +102,9 @@ const updateTransactionSchema = z.object({
   line_items: z.array(lineItemSchema).min(1, 'At least one line item is required'),
   description: descriptionSchema,
   is_future: z.boolean().optional(),
-  // Undefined leaves the transaction's groups alone; an array (including an empty
+  // Undefined leaves the transaction's tags alone; an array (including an empty
   // one) replaces them wholesale, matching how line_items behave.
-  group_ids: z.array(z.string().trim().min(1)).optional(),
+  tag_ids: z.array(z.string().trim().min(1)).optional(),
 })
 
 const deleteTransactionSchema = z.object({
@@ -118,7 +118,7 @@ type BulkCaches = {
   heads: Map<string, accounting_head>
   assets: Map<string, asset>
   idempotency: Map<string, string>
-  group_ids: Set<string>
+  tag_ids: Set<string>
 }
 
 // Runs inside an existing $transaction. Replays (same user + idempotency_key)
@@ -204,7 +204,7 @@ async function create_transaction_in_tx(
 
   if (opts?.idempotency_key && caches) caches.idempotency.set(opts.idempotency_key, created.id)
 
-  if (opts?.group_ids && opts.group_ids.length > 0) await attach_transaction_groups(tx, user_id, created.id, opts.group_ids, caches?.group_ids)
+  if (opts?.tag_ids && opts.tag_ids.length > 0) await attach_transaction_tags(tx, user_id, created.id, opts.tag_ids, caches?.tag_ids)
 
   // The fetched head rows already carry linked_user_id — no need to re-read the
   // just-written line items to find counterparties.
@@ -232,7 +232,7 @@ export async function create_transaction_core(
       create_transaction_in_tx(prisma, user_id, datetime, parsed.data.line_items, parsed.data.description, {
         idempotency_key: parsed.data.idempotency_key,
         is_future: parsed.data.is_future,
-        group_ids: parsed.data.group_ids,
+        tag_ids: parsed.data.tag_ids,
       }),
     )
 
@@ -249,7 +249,7 @@ export async function create_transaction_core(
       line_item_count: parsed.data.line_items.length,
       counterparty_count: counterparties.length,
       future: parsed.data.is_future ?? false,
-      group_count: parsed.data.group_ids?.length ?? 0,
+      tag_count: parsed.data.tag_ids?.length ?? 0,
     })
     return ok({ id }, 'Transaction created')
   } catch (error) {
@@ -276,7 +276,7 @@ export type BulkTransactionInput = {
   description?: string | null | undefined
   idempotency_key?: string | null | undefined
   is_future?: boolean
-  group_ids?: string[] | null | undefined
+  tag_ids?: string[] | null | undefined
 }
 
 // All-or-nothing bulk create: every transaction commits or none do. Items whose
@@ -297,7 +297,7 @@ export async function create_transactions_core(
               description: item.description,
               idempotency_key: item.idempotency_key,
               is_future: item.is_future,
-              group_ids: item.group_ids,
+              tag_ids: item.tag_ids,
             })
             if (!parsed.success) throw new ActionError('VALIDATION', `Transaction ${i + 1}: ${parsed.error.issues[0].message}`)
             return parsed.data
@@ -310,8 +310,8 @@ export async function create_transactions_core(
           const all_keys = parsed_items.map(p => p.idempotency_key).filter((k): k is string => !!k)
           const head_rows = await tx.accounting_head.findMany({ where: { id: { in: all_head_ids }, user_id } })
           const asset_rows = await tx.asset.findMany({ where: { id: { in: all_asset_ids } } })
-          // Loaded once for the batch, and only when some item actually names a group.
-          const owned_group_ids = parsed_items.some(p => p.group_ids?.length) ? await load_own_group_ids(tx, user_id) : new Set<string>()
+          // Loaded once for the batch, and only when some item actually names a tag.
+          const owned_tag_ids = parsed_items.some(p => p.tag_ids?.length) ? await load_own_tag_ids(tx, user_id) : new Set<string>()
           const existing_keys = all_keys.length
             ? await tx.transaction.findMany({
                 where: { user_id, idempotency_key: { in: all_keys } },
@@ -322,7 +322,7 @@ export async function create_transactions_core(
             heads: new Map(head_rows.map(h => [h.id, h])),
             assets: new Map(asset_rows.map(a => [a.id, a])),
             idempotency: new Map(existing_keys.map(t => [t.idempotency_key!, t.id])),
-            group_ids: owned_group_ids,
+            tag_ids: owned_tag_ids,
           }
 
           const results: { id: string; replayed: boolean }[] = []
@@ -336,7 +336,7 @@ export async function create_transactions_core(
                 items[i].datetime,
                 parsed.line_items,
                 parsed.description,
-                { idempotency_key: parsed.idempotency_key, is_future: parsed.is_future, group_ids: parsed.group_ids },
+                { idempotency_key: parsed.idempotency_key, is_future: parsed.is_future, tag_ids: parsed.tag_ids },
                 caches,
               )
               for (const cp of r.counterparties) cps.add(cp)
@@ -396,17 +396,17 @@ export async function update_transaction_core(
   datetime?: Date | undefined,
   description?: string | null | undefined,
   is_future?: boolean | undefined,
-  // Undefined keeps the transaction's groups; an array replaces them (empty clears).
-  group_ids?: string[] | undefined,
+  // Undefined keeps the transaction's tags; an array replaces them (empty clears).
+  tag_ids?: string[] | undefined,
 ): Promise<ActionResult> {
   try {
-    const parsed = updateTransactionSchema.safeParse({ id, line_items, description, is_future, group_ids })
+    const parsed = updateTransactionSchema.safeParse({ id, line_items, description, is_future, tag_ids })
     if (!parsed.success) return err('VALIDATION', parsed.error.issues[0].message)
     id = parsed.data.id
     line_items = parsed.data.line_items
     description = parsed.data.description
     is_future = parsed.data.is_future
-    group_ids = parsed.data.group_ids
+    tag_ids = parsed.data.tag_ids
 
     const { old_lines, old_datetime, reopened, final_description, existing_is_future, will_be_future } = await prisma.$transaction(async prisma => {
       const existing = await prisma.transaction.findUnique({
@@ -495,10 +495,10 @@ export async function update_transaction_core(
         },
       })
 
-      // Groups are a label on this user's own copy: they are never mirrored to a
+      // Tags are a label on this user's own copy: they are never mirrored to a
       // counterparty and never re-open an approval, so this sits outside the link
       // handling below and is skipped entirely when the caller didn't mention them.
-      if (group_ids !== undefined) await apply_transaction_groups(prisma, user_id, id, group_ids)
+      if (tag_ids !== undefined) await apply_transaction_tags(prisma, user_id, id, tag_ids)
 
       // The fetched head rows carry linked_user_id, so the sync can skip re-reading the
       // just-written line items; its return names the counterparties to notify, which
@@ -544,7 +544,7 @@ export async function update_transaction_core(
       was_future: existing_is_future,
       future: will_be_future,
       counterparty_count: reopened.length,
-      groups_changed: group_ids !== undefined,
+      tags_changed: tag_ids !== undefined,
     })
     return ok(undefined, 'Transaction updated')
   } catch (error) {
@@ -558,8 +558,8 @@ export type DeletedTransaction = {
   datetime: Date
   description: string | null
   had_attachments: boolean
-  /** Groups it belonged to, so an undo can put it back into them. */
-  group_ids: string[]
+  /** Tags it belonged to, so an undo can put it back into them. */
+  tag_ids: string[]
   line_items: {
     accounting_head_id: string
     asset_id: string
@@ -586,7 +586,7 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
           description: true,
           is_future: true,
           attachments: { select: { id: true }, take: 1 },
-          group_members: { select: { group_id: true } },
+          tag_members: { select: { tag_id: true } },
           line_items: {
             select: {
               datetime: true,
@@ -623,13 +623,13 @@ export async function delete_transaction_core(user_id: string, id: string): Prom
       line_item_count: deleted.line_items.length,
       future: deleted.is_future,
       had_attachments: deleted.attachments.length > 0,
-      group_count: deleted.group_members.length,
+      tag_count: deleted.tag_members.length,
     })
     return ok({
       datetime: deleted.datetime,
       description: deleted.description,
       had_attachments: deleted.attachments.length > 0,
-      group_ids: deleted.group_members.map(m => m.group_id),
+      tag_ids: deleted.tag_members.map(m => m.tag_id),
       line_items: deleted.line_items.map(li => ({
         accounting_head_id: li.accounting_head_id,
         asset_id: li.asset_id,

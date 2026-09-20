@@ -23,8 +23,8 @@ type Transaction = {
   link_severity: 'error' | 'warning' | 'info' | null
   /** Scheduled for today (IST) or earlier — only ever true on the future list. */
   is_due: boolean
-  /** The user's own labels on this transaction (see /groups). */
-  groups: { id: string; name: string }[]
+  /** The user's own labels on this transaction (see /tags). */
+  tags: { id: string; name: string }[]
 }
 
 // The whole ledger lives in IST (lib/config USER_TIMEZONE), so day headers and row times
@@ -60,7 +60,7 @@ function page_items(current: number, total: number): (number | 'gap')[] {
 
 type Account = { id: string; name: string }
 type Asset = { id: string; name: string }
-type Group = { id: string; name: string }
+type Tag = { id: string; name: string }
 type Template = {
   id: string
   description: string | null
@@ -153,7 +153,7 @@ const TransactionsCard = React.memo(function TransactionsCard({
                         </span>
                         {/* Plain text, not links: the whole row is already one stretched
                             <Link>, and a nested anchor there is invalid and unclickable. */}
-                        {tx.groups.length > 0 && <span className="truncate">· {tx.groups.map(g => g.name).join(', ')}</span>}
+                        {tx.tags.length > 0 && <span className="truncate">· {tx.tags.map(g => g.name).join(', ')}</span>}
                       </p>
                     </div>
                     <div className="ml-4 shrink-0 flex items-center gap-2">
@@ -197,7 +197,7 @@ export default function ClientPage({
   searchParams,
   accounts,
   assets,
-  groups = [],
+  tags = [],
   templates = [],
 }: {
   transactions: Transaction[]
@@ -207,7 +207,7 @@ export default function ClientPage({
   searchParams: Record<string, string | undefined>
   accounts: Account[]
   assets: Asset[]
-  groups?: Group[]
+  tags?: Tag[]
   templates?: Template[]
 }) {
   const router = useRouter()
@@ -222,7 +222,7 @@ export default function ClientPage({
   const [maxAmount, setMaxAmount] = useState(searchParams.maxAmount || '')
   const [accountId, setAccountId] = useState(searchParams.accountId || '')
   const [assetId, setAssetId] = useState(searchParams.assetId || '')
-  const [groupId, setGroupId] = useState(searchParams.groupId || '')
+  const [tagId, setTagId] = useState(searchParams.tagId || '')
   const [selectedPageSize] = useState(pageSize)
   const [deletingTemplate, setDeletingTemplate] = useState<{ id: string; x: number; y: number } | null>(null)
   const deleteMenuButtonRef = useRef<HTMLButtonElement>(null)
@@ -239,7 +239,7 @@ export default function ClientPage({
     setMaxAmount(searchParams.maxAmount || '')
     setAccountId(searchParams.accountId || '')
     setAssetId(searchParams.assetId || '')
-    setGroupId(searchParams.groupId || '')
+    setTagId(searchParams.tagId || '')
   }, [
     searchParams.search,
     searchParams.dateFrom,
@@ -248,7 +248,7 @@ export default function ClientPage({
     searchParams.maxAmount,
     searchParams.accountId,
     searchParams.assetId,
-    searchParams.groupId,
+    searchParams.tagId,
   ])
 
   // A just-deleted transaction stashes a snapshot for one-click undo
@@ -269,8 +269,8 @@ export default function ClientPage({
         new Date(undoSnapshot.datetime),
         undoSnapshot.line_items.map(li => ({ ...li, datetime: li.datetime ? new Date(li.datetime) : null })),
         undoSnapshot.description,
-        // Group membership is plain rows, so unlike attachments it does come back.
-        { group_ids: undoSnapshot.group_ids },
+        // Tag membership is plain rows, so unlike attachments it does come back.
+        { tag_ids: undoSnapshot.tag_ids },
       )
       if (!result.success) throw new Error(result.message)
       setUndoSnapshot(null)
@@ -342,7 +342,7 @@ export default function ClientPage({
     if (maxAmount) query.set('maxAmount', maxAmount)
     if (accountId) query.set('accountId', accountId)
     if (assetId) query.set('assetId', assetId)
-    if (groupId) query.set('groupId', groupId)
+    if (tagId) query.set('tagId', tagId)
     // The real/future switch lives outside this panel, so applying filters must not
     // silently drop it.
     if (showingFuture) query.set('future', 'future')
@@ -358,7 +358,7 @@ export default function ClientPage({
     setMaxAmount('')
     setAccountId('')
     setAssetId('')
-    setGroupId('')
+    setTagId('')
     setShowFilters(false)
     router.push('/transactions')
   }
@@ -384,13 +384,13 @@ export default function ClientPage({
     searchParams.maxAmount ||
     searchParams.accountId ||
     searchParams.assetId ||
-    searchParams.groupId
+    searchParams.tagId
   )
   const hasFilters = hasOtherFilters || showingFuture
 
   const accountName = (id: string) => accounts.find(a => a.id === id)?.name ?? id
   const assetName = (id: string) => assets.find(a => a.id === id)?.name ?? id
-  const groupName = (id: string) => groups.find(g => g.id === id)?.name ?? id
+  const tagName = (id: string) => tags.find(g => g.id === id)?.name ?? id
 
   const activeChips: { key: string; label: string }[] = []
   if (searchParams.search) activeChips.push({ key: 'search', label: `Search: "${searchParams.search}"` })
@@ -400,7 +400,7 @@ export default function ClientPage({
   if (searchParams.maxAmount) activeChips.push({ key: 'maxAmount', label: `Max: ${currency_fmt.format(parseFloat(searchParams.maxAmount))}` })
   if (searchParams.accountId) activeChips.push({ key: 'accountId', label: `Account: ${accountName(searchParams.accountId)}` })
   if (searchParams.assetId) activeChips.push({ key: 'assetId', label: `Asset: ${assetName(searchParams.assetId)}` })
-  if (searchParams.groupId) activeChips.push({ key: 'groupId', label: `Group: ${groupName(searchParams.groupId)}` })
+  if (searchParams.tagId) activeChips.push({ key: 'tagId', label: `Tag: ${tagName(searchParams.tagId)}` })
   if (showingFuture) activeChips.push({ key: 'future', label: 'Future transactions' })
 
   // Rows group under day headers when the list is date-sorted (the ledger's home order).
@@ -664,26 +664,26 @@ export default function ClientPage({
             </div>
             <div>
               <label htmlFor={`${uid}-group`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Group
+                Tag
               </label>
               <select
                 id={`${uid}-group`}
-                value={groupId}
-                onChange={e => setGroupId(e.target.value)}
-                disabled={groups.length === 0}
+                value={tagId}
+                onChange={e => setTagId(e.target.value)}
+                disabled={tags.length === 0}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 disabled:opacity-60"
               >
-                <option value="">All groups</option>
-                {groups.map(g => (
+                <option value="">All tags</option>
+                {tags.map(g => (
                   <option key={g.id} value={g.id}>
                     {g.name}
                   </option>
                 ))}
               </select>
-              {groups.length === 0 && (
+              {tags.length === 0 && (
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  No groups yet —{' '}
-                  <Link href="/groups" className="underline hover:no-underline">
+                  No tags yet —{' '}
+                  <Link href="/tags" className="underline hover:no-underline">
                     create one
                   </Link>{' '}
                   to bundle similar transactions.

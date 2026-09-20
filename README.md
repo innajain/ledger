@@ -160,13 +160,13 @@ When the payee balance is negative (you owe them), the amount and `reimbursement
 
 Reusable transaction shapes (rent, SIPs, payday splits). Stored as `transaction_template` + `line_item_template` rows; cascade-deleted with the user. Quick-load passes a chosen template into a fresh transaction via `sessionStorage` to prefill line items.
 
-### Transaction Groups
+### Transaction Tags
 
-Free-form labels over whole transactions — "Eating out", "Goa trip" — so a set of similar entries can be pulled back up and totalled. Many-to-many (`transaction_group` + `transaction_group_member`), scoped to one user and **never shared across a linked-account mirror**: each side labels its own ledger.
+Free-form labels over whole transactions — "Eating out", "Goa trip" — so a set of similar entries can be pulled back up and totalled. Many-to-many (`transaction_tag` + `transaction_tag_member`), scoped to one user and **never shared across a linked-account mirror**: each side labels its own ledger.
 
-Grouping is purely descriptive. It feeds no balance, net worth, XIRR, FIFO or income/expense figure, so group writes invalidate no cache. A group's headline number is the same signed book flow the transactions list shows per row; scheduled (`is_future`) members are counted separately and excluded from the total, since they move no balance anywhere else either.
+Tagging is purely descriptive. It feeds no balance, net worth, XIRR, FIFO or income/expense figure, so tag writes invalidate no cache. A tag's headline number is the same signed book flow the transactions list shows per row; scheduled (`is_future`) members are counted separately and excluded from the total, since they move no balance anywhere else either.
 
-`/groups` lists every group with its count and net; `/groups/[id]` shows what is in one, with a remove control. On the transaction create/edit forms a chip picker assigns groups and can create one inline. `/transactions?groupId=…` filters the list, and each row shows the groups it carries.
+`/tags` lists every tag with its count and net; `/tags/[id]` shows what is in one, with a remove control. On the transaction create/edit forms a chip picker assigns tags and can create one inline. `/transactions?tagId=…` filters the list, and each row shows the tags it carries.
 
 ### Line-Item Defaults
 
@@ -324,12 +324,12 @@ model transaction {
   is_future       Boolean                  @default(false) // scheduled draft; affects no balance until converted
   line_items      line_item[]
   attachments     transaction_attachment[]
-  group_members   transaction_group_member[]
+  tag_members     transaction_tag_member[]
 }
 
 // A user-defined label over whole transactions ("Eating out", "Goa trip").
 // Descriptive only — membership moves no balance. Name unique per user.
-model transaction_group {
+model transaction_tag {
   id          String   @id @default(cuid())
   user_id     String
   name        String
@@ -338,12 +338,12 @@ model transaction_group {
 }
 
 // Many-to-many join; both sides cascade.
-model transaction_group_member {
+model transaction_tag_member {
   transaction_id String
-  group_id       String
+  tag_id         String
   created_at     DateTime @default(now())
 
-  @@id([transaction_id, group_id])
+  @@id([transaction_id, tag_id])
 }
 
 model transaction_attachment {

@@ -19,19 +19,19 @@ import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
 import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app/_utils/line_item_defaults'
 import { useToast } from '@/app/_components/Toast'
-import { GroupPicker, type GroupOption } from '@/app/_components/GroupPicker'
+import { TagPicker, type TagOption } from '@/app/_components/TagPicker'
 
 export default function ClientPage({
   accounts,
   assets,
   defaults,
-  groups = [],
+  tags = [],
   attachmentsEnabled = false,
 }: {
   accounts: { id: string; name: string; type: string }[]
   assets: { id: string; name: string; type: asset_type }[]
   defaults: LineItemDefaults
-  groups?: GroupOption[]
+  tags?: TagOption[]
   attachmentsEnabled?: boolean
 }) {
   function toLocalDateTimeInputValue(d: Date | string) {
@@ -50,7 +50,7 @@ export default function ClientPage({
   const uid = useId()
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(new Date()))
   const [description, setDescription] = useState('')
-  const [groupIds, setGroupIds] = useState<string[]>([])
+  const [tagIds, setTagIds] = useState<string[]>([])
   const [isFuture, setIsFuture] = useState(false)
   const defaultAccount = pickDefaultAccount(accounts, defaults, 'account')
   const defaultAllocation = pickDefaultAccount(accounts, defaults, 'allocation')
@@ -247,7 +247,7 @@ export default function ClientPage({
   }
 
   async function doCreate(line_items: CreateLineItemInput[]) {
-    const result = await create_transaction(new Date(date), line_items, description || null, { is_future: isFuture, group_ids: groupIds })
+    const result = await create_transaction(new Date(date), line_items, description || null, { is_future: isFuture, tag_ids: tagIds })
     if (result.success) {
       if (pendingAttachments.length > 0) {
         await save_attachments(result.data!.id, pendingAttachments)
@@ -345,8 +345,8 @@ export default function ClientPage({
             </div>
 
             <div>
-              <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Groups</span>
-              <GroupPicker options={groups} value={groupIds} onChange={setGroupIds} />
+              <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Tags</span>
+              <TagPicker options={tags} value={tagIds} onChange={setTagIds} />
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                 Optional labels for finding similar transactions later — “Eating out”, “Goa trip”. They don&apos;t affect any balance.
               </p>

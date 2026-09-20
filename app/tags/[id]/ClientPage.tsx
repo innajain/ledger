@@ -9,12 +9,12 @@ import { ChevronLeftIcon, PencilIcon, TrashIcon, CloseIcon } from '@/app/_compon
 import { ErrorAlert } from '@/app/_components/FormComponents'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { EmptyState } from '@/app/_components/EmptyState'
-import { GroupEmptyIcon } from '@/app/_components/EmptyStateIcons'
+import { TagEmptyIcon } from '@/app/_components/EmptyStateIcons'
 import { useToast } from '@/app/_components/Toast'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
-import { update_transaction_group, delete_transaction_group, remove_transactions_from_group } from '@/app/_actions/groups'
+import { update_transaction_tag, delete_transaction_tag, remove_transactions_from_tag } from '@/app/_actions/tags'
 
-type GroupTransaction = {
+type TagTransaction = {
   id: string
   datetime: string
   description: string | null
@@ -23,12 +23,12 @@ type GroupTransaction = {
   net: number
 }
 
-type Group = {
+type Tag = {
   id: string
   name: string
   description: string | null
   summary: { count: number; future_count: number; inflow: number; outflow: number; net: number }
-  transactions: GroupTransaction[]
+  transactions: TagTransaction[]
 }
 
 const IST = 'Asia/Kolkata'
@@ -44,7 +44,7 @@ const datetime_fmt = new Intl.DateTimeFormat('en-IN', {
 const up_ampm = (s: string) => s.replace(/\b(am|pm)\b/g, m => m.toUpperCase())
 
 // Every figure here is a signed flow in the ledger's own convention — money out
-// negative, money in positive and green — so the group summary reads the same way
+// negative, money in positive and green — so the tag summary reads the same way
 // as a row on the transactions list.
 function Stat({ label, value }: { label: string; value: number }) {
   return (
@@ -57,13 +57,13 @@ function Stat({ label, value }: { label: string; value: number }) {
   )
 }
 
-export default function ClientPage({ group }: { group: Group }) {
+export default function ClientPage({ tag }: { tag: Tag }) {
   const router = useRouter()
   const uid = useId()
   const { showToast } = useToast()
   const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(group.name)
-  const [description, setDescription] = useState(group.description ?? '')
+  const [name, setName] = useState(tag.name)
+  const [description, setDescription] = useState(tag.description ?? '')
   const [busy, setBusy] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -73,7 +73,7 @@ export default function ClientPage({ group }: { group: Group }) {
     setError(null)
     setBusy(true)
     try {
-      const res = await update_transaction_group(group.id, { name, description: description || null })
+      const res = await update_transaction_tag(tag.id, { name, description: description || null })
       if (!res.success) {
         setError(res.message)
         return
@@ -88,19 +88,19 @@ export default function ClientPage({ group }: { group: Group }) {
   }
 
   async function onDelete() {
-    const count = group.summary.count + group.summary.future_count
+    const count = tag.summary.count + tag.summary.future_count
     const detail = count === 0 ? '' : ` Its ${count} transaction${count === 1 ? '' : 's'} will stay exactly as they are — only the label goes.`
-    if (!confirm(`Delete the group “${group.name}”?${detail}`)) return
+    if (!confirm(`Delete the tag “${tag.name}”?${detail}`)) return
     setError(null)
     setBusy(true)
     try {
-      const res = await delete_transaction_group(group.id)
+      const res = await delete_transaction_tag(tag.id)
       if (!res.success) {
         setError(res.message)
         setBusy(false)
         return
       }
-      router.push('/groups')
+      router.push('/tags')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setBusy(false)
@@ -111,12 +111,12 @@ export default function ClientPage({ group }: { group: Group }) {
     setError(null)
     setRemoving(transaction_id)
     try {
-      const res = await remove_transactions_from_group(group.id, [transaction_id])
+      const res = await remove_transactions_from_tag(tag.id, [transaction_id])
       if (!res.success) {
         setError(res.message)
         return
       }
-      showToast('Removed from the group', 'success')
+      showToast('Removed from the tag', 'success')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -128,11 +128,11 @@ export default function ClientPage({ group }: { group: Group }) {
   return (
     <div className="space-y-6">
       <Link
-        href="/groups"
+        href="/tags"
         className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium"
       >
         <ChevronLeftIcon />
-        Groups
+        Tags
       </Link>
 
       <Card className="p-6">
@@ -166,8 +166,8 @@ export default function ClientPage({ group }: { group: Group }) {
               <Button
                 variant="secondary"
                 onClick={() => {
-                  setName(group.name)
-                  setDescription(group.description ?? '')
+                  setName(tag.name)
+                  setDescription(tag.description ?? '')
                   setEditing(false)
                   setError(null)
                 }}
@@ -183,8 +183,8 @@ export default function ClientPage({ group }: { group: Group }) {
           <>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 break-words">{group.name}</h1>
-                {group.description && <p className="text-slate-600 dark:text-slate-400 mt-1">{group.description}</p>}
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 break-words">{tag.name}</h1>
+                {tag.description && <p className="text-slate-600 dark:text-slate-400 mt-1">{tag.description}</p>}
               </div>
               <div className="flex shrink-0 gap-2">
                 <Button variant="secondary" onClick={() => setEditing(true)} size="sm">
@@ -199,20 +199,20 @@ export default function ClientPage({ group }: { group: Group }) {
             </div>
 
             <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-slate-200 dark:border-slate-700">
-              <Stat label="Net" value={group.summary.net} />
-              <Stat label="Money out" value={-group.summary.outflow} />
-              <Stat label="Money in" value={group.summary.inflow} />
+              <Stat label="Net" value={tag.summary.net} />
+              <Stat label="Money out" value={-tag.summary.outflow} />
+              <Stat label="Money in" value={tag.summary.inflow} />
               <div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Transactions</p>
-                <p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{group.summary.count}</p>
-                {group.summary.future_count > 0 && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">+ {group.summary.future_count} scheduled, not counted above</p>
+                <p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{tag.summary.count}</p>
+                {tag.summary.future_count > 0 && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">+ {tag.summary.future_count} scheduled, not counted above</p>
                 )}
               </div>
             </div>
 
             <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-              <Link href={`/transactions?groupId=${group.id}`} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+              <Link href={`/transactions?tagId=${tag.id}`} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
                 Open in Transactions, with the usual filters →
               </Link>
             </div>
@@ -222,21 +222,21 @@ export default function ClientPage({ group }: { group: Group }) {
 
       {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
 
-      {group.transactions.length === 0 ? (
+      {tag.transactions.length === 0 ? (
         <EmptyState
-          icon={<GroupEmptyIcon />}
-          title="Nothing in this group yet"
-          description="Add a transaction to this group from its edit page, or pick the group while posting a new one."
+          icon={<TagEmptyIcon />}
+          title="Nothing in this tag yet"
+          description="Add a transaction to this tag from its edit page, or pick the tag while posting a new one."
           actionUrl="/transactions/create"
           actionLabel="New transaction"
         />
       ) : (
         <Card className="overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">In this group</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">In this tag</h2>
           </div>
           <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-            {group.transactions.map(t => (
+            {tag.transactions.map(t => (
               <li key={t.id} className="px-6 py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                 <div className="flex-1 min-w-0">
                   <Link href={`/transactions/${t.id}`} className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate hover:underline">
@@ -265,8 +265,8 @@ export default function ClientPage({ group }: { group: Group }) {
                     type="button"
                     onClick={() => void onRemove(t.id)}
                     disabled={removing === t.id}
-                    aria-label={`Remove “${t.description || 'this transaction'}” from ${group.name}`}
-                    title="Remove from this group"
+                    aria-label={`Remove “${t.description || 'this transaction'}” from ${tag.name}`}
+                    title="Remove from this tag"
                     className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-50 transition-colors"
                   >
                     <CloseIcon className="w-4 h-4" />

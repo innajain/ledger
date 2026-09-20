@@ -79,21 +79,21 @@ export const load_assets = () =>
     select: { id: true, name: true, type: true, ticker: true, is_active: true, parent_id: true },
   })
 
-export const load_groups = (uid: string) =>
-  prisma.transaction_group.findMany({ where: { user_id: uid }, orderBy: { name: 'asc' }, select: { id: true, name: true } })
+export const load_tags = (uid: string) =>
+  prisma.transaction_tag.findMany({ where: { user_id: uid }, orderBy: { name: 'asc' }, select: { id: true, name: true } })
 
-export type GroupsCatalog = Awaited<ReturnType<typeof load_groups>>
+export type TagsCatalog = Awaited<ReturnType<typeof load_tags>>
 
 /**
- * Turn a list of group ids/names into ids, the same id-or-name resolution every
+ * Turn a list of tag ids/names into ids, the same id-or-name resolution every
  * other ref arg gets. `undefined` stays undefined so the caller can tell "leave
- * the groups alone" apart from "clear them" ([]).
+ * the tags alone" apart from "clear them" ([]).
  */
-export async function resolve_group_refs(uid: string, refs: string[] | undefined, preloaded?: GroupsCatalog): Promise<string[] | undefined> {
+export async function resolve_tag_refs(uid: string, refs: string[] | undefined, preloaded?: TagsCatalog): Promise<string[] | undefined> {
   if (refs === undefined) return undefined
   if (refs.length === 0) return []
-  const catalog = preloaded ?? (await load_groups(uid))
-  return refs.map(r => resolve_ref(r, catalog, 'transaction group').id)
+  const catalog = preloaded ?? (await load_tags(uid))
+  return refs.map(r => resolve_ref(r, catalog, 'transaction tag').id)
 }
 
 export type HeadsCatalog = Awaited<ReturnType<typeof load_heads>>

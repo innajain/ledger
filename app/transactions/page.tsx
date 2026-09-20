@@ -9,7 +9,7 @@ import { is_future_txn_due } from '../_utils/future_txn'
 import { USER_TIMEZONE } from '@/lib/config'
 
 import { get_transaction_templates } from '@/app/_actions/templates'
-import { list_group_names_core, groups_for_transactions_core } from '@/app/_core/groups_core'
+import { list_tag_names_core, tags_for_transactions_core } from '@/app/_core/tags_core'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
@@ -36,8 +36,8 @@ type TxForClient = {
   link_severity: 'error' | 'warning' | 'info' | null
   /** Scheduled for today (IST) or earlier — only ever true on the future list. */
   is_due: boolean
-  /** The user's own labels on this transaction (see /groups). */
-  groups: { id: string; name: string }[]
+  /** The user's own labels on this transaction (see /tags). */
+  tags: { id: string; name: string }[]
 }
 
 const SORT_KEYS = ['date_desc', 'date_asc', 'amount_desc', 'amount_asc'] as const
@@ -58,7 +58,7 @@ async function Page({
     assetId?: string
     sort?: string
     future?: string
-    groupId?: string
+    tagId?: string
   }>
 }) {
   const user = await get_current_user()
@@ -75,7 +75,7 @@ async function Page({
   const maxAmount = params.maxAmount ? parseFloat(params.maxAmount) : undefined
   const accountId = params.accountId || undefined
   const assetId = params.assetId || undefined
-  const groupId = params.groupId || undefined
+  const tagId = params.tagId || undefined
   const sort: SortKey = (SORT_KEYS as readonly string[]).includes(params.sort ?? '') ? (params.sort as SortKey) : 'date_desc'
   // Real transactions by default, matching the transactions-only view every other
   // balance/list surface in the app already defaults to; 'future' flips to the
@@ -84,7 +84,7 @@ async function Page({
 
   // The client's filter dropdowns only read id+name; full rows would be serialized
   // into the RSC payload for nothing.
-  const [accounts, assets, templates, groups] = await Promise.all([
+  const [accounts, assets, templates, tags] = await Promise.all([
     prisma.accounting_head.findMany({
       where: { user_id: user.id },
       select: { id: true, name: true },
@@ -95,7 +95,7 @@ async function Page({
       orderBy: [{ order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     }),
     get_transaction_templates(),
-    list_group_names_core(user.id),
+    list_tag_names_core(user.id),
   ])
 
   const templatesForClient = templates.map(t => ({
@@ -116,7 +116,7 @@ async function Page({
   const lineItemFilters: Prisma.transactionWhereInput[] = []
   if (accountId) lineItemFilters.push({ line_items: { some: { accounting_head_id: accountId } } })
   if (assetId) lineItemFilters.push({ line_items: { some: { asset_id: assetId } } })
-  if (groupId) lineItemFilters.push({ group_members: { some: { group_id: groupId } } })
+  if (tagId) lineItemFilters.push({ tag_members: { some: { tag_id: tagId } } })
 
   const where: Prisma.transactionWhereInput = {
     user_id: user.id,
@@ -188,7 +188,7 @@ async function Page({
         .toNumber(),
       link_severity: null as TxForClient['link_severity'],
       // Filled in one batched query below, once the page's rows are known.
-      groups: [] as TxForClient['groups'],
+      tags: [] as TxForClient['tags'],
       // Only the future list can have due rows; a real transaction is always in the past.
       is_due: showFuture && is_future_txn_due(t.datetime, now),
     }
@@ -234,8 +234,7 @@ async function Page({
     if (dateTo) conds.push(Prisma.sql`t.datetime < ${dateTo}`)
     if (accountId) conds.push(Prisma.sql`EXISTS (SELECT 1 FROM line_item a WHERE a.transaction_id = t.id AND a.accounting_head_id = ${accountId})`)
     if (assetId) conds.push(Prisma.sql`EXISTS (SELECT 1 FROM line_item b WHERE b.transaction_id = t.id AND b.asset_id = ${assetId})`)
-    if (groupId)
-      conds.push(Prisma.sql`EXISTS (SELECT 1 FROM transaction_group_member gm WHERE gm.transaction_id = t.id AND gm.group_id = ${groupId})`)
+    if (tagId) conds.push(Prisma.sql`EXISTS (SELECT 1 FROM transaction_tag_member gm WHERE gm.transaction_id = t.id AND gm.tag_id = ${tagId})`)
 
     const totalExpr = Prisma.sql`COALESCE(SUM(COALESCE(li.txn_value, li.quantity)), 0)`
     const having: Prisma.Sql[] = []
@@ -284,8 +283,8 @@ async function Page({
 
   if (txForClient.length > 0) {
     const txIds = txForClient.map(t => t.id)
-    const groupsByTxn = await groups_for_transactions_core(user.id, txIds)
-    txForClient = txForClient.map(t => ({ ...t, groups: groupsByTxn.get(t.id) ?? [] }))
+    const tagsByTxn = await tags_for_transactions_core(user.id, txIds)
+    txForClient = txForClient.map(t => ({ ...t, tags: tagsByTxn.get(t.id) ?? [] }))
     const activeLinks = await prisma.transaction_link.findMany({
       where: {
         OR: [
@@ -322,7 +321,7 @@ async function Page({
       searchParams={params}
       accounts={accounts}
       assets={assets}
-      groups={groups}
+      tags={tags}
       templates={templatesForClient}
     />
   )

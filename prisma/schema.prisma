@@ -46,7 +46,7 @@ model user {
   mcp_oauth_codes        mcp_oauth_code[]
   mcp_access_tokens      mcp_access_token[]
   mcp_attachment_uploads mcp_attachment_upload[]
-  transaction_groups     transaction_group[]
+  transaction_tags       transaction_tag[]
 }
 
 // A browser Web Push subscription for a user. One row per device/browser; a
@@ -182,7 +182,7 @@ model transaction {
   txn_a_links   transaction_link[]       @relation("txn_a_links")
   txn_b_links   transaction_link[]       @relation("txn_b_links")
   upload_grants mcp_attachment_upload[]
-  group_members transaction_group_member[]
+  tag_members   transaction_tag_member[]
 
   @@unique([user_id, idempotency_key])
   @@index([user_id, datetime])
@@ -192,41 +192,41 @@ model transaction {
   @@index([description(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
-// A user-defined label for grouping similar transactions — "Eating out", "Goa
+// A user-defined label for tagging similar transactions — "Eating out", "Goa
 // trip". Purely descriptive: membership never touches balances, net worth, XIRR,
 // income/expense or the null-remainder normalization, so no write path here has
 // to invalidate a cached balance or timeseries.
 //
-// Groups are deliberately NOT mirrored onto a linked user's copy of a shared
+// Tags are deliberately NOT mirrored onto a linked user's copy of a shared
 // transaction (see transaction_link): each side labels its own ledger, and a
-// counterparty's group names are none of the other user's business.
-model transaction_group {
+// counterparty's tag names are none of the other user's business.
+model transaction_tag {
   id          String   @id @default(cuid())
   user_id     String
   name        String
   description String?
   created_at  DateTime @default(now())
 
-  user    user                       @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  members transaction_group_member[]
+  user    user                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  members transaction_tag_member[]
 
   @@unique([name, user_id])
   @@index([user_id])
 }
 
-// Join row: a transaction can carry several groups and a group holds many
+// Join row: a transaction can carry several tags and a tag holds many
 // transactions. Both sides cascade, so deleting either end cleans up the
 // membership without leaving an orphan.
-model transaction_group_member {
+model transaction_tag_member {
   transaction_id String
-  group_id       String
+  tag_id         String
   created_at     DateTime @default(now())
 
-  transaction transaction       @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
-  group       transaction_group @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  transaction transaction     @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+  tag         transaction_tag @relation(fields: [tag_id], references: [id], onDelete: Cascade)
 
-  @@id([transaction_id, group_id])
-  @@index([group_id])
+  @@id([transaction_id, tag_id])
+  @@index([tag_id])
 }
 
 model transaction_attachment {

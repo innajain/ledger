@@ -15,7 +15,7 @@ import { ErrorAlert } from '@/app/_components/FormComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import type { LineItemDefaults } from '@/app/_actions/preferences'
 import { pickDefaultAccount, pickDefaultAsset, type AccountTypeKey } from '@/app/_utils/line_item_defaults'
-import { GroupPicker, type GroupOption } from '@/app/_components/GroupPicker'
+import { TagPicker, type TagOption } from '@/app/_components/TagPicker'
 
 type LineItem = {
   id: string
@@ -37,8 +37,8 @@ export default function ClientPage({
   accounts,
   assets,
   defaults,
-  groups = [],
-  selectedGroupIds = [],
+  tags = [],
+  selectedTagIds = [],
   updateTransaction,
   convertFutureTransaction,
   existingAttachments = [],
@@ -55,15 +55,15 @@ export default function ClientPage({
   accounts: { id: string; name: string; type: string }[]
   assets: { id: string; name: string; type: asset_type }[]
   defaults: LineItemDefaults
-  groups?: GroupOption[]
-  selectedGroupIds?: string[]
+  tags?: TagOption[]
+  selectedTagIds?: string[]
   updateTransaction: (
     id: string,
     line_items: CreateLineItemInput[],
     datetime?: Date,
     description?: string | null,
     is_future?: boolean,
-    group_ids?: string[],
+    tag_ids?: string[],
   ) => Promise<ActionResult>
   convertFutureTransaction: (id: string) => Promise<ActionResult<{ accounting_head_ids: string[] }>>
   existingAttachments?: ExistingAttachment[]
@@ -84,7 +84,7 @@ export default function ClientPage({
   const uid = useId()
   const [date, setDate] = useState(() => toLocalDateTimeInputValue(transaction.date))
   const [description, setDescription] = useState(transaction.description ?? '')
-  const [groupIds, setGroupIds] = useState<string[]>(selectedGroupIds)
+  const [tagIds, setTagIds] = useState<string[]>(selectedTagIds)
   const [isFuture, setIsFuture] = useState(transaction.is_future)
   const [items, setItems] = useState<LineItemData[]>(
     transaction.line_items.map(li => ({
@@ -168,7 +168,7 @@ export default function ClientPage({
         description: it.description === '' ? null : it.description,
         datetime: it.datetime === '' ? null : new Date(it.datetime),
       }))
-      const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null, isFuture, groupIds)
+      const result = await updateTransaction(transaction.id, line_items, new Date(date), description || null, isFuture, tagIds)
       if (result.success) {
         if (pendingAttachments.length > 0) {
           await save_attachments(transaction.id, pendingAttachments)
@@ -265,8 +265,8 @@ export default function ClientPage({
             </div>
 
             <div>
-              <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Groups</span>
-              <GroupPicker options={groups} value={groupIds} onChange={setGroupIds} />
+              <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Tags</span>
+              <TagPicker options={tags} value={tagIds} onChange={setTagIds} />
             </div>
 
             {attachmentsEnabled && (

@@ -2,31 +2,31 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { CloseIcon, Spinner } from './icons'
-import { create_transaction_group } from '@/app/_actions/groups'
+import { create_transaction_tag } from '@/app/_actions/tags'
 
-export type GroupOption = { id: string; name: string }
+export type TagOption = { id: string; name: string }
 
 type Props = {
-  /** Every group the user has. Grows in place when one is created from here. */
-  options: GroupOption[]
+  /** Every tag the user has. Grows in place when one is created from here. */
+  options: TagOption[]
   value: string[]
   onChange: (ids: string[]) => void
   disabled?: boolean
 }
 
 /**
- * Multi-select for a transaction's groups: selected groups are chips, the box
+ * Multi-select for a transaction's tags: selected tags are chips, the box
  * below filters the rest, and typing a name nothing matches offers to create it
- * on the spot — the whole point of grouping is that you invent the bucket while
+ * on the spot — the whole point of tagging is that you invent the bucket while
  * posting the transaction that needs it, not on a separate settings trip.
  *
- * Creating writes immediately (a group is a standalone row with nothing to roll
+ * Creating writes immediately (a tag is a standalone row with nothing to roll
  * back), while membership is only ever saved with the form around it.
  */
-export function GroupPicker({ options, value, onChange, disabled = false }: Props) {
+export function TagPicker({ options, value, onChange, disabled = false }: Props) {
   const uid = useId()
   const listId = `${uid}-list`
-  const [available, setAvailable] = useState<GroupOption[]>(options)
+  const [available, setAvailable] = useState<TagOption[]>(options)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -35,12 +35,12 @@ export function GroupPicker({ options, value, onChange, disabled = false }: Prop
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // The server list can arrive after a refresh (a group created on another page).
+  // The server list can arrive after a refresh (a tag created on another page).
   /* eslint-disable-next-line react-hooks/set-state-in-effect */
   useEffect(() => setAvailable(options), [options])
 
   const by_id = useMemo(() => new Map(available.map(g => [g.id, g])), [available])
-  const selected = value.map(id => by_id.get(id)).filter((g): g is GroupOption => !!g)
+  const selected = value.map(id => by_id.get(id)).filter((g): g is TagOption => !!g)
 
   const q = query.trim().toLowerCase()
   const suggestions = useMemo(
@@ -79,7 +79,7 @@ export function GroupPicker({ options, value, onChange, disabled = false }: Prop
     setCreating(true)
     setError(null)
     try {
-      const res = await create_transaction_group({ name })
+      const res = await create_transaction_tag({ name })
       if (!res.success) {
         setError(res.message)
         return
@@ -110,7 +110,7 @@ export function GroupPicker({ options, value, onChange, disabled = false }: Prop
       return
     }
     if (e.key === 'Enter') {
-      // Never let the group box submit the transaction form around it.
+      // Never let the tag box submit the transaction form around it.
       e.preventDefault()
       if (!open) {
         setOpen(true)
@@ -158,7 +158,7 @@ export function GroupPicker({ options, value, onChange, disabled = false }: Prop
         aria-autocomplete="list"
         value={query}
         disabled={disabled}
-        placeholder={selected.length > 0 ? 'Add another group…' : 'Search or create a group…'}
+        placeholder={selected.length > 0 ? 'Add another tag…' : 'Search or create a tag…'}
         onChange={e => {
           setQuery(e.target.value)
           setOpen(true)
@@ -212,7 +212,7 @@ export function GroupPicker({ options, value, onChange, disabled = false }: Prop
             </li>
           )}
           {available.length === 0 && !canCreate && (
-            <li className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Type a name to create your first group</li>
+            <li className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Type a name to create your first tag</li>
           )}
         </ul>
       )}

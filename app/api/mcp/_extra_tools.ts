@@ -23,15 +23,15 @@ import {
 } from '@/app/_core/templates_core'
 import { cancel_request_core, revert_request_core, accept_all_from_core } from '@/app/_core/approvals_core'
 import {
-  list_transaction_groups_core,
-  get_transaction_group_core,
-  create_transaction_group_core,
-  update_transaction_group_core,
-  delete_transaction_group_core,
-  set_transaction_groups_core,
-  add_transactions_to_group_core,
-  remove_transactions_from_group_core,
-} from '@/app/_core/groups_core'
+  list_transaction_tags_core,
+  get_transaction_tag_core,
+  create_transaction_tag_core,
+  update_transaction_tag_core,
+  delete_transaction_tag_core,
+  set_transaction_tags_core,
+  add_transactions_to_tag_core,
+  remove_transactions_from_tag_core,
+} from '@/app/_core/tags_core'
 import { create_transactions_core, type BulkTransactionInput, type CreateLineItemInput } from '@/app/_core/transactions_core'
 import {
   get_user_preferences_core,
@@ -51,7 +51,7 @@ import {
   action_result,
   load_heads,
   load_assets,
-  load_groups,
+  load_tags,
   resolve_ref,
   parse_date,
   parse_day,
@@ -512,7 +512,7 @@ export function register_extra_tools(server: McpServer) {
                 .boolean()
                 .optional()
                 .describe('Create as a future/scheduled transaction (default false) — invisible to balances until converted'),
-              groups: z.array(z.string()).optional().describe('Transaction groups (ids or names) to file this item under'),
+              tags: z.array(z.string()).optional().describe('Tags (ids or names) to file this item under'),
               line_items: lineItemShape,
             }),
           )
@@ -523,10 +523,10 @@ export function register_extra_tools(server: McpServer) {
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const [heads, assets, group_catalog] = await Promise.all([
+      const [heads, assets, tag_catalog] = await Promise.all([
         load_heads(uid),
         load_assets(),
-        args.transactions.some(t => t.groups?.length) ? load_groups(uid) : Promise.resolve([]),
+        args.transactions.some(t => t.tags?.length) ? load_tags(uid) : Promise.resolve([]),
       ])
       const built: BulkTransactionInput[] = args.transactions.map((t, i) => {
         try {
@@ -535,7 +535,7 @@ export function register_extra_tools(server: McpServer) {
             description: t.description,
             idempotency_key: t.idempotency_key,
             is_future: t.is_future,
-            group_ids: t.groups?.map(g => resolve_ref(g, group_catalog, 'transaction group').id),
+            tag_ids: t.tags?.map(g => resolve_ref(g, tag_catalog, 'transaction tag').id),
             line_items: t.line_items.map(
               (li): CreateLineItemInput => ({
                 accounting_head_id: resolve_ref(li.head ?? li.account!, heads, 'accounting head').id,
@@ -980,144 +980,138 @@ export function register_extra_tools(server: McpServer) {
   )
 
   // ---------------------------------------------------------------------------
-  // Transaction groups — user-defined labels over whole transactions. Purely
+  // Transaction tags — user-defined labels over whole transactions. Purely
   // descriptive: nothing here moves a balance, so none of these tools needs the
   // post-write balance echo the transaction tools carry.
   // ---------------------------------------------------------------------------
 
   server.registerTool(
-    'list_groups',
+    'list_tags',
     {
       description:
-        'List the user\'s transaction groups with what each adds up to: count of real members, net / money-out / money-in in INR (ledger convention: spending negative), plus future_count for scheduled members, which are counted but never added into the totals. A group is a label the user hangs on whole transactions ("Eating out", "Goa trip") — it changes no balance and belongs to this user alone (a linked counterparty never sees it). Use this before create_transaction/update_transaction so you can file an entry under a group the user already has instead of inventing one.',
+        'List the user\'s transaction tags with what each adds up to: count of real members, net / money-out / money-in in INR (ledger convention: spending negative), plus future_count for scheduled members, which are counted but never added into the totals. A tag is a label the user hangs on whole transactions ("Eating out", "Goa trip") — it changes no balance and belongs to this user alone (a linked counterparty never sees it). Use this before create_transaction/update_transaction so you can file an entry under a tag the user already has instead of inventing one.',
       inputSchema: {},
       annotations: ro,
     },
     async (_args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      return text(await list_transaction_groups_core(uid))
+      return text(await list_transaction_tags_core(uid))
     },
   )
 
   server.registerTool(
-    'get_group',
+    'get_tag',
     {
       description:
-        'One transaction group (id or name) with its totals and the transactions in it, newest first. Same net figure per row as list_transactions (signed sum over the account lines: negative = money out). Scheduled (future) members carry is_future and are excluded from the summary totals.',
+        'One transaction tag (id or name) with its totals and the transactions in it, newest first. Same net figure per row as list_transactions (signed sum over the account lines: negative = money out). Scheduled (future) members carry is_future and are excluded from the summary totals.',
       inputSchema: {
-        group: z.string().describe('Group id or name'),
-        limit: z
-          .number()
-          .int()
-          .positive()
-          .max(500)
-          .optional()
-          .describe('Max transactions returned (default 100). Totals always cover the whole group'),
+        tag: z.string().describe('Tag id or name'),
+        limit: z.number().int().positive().max(500).optional().describe('Max transactions returned (default 100). Totals always cover the whole tag'),
         offset: z.number().int().nonnegative().optional().describe('Skip this many transactions (newest first)'),
       },
       annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const target = resolve_ref(args.group, await load_groups(uid), 'transaction group')
-      const group = await get_transaction_group_core(uid, target.id, { limit: args.limit ?? 100, offset: args.offset })
-      if (!group) return error_text('Group not found')
-      return text(group)
+      const target = resolve_ref(args.tag, await load_tags(uid), 'transaction tag')
+      const tag = await get_transaction_tag_core(uid, target.id, { limit: args.limit ?? 100, offset: args.offset })
+      if (!tag) return error_text('Tag not found')
+      return text(tag)
     },
   )
 
   server.registerTool(
-    'create_group',
+    'create_tag',
     {
       description:
-        'Create a transaction group — a label for bundling similar transactions ("Eating out", "Goa trip"). Names are unique per user, case-insensitively. This creates only the label; put transactions in it with add_transactions_to_group, or with the groups arg on create_transaction/update_transaction.',
-      inputSchema: { name: z.string(), description: z.string().nullish().describe('Optional note about what belongs in the group') },
+        'Create a transaction tag — a label for bundling similar transactions ("Eating out", "Goa trip"). Names are unique per user, case-insensitively. This creates only the label; put transactions in it with add_transactions_to_tag, or with the tags arg on create_transaction/update_transaction.',
+      inputSchema: { name: z.string(), description: z.string().nullish().describe('Optional note about what belongs in the tag') },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      return action_result(await create_transaction_group_core(uid, { name: args.name, description: args.description }))
+      return action_result(await create_transaction_tag_core(uid, { name: args.name, description: args.description }))
     },
   )
 
   server.registerTool(
-    'update_group',
+    'update_tag',
     {
-      description: 'Rename a transaction group or change its description. Membership is untouched.',
+      description: 'Rename a transaction tag or change its description. Membership is untouched.',
       inputSchema: {
-        group: z.string().describe('Group id or name'),
+        tag: z.string().describe('Tag id or name'),
         name: z.string().optional().describe('New name'),
         description: z.string().nullish().describe('New description; pass null to clear it'),
       },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const target = resolve_ref(args.group, await load_groups(uid), 'transaction group')
-      return action_result(await update_transaction_group_core(uid, target.id, { name: args.name, description: args.description }))
+      const target = resolve_ref(args.tag, await load_tags(uid), 'transaction tag')
+      return action_result(await update_transaction_tag_core(uid, target.id, { name: args.name, description: args.description }))
     },
   )
 
   server.registerTool(
-    'delete_group',
+    'delete_tag',
     {
       description:
-        'Delete a transaction group. This removes only the label — every transaction that was in it stays exactly as it is, and no balance moves. The membership rows cascade away with it.',
-      inputSchema: { group: z.string().describe('Group id or name') },
+        'Delete a transaction tag. This removes only the label — every transaction that was in it stays exactly as it is, and no balance moves. The membership rows cascade away with it.',
+      inputSchema: { tag: z.string().describe('Tag id or name') },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const target = resolve_ref(args.group, await load_groups(uid), 'transaction group')
-      return action_result(await delete_transaction_group_core(uid, target.id))
+      const target = resolve_ref(args.tag, await load_tags(uid), 'transaction tag')
+      return action_result(await delete_transaction_tag_core(uid, target.id))
     },
   )
 
   server.registerTool(
-    'add_transactions_to_group',
+    'add_transactions_to_tag',
     {
       description:
-        'Put existing transactions into a group. Already-member transactions are skipped rather than failing, so this is safe to re-run. Use this to backfill a new group over history found with list_transactions / find_similar_transactions.',
+        'Put existing transactions into a tag. Already-member transactions are skipped rather than failing, so this is safe to re-run. Use this to backfill a new tag over history found with list_transactions / find_similar_transactions.',
       inputSchema: {
-        group: z.string().describe('Group id or name'),
+        tag: z.string().describe('Tag id or name'),
         transaction_ids: z.array(z.string()).min(1).max(500).describe('Transaction ids (from list_transactions / find_similar_transactions)'),
       },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const target = resolve_ref(args.group, await load_groups(uid), 'transaction group')
-      return action_result(await add_transactions_to_group_core(uid, target.id, args.transaction_ids))
+      const target = resolve_ref(args.tag, await load_tags(uid), 'transaction tag')
+      return action_result(await add_transactions_to_tag_core(uid, target.id, args.transaction_ids))
     },
   )
 
   server.registerTool(
-    'remove_transactions_from_group',
+    'remove_transactions_from_tag',
     {
-      description: 'Take transactions out of a group. The transactions themselves are not touched.',
+      description: 'Take transactions out of a tag. The transactions themselves are not touched.',
       inputSchema: {
-        group: z.string().describe('Group id or name'),
+        tag: z.string().describe('Tag id or name'),
         transaction_ids: z.array(z.string()).min(1).max(500),
       },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const target = resolve_ref(args.group, await load_groups(uid), 'transaction group')
-      return action_result(await remove_transactions_from_group_core(uid, target.id, args.transaction_ids))
+      const target = resolve_ref(args.tag, await load_tags(uid), 'transaction tag')
+      return action_result(await remove_transactions_from_tag_core(uid, target.id, args.transaction_ids))
     },
   )
 
   server.registerTool(
-    'set_transaction_groups',
+    'set_transaction_tags',
     {
       description:
-        "REPLACE one transaction's whole group membership (ids or names); pass [] to take it out of every group. Equivalent to update_transaction's groups arg, but without touching anything else about the transaction.",
+        "REPLACE one transaction's whole tag membership (ids or names); pass [] to take it out of every tag. Equivalent to update_transaction's tags arg, but without touching anything else about the transaction.",
       inputSchema: {
         id: z.string().describe('Transaction id'),
-        groups: z.array(z.string()).describe('The complete set of groups it should be in (ids or names). [] clears them all'),
+        tags: z.array(z.string()).describe('The complete set of tags it should be in (ids or names). [] clears them all'),
       },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
-      const catalog = args.groups.length > 0 ? await load_groups(uid) : []
-      const ids = args.groups.map(g => resolve_ref(g, catalog, 'transaction group').id)
-      return action_result(await set_transaction_groups_core(uid, args.id, ids))
+      const catalog = args.tags.length > 0 ? await load_tags(uid) : []
+      const ids = args.tags.map(g => resolve_ref(g, catalog, 'transaction tag').id)
+      return action_result(await set_transaction_tags_core(uid, args.id, ids))
     },
   )
 }
