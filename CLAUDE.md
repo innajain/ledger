@@ -26,7 +26,7 @@ Tests are colocated `*.test.ts` files (e.g. `app/_utils/normalize_txn.test.ts`);
 
 **CI** (`.github/workflows/ci.yml`, on push/PR to `main`) is the full gate: `prisma generate` → `pnpm typecheck` → `pnpm lint` → `pnpm test` → `prettier --check`. Run those locally before pushing — CI reaches no DB (tests are pure units; a placeholder `DATABASE_URL` satisfies `prisma.config.ts`). A nightly `db-backup.yml` `pg_dump`s prod into a 30-day artifact.
 
-**Seed scripts** — idempotent (wipe + recreate a single user), deterministic PRNG: `pnpm dlx tsx scripts/seed_sample_user.ts` (user `rahul` / `rahul1234`) or `scripts/seed_demo.ts` (`demo` / `demo1234`). They read `DATABASE_URL`; point it at the unpooled Neon host to seed prod.
+**Seed script** — idempotent (wipes + recreates a single user), deterministic PRNG: `pnpm dlx tsx scripts/seed_sample_user.ts` (user `rahul` / `rahul1234`). It reads `DATABASE_URL`; point that at the unpooled Neon host to seed prod.
 
 ## Local stack
 

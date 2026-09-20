@@ -9,7 +9,7 @@ Triple-entry bookkeeping app. Next.js 16 App Router, React 19, Prisma 7 (Postgre
 - `pnpm typecheck` / `pnpm lint` / `pnpm format` / `pnpm format:check`
 - `pnpm test` — vitest (colocated `*.test.ts`). Single file: `pnpm test -- normalize_txn`
 - `pnpm test:watch` / `pnpm analyze` (bundle analyzer, `ANALYZE=true`)
-- `pnpm dlx tsx scripts/seed_sample_user.ts` (user `rahul`/`rahul1234`) or `seed_demo.ts` — idempotent, deterministic PRNG, reads `DATABASE_URL`
+- `pnpm dlx tsx scripts/seed_sample_user.ts` (user `rahul`/`rahul1234`) — idempotent, deterministic PRNG, reads `DATABASE_URL`
 - **Local stack**: `docker compose up -d postgres redis blob` then `docker compose run --rm sync-db`
 
 ## CI gate (run before pushing)
