@@ -34,8 +34,9 @@ const NAV_ITEMS: NavEntry[] = [
 // The desktop row shows every leaf: a group only earns its label in the mobile menu.
 const DESKTOP_ITEMS: NavLeaf[] = NAV_ITEMS.flatMap(item => (is_group(item) ? item.children : [item]))
 
-// Settings lives outside NAV_ITEMS: it renders as a gear beside the hamburger, so
-// it is reachable at every width without costing a slot in the row.
+// Settings lives outside NAV_ITEMS because it is not a ledger view: on desktop it
+// is a gear at the end of the row, and below lg it joins the overflow menu rather
+// than sitting beside the hamburger as a second, competing control.
 const SETTINGS_HREF = '/settings'
 
 // Six flattened links: the desktop row fits from the lg breakpoint (tighter px-3
@@ -128,7 +129,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
                 onClick={closeMenu}
                 aria-label="Settings"
                 aria-current={isActive(SETTINGS_HREF) ? 'page' : undefined}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`hidden lg:block p-2 rounded-lg transition-colors ${
                   isActive(SETTINGS_HREF)
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -192,6 +193,9 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
                   </li>
                 ),
               )}
+              <li className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                <NavLink href={SETTINGS_HREF} label="Settings" active={isActive(SETTINGS_HREF)} block onClick={closeMenu} />
+              </li>
             </ul>
           </div>
         )}
