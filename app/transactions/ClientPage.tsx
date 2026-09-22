@@ -8,6 +8,7 @@ import { format_day } from '../_utils/format_date'
 import { CloseIcon } from '../_components/icons'
 import { MaskedAmount } from '../_components/MaskedAmount'
 import { PageHeader } from '../_components/PageHeader'
+import { ButtonLink } from '../_components/Button'
 import { EmptyState } from '../_components/EmptyState'
 import { TransactionEmptyIcon } from '../_components/EmptyStateIcons'
 import { delete_transaction_template } from '../_actions/templates'
@@ -424,7 +425,16 @@ export default function ClientPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Transactions" createUrl="/transactions/create" createLabel="New transaction" />
+      <PageHeader
+        title="Transactions"
+        createUrl="/transactions/create"
+        createLabel="New transaction"
+        actions={
+          <ButtonLink href="/tags" variant="secondary" className="sm:whitespace-nowrap">
+            Tags
+          </ButtonLink>
+        }
+      />
 
       {templates && templates.length > 0 && (
         <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">

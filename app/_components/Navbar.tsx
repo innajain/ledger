@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type NavLeaf = { href: string; label: string }
 type NavGroup = { label: string; children: NavLeaf[] }
@@ -11,10 +11,12 @@ type NavEntry = NavLeaf | NavGroup
 
 const is_group = (e: NavEntry): e is NavGroup => 'children' in e
 
-// The three head lists collapse into one dropdown — they are the same page with
-// a different type, and inlining all three was what pushed the row past the
-// breakpoint. Requests is reached from the home page card; Tax from the
-// Income & Expenses list, which is the only place its numbers come from.
+// The three head lists are one page with a different type, so they sit in a
+// group: flattened into the desktop row (nothing worth a click to reveal), and a
+// labelled section in the mobile menu. Requests is reached from the home page
+// card; Tax from the Income & Expenses list, which is the only place its numbers
+// come from; Tags from the Transactions header, since a tag is only ever a label
+// over those.
 const NAV_ITEMS: NavEntry[] = [
   { href: '/', label: 'Home' },
   { href: '/assets', label: 'Assets' },
@@ -27,14 +29,16 @@ const NAV_ITEMS: NavEntry[] = [
     ],
   },
   { href: '/transactions', label: 'Transactions' },
-  { href: '/tags', label: 'Tags' },
 ]
+
+// The desktop row shows every leaf: a group only earns its label in the mobile menu.
+const DESKTOP_ITEMS: NavLeaf[] = NAV_ITEMS.flatMap(item => (is_group(item) ? item.children : [item]))
 
 // Settings lives outside NAV_ITEMS: it renders as a gear beside the hamburger, so
 // it is reachable at every width without costing a slot in the row.
 const SETTINGS_HREF = '/settings'
 
-// Five top-level links: the desktop row fits from the lg breakpoint (tighter px-3
+// Six flattened links: the desktop row fits from the lg breakpoint (tighter px-3
 // until 2xl); whitespace-nowrap guarantees a label can never wrap and grow the
 // h-16 header. Below lg the overflow menu (hamburger) takes over.
 const navLinkClasses = (active: boolean, block = false) =>
@@ -61,62 +65,6 @@ function NavLink({
     <Link href={href} className={`${navLinkClasses(active, block)} inline-flex items-center gap-2`} onClick={onClick}>
       {label}
     </Link>
-  )
-}
-
-// Desktop-only disclosure for a NavGroup. Closes on outside click and Escape so
-// it never strands itself open behind a navigation.
-function NavDropdown({ group, isActive }: { group: NavGroup; isActive: (path: string) => boolean }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLLIElement>(null)
-  const active = group.children.some(c => isActive(c.href))
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  return (
-    <li ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-        aria-haspopup="true"
-        className={`${navLinkClasses(active)} inline-flex items-center gap-1`}
-      >
-        {group.label}
-        <svg
-          aria-hidden="true"
-          className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {open && (
-        <ul className="absolute right-0 mt-1 min-w-52 p-1 rounded-lg list-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg">
-          {group.children.map(c => (
-            <li key={c.href}>
-              <NavLink href={c.href} label={c.label} active={isActive(c.href)} block onClick={() => setOpen(false)} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </li>
   )
 }
 
@@ -164,15 +112,11 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
           {}
           {isLoggedIn && (
             <ul className="hidden lg:flex flex-nowrap gap-1 2xl:gap-2 list-none p-0 m-0 ml-auto">
-              {NAV_ITEMS.map(item =>
-                is_group(item) ? (
-                  <NavDropdown key={item.label} group={item} isActive={isActive} />
-                ) : (
-                  <li key={item.href}>
-                    <NavLink href={item.href} label={item.label} active={isActive(item.href)} />
-                  </li>
-                ),
-              )}
+              {DESKTOP_ITEMS.map(item => (
+                <li key={item.href}>
+                  <NavLink href={item.href} label={item.label} active={isActive(item.href)} />
+                </li>
+              ))}
             </ul>
           )}
 
