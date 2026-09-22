@@ -21,6 +21,14 @@ export type HeadConfig = {
 
   showNegativeAssetBadges: boolean
 
+  /**
+   * Offer the lifetime / this-FY toggle on the list. Only income & expenses: their
+   * lifetime total is a running sum since the ledger began, which answers nothing on
+   * its own. An account's or allocation's total is a stock — what is there now — and a
+   * period cut of it would read as a balance while meaning something else entirely.
+   */
+  showPeriodToggle: boolean
+
   /** Secondary links in the list header — pages derived from these heads. */
   relatedLinks?: { href: string; label: string }[]
 
@@ -43,6 +51,7 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
     emptyIcon: AccountEmptyIcon,
     accentBorderClass: 'border-l-emerald-500',
     showNegativeAssetBadges: true,
+    showPeriodToggle: false,
     entityName: 'Account',
     backText: 'Accounts',
     subEntityLabel: 'sub-accounts',
@@ -58,6 +67,7 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
     emptyIcon: AllocationEmptyIcon,
     accentBorderClass: 'border-l-amber-500',
     showNegativeAssetBadges: true,
+    showPeriodToggle: false,
     entityName: 'Allocation',
     backText: 'Allocations',
     subEntityLabel: 'sub-allocations',
@@ -73,6 +83,7 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
     emptyIcon: IncomeExpenseEmptyIcon,
     accentBorderClass: 'border-l-violet-500',
     showNegativeAssetBadges: false,
+    showPeriodToggle: true,
     // The tax computation is built entirely from these heads' treatments, so this
     // list is the only sensible place to reach it from.
     relatedLinks: [{ href: '/tax', label: 'Tax' }],

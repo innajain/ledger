@@ -1,4 +1,5 @@
 import { Prisma } from '@/generated/prisma/client'
+import type { accounting_head_type } from '@/generated/prisma/enums'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
@@ -185,4 +186,70 @@ export async function closing_balance_core(user_id: string, head_id: string | st
     const [hid, asset_id] = key.split(':')
     return { head_id: hid, asset_id, qty: Math.round(bal.qty * 10000) / 10000, value: Math.round(bal.value * 100) / 100 }
   })
+}
+
+// Per-head, per-asset movement over the IST window [from, to) — the same shape
+// compute_balances_core returns, cut to a period, so the same compute_head_value
+// prices it and the same hierarchy rolls it up. Only the heads of `type` are
+// returned: this exists for the income/expense list, where a lifetime total is a
+// running sum since the ledger began and the useful figure is "this year".
+//
+// Deliberately uncached. The all-time map is the hot path that earns its Redis key
+// (every page reads it); a period cut is read on demand from one list and would
+// need its own key per window plus a second thing for every write to invalidate.
+//
+// Line items are cut on their EFFECTIVE datetime (li.datetime ?? txn.datetime), and
+// each transaction is normalized in full first — the null-remainder leg is derived
+// from the whole balanced set, so filtering line items before normalizing would
+// silently drop or mis-derive it.
+export async function period_balances_core(
+  user_id: string,
+  type: accounting_head_type,
+  from: Date,
+  to: Date,
+): Promise<Map<string, Map<string, { qty: number; txn_value: number }>>> {
+  const txns = await prisma.transaction.findMany({
+    where: {
+      user_id,
+      ...NOT_FUTURE,
+      line_items: { some: { accounting_head: { type } } },
+      // Prune in SQL on either datetime; the effective-date filter below stays authoritative.
+      OR: [{ datetime: { gte: from, lt: to } }, { line_items: { some: { datetime: { gte: from, lt: to } } } }],
+    },
+    select: {
+      datetime: true,
+      line_items: {
+        select: {
+          accounting_head_id: true,
+          asset_id: true,
+          quantity: true,
+          txn_value: true,
+          datetime: true,
+          accounting_head: { select: { type: true } },
+          asset: { select: { id: true, type: true, name: true } },
+        },
+      },
+    },
+  })
+
+  const out = new Map<string, Map<string, { qty: Prisma.Decimal; txn_value: Prisma.Decimal }>>()
+  for (const t of txns) {
+    for (const li of normalize_line_items(t.line_items)) {
+      if (li.accounting_head.type !== type) continue
+      const at = li.datetime ?? t.datetime
+      if (at < from || at >= to) continue
+      let by_asset = out.get(li.accounting_head_id)
+      if (!by_asset) out.set(li.accounting_head_id, (by_asset = new Map()))
+      const existing = by_asset.get(li.asset_id)
+      if (!existing) by_asset.set(li.asset_id, { qty: li.quantity, txn_value: li.txn_value })
+      else by_asset.set(li.asset_id, { qty: existing.qty.add(li.quantity), txn_value: existing.txn_value.add(li.txn_value) })
+    }
+  }
+
+  return new Map(
+    [...out].map(([head_id, by_asset]) => [
+      head_id,
+      new Map([...by_asset].map(([asset_id, b]) => [asset_id, { qty: b.qty.toNumber(), txn_value: b.txn_value.toNumber() }])),
+    ]),
+  )
 }

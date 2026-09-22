@@ -7,7 +7,11 @@ import { Button, ButtonLink } from '@/app/_components/Button'
 import { HierarchyTree, useHideEmpty } from '@/app/_components/HierarchyTree'
 import { PageHeader } from '@/app/_components/PageHeader'
 import { EmptyState } from '@/app/_components/EmptyState'
+import { ParamToggle } from '@/app/_components/ParamToggle'
 import { HEAD_CONFIG, headBasePath } from './head_config'
+
+/** Which window `totals` covers — lifetime, or the current financial year. */
+export type PeriodValue = 'all' | 'fy'
 
 type Props = {
   type: accounting_head_type
@@ -15,9 +19,12 @@ type Props = {
   totals: Map<string, number>
 
   assetQuantities: Map<string, Map<string, number>>
+  period: PeriodValue
+  /** e.g. "FY 2026-27" — the server owns the IST year boundary, not the client. */
+  fyLabel: string
 }
 
-export default function HeadListClient({ type, heads, totals, assetQuantities }: Props) {
+export default function HeadListClient({ type, heads, totals, assetQuantities, period, fyLabel }: Props) {
   const cfg = HEAD_CONFIG[type]
   const base = headBasePath(type)
   const EmptyIcon = cfg.emptyIcon
@@ -41,8 +48,22 @@ export default function HeadListClient({ type, heads, totals, assetQuantities }:
       />
       {heads.length > 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{cfg.hierarchyTitle}</h2>
+          <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{cfg.hierarchyTitle}</h2>
+              {cfg.showPeriodToggle && (
+                <ParamToggle<PeriodValue>
+                  param="period"
+                  active={period}
+                  fallback="all"
+                  groupLabel="Period the totals cover"
+                  options={[
+                    { value: 'all', label: 'All time' },
+                    { value: 'fy', label: fyLabel },
+                  ]}
+                />
+              )}
+            </div>
             <div className="flex items-center gap-2 sm:gap-3">
               {hideZero && hiddenCount > 0 && (
                 <span className="text-xs text-slate-500 dark:text-slate-400" title="Entries whose total (including everything under them) is zero">
