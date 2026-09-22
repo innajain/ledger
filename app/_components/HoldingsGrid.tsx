@@ -33,7 +33,7 @@ export function HoldingsGrid({
 }: HoldingsGridProps) {
   return (
     <Card>
-      <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+      <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           {items.length} {items.length !== 1 ? 'items' : 'item'}
@@ -58,7 +58,7 @@ export function HoldingsGrid({
         />
       ) : (
         <div className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:max-h-80 sm:overflow-y-auto">
             {items.map((item, i) => (
               <div
                 key={i}

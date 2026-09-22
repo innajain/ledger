@@ -337,7 +337,7 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
 
       {head.children && head.children.length > 0 && (
         <Card>
-          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 capitalize">{subEntityLabel}</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {head.children.length} sub-{head.children.length !== 1 ? 'entries' : 'entry'} — totals include everything under them
@@ -370,7 +370,7 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
 
       {}
       <Card>
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Line items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {head.line_items.length} item
@@ -382,7 +382,7 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
         {head.line_items.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-slate-200 dark:divide-slate-700 sm:max-h-96 sm:overflow-y-auto">
             {head.line_items.slice(0, visibleLineItems).map(li => (
               <LineItemRow
                 key={li.id}
@@ -422,7 +422,7 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
 
       {head.future_transactions && head.future_transactions.length > 0 && (
         <Card>
-          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Future transactions</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Scheduled entries — they don&apos;t affect balances until converted to real transactions.
@@ -430,7 +430,7 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
                 ` Sufficiency is judged against the combined balance of this ${config.entityName.toLowerCase()} and its ${subEntityLabel}.`}
             </p>
           </div>
-          <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-slate-200 dark:divide-slate-700 sm:max-h-96 sm:overflow-y-auto">
             {head.future_transactions.map(ft => (
               <div key={ft.id} className="relative hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
                 <Link

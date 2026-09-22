@@ -30,7 +30,7 @@ export function ValidationSection() {
   return (
     <section>
       <SectionHeading id="validation">Validation</SectionHeading>
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors space-y-4">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors space-y-4">
         <div>
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Check my ledger</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">

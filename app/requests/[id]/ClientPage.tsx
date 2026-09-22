@@ -34,7 +34,7 @@ function DiffCard({ ctx }: { ctx: EditorContext }) {
   if (!dateChanged && !descChanged && !linesChanged) return null
 
   return (
-    <div className="rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-6 space-y-4">
+    <div className="rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4 sm:p-6 space-y-4">
       <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200 uppercase tracking-wide">Proposed changes</h2>
 
       {dateChanged && (
@@ -271,7 +271,7 @@ export default function ClientPage({
       <DiffCard ctx={ctx} />
 
       {}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction details</h2>
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">

@@ -64,7 +64,7 @@ interface InfoCardProps {
 
 export function InfoCard({ title, fields }: InfoCardProps) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">{title}</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {fields.map((field, idx) => (
@@ -85,7 +85,7 @@ interface HoldingsHeaderProps {
 
 export function HoldingsHeader({ title = 'Holdings', count }: HoldingsHeaderProps) {
   return (
-    <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+    <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
       <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
         {count} line item{count !== 1 ? 's' : ''}

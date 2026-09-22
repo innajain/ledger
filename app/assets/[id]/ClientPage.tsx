@@ -124,7 +124,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         ]}
       />
 
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
         <div className={`grid grid-cols-1 ${asset.txn_value_total !== null ? 'sm:grid-cols-3' : ''} gap-4`}>
           <div>
             <p className="text-sm text-slate-500 dark:text-slate-400">Total across accounts</p>
@@ -153,7 +153,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
 
       {asset.children && asset.children.length > 0 && (
         <Card>
-          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Sub-assets</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {asset.children.length} child {asset.children.length !== 1 ? 'assets' : 'asset'}
@@ -179,7 +179,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
       )}
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Held in accounts</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {asset.breakdown.length} account
@@ -262,7 +262,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
 
       {asset.allocation_breakdown.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Held in allocations</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               {asset.allocation_breakdown.length} allocation{asset.allocation_breakdown.length !== 1 ? 's' : ''}
@@ -327,7 +327,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
 
       {}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Line items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {(asset.line_items ?? []).length} item
@@ -338,7 +338,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         {(asset.line_items ?? []).length === 0 ? (
           <div className="p-8 text-center text-slate-500 dark:text-slate-400">No transactions for this asset</div>
         ) : (
-          <div className="divide-y divide-slate-200 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-slate-200 sm:max-h-96 sm:overflow-y-auto">
             <div>
               {(asset.line_items ?? []).slice(0, visibleLineItems).map(li => {
                 const is_depleted = li.remaining_quantity !== null && li.remaining_quantity === 0

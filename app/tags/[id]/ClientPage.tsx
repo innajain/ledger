@@ -135,7 +135,7 @@ export default function ClientPage({ tag }: { tag: Tag }) {
         Tags
       </Link>
 
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
         {editing ? (
           <form onSubmit={onSave} className="space-y-4">
             <div>

@@ -89,7 +89,7 @@ function ModalShell({ children, on_close, label }: { children: ReactNode; on_clo
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
-        className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl p-6 max-w-sm w-full animate-scale-in focus:outline-none"
+        className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl p-4 sm:p-6 max-w-sm w-full animate-scale-in focus:outline-none"
         onClick={e => e.stopPropagation()}
       >
         {children}

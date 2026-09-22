@@ -104,7 +104,7 @@ export function NotificationToggle() {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-colors">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-4 sm:p-6 transition-colors">
       <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Notifications</h3>
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">

@@ -66,7 +66,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
         <NotificationToggle />
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Appearance</h3>
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -87,7 +87,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Privacy</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Hide amounts above a threshold. Masked amounts can be revealed individually by clicking them.
@@ -145,7 +145,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Transaction line defaults</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Pre-selected account and asset for new lines on the create and edit transaction pages. Leave blank to fall back to the first account/asset

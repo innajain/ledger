@@ -138,7 +138,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
       <SectionHeading id="account">Account</SectionHeading>
       <div className="space-y-6">
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center text-white font-semibold text-lg">
               {username.charAt(0).toUpperCase()}
@@ -151,7 +151,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Change password</h3>
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>
@@ -254,7 +254,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Change username</h3>
           <form onSubmit={handleUsernameChange} className="space-y-4">
             <div>
@@ -320,7 +320,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Your UPI ID</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Set your UPI handle once. Anyone who links an account to you sees a &ldquo;Pay via UPI&rdquo; button using this address &mdash; they no

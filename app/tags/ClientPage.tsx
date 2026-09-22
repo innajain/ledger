@@ -76,7 +76,7 @@ export default function ClientPage({ tags }: { tags: TagRow[] }) {
       />
 
       {creating && (
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <form onSubmit={onCreate} className="space-y-4">
             <div>
               <label htmlFor={`${uid}-name`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">

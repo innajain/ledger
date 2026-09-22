@@ -297,7 +297,11 @@ export function ValueChartLightweight({ points, title }: Props) {
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
           {title && <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>}
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Ctrl+scroll or pinch to zoom • Drag to pan • Double-click axis to reset</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            {/* The gestures differ by input device, so name only the ones the reader actually has. */}
+            <span className="sm:hidden">Pinch to zoom • Drag to pan • Double-tap axis to reset</span>
+            <span className="hidden sm:inline">Ctrl+scroll to zoom • Drag to pan • Double-click axis to reset</span>
+          </p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gain</p>

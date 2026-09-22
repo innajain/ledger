@@ -37,7 +37,7 @@ export default function ClientPage({
       <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400">{welcomeMessage}</p>
 
       {networth !== null && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total net worth</p>
@@ -92,7 +92,7 @@ export default function ClientPage({
             </>
           )
           return invest ? (
-            <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+            <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
               <Link
                 href={`/heads/allocation/${invest.id}`}
                 aria-label={`View ${invest.name} allocation`}
@@ -101,7 +101,7 @@ export default function ClientPage({
               <div className="relative z-10 pointer-events-none">{content}</div>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
               {content}
             </div>
           )
@@ -137,7 +137,7 @@ export default function ClientPage({
             </>
           )
           return savings ? (
-            <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+            <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
               <Link
                 href={`/heads/allocation/${savings.id}`}
                 aria-label={`View ${savings.name} allocation`}
@@ -146,7 +146,7 @@ export default function ClientPage({
               <div className="relative z-10 pointer-events-none">{content}</div>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
               {content}
             </div>
           )

@@ -48,7 +48,7 @@ export function AdminSection() {
       <SectionHeading id="admin">Admin</SectionHeading>
       <div className="space-y-6">
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Flush Redis cache</h3>
@@ -63,7 +63,7 @@ export function AdminSection() {
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors space-y-4">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Validate transactions</h3>
@@ -114,7 +114,7 @@ export function AdminSection() {
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Complete DB dump</h3>

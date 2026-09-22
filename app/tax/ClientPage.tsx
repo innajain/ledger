@@ -142,7 +142,7 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
 
       <section className="space-y-4">
         <SectionHeading>Computation</SectionHeading>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
           <label htmlFor="tax-fy" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Financial year
           </label>
@@ -166,7 +166,7 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
               onChange={e => router.push(`/tax?fy=${selected_fy}${e.target.checked ? '&projected=1' : ''}`)}
               className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             />
-            Project to year end
+            <span className="whitespace-nowrap">Project to year end</span>
           </label>
         </div>
 
@@ -256,7 +256,7 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
       <section className="space-y-4">
         <SectionHeading>Head classification</SectionHeading>
         <Card>
-          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
             <h2 className="font-semibold text-slate-900 dark:text-slate-100">Income / expense heads</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Tag a head to decide how it counts toward tax. Unclassified heads with activity in the selected FY are excluded and warned about above.

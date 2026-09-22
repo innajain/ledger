@@ -96,7 +96,7 @@ export default async function RootLayout({
               <div className="min-h-screen flex flex-col">
                 <Navbar isLoggedIn={!!user} />
                 {}
-                <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
+                <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">{children}</main>
 
                 {}
                 <footer className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 mt-auto transition-colors">

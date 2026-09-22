@@ -185,7 +185,7 @@ export const TransactionLineItems = memo(function TransactionLineItems({
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               {(lockedGroups[typeKey] || []).map(({ item: it, idx: lockedIdx }) => (
                 <LineItemCard
                   key={`locked-${lockedIdx}`}

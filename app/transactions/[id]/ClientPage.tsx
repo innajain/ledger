@@ -211,7 +211,7 @@ export default function ClientPage({
       )}
 
       {}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
             {/* The specific thing is the title; "transaction" is already in the breadcrumb. */}
@@ -285,7 +285,7 @@ export default function ClientPage({
 
       {}
       {transaction.attachments.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Attachments</h2>
           <div className="space-y-2">
             {transaction.attachments.map(att => (

@@ -19,7 +19,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
       <SectionHeading id="data">Data</SectionHeading>
       <div className="space-y-6">
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive accounts &amp; categories</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Archived accounts and categories, hidden from transaction pickers. Click to manage.
@@ -57,7 +57,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive assets</h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Archived assets, hidden from transaction pickers. Click to manage.</p>
           {inactiveAssets.length === 0 ? (
@@ -85,7 +85,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">SQL dump</h3>
@@ -108,7 +108,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Export CSV (ZIP)</h3>
@@ -129,7 +129,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Export Excel (linked)</h3>

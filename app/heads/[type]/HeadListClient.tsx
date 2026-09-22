@@ -47,7 +47,7 @@ export default function HeadListClient({ type, heads, totals, assetQuantities, p
         ))}
       />
       {heads.length > 0 ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
             <div className="flex items-center gap-3 flex-wrap">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{cfg.hierarchyTitle}</h2>

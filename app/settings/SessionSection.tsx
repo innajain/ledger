@@ -26,7 +26,7 @@ export function SessionSection() {
   return (
     <section>
       <SectionHeading id="session">Session</SectionHeading>
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-6 transition-colors">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Log out</h3>

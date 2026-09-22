@@ -72,7 +72,7 @@ const Card = memo(function Card({
   )
 
   return (
-    <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 ${borderAccent} p-6`}>
+    <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 ${borderAccent} p-4 sm:p-6`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
@@ -141,7 +141,7 @@ const OutboxCard = memo(function OutboxCard({ item }: { item: OutboxItem }) {
     item.kind === 'deletion' ? `You asked @${item.other_username} to approve a deletion` : `Waiting on @${item.other_username} to approve your change`
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>

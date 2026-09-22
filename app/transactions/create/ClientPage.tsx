@@ -308,7 +308,7 @@ export default function ClientPage({
 
       <form onSubmit={onSubmit} className="space-y-6">
         {}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Transaction details</h2>
 
           <div className="space-y-4">
