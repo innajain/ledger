@@ -58,7 +58,7 @@ export function HoldingsGrid({
         />
       ) : (
         <div className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:max-h-80 sm:overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
             {items.map((item, i) => (
               <div
                 key={i}

@@ -382,7 +382,7 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
         {head.line_items.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="divide-y divide-slate-200 dark:divide-slate-700 sm:max-h-96 sm:overflow-y-auto">
+          <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
             {head.line_items.slice(0, visibleLineItems).map(li => (
               <LineItemRow
                 key={li.id}
@@ -430,7 +430,7 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
                 ` Sufficiency is judged against the combined balance of this ${config.entityName.toLowerCase()} and its ${subEntityLabel}.`}
             </p>
           </div>
-          <div className="divide-y divide-slate-200 dark:divide-slate-700 sm:max-h-96 sm:overflow-y-auto">
+          <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
             {head.future_transactions.map(ft => (
               <div key={ft.id} className="relative hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
                 <Link

@@ -338,7 +338,7 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         {(asset.line_items ?? []).length === 0 ? (
           <div className="p-8 text-center text-slate-500 dark:text-slate-400">No transactions for this asset</div>
         ) : (
-          <div className="divide-y divide-slate-200 sm:max-h-96 sm:overflow-y-auto">
+          <div className="divide-y divide-slate-200 max-h-96 overflow-y-auto">
             <div>
               {(asset.line_items ?? []).slice(0, visibleLineItems).map(li => {
                 const is_depleted = li.remaining_quantity !== null && li.remaining_quantity === 0
