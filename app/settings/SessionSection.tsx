@@ -16,6 +16,12 @@ export function SessionSection() {
     try {
       await log_out()
 
+      // A hard navigation, deliberately — `useRouter().push()` would be a soft
+      // one, which keeps the React tree and the Next client router cache alive
+      // across a logout. That cache can hold prefetched authenticated pages, so
+      // the document has to be torn down rather than re-rendered. The logout on
+      // the login page does the same thing via location.reload().
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = '/login'
     } catch (err: unknown) {
       showToast("Couldn't log out: " + (err instanceof Error ? err.message : String(err)), 'error')
