@@ -1,0 +1,3 @@
+# pnpm writes this file in its own YAML style and rewrites it on every
+# install. Formatting it here just starts a fight that neither side wins.
+pnpm-lock.yaml
