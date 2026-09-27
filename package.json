@@ -38,7 +38,7 @@
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.4.0",
     "date-fns-tz": "^3.2.0",
-    "ioredis": "^5.11.1",
+    "ioredis": "^6.0.0",
     "jose": "^6.2.12",
     "lightweight-charts": "^5.2.1",
     "mcp-handler": "^1.1.0",
@@ -50,7 +50,7 @@
     "recharts": "^3.10.1",
     "web-push": "^3.6.7",
     "xirr": "^1.1.0",
-    "yahoo-finance2": "^3.15.4",
+    "yahoo-finance2": "^4.0.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -61,7 +61,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/web-push": "^3.6.4",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.2",
     "dotenv": "^18.0.4",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.3.6",
@@ -73,7 +73,7 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.2"
   },
   "packageManager": "pnpm@12.6.0"
 }
