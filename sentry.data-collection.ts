@@ -35,3 +35,16 @@ export const SENTRY_DATA_COLLECTION = {
   // Not `as const`: httpBodies has to stay a mutable array to satisfy the
   // DataCollection type.
 }
+
+/**
+ * Sentry 11 added `consoleIntegration` to the default integrations; Sentry 10
+ * did not. It turns every console call into a breadcrumb attached to the next
+ * error, verbatim — which is the exact channel CLAUDE.md rules out, because a
+ * React hydration-mismatch message quotes the rendered text, and here the
+ * rendered text is account names and amounts. Verified against production: a
+ * console line survived into the envelope until this filter existed.
+ *
+ * Note this is NOT `consoleLoggingIntegration` (console → Sentry Logs), which
+ * this app has never enabled. Two different features, both off.
+ */
+export const withoutConsoleBreadcrumbs = <T extends { name: string }>(defaults: T[]): T[] => defaults.filter(i => i.name !== 'Console')

@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/nextjs'
-import { SENTRY_DATA_COLLECTION } from './sentry.data-collection'
+import { SENTRY_DATA_COLLECTION, withoutConsoleBreadcrumbs } from './sentry.data-collection'
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
 
@@ -10,7 +10,10 @@ Sentry.init({
   release: process.env.VERCEL_GIT_COMMIT_SHA,
   dataCollection: SENTRY_DATA_COLLECTION,
   tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0.1),
-  integrations: [
+  // The function form, not an array: an array is merged with the defaults,
+  // which is what lets consoleIntegration back in.
+  integrations: defaults => [
+    ...withoutConsoleBreadcrumbs(defaults),
     Sentry.pinoIntegration({
       error: { levels: ['error', 'fatal'], handled: true },
       // warn and above only: persistMetrics emits one info log per render, so

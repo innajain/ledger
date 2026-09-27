@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/nextjs'
-import { SENTRY_DATA_COLLECTION } from './sentry.data-collection'
+import { SENTRY_DATA_COLLECTION, withoutConsoleBreadcrumbs } from './sentry.data-collection'
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
 
@@ -12,6 +12,7 @@ Sentry.init({
   enabled: Boolean(dsn),
   environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.NODE_ENV,
   dataCollection: SENTRY_DATA_COLLECTION,
+  integrations: withoutConsoleBreadcrumbs,
   // Was `enableLogs: false`. Sentry 11 removed the flag and logs are always on,
   // so the same intent now has to be a hook that drops every one of them. The
   // reason is unchanged: nothing on the client should be able to forward raw
