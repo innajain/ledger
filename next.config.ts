@@ -66,7 +66,4 @@ export default withSentryConfig(withBundleAnalyzer(nextConfig), {
   // webpack options are inert, and the only webpack build left is `pnpm analyze`
   // — whose whole job is to report what the production bundle looks like.
   // Shrinking just that build would make its numbers lie.
-  _experimental: {
-    useDiagnosticsChannelInjection: true,
-  },
 })
