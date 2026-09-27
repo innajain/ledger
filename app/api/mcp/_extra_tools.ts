@@ -536,16 +536,14 @@ export function register_extra_tools(server: McpServer) {
             idempotency_key: t.idempotency_key,
             is_future: t.is_future,
             tag_ids: t.tags?.map(g => resolve_ref(g, tag_catalog, 'transaction tag').id),
-            line_items: t.line_items.map(
-              (li): CreateLineItemInput => ({
-                accounting_head_id: resolve_ref(li.head ?? li.account!, heads, 'accounting head').id,
-                asset_id: resolve_ref(li.asset, assets, 'asset').id,
-                quantity: li.quantity ?? undefined,
-                txn_value: li.txn_value,
-                description: li.description,
-                datetime: li.datetime ? parse_date(li.datetime) : undefined,
-              }),
-            ),
+            line_items: t.line_items.map((li): CreateLineItemInput => ({
+              accounting_head_id: resolve_ref(li.head ?? li.account!, heads, 'accounting head').id,
+              asset_id: resolve_ref(li.asset, assets, 'asset').id,
+              quantity: li.quantity ?? undefined,
+              txn_value: li.txn_value,
+              description: li.description,
+              datetime: li.datetime ? parse_date(li.datetime) : undefined,
+            })),
           }
         } catch (e) {
           throw new Error(`transaction ${i + 1}: ${e instanceof Error ? e.message : String(e)}`)
