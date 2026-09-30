@@ -75,8 +75,6 @@ import {
 } from '@/app/_utils/attachment_content'
 import { create_upload_grant, UPLOAD_TOKEN_TTL_MS } from '@/lib/mcp/attachment_upload'
 
-const ro = { readOnlyHint: true } as const
-
 const head_type_enum = z.enum(['account', 'allocation', 'income_expense'])
 const asset_type_enum = z.enum(['rupees', 'mf', 'etf', 'shares', 'other'])
 const tax_treatment_enum = z.enum([
@@ -434,7 +432,6 @@ export function register_extra_tools(server: McpServer) {
       description:
         'List saved transaction templates (reusable prefills for recurring entries like rent or salary). To use one, copy its line items into create_transaction, filling any omitted amounts.',
       inputSchema: {},
-      annotations: ro,
     },
     async (_args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -573,7 +570,6 @@ export function register_extra_tools(server: McpServer) {
       description:
         'Integrity check: re-run the balancing invariant over every transaction in your ledger and report the ones that fail. Useful after bulk edits or imports; a healthy ledger returns an empty list.',
       inputSchema: {},
-      annotations: ro,
     },
     async (_args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -671,7 +667,6 @@ export function register_extra_tools(server: McpServer) {
     {
       description: 'Look up another user by exact username (e.g. before linking an account with create_head/update_head). Returns their id.',
       inputSchema: { username: z.string() },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -793,7 +788,6 @@ export function register_extra_tools(server: McpServer) {
       description:
         'Fetch an attachment by id (ids come from get_transaction). Text/JSON attachments return their content inline; images return an image block; other types (e.g. PDF) return metadata only — view those in the web app.',
       inputSchema: { attachment_id: z.string() },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -859,7 +853,6 @@ export function register_extra_tools(server: McpServer) {
             "Fold scheduled (is_future) transactions in, turning the year-to-date figure into a full-year projection built from the user's own forecast. Default false. Only meaningful if the rest of the year is actually scheduled — check per_head against expectations before relying on it.",
           ),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -891,9 +884,8 @@ export function register_extra_tools(server: McpServer) {
     'get_settings',
     {
       description:
-        'Your account settings: username, admin flag, UPI ID, UI preferences (theme, value masking, dashboard graphs) and the default heads/asset used to prefill new transactions (pay uses the default account).',
+        'Your account settings: username, admin flag, UPI ID, UI preferences (theme, value masking, dashboard graphs) and the default heads/asset used to prefill new transactions (record_payment debits the default account).',
       inputSchema: {},
-      annotations: ro,
     },
     async (_args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -905,7 +897,7 @@ export function register_extra_tools(server: McpServer) {
     'update_settings',
     {
       description:
-        'Update settings — pass only the fields to change. Defaults and upi_id accept the string "none" to clear. default_account/allocation/income_expense/asset (id or name) prefill new transactions; pay debits the default account.',
+        'Update settings — pass only the fields to change. Defaults and upi_id accept the string "none" to clear. default_account/allocation/income_expense/asset (id or name) prefill new transactions; record_payment debits the default account.',
       inputSchema: {
         theme: z.enum(['light', 'dark', 'system']).optional(),
         masking_enabled: z.boolean().optional().describe('Mask large values in the UI'),
@@ -989,7 +981,6 @@ export function register_extra_tools(server: McpServer) {
       description:
         'List the user\'s transaction tags with what each adds up to: count of real members, net / money-out / money-in in INR (ledger convention: spending negative), plus future_count for scheduled members, which are counted but never added into the totals. A tag is a label the user hangs on whole transactions ("Eating out", "Goa trip") — it changes no balance and belongs to this user alone (a linked counterparty never sees it). Use this before create_transaction/update_transaction so you can file an entry under a tag the user already has instead of inventing one.',
       inputSchema: {},
-      annotations: ro,
     },
     async (_args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -1007,7 +998,6 @@ export function register_extra_tools(server: McpServer) {
         limit: z.number().int().positive().max(500).optional().describe('Max transactions returned (default 100). Totals always cover the whole tag'),
         offset: z.number().int().nonnegative().optional().describe('Skip this many transactions (newest first)'),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)

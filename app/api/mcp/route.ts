@@ -53,6 +53,7 @@ import {
 } from './_helpers'
 import { tags_for_transactions_core, tags_for_transaction_core } from '@/app/_core/tags_core'
 import { register_extra_tools } from './_extra_tools'
+import { MCP_TOOLS, is_mcp_tool_name, tool_annotations } from '@/lib/mcp/tool_catalog'
 
 async function head_rollup(
   uid: string,
@@ -116,10 +117,13 @@ const slim_txn_select = {
 
 function register_tools(server: McpServer) {
   const base_register = server.registerTool.bind(server)
-  server.registerTool = ((name: string, config: Parameters<typeof base_register>[1], handler: (...a: unknown[]) => unknown) =>
-    base_register(
+  server.registerTool = ((name: string, config: Parameters<typeof base_register>[1], handler: (...a: unknown[]) => unknown) => {
+    // Titles and annotations come from the catalog, never the call site, so a new
+    // tool can't reach the directories unannotated: forgetting its entry fails here.
+    if (!is_mcp_tool_name(name)) throw new Error(`MCP tool "${name}" has no entry in lib/mcp/tool_catalog.ts`)
+    return base_register(
       name,
-      config as never,
+      { ...(config as object), title: MCP_TOOLS[name].title, annotations: tool_annotations(name) } as never,
       (async (...a: unknown[]) => {
         try {
           return await handler(...a)
@@ -128,9 +132,8 @@ function register_tools(server: McpServer) {
           throw err
         }
       }) as never,
-    )) as typeof server.registerTool
-
-  const ro = { readOnlyHint: true } as const
+    )
+  }) as typeof server.registerTool
 
   server.registerTool(
     'get_net_worth',
@@ -138,7 +141,6 @@ function register_tools(server: McpServer) {
       description:
         'Headline dashboard figures: total net worth, Investments current value + XIRR, and Savings current value. Pass include_allocations to also get the per-head allocation breakdown.',
       inputSchema: { include_allocations: z.boolean().optional().describe('Include the full allocation breakdown (default false)') },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -165,7 +167,7 @@ function register_tools(server: McpServer) {
 
   server.registerTool(
     'get_holdings',
-    { description: 'Per-asset quantity, cost basis, live price, and current value.', inputSchema: {}, annotations: ro },
+    { description: 'Per-asset quantity, cost basis, live price, and current value.', inputSchema: {} },
     async (_args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const [{ assetsToAccounts }, assets] = await Promise.all([
@@ -220,7 +222,6 @@ function register_tools(server: McpServer) {
         line_items_limit: z.number().int().positive().max(1000).optional().describe('Max line items returned (default 200)'),
         line_items_offset: z.number().int().nonnegative().optional().describe('Skip this many line items (newest first)'),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -387,7 +388,6 @@ function register_tools(server: McpServer) {
           .optional()
           .describe('With head: also cover its descendants (default false). Rows stay per head, so you can see which sub-head holds what.'),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -457,7 +457,6 @@ function register_tools(server: McpServer) {
         line_items_limit: z.number().int().positive().max(1000).optional().describe('Max line items returned (default 200)'),
         line_items_offset: z.number().int().nonnegative().optional().describe('Skip this many line items (newest first)'),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -723,7 +722,6 @@ function register_tools(server: McpServer) {
             "Future transactions (is_future = true) never appear by default ('exclude'), matching the web list page; set 'only' to list just scheduled/future ones, or 'include' to show real and future together. Each future row carries due: true when it is dated on or before the END of today IST (the whole day, so something scheduled for later today is already due) — it is waiting on convert_future_transaction",
           ),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -835,7 +833,6 @@ function register_tools(server: McpServer) {
         query: z.string().optional().describe('Alias of search'),
         limit: z.number().int().positive().max(20).optional().describe('Max transactions to return (default 5)'),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -917,7 +914,6 @@ function register_tools(server: McpServer) {
       description:
         'Show one transaction: its total value (net inflow/outflow), all normalized line items (with head_type so they can be grouped account / allocation / income_expense), attachments (fetch content via get_attachment), and any cross-user approval links with their pending state.',
       inputSchema: { id: z.string() },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -975,7 +971,6 @@ function register_tools(server: McpServer) {
           .optional()
           .describe("Attach each head's current value and include inactive heads with a non-zero balance (default false)"),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -1031,7 +1026,6 @@ function register_tools(server: McpServer) {
           .optional()
           .describe('Attach total qty, current value and XIRR, and include inactive assets with non-zero qty (default false)'),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -1099,7 +1093,7 @@ function register_tools(server: McpServer) {
 
   server.registerTool(
     'list_requests',
-    { description: 'Approval requests: inbox (awaiting you) and outbox (awaiting them).', inputSchema: {}, annotations: ro },
+    { description: 'Approval requests: inbox (awaiting you) and outbox (awaiting them).', inputSchema: {} },
     async (_args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const [inbox, outbox] = await Promise.all([get_inbox(uid), get_outbox(uid)])
@@ -1117,7 +1111,6 @@ function register_tools(server: McpServer) {
         from: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST). Default: first day of the current month'),
         to: z.string().optional().describe('dd-MM-yyyy or yyyy-MM-dd (IST), inclusive. Default: today'),
       },
-      annotations: ro,
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
@@ -1340,10 +1333,10 @@ function register_tools(server: McpServer) {
   )
 
   server.registerTool(
-    'pay',
+    'record_payment',
     {
       description:
-        'Record a UPI-style payment: −amount on your default account, +amount on the payee account. The response echoes the resulting balances of both accounts.',
+        'Record a payment you already made (e.g. over UPI) as a ledger entry: −amount on your default account, +amount on the payee account. This only writes to the ledger — it does not move money or contact any bank or payment app. The response echoes the resulting balances of both accounts.',
       inputSchema: { payee_account: z.string().describe('Payee account id or name'), amount: z.number().positive(), note: z.string().nullish() },
     },
     async (args, extra) => {
