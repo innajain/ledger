@@ -15,6 +15,12 @@ const schema = z.object({
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   NEXT_PUBLIC_VERCEL_BLOB_API_URL: z.string().url().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+
+  // Public contact shown on /privacy and /docs; both connector directories require one.
+  SUPPORT_EMAIL: z.string().email().optional(),
+  // Token the ChatGPT app-directory portal issues for domain verification, served
+  // verbatim at /.well-known/openai-apps-challenge. Only needed while submitting.
+  OPENAI_APPS_CHALLENGE_TOKEN: z.string().min(1).optional(),
 })
 
 const parsed = schema.safeParse(process.env)

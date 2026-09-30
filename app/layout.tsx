@@ -113,6 +113,14 @@ export default async function RootLayout({
                           Shreyansh Jain
                         </Link>
                       </p>
+                      <nav className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+                        <Link href="/docs" className="hover:underline">
+                          AI connector
+                        </Link>
+                        <Link href="/privacy" className="hover:underline">
+                          Privacy
+                        </Link>
+                      </nav>
                     </div>
                   </div>
                 </footer>

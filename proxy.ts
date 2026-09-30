@@ -5,6 +5,8 @@ import { env, isDev } from '@/lib/env'
 
 const PUBLIC_PATHS = [
   '/login',
+  '/privacy',
+  '/docs',
   '/favicon.ico',
   '/logo-256.png',
   '/robots.txt',
@@ -17,6 +19,7 @@ const PUBLIC_PATHS = [
 
   '/.well-known/oauth-authorization-server',
   '/.well-known/oauth-protected-resource',
+  '/.well-known/openai-apps-challenge',
 ]
 
 const secret = new TextEncoder().encode(env.JWT_SECRET)
