@@ -1,0 +1,33 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ledger",
+  "version": "1.0.0",
+  "description": "Ask about and update your Ledger personal-finance books: balances, net worth, spending, investments and income tax.",
+  "author": {
+    "name": "Shreyansh Jain",
+    "url": "https://ledger.shreyansh.online"
+  },
+  "homepage": "https://ledger.shreyansh.online/docs",
+  "keywords": ["finance", "bookkeeping", "budget", "net worth", "tax", "india"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Ledger",
+        "shortDescription": "Your personal-finance ledger: balances, spending, investments and tax",
+        "longDescription": "Ledger is a triple-entry bookkeeping app for personal finance in India. Connect it to ask about your net worth, account balances on any date, spending by category, investment returns and new-regime income tax, and to record, edit or tag transactions in the same structure you already use. Every change goes through the same validation, reconciliation locks and linked-account approvals as the web app, and returns the updated balances. Ledger is a record-keeping tool: it never moves money, contacts a bank or starts a payment.",
+        "developerName": "Shreyansh Jain",
+        "category": "Finance",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://ledger.shreyansh.online/docs",
+        "privacyPolicyURL": "https://ledger.shreyansh.online/privacy",
+        "defaultPrompt": [
+          "What's my net worth, and how are my investments doing?",
+          "How much did I earn and spend last month?",
+          "What was my HDFC balance at the end of March?"
+        ],
+        "brandColor": "#0F172A",
+        "logo": "./assets/logo.png"
+      }
+    }
+  }
+}

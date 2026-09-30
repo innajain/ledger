@@ -8,7 +8,9 @@ const prisma = new PrismaClient({
 })
 
 const USERNAME = 'rahul'
-const PASSWORD = 'rahul1234'
+// SEED_PASSWORD overrides the well-known default — set it when seeding prod as the
+// connector directories' reviewer account, so the demo login isn't guessable.
+const PASSWORD = process.env.SEED_PASSWORD || 'rahul1234'
 const UPI_ID = 'rahul.verma@okhdfcbank'
 
 let _seed = 1337
@@ -289,7 +291,7 @@ async function main() {
 
   const password_hash = await bcrypt.hash(PASSWORD, 10)
   const user = await prisma.user.create({ data: { username: USERNAME, password_hash, upi_id: UPI_ID, theme: 'system' } })
-  console.log(`Created user ${user.username} (${user.id}) — password: ${PASSWORD}`)
+  console.log(`Created user ${user.username} (${user.id}) — password: ${process.env.SEED_PASSWORD ? '(from SEED_PASSWORD)' : PASSWORD}`)
 
   const accId = new Map<string, string>()
   for (const a of ACCOUNTS.filter(a => !a.parent)) {
