@@ -4,6 +4,7 @@ import { get_current_user } from '@/app/_actions/auth'
 import { get_transaction_tag_core } from '@/app/_core/tags_core'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
+import { NotFound } from '@/app/_components/NotFound'
 import ClientPage from './ClientPage'
 
 type Props = { params: Promise<{ id: string }> }
@@ -25,13 +26,7 @@ async function Page({ params }: Props) {
   if (!user) return <LoggedOutNotice title="Tags" />
 
   const tag = await get_tag(user.id, id)
-  if (!tag)
-    return (
-      <div className="max-w-md mx-auto mt-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-8 text-center">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Tag not found</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-2">It may have been deleted, or the link is stale.</p>
-      </div>
-    )
+  if (!tag) return <NotFound title="Tag not found" backHref="/tags" backLabel="Back to tags" />
 
   return (
     <ClientPage

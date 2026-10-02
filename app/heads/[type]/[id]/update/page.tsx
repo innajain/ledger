@@ -3,8 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { delete_account } from '@/app/_actions/resources'
 import { UpdateHeadForm } from '@/app/_components/HeadForm'
-import { HEAD_CONFIG, isHeadType } from '../../head_config'
+import { HEAD_CONFIG, headBasePath, isHeadType } from '../../head_config'
 import { profile } from '@/lib/metrics/profile'
+import { NotFound } from '@/app/_components/NotFound'
 
 type Props = { params: Promise<{ type: string; id: string }> }
 
@@ -34,12 +35,7 @@ async function Page({ params }: Props) {
     }),
   ])
   if (!head) {
-    return (
-      <div>
-        <h1>Edit {cfg.entityName.toLowerCase()}</h1>
-        <p>{cfg.entityName} not found.</p>
-      </div>
-    )
+    return <NotFound title={`${cfg.entityName} not found`} backHref={headBasePath(type)} backLabel={`Back to ${cfg.backText}`} />
   }
 
   const linkedUsername =

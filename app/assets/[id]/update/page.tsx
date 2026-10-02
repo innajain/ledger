@@ -4,6 +4,7 @@ import { get_current_user, is_current_user_admin } from '@/app/_actions/auth'
 import { delete_asset } from '@/app/_actions/resources'
 import type { Prisma } from '@/generated/prisma/client'
 import { profile } from '@/lib/metrics/profile'
+import { NotFound } from '@/app/_components/NotFound'
 
 async function Page({ params }: { params: Promise<{ id: string }> }) {
   const id = (await params).id
@@ -35,12 +36,7 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
     )
   }
   if (!asset) {
-    return (
-      <div>
-        <h1>Edit asset</h1>
-        <p>Asset not found.</p>
-      </div>
-    )
+    return <NotFound title="Asset not found" backHref="/assets" backLabel="Back to assets" />
   }
 
   return <ClientPage asset={asset as Prisma.assetGetPayload<Record<string, never>>} parents={parents} deleteAsset={delete_asset} />

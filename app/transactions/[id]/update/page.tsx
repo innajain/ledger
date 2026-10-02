@@ -8,6 +8,7 @@ import { list_tag_names_core, tags_for_transaction_core } from '@/app/_core/tags
 import { profile } from '@/lib/metrics/profile'
 import { env } from '@/lib/env'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
+import { NotFound } from '@/app/_components/NotFound'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -20,7 +21,7 @@ async function Page({ params }: Props) {
     where: { id, user_id: user.id },
     include: { line_items: { include: { asset: true, accounting_head: true } }, attachments: true },
   })
-  if (!tx) return <div>Transaction not found.</div>
+  if (!tx) return <NotFound title="Transaction not found" backHref="/transactions" backLabel="Back to transactions" />
 
   const txForClient = {
     id: tx.id,

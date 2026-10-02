@@ -12,6 +12,7 @@ import { normalize_txn } from '@/app/_utils/normalize_txn'
 import { NOT_FUTURE } from '@/app/_utils/future_txn'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
+import { NotFound } from '@/app/_components/NotFound'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -46,12 +47,7 @@ async function Page({ params }: Props) {
   ])
 
   if (!asset) {
-    return (
-      <div className="max-w-md mx-auto mt-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-8 text-center">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Asset not found</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-2">It may have been deleted, or the link is stale.</p>
-      </div>
-    )
+    return <NotFound title="Asset not found" backHref="/assets" backLabel="Back to assets" />
   }
 
   const transactions = rawTransactions.map(normalize_txn)

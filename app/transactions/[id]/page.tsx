@@ -9,6 +9,7 @@ import { convert_future_transaction } from '@/app/_actions/transactions'
 import { tags_for_transaction_core } from '@/app/_core/tags_core'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
+import { NotFound } from '@/app/_components/NotFound'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -41,13 +42,7 @@ async function Page({ params }: Props) {
     get_cancellable_links(user.id, id),
     tags_for_transaction_core(user.id, id),
   ])
-  if (!rawTx)
-    return (
-      <div className="max-w-md mx-auto mt-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-8 text-center">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Transaction not found</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-2">It may have been deleted, or the link is stale.</p>
-      </div>
-    )
+  if (!rawTx) return <NotFound title="Transaction not found" backHref="/transactions" backLabel="Back to transactions" />
 
   const tx = normalize_txn(rawTx)
 

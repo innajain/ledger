@@ -19,6 +19,7 @@ import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { get_closing_balance } from './closing_balance'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
+import { NotFound } from '@/app/_components/NotFound'
 
 type Props = {
   params: Promise<{ type: string; id: string }>
@@ -87,12 +88,7 @@ async function Page({ params, searchParams }: Props) {
   const head = await get_head_row(id, user.id, type)
 
   if (!head) {
-    return (
-      <div className="max-w-md mx-auto mt-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-8 text-center">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{cfg.entityName} not found</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-2">It may have been deleted, or the link is stale.</p>
-      </div>
-    )
+    return <NotFound title={`${cfg.entityName} not found`} backHref={headBasePath(type)} backLabel={`Back to ${cfg.backText}`} />
   }
 
   const isAccount = type === 'account'
