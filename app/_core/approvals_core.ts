@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { build_actor_copy, other_user, my_txn_id, their_txn_id } from '@/app/_utils/links'
+import { build_actor_copy, other_user, my_txn_id, their_txn_id, prepare_links_for_delete } from '@/app/_utils/links'
 import { assert_no_locked_lines } from '@/app/_utils/lock_date'
 import { notify_request_rejected } from '@/app/_utils/notify_events'
 import { invalidate_balances } from '@/app/_core/balances_core'
@@ -45,9 +45,15 @@ export async function approve_request_core(
               asset_ids: doomed.line_items.map(li => li.asset_id),
             }
           }
-          await tx.transaction.delete({ where: { id: mine } })
         }
         await tx.transaction_link.delete({ where: { id: link.id } })
+        if (mine) {
+          // The same copy can be shared with other counterparties too. Deleting it bare
+          // would let the FK null their links' txn ids, stranding a never-approved
+          // request with nothing on either side — so treat it like any other delete.
+          await prepare_links_for_delete(tx, me, mine)
+          await tx.transaction.delete({ where: { id: mine } })
+        }
         // The counterparty's rows don't change on a deletion approval — their copy was
         // already gone when they requested it.
         return { other_id, touched_mine, touched_theirs: no_touched() }
