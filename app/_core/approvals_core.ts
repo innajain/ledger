@@ -70,6 +70,25 @@ export async function approve_request_core(
   }
 }
 
+/**
+ * Approve one change request with its balancing line auto-derived onto one of my own
+ * accounts — the single-request form of accept_all_from, used by the swipe-to-approve deck.
+ */
+export async function approve_onto_account_core(me: string, link_id: string, account_id: string): Promise<ActionResult> {
+  try {
+    if (!account_id) throw new ActionError('VALIDATION', 'Pick an account to balance with')
+    const acc = await prisma.accounting_head.findFirst({
+      where: { id: account_id, user_id: me, type: 'account' },
+      select: { linked_user_id: true },
+    })
+    if (!acc) throw new ActionError('NOT_FOUND', 'Balancing account not found')
+    if (acc.linked_user_id) throw new ActionError('VALIDATION', 'Pick one of your own accounts (not a linked one) to balance with')
+  } catch (error) {
+    return reportActionError(error, { action: 'approval.approve', entity: 'transaction_link' })
+  }
+  return approve_request_core(me, link_id, [], account_id)
+}
+
 export async function accept_all_from_core(
   me: string,
   counterparty_id: string,
