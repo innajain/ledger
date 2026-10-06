@@ -423,6 +423,11 @@ export async function sync_links_after_update(
   return reopened
 }
 
+export type RequestPreviewLine = { asset_name: string; quantity: number | null; txn_value: number | null }
+
+/** One copy of a shared transaction, reduced to its shared lines in the viewer's frame. */
+export type RequestSnapshot = { datetime: string; description: string | null; preview: RequestPreviewLine[] }
+
 export type InboxItem = {
   link_id: string
   status: 'pending' | 'rejected'
@@ -430,7 +435,7 @@ export type InboxItem = {
   other_id: string
   other_username: string
 
-  preview: { asset_name: string; quantity: number | null; txn_value: number | null }[]
+  preview: RequestPreviewLine[]
   has_reciprocal: boolean
 
   can_revert: boolean
@@ -438,67 +443,114 @@ export type InboxItem = {
   description: string | null
 
   my_txn_id: string | null
+  /** When the request was raised (or last re-opened). */
+  requested_at: string
+  /** Name of my account head linked to them — where the shared lines land in my ledger. */
+  account_name: string | null
+  /**
+   * For a pending change to a transaction I already hold: my copy as it stands, so the
+   * card can say what the change actually does. Null for a brand-new transaction, a
+   * deletion, or a rejection.
+   */
+  previous: RequestSnapshot | null
+}
+
+type SnapshotTxn = {
+  id: string
+  datetime: Date
+  description: string | null
+  line_items: {
+    quantity: Prisma.Decimal | null
+    txn_value: Prisma.Decimal | null
+    accounting_head: { linked_user_id: string | null }
+    asset: { name: string }
+  }[]
+}
+
+const snapshot_select = {
+  id: true,
+  datetime: true,
+  description: true,
+  line_items: {
+    select: { quantity: true, txn_value: true, accounting_head: { select: { linked_user_id: true } }, asset: { select: { name: true } } },
+  },
+} as const
+
+// A copy's shared lines are the ones on the head linked to the *other* owner. My copy is
+// already in my frame; theirs is mirrored, so it is sign-flipped back into mine.
+function snapshot(txn: SnapshotTxn, linked_to: string, flip: boolean): RequestSnapshot {
+  return {
+    datetime: txn.datetime.toISOString(),
+    description: txn.description,
+    preview: txn.line_items
+      .filter(li => li.accounting_head.linked_user_id === linked_to)
+      .map(li => ({
+        asset_name: li.asset.name,
+        quantity: li.quantity === null ? null : (flip ? li.quantity.neg() : li.quantity).toNumber(),
+        txn_value: li.txn_value === null ? null : (flip ? li.txn_value.neg() : li.txn_value).toNumber(),
+      })),
+  }
+}
+
+async function load_request_context(user_id: string, links: transaction_link[]) {
+  const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
+  // Both copies of every link: a deletion request has only one surviving copy, and an
+  // edit needs the untouched copy to show what changed.
+  const txnIds = links.flatMap(l => [l.txn_a_id, l.txn_b_id]).filter((id): id is string => id !== null)
+  const [users, recips, txns] = await Promise.all([
+    prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } }),
+    prisma.accounting_head.findMany({
+      where: { user_id, linked_user_id: { in: otherIds }, type: 'account' },
+      orderBy: [{ is_active: 'desc' }, { name: 'asc' }],
+      select: { linked_user_id: true, name: true },
+    }),
+    prisma.transaction.findMany({ where: { id: { in: txnIds } }, select: snapshot_select }),
+  ])
+  const accountByOther = new Map<string, string>()
+  for (const r of recips) if (r.linked_user_id && !accountByOther.has(r.linked_user_id)) accountByOther.set(r.linked_user_id, r.name)
+  return {
+    nameById: new Map(users.map(u => [u.id, u.username])),
+    accountByOther,
+    txnById: new Map(txns.map(t => [t.id, t as SnapshotTxn])),
+  }
 }
 
 export async function get_inbox(user_id: string): Promise<InboxItem[]> {
   const links = await prisma.transaction_link.findMany({ where: { pending_by: user_id }, orderBy: { updated_at: 'desc' } })
   if (links.length === 0) return []
 
-  const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
-  const sourceIds = links.map(l => their_txn_id(l, user_id)).filter((id): id is string => id !== null)
-  const [users, recips, sourceTxns] = await Promise.all([
-    prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } }),
-    prisma.accounting_head.findMany({
-      where: { user_id, linked_user_id: { in: otherIds }, type: 'account' },
-      select: { linked_user_id: true },
-    }),
-    prisma.transaction.findMany({
-      where: { id: { in: sourceIds } },
-      select: {
-        id: true,
-        datetime: true,
-        description: true,
-        line_items: {
-          select: { quantity: true, txn_value: true, accounting_head: { select: { linked_user_id: true } }, asset: { select: { name: true } } },
-        },
-      },
-    }),
-  ])
-  const nameById = new Map(users.map(u => [u.id, u.username]))
-  const hasRecip = new Set(recips.map(r => r.linked_user_id))
-  const srcById = new Map(sourceTxns.map(t => [t.id, t]))
+  const { nameById, accountByOther, txnById } = await load_request_context(user_id, links)
 
   const items: InboxItem[] = []
   for (const link of links) {
     const other = other_user(link, user_id)
     const sourceTxnId = their_txn_id(link, user_id)
-    let preview: InboxItem['preview'] = []
-    let datetime: string | null = null
-    let description: string | null = null
-    const src = sourceTxnId ? srcById.get(sourceTxnId) : undefined
-    if (src) {
-      datetime = src.datetime.toISOString()
-      description = src.description
-      preview = src.line_items
-        .filter(li => li.accounting_head.linked_user_id === user_id)
-        .map(li => ({
-          asset_name: li.asset.name,
-          quantity: li.quantity === null ? null : li.quantity.neg().toNumber(),
-          txn_value: li.txn_value === null ? null : li.txn_value.neg().toNumber(),
-        }))
-    }
+    const myTxnId = my_txn_id(link, user_id)
+    const theirs = sourceTxnId ? txnById.get(sourceTxnId) : undefined
+    const mine = myTxnId ? txnById.get(myTxnId) : undefined
+    const kind = (link.pending_kind ?? 'change') as 'change' | 'deletion'
+    const status = link.pending_status as 'pending' | 'rejected'
+
+    // The request is described by their copy. A deletion request has none — they deleted
+    // it — so it falls back to my surviving copy, which is the one approving would remove.
+    const current = theirs ? snapshot(theirs, user_id, true) : mine ? snapshot(mine, other, false) : null
+    const previous = status === 'pending' && kind === 'change' && theirs && mine ? snapshot(mine, other, false) : null
+
     items.push({
       link_id: link.id,
-      status: link.pending_status as 'pending' | 'rejected',
-      kind: (link.pending_kind ?? 'change') as 'change' | 'deletion',
+      status,
+      kind,
       other_id: other,
       other_username: nameById.get(other) ?? 'unknown',
-      preview,
-      has_reciprocal: hasRecip.has(other),
+      preview: current?.preview ?? [],
+      has_reciprocal: accountByOther.has(other),
       can_revert: link.pending_status === 'rejected' && sourceTxnId !== null,
-      datetime,
-      description,
-      my_txn_id: my_txn_id(link, user_id),
+      datetime: current?.datetime ?? null,
+      description: current?.description ?? null,
+      my_txn_id: myTxnId,
+      requested_at: link.updated_at.toISOString(),
+      account_name: accountByOther.get(other) ?? null,
+      previous,
     })
   }
   return items
@@ -514,11 +566,15 @@ export type OutboxItem = {
   other_id: string
   other_username: string
 
-  preview: { asset_name: string; quantity: number | null; txn_value: number | null }[]
+  preview: RequestPreviewLine[]
 
   my_txn_id: string | null
   datetime: string | null
   description: string | null
+  requested_at: string
+  account_name: string | null
+  /** Their copy as it stands, when my change edits a transaction they already hold. */
+  previous: RequestSnapshot | null
 }
 
 export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
@@ -532,53 +588,34 @@ export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
   })
   if (links.length === 0) return []
 
-  const otherIds = Array.from(new Set(links.map(l => other_user(l, user_id))))
-  const myIds = links.map(l => my_txn_id(l, user_id)).filter((id): id is string => id !== null)
-  const [users, myTxns] = await Promise.all([
-    prisma.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, username: true } }),
-    prisma.transaction.findMany({
-      where: { id: { in: myIds } },
-      select: {
-        id: true,
-        datetime: true,
-        description: true,
-        line_items: {
-          select: { quantity: true, txn_value: true, accounting_head: { select: { linked_user_id: true } }, asset: { select: { name: true } } },
-        },
-      },
-    }),
-  ])
-  const nameById = new Map(users.map(u => [u.id, u.username]))
-  const myTxnById = new Map(myTxns.map(t => [t.id, t]))
+  const { nameById, accountByOther, txnById } = await load_request_context(user_id, links)
 
   const items: OutboxItem[] = []
   for (const link of links) {
     const other = other_user(link, user_id)
     const myTxnId = my_txn_id(link, user_id)
-    let preview: OutboxItem['preview'] = []
-    let datetime: string | null = null
-    let description: string | null = null
-    const mine = myTxnId ? myTxnById.get(myTxnId) : undefined
-    if (mine) {
-      datetime = mine.datetime.toISOString()
-      description = mine.description
-      preview = mine.line_items
-        .filter(li => li.accounting_head.linked_user_id === other)
-        .map(li => ({
-          asset_name: li.asset.name,
-          quantity: li.quantity === null ? null : li.quantity.toNumber(),
-          txn_value: li.txn_value === null ? null : li.txn_value.toNumber(),
-        }))
-    }
+    const theirTxnId = their_txn_id(link, user_id)
+    const mine = myTxnId ? txnById.get(myTxnId) : undefined
+    const theirs = theirTxnId ? txnById.get(theirTxnId) : undefined
+    const kind = (link.pending_kind ?? 'change') as 'change' | 'deletion'
+
+    // A deletion I asked for has already removed my copy, so describe theirs — the one
+    // the request would remove.
+    const current = mine ? snapshot(mine, other, false) : theirs ? snapshot(theirs, user_id, true) : null
+    const previous = kind === 'change' && mine && theirs ? snapshot(theirs, user_id, true) : null
+
     items.push({
       link_id: link.id,
-      kind: (link.pending_kind ?? 'change') as 'change' | 'deletion',
+      kind,
       other_id: other,
       other_username: nameById.get(other) ?? 'unknown',
-      preview,
+      preview: current?.preview ?? [],
       my_txn_id: myTxnId,
-      datetime,
-      description,
+      datetime: current?.datetime ?? null,
+      description: current?.description ?? null,
+      requested_at: link.updated_at.toISOString(),
+      account_name: accountByOther.get(other) ?? null,
+      previous,
     })
   }
   return items
