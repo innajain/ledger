@@ -112,6 +112,11 @@ const Card = memo(function Card({
           </>
         ) : item.kind === 'deletion' ? (
           <>
+            {item.my_txn_id && (
+              <ButtonLink href={`/transactions/${item.my_txn_id}`} variant="secondary" size="sm">
+                View transaction
+              </ButtonLink>
+            )}
             <Button onClick={() => onRun(item.link_id, () => approve_request(item.link_id))} disabled={busy} variant="danger" size="sm">
               {busy ? '…' : 'Approve deletion'}
             </Button>
