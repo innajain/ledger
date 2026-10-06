@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { Prisma, asset_type } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import { env } from '@/lib/env'
 import { resolve_access_token } from '@/lib/mcp/oauth'
 import { compute_net_worth, subtree_total, compute_xirr_for_accounts } from '@/app/_core/valuation_core'
 import { compute_balances_core, closing_balance_core } from '@/app/_core/balances_core'
@@ -1397,7 +1398,7 @@ function register_tools(server: McpServer) {
 const handler = createMcpHandler(
   register_tools,
   {
-    serverInfo: { name: 'ledger', version: '1.0.0' },
+    serverInfo: { name: 'ledger', version: env.VERCEL_GIT_COMMIT_SHA ? `1.0.0+${env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)}` : '1.0.0' },
     instructions:
       "This is the user's personal finance ledger (triple-entry bookkeeping). The user categorizes things consistently over time, so don't make the user re-specify details you can infer from their history. " +
       'Before creating or updating a transaction — and whenever the user gives a terse instruction or asks how something should be categorized — call find_similar_transactions (or list_transactions with search + include_line_items) to see how they recorded comparable entries, and reuse the same account, allocation and income/expense heads instead of guessing or asking. ' +

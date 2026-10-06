@@ -21,6 +21,10 @@ const schema = z.object({
   // Token the ChatGPT app-directory portal issues for domain verification, served
   // verbatim at /.well-known/openai-apps-challenge. Only needed while submitting.
   OPENAI_APPS_CHALLENGE_TOKEN: z.string().min(1).optional(),
+
+  // Set by Vercel at build/runtime; tags the MCP serverInfo version so a client's
+  // logs say which deploy answered.
+  VERCEL_GIT_COMMIT_SHA: z.string().min(1).optional(),
 })
 
 const parsed = schema.safeParse(process.env)

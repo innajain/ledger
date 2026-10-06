@@ -22,6 +22,7 @@ import {
   delete_transaction_template_core,
 } from '@/app/_core/templates_core'
 import { cancel_request_core, revert_request_core, accept_all_from_core } from '@/app/_core/approvals_core'
+import { notify_linked_user_core } from '@/app/_core/notifications_core'
 import {
   list_transaction_tags_core,
   get_transaction_tag_core,
@@ -671,6 +672,24 @@ export function register_extra_tools(server: McpServer) {
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       return action_result(await find_user_by_username_core(uid, args.username))
+    },
+  )
+
+  server.registerTool(
+    'notify_linked_user',
+    {
+      description:
+        'Send a push notification to a user you share a linked account with (e.g. a nudge to review a pending request). Only works for users linked to one of your account heads; rate limited to 5 per 10 minutes per user. Confirm the wording with the user first — it lands on the other person\'s phone as "Message from @<you>".',
+      inputSchema: {
+        user: z.string().describe('Their username (as find_user / linked heads show it) or user id'),
+        message: z.string().describe('Plain text, max 500 characters'),
+      },
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const target = await prisma.user.findFirst({ where: { OR: [{ username: args.user }, { id: args.user }] }, select: { id: true } })
+      if (!target) return error_text(`Error [NOT_FOUND]: No user "${args.user}"`)
+      return action_result(await notify_linked_user_core(uid, target.id, args.message))
     },
   )
 

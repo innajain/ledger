@@ -31,10 +31,19 @@ export function get_origin(extra: ToolExtra): string | null {
 }
 
 export type ContentBlock = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string }
-export type Content = { content: ContentBlock[]; isError?: boolean }
+export type Content = { content: ContentBlock[]; isError?: boolean; structuredContent?: Record<string, unknown> }
 
+// Object results also go out as structuredContent, which clients that render or
+// post-process results (ChatGPT apps, workflow tools) read instead of re-parsing the
+// text; the text block stays because the spec asks for it and most clients only
+// show the model that. structuredContent must be an object, so arrays are wrapped.
 export function text(value: unknown): Content {
-  return { content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(annotate_ist(value), null, 2) }] }
+  if (typeof value === 'string') return { content: [{ type: 'text', text: value }] }
+  const annotated = annotate_ist(value)
+  const structured =
+    annotated !== null && typeof annotated === 'object' && !Array.isArray(annotated) ? (annotated as Record<string, unknown>) : { result: annotated }
+  // Round-trip through JSON so Decimals and Dates arrive as the same strings the text shows.
+  return { content: [{ type: 'text', text: JSON.stringify(annotated, null, 2) }], structuredContent: JSON.parse(JSON.stringify(structured)) }
 }
 
 // Every datetime we emit is a UTC instant; every datetime we accept is an IST
