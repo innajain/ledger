@@ -108,11 +108,43 @@ export async function issue_tokens(input: { client_id: string; user_id: string; 
   return { access_token, refresh_token, expires_in: Math.floor(ACCESS_TOKEN_TTL_MS / 1000), scope: input.scope }
 }
 
+export type RefreshVerdict = 'ok' | 'invalid' | 'reused'
+
+// A refresh token is single-use: rotation revokes it. Seeing a revoked one again
+// means two parties hold it — the client and whoever copied it — and we can't tell
+// which is which, so OAuth 2.1 (§4.3.1) says to kill every token in the grant.
+// Wrong client or expired is just invalid: nothing suggests the token leaked.
+export function classify_refresh(
+  row: { revoked: boolean; client_id: string; refresh_expires_at: Date | null } | null,
+  client_id: string,
+  now: number,
+): RefreshVerdict {
+  if (!row || row.client_id !== client_id) return 'invalid'
+  if (row.revoked) return 'reused'
+  if (row.refresh_expires_at && row.refresh_expires_at.getTime() < now) return 'invalid'
+  return 'ok'
+}
+
+async function revoke_grant(user_id: string, client_id: string): Promise<void> {
+  const { count } = await prisma.mcp_access_token.updateMany({ where: { user_id, client_id, revoked: false }, data: { revoked: true } })
+  logger.warn({ event: 'security.refresh_token_reuse', action: 'mcp.token_refresh', revoked_count: count }, 'MCP refresh token reused; grant revoked')
+}
+
 export async function rotate_refresh_token(client_id: string, refresh_token: string): Promise<IssuedTokens | null> {
   const row = await prisma.mcp_access_token.findUnique({ where: { refresh_token_hash: hash_token(refresh_token) } })
-  if (!row || row.revoked || row.client_id !== client_id) return null
-  if (row.refresh_expires_at && row.refresh_expires_at.getTime() < Date.now()) return null
-  await prisma.mcp_access_token.update({ where: { id: row.id }, data: { revoked: true } })
+  const verdict = classify_refresh(row, client_id, Date.now())
+  if (verdict === 'invalid' || !row) return null
+  if (verdict === 'reused') {
+    await revoke_grant(row.user_id, client_id)
+    return null
+  }
+  // Claim atomically: of two concurrent refreshes with the same token only one may
+  // win, and the loser is indistinguishable from a replay.
+  const claimed = await prisma.mcp_access_token.updateMany({ where: { id: row.id, revoked: false }, data: { revoked: true } })
+  if (claimed.count === 0) {
+    await revoke_grant(row.user_id, client_id)
+    return null
+  }
   return issue_tokens({ client_id, user_id: row.user_id, scope: row.scope ?? DEFAULT_SCOPE })
 }
 

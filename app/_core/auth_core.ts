@@ -84,7 +84,14 @@ export async function change_password_core(user_id: string, payload: { current_p
     if (!(await bcrypt.compare(current_password, userRec.password_hash))) return err('UNAUTHORIZED', 'Your current password is incorrect')
 
     const new_password_hash = await bcrypt.hash(new_password, 10)
-    await prisma.user.update({ where: { id: user_id }, data: { password_hash: new_password_hash } })
+    // Connected MCP clients hold opaque tokens the JWT cutoff below never sees, and a
+    // refresh token lives 90 days — so cut them off in the same write as the password,
+    // or a leaked connector outlives the password change that was meant to stop it.
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user_id }, data: { password_hash: new_password_hash } }),
+      prisma.mcp_access_token.updateMany({ where: { user_id, revoked: false }, data: { revoked: true } }),
+      prisma.mcp_oauth_code.updateMany({ where: { user_id, used: false }, data: { used: true } }),
+    ])
 
     await revoke_sessions_before(user_id, Math.floor(Date.now() / 1000))
     audit('auth.change_password', user_id)
