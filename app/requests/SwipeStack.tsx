@@ -69,7 +69,9 @@ export function SwipeStack({
   const start = useRef<{ x: number; y: number; id: number } | null>(null)
   const moved = useRef(false)
   // Which way the current drag locked to: sideways decides, upward skips.
-  const axis = useRef<'x' | 'y' | null>(null)
+  const axis = useRef<'x' | 'y' | 'scroll' | null>(null)
+  // Last finger position during a downward drag, which we scroll the page by ourselves.
+  const lastY = useRef(0)
   // Mirror dx/dy for the release handler: a fast flick can end before the last set renders.
   const dxRef = useRef(0)
   const dyRef = useRef(0)
@@ -199,22 +201,28 @@ export function SwipeStack({
     const ddx = e.clientX - s.x
     const ddy = e.clientY - s.y
     if (!moved.current) {
-      // Decide once which way the gesture goes: sideways decides, upward skips, and
-      // downward is left to the browser (touch-action: pan-down) so the page still scrolls.
+      // Decide once which way the gesture goes: sideways decides, upward skips, downward
+      // scrolls the page. The card is touch-action: none — iOS Safari ignores directional
+      // values like pan-down, so letting the browser keep "its" direction would hand it
+      // the upward swipe too — and the downward scroll is done by hand below instead.
       if (Math.abs(ddx) > 10 && Math.abs(ddx) > Math.abs(ddy)) axis.current = 'x'
       else if (ddy < -10) axis.current = 'y'
-      else {
-        if (ddy > 10) start.current = null
-        return
-      }
+      else if (ddy > 10) {
+        axis.current = 'scroll'
+        lastY.current = s.y
+      } else return
       moved.current = true
-      setDragging(true)
+      if (axis.current !== 'scroll') setDragging(true)
       // Keeps the drag alive when the finger leaves the card; throws if the pointer is already gone.
       try {
         e.currentTarget.setPointerCapture(s.id)
       } catch {}
     }
-    if (axis.current === 'x') moveTo(ddx)
+    if (axis.current === 'scroll') {
+      // instant: the page sets scroll-behavior: smooth, which would animate (and cancel) each step.
+      window.scrollBy({ top: lastY.current - e.clientY, behavior: 'instant' })
+      lastY.current = e.clientY
+    } else if (axis.current === 'x') moveTo(ddx)
     else moveTo(0, Math.min(0, ddy))
   }
 
@@ -222,7 +230,7 @@ export function SwipeStack({
     if (!start.current || e.pointerId !== start.current.id) return
     start.current = null
     setDragging(false)
-    if (!moved.current || !top) return
+    if (!moved.current || !top || axis.current === 'scroll') return
     if (axis.current === 'y') {
       if (-dyRef.current > SKIP_THRESHOLD) skip(top)
       else moveTo(0)
@@ -268,7 +276,7 @@ export function SwipeStack({
         {top ? (
           <div
             key={top.link_id}
-            className="relative touch-pan-down select-none cursor-grab active:cursor-grabbing"
+            className="relative touch-none select-none cursor-grab active:cursor-grabbing"
             style={topStyle}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
