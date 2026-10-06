@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useId, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { approve_request, approve_onto_account, reject_request, accept_all_from } from '@/app/_actions/approvals'
+import { approve_request, approve_onto_account, approve_keeping_lines, reject_request, accept_all_from } from '@/app/_actions/approvals'
 import type { InboxItem, OutboxItem, RequestPreviewLine, RequestSnapshot } from '@/app/_utils/links'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { ErrorAlert } from '@/app/_components/FormComponents'
@@ -487,6 +487,11 @@ export default function ClientPage({
       try {
         if (decision === 'reject') return await reject_request(item.link_id)
         if (item.kind === 'deletion') return await approve_request(item.link_id)
+        if (item.previous) {
+          const r = await approve_keeping_lines(item.link_id)
+          // The dry run passed when the page loaded; this only fails if something changed since.
+          return r.success ? r : { ...r, message: `${r.message} — open Review & approve to adjust your lines.` }
+        }
         if (!swipeAccount) return { success: false, message: 'Pick an account to balance with' }
         return await approve_onto_account(item.link_id, swipeAccount.id)
       } catch (e) {

@@ -19,12 +19,14 @@ const FLY_MS = 220
 /**
  * What a right swipe does to this request. A deletion approves outright; a brand-new
  * transaction approves balanced onto the chosen account (as Accept all does); an edit
- * needs your own balancing lines, so it opens the review page instead.
+ * approves keeping your own lines as they are — but only when the server's dry run says
+ * that would pass, otherwise it opens the review page so the lines can be fixed.
  */
 function right_action(item: InboxItem, account: { id: string; name: string } | null): 'approve' | 'review' | 'blocked' {
   if (item.kind === 'deletion') return 'approve'
   if (!item.has_reciprocal) return 'blocked'
-  if (item.previous || !account) return 'review'
+  if (item.previous) return item.keeps_lines_ok ? 'approve' : 'review'
+  if (!account) return 'review'
   return 'approve'
 }
 
@@ -366,7 +368,9 @@ export function SwipeStack({
               ? 'Rejected'
               : pending.item.kind === 'deletion'
                 ? 'Deletion approved'
-                : `Approved into ${account?.name ?? 'your account'}`}
+                : pending.item.previous
+                  ? 'Edit approved'
+                  : `Approved into ${account?.name ?? 'your account'}`}
             {pending.item.description ? ` · ${pending.item.description}` : ''}
           </span>
           <button type="button" onClick={undo} className="shrink-0 font-semibold text-blue-300 dark:text-blue-700 hover:underline">

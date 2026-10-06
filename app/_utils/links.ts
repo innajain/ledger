@@ -4,7 +4,7 @@ import { Prisma } from '@/generated/prisma/client'
 import type { transaction_link, accounting_head, asset } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validate_line_items } from './validate_line_items'
-import { assert_no_locked_lines } from './lock_date'
+import { assert_no_locked_lines, find_locked_line } from './lock_date'
 import { toDecimal } from './decimal'
 import { ActionError } from '@/app/_actions/_result'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
@@ -453,6 +453,11 @@ export type InboxItem = {
    * deletion, or a rejection.
    */
   previous: RequestSnapshot | null
+  /**
+   * For a pending edit: whether approving it with my own lines kept as they are passes a dry
+   * run (see plan_keep_lines_approval). When false, it needs the review page.
+   */
+  keeps_lines_ok?: boolean
 }
 
 type SnapshotTxn = {
@@ -553,6 +558,15 @@ export async function get_inbox(user_id: string): Promise<InboxItem[]> {
       previous,
     })
   }
+  // Dry-run each pending edit up front, so the swipe deck knows before the swipe whether a
+  // right swipe can approve it as-is. Edits are few, and each check is read-only.
+  await Promise.all(
+    items
+      .filter(i => i.status === 'pending' && i.kind === 'change' && i.previous)
+      .map(async i => {
+        i.keeps_lines_ok = (await plan_keep_lines_approval(user_id, i.link_id)).ok
+      }),
+  )
   return items
 }
 
@@ -834,4 +848,91 @@ export async function prepare_links_for_delete(tx: Tx, user_id: string, transact
       })
     }
   }
+}
+
+export type KeepLinesPlan = { ok: true; balancing: CreateLineItemInput[] } | { ok: false; reason: string }
+
+/**
+ * Plan approving an edit while keeping my own lines (what the review page submits untouched),
+ * and dry-run it — the same validation and reconciliation-lock check a real approval does,
+ * without writing. One explicit line on one of my accounts per asset (a typical settle-up)
+ * can't absorb a changed shared amount the way a null remainder does, so it is re-sized to the
+ * new shared total — the figure auto-balance would book. The swipe deck uses `ok` to decide
+ * whether a right swipe approves or opens the review page.
+ */
+export async function plan_keep_lines_approval(user_id: string, link_id: string, ctx?: EditorContext | null): Promise<KeepLinesPlan> {
+  const c = ctx === undefined ? await get_editor_context(user_id, link_id) : ctx
+  if (!c) return { ok: false, reason: 'This request is not awaiting your approval' }
+  if (!c.reciprocal_head) return { ok: false, reason: 'Link an account back to that user before approving' }
+  if (c.prefill_balancing.length === 0) return { ok: false, reason: 'You have no lines of your own on this transaction yet' }
+
+  const balancing: CreateLineItemInput[] = c.prefill_balancing.map(b => ({
+    accounting_head_id: b.accounting_head_id,
+    asset_id: b.asset_id,
+    quantity: b.quantity === null || b.quantity === '' ? undefined : Number(b.quantity),
+    txn_value: b.txn_value === null || b.txn_value === '' ? null : Number(b.txn_value),
+    description: b.description === '' ? null : b.description,
+  }))
+  const locked_lines = [
+    ...c.mirrored_lines.map(m => ({
+      accounting_head_id: c.reciprocal_head!.id,
+      asset_id: m.asset_id,
+      quantity: m.quantity,
+      txn_value: m.txn_value,
+      datetime: m.datetime,
+    })),
+    ...c.other_locked_lines.map(o => ({
+      accounting_head_id: o.accounting_head_id,
+      asset_id: o.asset_id,
+      quantity: o.quantity === null ? null : Number(o.quantity),
+      txn_value: o.txn_value === null ? null : Number(o.txn_value),
+      datetime: o.datetime,
+    })),
+  ]
+
+  const head_ids = [...new Set([...balancing, ...locked_lines].map(l => l.accounting_head_id))]
+  const asset_ids = [...new Set([...balancing, ...locked_lines].map(l => l.asset_id))]
+  const [heads, assets] = await Promise.all([
+    prisma.accounting_head.findMany({ where: { id: { in: head_ids }, user_id } }),
+    prisma.asset.findMany({ where: { id: { in: asset_ids } } }),
+  ])
+  const headById = new Map(heads.map(h => [h.id, h]))
+  const assetById = new Map(assets.map(a => [a.id, a]))
+  if (headById.size !== head_ids.length || assetById.size !== asset_ids.length)
+    return { ok: false, reason: 'A line refers to an account you no longer have' }
+
+  for (const asset_id of asset_ids) {
+    const mine = balancing.filter(b => b.asset_id === asset_id)
+    const only = mine[0]
+    if (mine.length !== 1 || only.quantity === undefined || only.txn_value !== null || headById.get(only.accounting_head_id)?.type !== 'account')
+      continue
+    const shared = locked_lines.filter(l => l.asset_id === asset_id).map(l => l.quantity)
+    if (shared.some(q => q === null)) continue
+    only.quantity = shared
+      .reduce<Prisma.Decimal>((sum, q) => sum.add(q!), new Prisma.Decimal(0))
+      .neg()
+      .toNumber()
+  }
+
+  const datetime = c.datetime ? new Date(c.datetime) : new Date()
+  const all = [
+    ...locked_lines.map(l => ({ ...l, datetime: l.datetime ? new Date(l.datetime) : null })),
+    ...balancing.map(b => ({ ...b, datetime: null })),
+  ]
+  const lock = find_locked_line(
+    datetime,
+    all.map(l => ({ datetime: l.datetime, accounting_head: headById.get(l.accounting_head_id)! })),
+  )
+  if (lock) return { ok: false, reason: `"${lock.head_name}" is reconciled and locked for that date` }
+
+  const { is_valid, message } = validate_line_items(
+    all.map(l => ({
+      quantity: toDecimal(l.quantity ?? null),
+      txn_value: toDecimal(l.txn_value ?? null),
+      asset: assetById.get(l.asset_id)!,
+      accounting_head: headById.get(l.accounting_head_id)!,
+    })),
+  )
+  if (!is_valid) return { ok: false, reason: message ?? 'Your lines no longer balance' }
+  return { ok: true, balancing }
 }
