@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useId, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { approve_request, reject_request, accept_all_from } from '@/app/_actions/approvals'
+import { approve_request, approve_onto_account, reject_request, accept_all_from } from '@/app/_actions/approvals'
 import type { InboxItem, OutboxItem, RequestPreviewLine, RequestSnapshot } from '@/app/_utils/links'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { ErrorAlert } from '@/app/_components/FormComponents'
@@ -10,6 +10,7 @@ import { EmptyState } from '@/app/_components/EmptyState'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { Button, ButtonLink } from '@/app/_components/Button'
 import { CheckCircleIcon } from '@/app/_components/icons'
+import { SwipeStack, type SwipeDecision } from './SwipeStack'
 
 const qty_fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 4 })
 
@@ -477,6 +478,23 @@ export default function ClientPage({
   const [bulkBusy, setBulkBusy] = useState<string | null>(null)
   const [balancingByOther, setBalancingByOther] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
+  const [swipeAccountId, setSwipeAccountId] = useState<string | undefined>(defaultAccountId ?? accounts[0]?.id)
+  const swipeAccount = accounts.find(a => a.id === swipeAccountId) ?? null
+
+  const commitSwipe = useCallback(
+    async (item: InboxItem, decision: SwipeDecision) => {
+      setError(null)
+      try {
+        if (decision === 'reject') return await reject_request(item.link_id)
+        if (item.kind === 'deletion') return await approve_request(item.link_id)
+        if (!swipeAccount) return { success: false, message: 'Pick an account to balance with' }
+        return await approve_onto_account(item.link_id, swipeAccount.id)
+      } catch (e) {
+        return { success: false, message: e instanceof Error ? e.message : String(e) }
+      }
+    },
+    [swipeAccount],
+  )
 
   async function bulkAccept(otherId: string) {
     const acct = balancingByOther[otherId] ?? defaultAccountId ?? accounts[0]?.id
@@ -613,7 +631,36 @@ export default function ClientPage({
                     ))}
                 </div>
               )}
-              {renderInbox(pending)}
+              {/* Phones get a swipe deck; wider screens keep the full grouped list. */}
+              <div className="sm:hidden space-y-3">
+                {accounts.length > 0 && pending.some(i => i.kind === 'change' && !i.previous) && (
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <label htmlFor={`${uid}-swipe-account`} className="text-slate-500 dark:text-slate-400">
+                      New transactions balance with
+                    </label>
+                    <select
+                      id={`${uid}-swipe-account`}
+                      value={swipeAccountId}
+                      onChange={e => setSwipeAccountId(e.target.value)}
+                      className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                    >
+                      {accounts.map(a => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <SwipeStack
+                  items={pending}
+                  account={swipeAccount}
+                  renderCard={item => <InboxCard item={item} busy={busyId === item.link_id} onRun={run} />}
+                  onCommit={commitSwipe}
+                  onError={setError}
+                />
+              </div>
+              <div className="hidden sm:block space-y-3">{renderInbox(pending)}</div>
             </Section>
           )}
 
