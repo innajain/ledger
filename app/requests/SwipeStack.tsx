@@ -301,7 +301,11 @@ export function SwipeStack({
           className="flex items-center justify-between gap-3 rounded-lg bg-slate-900 dark:bg-slate-100 px-4 py-3 text-sm text-white dark:text-slate-900 shadow-lg"
         >
           <span className="min-w-0 truncate">
-            {pending.decision === 'reject' ? 'Rejected' : pending.item.kind === 'deletion' ? 'Deletion approved' : 'Approved'}
+            {pending.decision === 'reject'
+              ? 'Rejected'
+              : pending.item.kind === 'deletion'
+                ? 'Deletion approved'
+                : `Approved into ${account?.name ?? 'your account'}`}
             {pending.item.description ? ` · ${pending.item.description}` : ''}
           </span>
           <button type="button" onClick={undo} className="shrink-0 font-semibold text-blue-300 dark:text-blue-700 hover:underline">
