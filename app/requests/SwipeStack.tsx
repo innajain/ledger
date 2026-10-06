@@ -10,6 +10,8 @@ type Result = { success: boolean; message?: string }
 
 /** Past this many pixels a released card counts as a swipe; short of it, it springs back. */
 const SWIPE_THRESHOLD = 96
+/** An upward drag this far sends the top card to the back of the deck. */
+const SKIP_THRESHOLD = 80
 /** How long a swipe can be taken back before it is sent — approvals and rejections reach the other side. */
 const UNDO_MS = 5000
 const FLY_MS = 220
@@ -55,17 +57,25 @@ export function SwipeStack({
   const [gone, setGone] = useState<Set<string>>(() => new Set())
   const [dx, setDx] = useState(0)
   const [dragging, setDragging] = useState(false)
-  const [fly, setFly] = useState<1 | -1 | null>(null)
+  const [dy, setDy] = useState(0)
+  const [fly, setFly] = useState<1 | -1 | 'up' | null>(null)
+  // Cards swiped up, in the order they were sent to the back.
+  const [skipped, setSkipped] = useState<string[]>([])
   const [pending, setPending] = useState<{ item: InboxItem; decision: SwipeDecision } | null>(null)
   const [hint, setHint] = useState<string | null>(null)
 
   const start = useRef<{ x: number; y: number; id: number } | null>(null)
   const moved = useRef(false)
-  // Mirrors dx for the release handler: a fast flick can end before the last setDx renders.
+  // Which way the current drag locked to: sideways decides, upward skips.
+  const axis = useRef<'x' | 'y' | null>(null)
+  // Mirror dx/dy for the release handler: a fast flick can end before the last set renders.
   const dxRef = useRef(0)
-  const moveTo = (x: number) => {
+  const dyRef = useRef(0)
+  const moveTo = (x: number, y = 0) => {
     dxRef.current = x
+    dyRef.current = y
     setDx(x)
+    setDy(y)
   }
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // The latest pending swipe, readable from timers and unmount without re-subscribing.
@@ -75,7 +85,13 @@ export function SwipeStack({
     setPending(p)
   }
 
-  const visible = items.filter(i => !gone.has(i.link_id))
+  const live = items.filter(i => !gone.has(i.link_id))
+  const skipRank = new Map(skipped.map((id, i) => [id, i]))
+  // Never-skipped cards keep server order; skipped ones follow in the order they were sent back.
+  const visible = [
+    ...live.filter(i => !skipRank.has(i.link_id)),
+    ...live.filter(i => skipRank.has(i.link_id)).sort((a, b) => skipRank.get(a.link_id)! - skipRank.get(b.link_id)!),
+  ]
   const top = visible[0]
 
   async function commit(p: { item: InboxItem; decision: SwipeDecision }) {
@@ -140,6 +156,20 @@ export function SwipeStack({
     }, FLY_MS)
   }
 
+  function skip(item: InboxItem) {
+    setHint(null)
+    if (visible.length < 2) {
+      moveTo(0)
+      return
+    }
+    setFly('up')
+    setTimeout(() => {
+      setSkipped(prev => [...prev.filter(id => id !== item.link_id), item.link_id])
+      setFly(null)
+      moveTo(0)
+    }, FLY_MS)
+  }
+
   function undo() {
     if (timer.current) clearTimeout(timer.current)
     timer.current = null
@@ -157,6 +187,7 @@ export function SwipeStack({
     if (e.button !== 0 || fly) return
     start.current = { x: e.clientX, y: e.clientY, id: e.pointerId }
     moved.current = false
+    axis.current = null
   }
 
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
@@ -166,20 +197,23 @@ export function SwipeStack({
     const ddx = e.clientX - s.x
     const ddy = e.clientY - s.y
     if (!moved.current) {
-      // Decide once which way the gesture goes: sideways is ours, vertical is page scroll.
-      if (Math.abs(ddx) > 10 && Math.abs(ddx) > Math.abs(ddy)) {
-        moved.current = true
-        setDragging(true)
-        // Keeps the drag alive when the finger leaves the card; throws if the pointer is already gone.
-        try {
-          e.currentTarget.setPointerCapture(s.id)
-        } catch {}
-      } else {
-        if (Math.abs(ddy) > 10) start.current = null
+      // Decide once which way the gesture goes: sideways decides, upward skips, and
+      // downward is left to the browser (touch-action: pan-down) so the page still scrolls.
+      if (Math.abs(ddx) > 10 && Math.abs(ddx) > Math.abs(ddy)) axis.current = 'x'
+      else if (ddy < -10) axis.current = 'y'
+      else {
+        if (ddy > 10) start.current = null
         return
       }
+      moved.current = true
+      setDragging(true)
+      // Keeps the drag alive when the finger leaves the card; throws if the pointer is already gone.
+      try {
+        e.currentTarget.setPointerCapture(s.id)
+      } catch {}
     }
-    moveTo(ddx)
+    if (axis.current === 'x') moveTo(ddx)
+    else moveTo(0, Math.min(0, ddy))
   }
 
   function onPointerEnd(e: PointerEvent<HTMLDivElement>) {
@@ -187,6 +221,11 @@ export function SwipeStack({
     start.current = null
     setDragging(false)
     if (!moved.current || !top) return
+    if (axis.current === 'y') {
+      if (-dyRef.current > SKIP_THRESHOLD) skip(top)
+      else moveTo(0)
+      return
+    }
     const x = dxRef.current
     if (Math.abs(x) > SWIPE_THRESHOLD) decide(top, x > 0 ? 1 : -1)
     else moveTo(0)
@@ -194,12 +233,14 @@ export function SwipeStack({
 
   const progress = Math.min(1, Math.abs(dx) / SWIPE_THRESHOLD)
   const topStyle =
-    fly !== null
-      ? { transform: `translateX(${fly * 130}%) rotate(${fly * 24}deg)`, transition: `transform ${FLY_MS}ms ease-in`, opacity: 0.6 }
-      : {
-          transform: `translateX(${dx}px) rotate(${dx / 18}deg)`,
-          transition: dragging ? 'none' : 'transform 200ms ease-out',
-        }
+    fly === 'up'
+      ? { transform: 'translateY(-60%) scale(0.9)', transition: `transform ${FLY_MS}ms ease-in, opacity ${FLY_MS}ms`, opacity: 0 }
+      : fly !== null
+        ? { transform: `translateX(${fly * 130}%) rotate(${fly * 24}deg)`, transition: `transform ${FLY_MS}ms ease-in`, opacity: 0.6 }
+        : {
+            transform: `translate(${dx}px, ${dy}px) rotate(${dx / 18}deg)`,
+            transition: dragging ? 'none' : 'transform 200ms ease-out',
+          }
 
   return (
     <div className="space-y-3">
@@ -214,7 +255,8 @@ export function SwipeStack({
               transform: `translateY(${(i + 1) * 10}px) scale(${1 - (i + 1) * 0.04})`,
               transformOrigin: 'bottom center',
               zIndex: -1 - i,
-              opacity: 1 - (i + 1) * 0.25,
+              // Opaque, so a lifted top card reveals the next card cleanly rather than two bleeding through.
+              filter: `brightness(${1 - (i + 1) * 0.08})`,
             }}
           >
             {renderCard(item)}
@@ -224,7 +266,7 @@ export function SwipeStack({
         {top ? (
           <div
             key={top.link_id}
-            className="relative touch-pan-y select-none cursor-grab active:cursor-grabbing"
+            className="relative touch-pan-down select-none cursor-grab active:cursor-grabbing"
             style={topStyle}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
@@ -254,6 +296,13 @@ export function SwipeStack({
             >
               Reject
             </span>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 rounded-md border-2 border-slate-400 px-2 py-0.5 text-sm font-extrabold uppercase tracking-widest text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80"
+              style={{ opacity: dy < 0 && visible.length > 1 ? Math.min(1, -dy / SKIP_THRESHOLD) : 0 }}
+            >
+              Later
+            </span>
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-8 text-center">
@@ -275,10 +324,22 @@ export function SwipeStack({
           >
             <CloseIcon className="w-6 h-6" />
           </button>
-          <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums text-center">
-            <span className="font-semibold text-slate-700 dark:text-slate-300">{visible.length} left</span>
-            <br />← reject · approve →
-          </p>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              onClick={() => skip(top)}
+              disabled={fly !== null || visible.length < 2}
+              aria-label="Move to the back"
+              className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm active:scale-95 transition-transform disabled:opacity-40"
+            >
+              <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19V5m-6 6l6-6 6 6" />
+              </svg>
+            </button>
+            <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums text-center">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">{visible.length} left</span> · ↑ later
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => decide(top, 1)}
