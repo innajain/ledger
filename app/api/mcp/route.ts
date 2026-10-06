@@ -16,8 +16,8 @@ import {
   convert_future_transaction_core,
   type CreateLineItemInput,
 } from '@/app/_core/transactions_core'
-import { approve_request_core, reject_request_core } from '@/app/_core/approvals_core'
-import { get_inbox, get_outbox } from '@/app/_utils/links'
+import { approve_request_core, approve_keeping_lines_core, reject_request_core } from '@/app/_core/approvals_core'
+import { get_inbox, get_outbox, plan_keep_lines_approval } from '@/app/_utils/links'
 import { get_prices_for_assets, get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
 import { compute_head_value, value_balance_entry } from '@/app/_utils/head_value'
@@ -1094,7 +1094,11 @@ function register_tools(server: McpServer) {
 
   server.registerTool(
     'list_requests',
-    { description: 'Approval requests: inbox (awaiting you) and outbox (awaiting them).', inputSchema: {} },
+    {
+      description:
+        'Approval requests: inbox (awaiting you) and outbox (awaiting them). Each carries kind (change/deletion), previous (for an edit: the copy as it stands, so you can say what changed), requested_at, and the account_name the shared lines land on. Pending edits in the inbox carry keeps_lines_ok: whether approve_request with keep_my_lines would pass right now.',
+      inputSchema: {},
+    },
     async (_args, extra) => {
       const uid = get_uid(extra as ToolExtra)
       const [inbox, outbox] = await Promise.all([get_inbox(uid), get_outbox(uid)])
@@ -1359,17 +1363,40 @@ function register_tools(server: McpServer) {
     'approve_request',
     {
       description:
-        'Approve an inbox request (this rebuilds your copy of the shared transaction — the mirrored lines are server-derived). For a change request give either account (id or name, auto-balances your copy onto it) or balancing_lines (your own explicit lines beside the locked mirrored ones). This also affects the counterparty — tell the user what will happen before acting.',
+        'Approve an inbox request (this rebuilds your copy of the shared transaction — the mirrored lines are server-derived). For a change request give exactly one of: account (id or name, auto-balances your copy onto it — right for a NEW transaction), balancing_lines (your own explicit lines beside the locked mirrored ones), or keep_my_lines: true (for an EDIT to a transaction you already hold: keeps your own lines as they are, re-sizing a lone explicit line on one of your accounts to the new shared total — check list_requests keeps_lines_ok first, or pass dry_run to test it without writing). This also affects the counterparty — tell the user what will happen before acting.',
       inputSchema: {
         link_id: z.string(),
         account: z.string().nullish().describe('Your own (non-linked) account to auto-balance onto (for change requests)'),
         balancing_lines: lineItemShape
           .optional()
           .describe('Alternative to account: your own balancing line items (the mirrored linked-account lines are added automatically)'),
+        keep_my_lines: z
+          .boolean()
+          .optional()
+          .describe(
+            'For an edit: approve keeping your own lines as they are (what the web review page submits untouched). Mutually exclusive with account/balancing_lines',
+          ),
+        dry_run: z
+          .boolean()
+          .optional()
+          .describe('With keep_my_lines: only check whether the approval would pass (validation + lock check), writing nothing'),
       },
     },
     async (args, extra) => {
       const uid = get_uid(extra as ToolExtra)
+      if (args.keep_my_lines) {
+        if (args.account || args.balancing_lines) return error_text('Give keep_my_lines on its own — not with account or balancing_lines')
+        if (args.dry_run) {
+          const plan = await plan_keep_lines_approval(uid, args.link_id)
+          return text(
+            plan.ok
+              ? { ok: true, dry_run: true, valid: true, message: 'Would pass — nothing was written.' }
+              : { ok: false, dry_run: true, valid: false, message: `Would fail: ${plan.reason}. Approve with balancing_lines instead.` },
+          )
+        }
+        return action_result(await approve_keeping_lines_core(uid, args.link_id))
+      }
+      if (args.dry_run) return error_text('dry_run is only supported together with keep_my_lines')
       let account_id: string | undefined
       if (args.account) {
         const own = (await load_heads(uid)).filter(h => h.type === 'account' && !h.linked_user_id)
