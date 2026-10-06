@@ -265,7 +265,7 @@ export function SwipeStack({
       </div>
 
       {top && (
-        <div className="flex items-center justify-between gap-4 px-6 pt-2">
+        <div className="flex items-center justify-between gap-4 px-6 pt-5">
           <button
             type="button"
             onClick={() => decide(top, -1)}

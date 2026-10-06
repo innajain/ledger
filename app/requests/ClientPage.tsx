@@ -422,7 +422,7 @@ function Section({ id, title, count, hint, children }: { id: string; title: stri
             {count}
           </span>
         </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{hint}</p>
+        <p className="hidden sm:block text-sm text-slate-500 dark:text-slate-400">{hint}</p>
       </div>
       {children}
     </section>
@@ -555,11 +555,58 @@ export default function ClientPage({
       </PersonGroup>
     ))
 
+  // Rendered twice — above the list on wide screens, folded under the deck on phones — so
+  // control ids carry a suffix.
+  const renderAcceptAll = (suffix: string) => (
+    <div className="space-y-3">
+      <div>
+        {suffix === 'wide' && <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Accept all at once</p>}
+        {accounts.length === 0 ? (
+          <p className="text-sm text-amber-600 dark:text-amber-400">
+            Create one of your own accounts (e.g. “Cash”) to bulk-approve these against — a linked account can’t be the balancing account.
+          </p>
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Approves every new or edited request from a person, balanced onto one of your accounts (an account-to-account transfer you can reclassify
+            later). Deletions are not included.
+          </p>
+        )}
+      </div>
+      {accounts.length > 0 &&
+        changeGroups.map(([otherId, g]) => (
+          <div key={otherId} className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-slate-700 dark:text-slate-300">
+              <strong>@{g.username}</strong> — {g.count} request{g.count === 1 ? '' : 's'}
+            </span>
+            <label htmlFor={`${uid}-balance-${suffix}-${otherId}`} className="text-sm text-slate-500 dark:text-slate-400">
+              balance with
+            </label>
+            <select
+              id={`${uid}-balance-${suffix}-${otherId}`}
+              value={balancingByOther[otherId] ?? defaultAccountId ?? accounts[0].id}
+              onChange={e => setBalancingByOther(prev => ({ ...prev, [otherId]: e.target.value }))}
+              className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+            >
+              {accounts.map(a => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            <Button onClick={() => bulkAccept(otherId)} disabled={bulkBusy === otherId} variant="primary" size="sm" className="ml-auto">
+              {bulkBusy === otherId ? 'Approving…' : `Accept all ${g.count}`}
+            </Button>
+          </div>
+        ))}
+    </div>
+  )
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Requests</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
+        {/* Phones skip the explainer so the first card sits near the top of the screen. */}
+        <p className="hidden sm:block text-slate-600 dark:text-slate-400 mt-1">
           Transactions on an account linked to someone else are kept in both ledgers. Each change, edit or deletion waits here until the other side
           agrees.
         </p>
@@ -575,7 +622,22 @@ export default function ClientPage({
         />
       ) : (
         <>
-          <nav aria-label="Request summary" className="grid grid-cols-3 gap-3">
+          {/* On phones only the sections below the deck get a jump link — To approve is already on screen. */}
+          {(rejected.length > 0 || outbox.length > 0) && (
+            <nav aria-label="Other requests" className="sm:hidden flex flex-wrap gap-2 -mt-2">
+              {rejected.length > 0 && (
+                <a href="#needs-action" className={`rounded-full px-3 py-1 text-sm font-medium ${TONE_CLS.red}`}>
+                  {rejected.length} rejected ↓
+                </a>
+              )}
+              {outbox.length > 0 && (
+                <a href="#awaiting-others" className={`rounded-full px-3 py-1 text-sm font-medium ${TONE_CLS.slate}`}>
+                  {outbox.length} awaiting others ↓
+                </a>
+              )}
+            </nav>
+          )}
+          <nav aria-label="Request summary" className="hidden sm:grid grid-cols-3 gap-3">
             <StatTile href="#to-approve" label="To approve" count={pending.length} tone="amber" />
             <StatTile href="#needs-action" label="Rejected" count={rejected.length} tone="red" />
             <StatTile href="#awaiting-others" label="Awaiting" count={outbox.length} tone="slate" />
@@ -589,46 +651,8 @@ export default function ClientPage({
               hint="Someone changed a transaction you share. Nothing moves in your ledger until you approve."
             >
               {changeGroups.length > 0 && (
-                <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-4 space-y-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Accept all at once</p>
-                    {accounts.length === 0 ? (
-                      <p className="text-sm text-amber-600 dark:text-amber-400">
-                        Create one of your own accounts (e.g. “Cash”) to bulk-approve these against — a linked account can’t be the balancing account.
-                      </p>
-                    ) : (
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Approves every new or edited request from a person, balanced onto one of your accounts (an account-to-account transfer you can
-                        reclassify later). Deletions are not included.
-                      </p>
-                    )}
-                  </div>
-                  {accounts.length > 0 &&
-                    changeGroups.map(([otherId, g]) => (
-                      <div key={otherId} className="flex flex-wrap items-center gap-3">
-                        <span className="text-sm text-slate-700 dark:text-slate-300">
-                          <strong>@{g.username}</strong> — {g.count} request{g.count === 1 ? '' : 's'}
-                        </span>
-                        <label htmlFor={`${uid}-balance-${otherId}`} className="text-sm text-slate-500 dark:text-slate-400">
-                          balance with
-                        </label>
-                        <select
-                          id={`${uid}-balance-${otherId}`}
-                          value={balancingByOther[otherId] ?? defaultAccountId ?? accounts[0].id}
-                          onChange={e => setBalancingByOther(prev => ({ ...prev, [otherId]: e.target.value }))}
-                          className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
-                        >
-                          {accounts.map(a => (
-                            <option key={a.id} value={a.id}>
-                              {a.name}
-                            </option>
-                          ))}
-                        </select>
-                        <Button onClick={() => bulkAccept(otherId)} disabled={bulkBusy === otherId} variant="primary" size="sm" className="ml-auto">
-                          {bulkBusy === otherId ? 'Approving…' : `Accept all ${g.count}`}
-                        </Button>
-                      </div>
-                    ))}
+                <div className="hidden sm:block rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-4">
+                  {renderAcceptAll('wide')}
                 </div>
               )}
               {/* Phones get a swipe deck; wider screens keep the full grouped list. */}
@@ -659,6 +683,17 @@ export default function ClientPage({
                   onCommit={commitSwipe}
                   onError={setError}
                 />
+                {changeGroups.length > 0 && (
+                  <details className="group rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
+                    <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      Accept all at once
+                      <span aria-hidden="true" className="text-slate-400 transition-transform group-open:rotate-180">
+                        ▾
+                      </span>
+                    </summary>
+                    <div className="px-4 pb-4">{renderAcceptAll('narrow')}</div>
+                  </details>
+                )}
               </div>
               <div className="hidden sm:block space-y-3">{renderInbox(pending)}</div>
             </Section>
