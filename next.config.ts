@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
 
   allowedDevOrigins: ['192.168.*.*', '10.*.*.*', '172.16.*.*'],
 
+  // The dev server otherwise prints every server action's arguments verbatim —
+  // log_in's password, amounts, account names — into the terminal.
+  logging: { serverFunctions: false },
+
   // Node-only server deps stay external instead of being bundled into the server output.
   serverExternalPackages: ['ioredis', 'pino', 'yahoo-finance2', 'web-push'],
 
