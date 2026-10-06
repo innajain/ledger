@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/prisma'
-import { build_actor_copy, other_user, my_txn_id, their_txn_id, prepare_links_for_delete } from '@/app/_utils/links'
+import { build_actor_copy, other_user, my_txn_id, their_txn_id, prepare_links_for_delete, plan_keep_lines_approval } from '@/app/_utils/links'
 import { assert_no_locked_lines } from '@/app/_utils/lock_date'
 import { notify_request_rejected } from '@/app/_utils/notify_events'
 import { invalidate_balances } from '@/app/_core/balances_core'
 import type { TouchedEntities } from '@/app/_utils/value_timeseries'
 import { audit } from '@/lib/logger'
-import { ActionResult, ok, ActionError } from '@/app/_actions/_result'
+import { ActionResult, ok, err, ActionError } from '@/app/_actions/_result'
 import { reportActionError } from '@/lib/action_error'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 
@@ -87,6 +87,18 @@ export async function approve_onto_account_core(me: string, link_id: string, acc
     return reportActionError(error, { action: 'approval.approve', entity: 'transaction_link' })
   }
   return approve_request_core(me, link_id, [], account_id)
+}
+
+/**
+ * Approve an edit to a transaction I already hold, keeping my own balancing lines exactly
+ * as they are (null remainders included, so they re-derive against the new shared amounts) —
+ * what the review page submits when nothing is touched. Used by the swipe deck. If my lines
+ * no longer balance, the normal validation error comes back and the review page is the fix.
+ */
+export async function approve_keeping_lines_core(me: string, link_id: string): Promise<ActionResult> {
+  const plan = await plan_keep_lines_approval(me, link_id)
+  if (!plan.ok) return err('VALIDATION', plan.reason)
+  return approve_request_core(me, link_id, plan.balancing)
 }
 
 export async function accept_all_from_core(

@@ -4,6 +4,7 @@ import { get_current_user_id } from '@/app/_actions/auth'
 import {
   approve_request_core,
   approve_onto_account_core,
+  approve_keeping_lines_core,
   accept_all_from_core,
   cancel_request_core,
   reject_request_core,
@@ -22,6 +23,12 @@ export async function approve_onto_account(link_id: string, account_id: string):
   const me = await get_current_user_id()
   if (!me) return err('UNAUTHORIZED', 'Your session has expired — log in again')
   return approve_onto_account_core(me, link_id, account_id)
+}
+
+export async function approve_keeping_lines(link_id: string): Promise<ActionResult> {
+  const me = await get_current_user_id()
+  if (!me) return err('UNAUTHORIZED', 'Your session has expired — log in again')
+  return approve_keeping_lines_core(me, link_id)
 }
 
 export async function accept_all_from(counterparty_id: string, balancing_account_id: string): Promise<ActionResult<{ approved: number }>> {
