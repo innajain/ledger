@@ -1,3 +1,9 @@
 # pnpm writes this file in its own YAML style and rewrites it on every
 # install. Formatting it here just starts a fight that neither side wins.
 pnpm-lock.yaml
+
+# Vendored agent skills, installed by `neon skills`. Kept byte-identical to
+# upstream so they match the hashes in skills-lock.json.
+.claude/skills/neon/
+.claude/skills/neon-postgres/
+skills-lock.json
