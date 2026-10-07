@@ -42,7 +42,8 @@ async function Page() {
           </li>
           <li>
             <strong>Push notifications</strong> — if you turn them on, your browser&rsquo;s push subscription (an endpoint address and encryption
-            keys).
+            keys), plus a record of each notification sent to it — when it was sent, and whether your device showed and opened it — which the person
+            whose request it was can see, kept for 30 days.
           </li>
           <li>
             <strong>Technical data</strong> — your IP address, used only for rate limiting and held in our cache for at most an hour; per-request

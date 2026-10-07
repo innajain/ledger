@@ -16,6 +16,8 @@ const PUBLIC_PATHS = [
   '/monitoring',
   '/api/health',
   '/api/health/ready',
+  // The service worker's delivery receipt; the random token in the body is the credential.
+  '/api/push/ack',
 
   '/.well-known/oauth-authorization-server',
   '/.well-known/oauth-protected-resource',

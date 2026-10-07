@@ -22,7 +22,7 @@ import {
   delete_transaction_template_core,
 } from '@/app/_core/templates_core'
 import { cancel_request_core, revert_request_core, accept_all_from_core } from '@/app/_core/approvals_core'
-import { notify_linked_user_core } from '@/app/_core/notifications_core'
+import { list_sent_notifications_core, notify_linked_user_core } from '@/app/_core/notifications_core'
 import {
   list_transaction_tags_core,
   get_transaction_tag_core,
@@ -679,7 +679,7 @@ export function register_extra_tools(server: McpServer) {
     'notify_linked_user',
     {
       description:
-        'Send a push notification to a user you share a linked account with (e.g. a nudge to review a pending request). Only works for users linked to one of your account heads; rate limited to 5 per 10 minutes per user. Confirm the wording with the user first — it lands on the other person\'s phone as "Message from @<you>".',
+        'Send a push notification to a user you share a linked account with (e.g. a nudge to review a pending request). Only works for users linked to one of your account heads; rate limited to 5 per 10 minutes per user. Confirm the wording with the user first — it lands on the other person\'s phone as "Message from @<you>". Returns accepted (devices whose push service took it — not proof it was shown; delivered is the same number, kept for compatibility) and sent_datetime; to learn whether it was actually shown or tapped, call list_sent_notifications a little later.',
       inputSchema: {
         user: z.string().describe('Their username (as find_user / linked heads show it) or user id'),
         message: z.string().describe('Plain text, max 500 characters'),
@@ -690,6 +690,30 @@ export function register_extra_tools(server: McpServer) {
       const target = await prisma.user.findFirst({ where: { OR: [{ username: args.user }, { id: args.user }] }, select: { id: true } })
       if (!target) return error_text(`Error [NOT_FOUND]: No user "${args.user}"`)
       return action_result(await notify_linked_user_core(uid, target.id, args.message))
+    },
+  )
+
+  server.registerTool(
+    'list_sent_notifications',
+    {
+      description:
+        'Push notifications you caused on other people\'s devices — approval requests (request_pending), rejections (request_rejected) and nudges (message) — newest first, each with how far it got: accepted (the push service took it), delivered (shown on a device), opened (tapped), failed, or in_flight. One row per push, rolled up across the recipient\'s devices. Pass link_id (from list_requests / get_transaction links) to ask "did they get notified about this request?". Kept 30 days; a device only reports delivered/opened once it has loaded the current app version.',
+      inputSchema: {
+        to: z.string().optional().describe('Only pushes to this user (username or id)'),
+        kind: z.enum(['request_pending', 'request_rejected', 'message']).optional(),
+        link_id: z.string().optional().describe('Only the push about this approval request'),
+        limit: z.number().int().positive().max(100).optional().describe('Default 20'),
+      },
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      let to_user_id: string | undefined
+      if (args.to) {
+        const target = await prisma.user.findFirst({ where: { OR: [{ username: args.to }, { id: args.to }] }, select: { id: true } })
+        if (!target) return error_text(`Error [NOT_FOUND]: No user "${args.to}"`)
+        to_user_id = target.id
+      }
+      return action_result(await list_sent_notifications_core(uid, { to_user_id, kind: args.kind, link_id: args.link_id, limit: args.limit }))
     },
   )
 

@@ -39,11 +39,15 @@ export function notify_request_pending(
         const from = await username_of(from_user_id)
         const verb = opts.changed ? 'updated a shared transaction' : 'sent you a transaction to approve'
         const desc = opts.description ? ` — ${opts.description}` : ''
-        await send_push_to_user(target_user_id, {
-          title: `Approval request from @${from}`,
-          body: `@${from} ${verb}${desc}`,
-          url: '/requests',
-        })
+        await send_push_to_user(
+          target_user_id,
+          {
+            title: `Approval request from @${from}`,
+            body: `@${from} ${verb}${desc}`,
+            url: '/requests',
+          },
+          { kind: 'request_pending', sender_id: from_user_id },
+        )
       } catch (error) {
         logger.warn(
           { err: error, user_ref: auditRef(target_user_id), event: 'operation.degraded', action: 'notification.pending' },
@@ -60,11 +64,15 @@ export function notify_request_rejected(target_user_id: string, from_user_id: st
       try {
         const from = await username_of(from_user_id)
         const desc = description ? ` — ${description}` : ''
-        await send_push_to_user(target_user_id, {
-          title: `@${from} rejected your change`,
-          body: `A shared transaction needs your attention${desc}`,
-          url: '/requests',
-        })
+        await send_push_to_user(
+          target_user_id,
+          {
+            title: `@${from} rejected your change`,
+            body: `A shared transaction needs your attention${desc}`,
+            url: '/requests',
+          },
+          { kind: 'request_rejected', sender_id: from_user_id },
+        )
       } catch (error) {
         logger.warn(
           { err: error, user_ref: auditRef(target_user_id), event: 'operation.degraded', action: 'notification.rejected' },

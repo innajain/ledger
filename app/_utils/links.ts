@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { validate_line_items } from './validate_line_items'
 import { assert_no_locked_lines, find_locked_line } from './lock_date'
 import { toDecimal } from './decimal'
+import { deliveries_for_request, summarize_deliveries, type DeliverySummary } from './push_delivery'
 import { ActionError } from '@/app/_actions/_result'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 
@@ -589,6 +590,8 @@ export type OutboxItem = {
   account_name: string | null
   /** Their copy as it stands, when my change edits a transaction they already hold. */
   previous: RequestSnapshot | null
+  /** How far the push about this request got on their devices; null when none was sent (no devices, or push not configured). */
+  delivery: DeliverySummary | null
 }
 
 export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
@@ -602,7 +605,18 @@ export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
   })
   if (links.length === 0) return []
 
-  const { nameById, accountByOther, txnById } = await load_request_context(user_id, links)
+  const [{ nameById, accountByOther, txnById }, deliveries] = await Promise.all([
+    load_request_context(user_id, links),
+    prisma.push_delivery.findMany({
+      where: {
+        sender_id: user_id,
+        recipient_id: { in: Array.from(new Set(links.map(l => other_user(l, user_id)))) },
+        kind: { in: ['request_pending', 'request_rejected'] },
+        sent_at: { gte: new Date(Math.min(...links.map(l => l.updated_at.getTime()))) },
+      },
+      select: { recipient_id: true, sent_at: true, accepted_at: true, failed_status: true, delivered_at: true, opened_at: true },
+    }),
+  ])
 
   const items: OutboxItem[] = []
   for (const link of links) {
@@ -630,6 +644,7 @@ export async function get_outbox(user_id: string): Promise<OutboxItem[]> {
       requested_at: link.updated_at.toISOString(),
       account_name: accountByOther.get(other) ?? null,
       previous,
+      delivery: summarize_deliveries(deliveries_for_request(deliveries, other, link.updated_at)),
     })
   }
   return items

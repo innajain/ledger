@@ -1096,7 +1096,7 @@ function register_tools(server: McpServer) {
     'list_requests',
     {
       description:
-        'Approval requests: inbox (awaiting you) and outbox (awaiting them). Each carries kind (change/deletion), previous (for an edit: the copy as it stands, so you can say what changed), requested_at, and the account_name the shared lines land on. Pending edits in the inbox carry keeps_lines_ok: whether approve_request with keep_my_lines would pass right now.',
+        "Approval requests: inbox (awaiting you) and outbox (awaiting them). Each carries kind (change/deletion), previous (for an edit: the copy as it stands, so you can say what changed), requested_at, and the account_name the shared lines land on. Pending edits in the inbox carry keeps_lines_ok: whether approve_request with keep_my_lines would pass right now. Outbox items carry delivery: how far the push notification about the request got on the counterparty's devices — accepted (push service took it), delivered (shown on a device), opened (tapped) or failed — with its datetime and how many devices; null when none was sent.",
       inputSchema: {},
     },
     async (_args, extra) => {
