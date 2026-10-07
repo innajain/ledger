@@ -369,6 +369,30 @@ const InboxCard = memo(function InboxCard({
   )
 })
 
+const DELIVERY_TEXT: Record<NonNullable<OutboxItem['delivery']>['status'], string> = {
+  opened: 'Notification opened',
+  delivered: 'Notification shown on their device',
+  accepted: 'Notification sent — not yet shown on their device',
+  failed: 'Notification could not be sent',
+}
+
+function DeliveryNote({ delivery, other }: { delivery: OutboxItem['delivery']; other: string }) {
+  if (!delivery) return <Note tone="slate">No notification recorded — @{other} may not have notifications turned on.</Note>
+  const devices = delivery.devices > 1 ? ` · ${delivery.devices} devices` : ''
+  return (
+    <Note tone={delivery.status === 'failed' ? 'amber' : 'slate'}>
+      {DELIVERY_TEXT[delivery.status]}
+      {delivery.status !== 'failed' && (
+        <>
+          {' '}
+          <LocalDateTime value={delivery.datetime} />
+        </>
+      )}
+      {devices}
+    </Note>
+  )
+}
+
 const OutboxCard = memo(function OutboxCard({ item }: { item: OutboxItem }) {
   const kind = kind_info(item.kind, item.previous)
   const headline =
@@ -390,6 +414,7 @@ const OutboxCard = memo(function OutboxCard({ item }: { item: OutboxItem }) {
       account_name={item.account_name}
       other={item.other_username}
       previous={item.previous}
+      note={<DeliveryNote delivery={item.delivery} other={item.other_username} />}
       actions={
         item.my_txn_id && (
           <ButtonLink href={`/transactions/${item.my_txn_id}`} variant="secondary" size="sm">

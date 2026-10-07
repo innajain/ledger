@@ -5,7 +5,7 @@ import { get_current_user_id } from '@/app/_actions/auth'
 import { send_push_to_user } from '@/app/_utils/push'
 import { rate_limit } from '@/lib/rate_limit'
 import { ActionResult, ok, err } from './_result'
-import { notify_linked_user_core } from '@/app/_core/notifications_core'
+import { notify_linked_user_core, type NotifyResult } from '@/app/_core/notifications_core'
 import { reportActionError } from '@/lib/action_error'
 import { audit } from '@/lib/logger'
 
@@ -49,11 +49,15 @@ export async function send_test_notification(): Promise<ActionResult<{ delivered
     const me = await get_current_user_id()
     if (!me) return err('UNAUTHORIZED', 'unauthorized')
     if (!(await rate_limit(`notify_test:${me}`, 5, 60))) return err('VALIDATION', 'Too many test notifications — wait a minute.')
-    const delivered = await send_push_to_user(me, {
-      title: 'Ledger',
-      body: 'Test notification ✓ — push is working.',
-      url: '/',
-    })
+    const { accepted: delivered } = await send_push_to_user(
+      me,
+      {
+        title: 'Ledger',
+        body: 'Test notification ✓ — push is working.',
+        url: '/',
+      },
+      { kind: 'test' },
+    )
     audit('notification.test', me, { delivered_count: delivered })
     return ok({ delivered }, delivered > 0 ? 'Test notification sent' : 'No active subscription on any device yet')
   } catch (error) {
@@ -61,7 +65,7 @@ export async function send_test_notification(): Promise<ActionResult<{ delivered
   }
 }
 
-export async function notify_linked_user(target_user_id: string, message: string): Promise<ActionResult<{ delivered: number }>> {
+export async function notify_linked_user(target_user_id: string, message: string): Promise<ActionResult<NotifyResult>> {
   const me = await get_current_user_id()
   if (!me) return err('UNAUTHORIZED', 'unauthorized')
   return notify_linked_user_core(me, target_user_id, message)

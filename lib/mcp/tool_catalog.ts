@@ -89,6 +89,7 @@ export const MCP_TOOLS = {
   list_requests: { title: 'List approval requests', kind: 'read', group: 'Linked accounts & approvals' },
   find_user: { title: 'Find user', kind: 'read', group: 'Linked accounts & approvals' },
   notify_linked_user: { title: 'Notify linked user', kind: 'write', group: 'Linked accounts & approvals' },
+  list_sent_notifications: { title: 'List sent notifications', kind: 'read', group: 'Linked accounts & approvals' },
   approve_request: { title: 'Approve request', kind: 'destructive', group: 'Linked accounts & approvals' },
   reject_request: { title: 'Reject request', kind: 'destructive', group: 'Linked accounts & approvals' },
   cancel_request: { title: 'Cancel request', kind: 'destructive', group: 'Linked accounts & approvals' },

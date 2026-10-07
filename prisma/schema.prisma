@@ -43,6 +43,7 @@ model user {
   links_as_a             transaction_link[]      @relation("LinkUserA")
   links_as_b             transaction_link[]      @relation("LinkUserB")
   push_subscriptions     push_subscription[]
+  push_deliveries        push_delivery[]
   mcp_oauth_codes        mcp_oauth_code[]
   mcp_access_tokens      mcp_access_token[]
   mcp_attachment_uploads mcp_attachment_upload[]
@@ -60,9 +61,34 @@ model push_subscription {
   auth       String
   created_at DateTime @default(now())
 
-  user user @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user       user            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  deliveries push_delivery[]
 
   @@index([user_id])
+}
+
+// One row per push sent to one device. The push service only says it *accepted*
+// the message; the service worker on the device reports back (via a random token
+// carried in the payload) when it showed the notification and when it was tapped.
+// Pruned after 30 days.
+model push_delivery {
+  id              String    @id @default(cuid())
+  token           String    @unique // capability for /api/push/ack — the only thing the device presents
+  recipient_id    String
+  sender_id       String? // whoever caused it; null for system/test pushes
+  kind            String // request_pending | request_rejected | message | test
+  subscription_id String?
+  sent_at         DateTime
+  accepted_at     DateTime? // push service took it
+  failed_status   Int? // push service refused it (HTTP status, 0 = network)
+  delivered_at    DateTime? // service worker showed it on the device
+  opened_at       DateTime? // user tapped it
+
+  recipient    user               @relation(fields: [recipient_id], references: [id], onDelete: Cascade)
+  subscription push_subscription? @relation(fields: [subscription_id], references: [id], onDelete: SetNull)
+
+  @@index([sender_id, recipient_id, sent_at])
+  @@index([recipient_id, sent_at])
 }
 
 model accounting_head {
