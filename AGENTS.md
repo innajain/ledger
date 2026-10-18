@@ -4,7 +4,7 @@ Triple-entry bookkeeping app. Next.js 16 App Router, React 19, Prisma 7 (Postgre
 
 ## Commands
 
-- **Package manager**: `pnpm@11.1.2` only. Never `npm`/`npx`. Always `pnpm <script>` / `pnpm exec <bin>` / `pnpm dlx <pkg>`.
+- **Package manager**: `pnpm@12.14.0` only. Never `npm`/`npx`. Always `pnpm <script>` / `pnpm exec <bin>` / `pnpm dlx <pkg>`.
 - `pnpm dev` / `pnpm build` (runs `prisma generate` first) / `pnpm start`
 - `pnpm typecheck` / `pnpm lint` / `pnpm format` / `pnpm format:check`
 - `pnpm test` — vitest (colocated `*.test.ts`). Single file: `pnpm test -- normalize_txn`

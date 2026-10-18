@@ -8,7 +8,7 @@ A personal-finance app built on a **triple-entry bookkeeping** model (Next.js 16
 
 ## Commands
 
-Package manager is **pnpm** (pinned `pnpm@11.1.2`); npm/npx are rejected. Always `pnpm <script>` / `pnpm exec <bin>`.
+Package manager is **pnpm** (pinned `pnpm@12.14.0`); npm/npx are rejected. Always `pnpm <script>` / `pnpm exec <bin>`.
 
 ```bash
 pnpm dev                       # next dev
