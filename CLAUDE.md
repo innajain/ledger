@@ -13,7 +13,7 @@ Package manager is **pnpm** (pinned `pnpm@12.14.0`); npm/npx are rejected. Alway
 ```bash
 pnpm dev                       # next dev
 pnpm build                     # prisma generate && next build
-pnpm typecheck                 # tsc --noEmit
+pnpm typecheck                 # tsc --noEmit with TypeScript 7 (native)
 pnpm lint                      # eslint
 pnpm format                    # prettier --write .
 pnpm test                      # vitest run (all)
@@ -131,3 +131,5 @@ Health checks are split: `GET /api/health` is liveness — public, uncached, and
 ## Code style
 
 Prettier: no semicolons, single quotes, `arrowParens: avoid`, `printWidth: 150`. Node 24 (`.nvmrc`). `@/*` maps to repo root.
+
+**Two TypeScripts, on purpose.** `typescript` stays on 6.x because typescript-eslint (peer `<6.1`) and `next build` load its JavaScript API, which TypeScript 7 — the native Go compiler — no longer exports from the package root. TypeScript 7 is installed beside it as the `typescript-7` alias and is what `pnpm typecheck` runs, by explicit path: both packages ship a `tsc` bin, so a bare `tsc` resolves to whichever pnpm linked last. Collapse to one when typescript-eslint and Next support 7.
