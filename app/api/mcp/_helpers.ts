@@ -13,10 +13,11 @@ import { compute_balances_core } from '@/app/_core/balances_core'
 import type { ActionResult } from '@/app/_actions/_result'
 import type { CreateLineItemInput } from '@/app/_core/transactions_core'
 
-export type ToolExtra = { authInfo?: { extra?: { userId?: string; origin?: string } } }
+// MCP SDK v2 hands handlers a context whose verified token sits at ctx.http.authInfo.
+export type ToolExtra = { http?: { authInfo?: { extra?: { userId?: string; origin?: string } } } }
 
 export function get_uid(extra: ToolExtra): string {
-  const uid = extra.authInfo?.extra?.userId
+  const uid = extra.http?.authInfo?.extra?.userId
   if (typeof uid !== 'string') throw new Error('Unauthorized')
   return uid
 }
@@ -26,7 +27,7 @@ export function get_uid(extra: ToolExtra): string {
 // route.ts) and rides along on authInfo, which is how a tool can hand back an
 // absolute URL for the caller to curl.
 export function get_origin(extra: ToolExtra): string | null {
-  const origin = extra.authInfo?.extra?.origin
+  const origin = extra.http?.authInfo?.extra?.origin
   return typeof origin === 'string' && origin.length > 0 ? origin : null
 }
 

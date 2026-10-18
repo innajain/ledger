@@ -1,5 +1,5 @@
 import { createMcpHandler, withMcpAuth, getPublicOrigin } from 'mcp-handler'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 import { Prisma, asset_type } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -1422,24 +1422,20 @@ function register_tools(server: McpServer) {
   register_extra_tools(server)
 }
 
-const handler = createMcpHandler(
-  register_tools,
-  {
-    serverInfo: { name: 'ledger', version: env.VERCEL_GIT_COMMIT_SHA ? `1.0.0+${env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)}` : '1.0.0' },
-    instructions:
-      "This is the user's personal finance ledger (triple-entry bookkeeping). The user categorizes things consistently over time, so don't make the user re-specify details you can infer from their history. " +
-      'Before creating or updating a transaction — and whenever the user gives a terse instruction or asks how something should be categorized — call find_similar_transactions (or list_transactions with search + include_line_items) to see how they recorded comparable entries, and reuse the same account, allocation and income/expense heads instead of guessing or asking. ' +
-      "Prefer matching the user's own past structure over inventing new heads; when a genuinely new category is needed you can create/rename/archive heads with create_head/update_head (archive with is_active:false instead of deleting). " +
-      'Use get_income_expense (never a sum of transaction amounts) for period spending/income totals. ' +
-      'When importing bank/UPI statements: set idempotency_key on every create so retries and re-imports never double-post, use get_balances with as_of to verify closing balances, and create_transactions for atomic bulk inserts. ' +
-      'Mutating tools echo the resulting account balances — sanity-check them against what the user expects. ' +
-      "Approval tools (approve/reject/cancel/revert/accept_all_from) change a linked counterparty's ledger too — state clearly what will happen before acting. " +
-      'Use get_tax_computation for tax liability rather than summing heads by hand; if it reports unclassified heads, fix them with update_head tax_treatment before trusting the number. ' +
-      'Dates accept dd-MM-yyyy or yyyy-MM-dd (IST) everywhere; datetimes also accept ISO. ' +
-      'Datetimes come back as UTC instants paired with a datetime_ist field — quote and re-send the IST one, since an instant after 18:30Z belongs to the next IST day.',
-  },
-  { streamableHttpEndpoint: '/api/mcp', disableSse: true },
-)
+const handler = createMcpHandler(register_tools, {
+  serverInfo: { name: 'ledger', version: env.VERCEL_GIT_COMMIT_SHA ? `1.0.0+${env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)}` : '1.0.0' },
+  instructions:
+    "This is the user's personal finance ledger (triple-entry bookkeeping). The user categorizes things consistently over time, so don't make the user re-specify details you can infer from their history. " +
+    'Before creating or updating a transaction — and whenever the user gives a terse instruction or asks how something should be categorized — call find_similar_transactions (or list_transactions with search + include_line_items) to see how they recorded comparable entries, and reuse the same account, allocation and income/expense heads instead of guessing or asking. ' +
+    "Prefer matching the user's own past structure over inventing new heads; when a genuinely new category is needed you can create/rename/archive heads with create_head/update_head (archive with is_active:false instead of deleting). " +
+    'Use get_income_expense (never a sum of transaction amounts) for period spending/income totals. ' +
+    'When importing bank/UPI statements: set idempotency_key on every create so retries and re-imports never double-post, use get_balances with as_of to verify closing balances, and create_transactions for atomic bulk inserts. ' +
+    'Mutating tools echo the resulting account balances — sanity-check them against what the user expects. ' +
+    "Approval tools (approve/reject/cancel/revert/accept_all_from) change a linked counterparty's ledger too — state clearly what will happen before acting. " +
+    'Use get_tax_computation for tax liability rather than summing heads by hand; if it reports unclassified heads, fix them with update_head tax_treatment before trusting the number. ' +
+    'Dates accept dd-MM-yyyy or yyyy-MM-dd (IST) everywhere; datetimes also accept ISO. ' +
+    'Datetimes come back as UTC instants paired with a datetime_ist field — quote and re-send the IST one, since an instant after 18:30Z belongs to the next IST day.',
+})
 
 const authedHandler = withMcpAuth(
   handler,
