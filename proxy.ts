@@ -21,6 +21,7 @@ const PUBLIC_PATHS = [
 
   '/.well-known/oauth-authorization-server',
   '/.well-known/oauth-protected-resource',
+  '/.well-known/oauth-protected-resource/api/mcp',
   '/.well-known/openai-apps-challenge',
 ]
 
