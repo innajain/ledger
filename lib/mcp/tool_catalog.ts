@@ -42,6 +42,7 @@ export const MCP_TOOLS = {
   get_net_worth: { title: 'Get net worth', kind: 'read', group: 'Overview & balances' },
   get_holdings: { title: 'Get holdings', kind: 'read', group: 'Overview & balances' },
   get_balances: { title: 'Get account balances', kind: 'read', group: 'Overview & balances' },
+  get_expected_interest: { title: 'Get expected interest', kind: 'read', group: 'Overview & balances' },
   get_income_expense: { title: 'Get income and expenses', kind: 'read', group: 'Overview & balances' },
   validate_my_transactions: { title: 'Validate transactions', kind: 'read', group: 'Overview & balances' },
 

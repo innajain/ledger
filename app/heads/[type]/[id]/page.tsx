@@ -17,6 +17,8 @@ import { compute_future_sufficiency } from '@/app/_utils/future_balance'
 import { compute_head_rollup, head_detail_link, load_subtree_head_ids } from '@/app/_utils/subtree_value'
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { get_closing_balance } from './closing_balance'
+import { get_expected_interest } from './expected_interest'
+import { ist_ymd } from '@/app/_utils/ist_date'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 import { NotFound } from '@/app/_components/NotFound'
@@ -362,6 +364,7 @@ async function Page({ params, searchParams }: Props) {
       config={{ backLink: headBasePath(type), backText: cfg.backText, entityName: cfg.entityName, subEntityLabel: cfg.subEntityLabel }}
       scope={scope}
       closingBalanceAction={type === 'income_expense' ? undefined : get_closing_balance}
+      interestCheck={type === 'account' ? { today: ist_ymd(new Date()), getExpectedInterest: get_expected_interest } : undefined}
       // the reconcile picker only lists real, active accounts — don't offer a link that lands unselectable
     />
   )

@@ -13,11 +13,13 @@ import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 import { UpiPayButton } from '@/app/_components/UpiPayButton'
 import { LinkedUserNotify } from '@/app/_components/LinkedUserNotify'
 import { AsOfBalance } from '@/app/_components/AsOfBalance'
+import { InterestCheck } from '@/app/_components/InterestCheck'
 import { ScopeToggle, type HeadScopeValue } from '@/app/_components/ScopeToggle'
 import { LockIcon, CloseIcon } from '@/app/_components/icons'
 import { create_upi_payment } from '@/app/_actions/transactions'
 import type { ActionResult } from '@/app/_actions/_result'
 import type { ClosingBalance } from '@/app/heads/[type]/[id]/closing_balance'
+import type { ExpectedInterest } from '@/app/_core/interest_core'
 
 export type LineItem = {
   id: string
@@ -116,6 +118,20 @@ type HeadDetailPageProps = {
   scope?: HeadScopeValue
   closingBalanceAction?: (head_id: string, date: string, include_subheads?: boolean) => Promise<ActionResult<ClosingBalance>>
   // account-type heads only — reconciliation runs against a single bank account
+  /**
+   * Account heads only: interest is paid on money held somewhere, not on a label over it.
+   * `today` is the server's IST day (yyyy-MM-dd) — the card's quarter list hangs off it.
+   */
+  interestCheck?: {
+    today: string
+    getExpectedInterest: (
+      head_id: string,
+      from: string,
+      to: string,
+      rate_pct: number,
+      include_subheads?: boolean,
+    ) => Promise<ActionResult<ExpectedInterest>>
+  }
 }
 
 const LINE_ITEMS_PAGE = 100
@@ -135,7 +151,7 @@ function Amount({ value }: { value: number }) {
   )
 }
 
-export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAction }: HeadDetailPageProps) {
+export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAction, interestCheck }: HeadDetailPageProps) {
   const router = useRouter()
   const editLink = `${config.backLink}/${head.id}/update`
   const subEntityLabel = config.subEntityLabel ?? 'sub-heads'
@@ -330,6 +346,18 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
           key={scope}
           headId={head.id}
           getClosingBalance={closingBalanceAction}
+          includeSubheads={inSubtree}
+          subEntityLabel={subEntityLabel}
+        />
+      )}
+
+      {interestCheck && (
+        <InterestCheck
+          // Remounts on a scope flip for the same reason as the card above.
+          key={`interest-${scope}`}
+          headId={head.id}
+          today={interestCheck.today}
+          getExpectedInterest={interestCheck.getExpectedInterest}
           includeSubheads={inSubtree}
           subEntityLabel={subEntityLabel}
         />

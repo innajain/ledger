@@ -8,6 +8,8 @@ import { env } from '@/lib/env'
 import { resolve_access_token } from '@/lib/mcp/oauth'
 import { compute_net_worth, subtree_total, compute_xirr_for_accounts } from '@/app/_core/valuation_core'
 import { compute_balances_core, closing_balance_core } from '@/app/_core/balances_core'
+import { expected_interest_core } from '@/app/_core/interest_core'
+import { ActionError } from '@/app/_actions/_result'
 import {
   create_transaction_core,
   update_transaction_core,
@@ -30,6 +32,8 @@ import { normalize_txn, normalize_line_items } from '@/app/_utils/normalize_txn'
 import { compute_future_sufficiency } from '@/app/_utils/future_balance'
 import { NOT_FUTURE, is_future_txn_due } from '@/app/_utils/future_txn'
 import { get_indian_date_from_date_obj } from '@/app/_utils/date'
+import { ist_ymd } from '@/app/_utils/ist_date'
+import { recent_interest_periods } from '@/app/_utils/interest_periods'
 import {
   type ToolExtra,
   get_uid,
@@ -429,6 +433,61 @@ function register_tools(server: McpServer) {
       }
       rows.sort((a, b) => String(a.account).localeCompare(String(b.account)))
       return text(rows)
+    },
+  )
+
+  server.registerTool(
+    'get_expected_interest',
+    {
+      description:
+        'Savings interest a bank would pay on one account over a period, the way Indian banks work it out: each IST day\'s closing rupee balance earns rate/365, the days are summed, and the credit is rounded to the nearest rupee. Use it to check an interest credit ("is my Kotak interest right at 2.5%?") — compare expected_interest_rounded with the amount actually credited. Omit from and to for the last completed calendar period — a quarter by default, the cut most banks credit on; pass frequency: "monthly" for a bank that credits every month (then it is the last completed calendar month). The daily balances are the same closing balances get_balances as_of reports, so a gap of a rupee or so usually means a refund or reversal is dated on its original transaction\'s day instead of the day the bank counted it (fix with a per-line datetime). Days that close below zero earn nothing. A period ending after today is a projection and also counts scheduled (future) transactions.',
+      inputSchema: {
+        head: z.string().describe('Account: id or name'),
+        rate: z.number().positive().max(100).describe('Yearly interest rate in percent, e.g. 2.5'),
+        from: z
+          .string()
+          .optional()
+          .describe('First day, dd-MM-yyyy or yyyy-MM-dd (IST). Give it with to, or omit both for the last completed quarter (or month)'),
+        to: z.string().optional().describe('Last day (inclusive), dd-MM-yyyy or yyyy-MM-dd (IST)'),
+        frequency: z
+          .enum(['quarterly', 'monthly'])
+          .optional()
+          .describe('How often the bank credits interest (default quarterly). Only picks the default period when from and to are omitted'),
+        include_subheads: z.boolean().optional().describe("Also cover the account's sub-accounts (default false)"),
+      },
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const heads = await load_heads(uid)
+      const head = resolve_ref(args.head, heads, 'accounting head')
+      if (head.type !== 'account') return error_text(`"${head.name}" is not an account — interest is worked out for accounts only`)
+      if (!args.from !== !args.to) return error_text('Give both from and to, or neither for the last completed calendar quarter (or month)')
+      const [last_period] = recent_interest_periods(args.frequency ?? 'quarterly', ist_ymd(new Date()), 1)
+      const from = args.from ? ist_ymd(parse_day(args.from)) : last_period.from
+      const to = args.to ? ist_ymd(parse_day(args.to)) : last_period.to
+      const head_ids = args.include_subheads ? [...get_subtree_head_ids(head.id, heads)] : [head.id]
+      try {
+        const r = await expected_interest_core(uid, head_ids, from, to, args.rate)
+        return text({
+          account: head.name,
+          from: r.from,
+          to: r.to,
+          days: r.days,
+          rate_pct: r.rate_pct,
+          expected_interest_rounded: r.interest_rounded,
+          expected_interest: r.interest,
+          average_daily_balance: r.average_balance,
+          lowest_closing_balance: r.lowest_balance,
+          highest_closing_balance: r.highest_balance,
+          negative_balance_days: r.negative_days,
+          projected: r.projected,
+          note: 'daily closing rupee balance x rate/365, summed; rounded figure is to the nearest rupee, as a bank credits it',
+        })
+      } catch (error) {
+        // A bad period or rate is the caller's to fix, not a failed tool.
+        if (error instanceof ActionError) return error_text(error.message)
+        throw error
+      }
     },
   )
 
