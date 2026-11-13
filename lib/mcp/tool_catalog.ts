@@ -63,6 +63,7 @@ export const MCP_TOOLS = {
   create_head: { title: 'Create head', kind: 'write', group: 'Heads & assets' },
   create_asset: { title: 'Create asset', kind: 'write', group: 'Heads & assets' },
   update_head: { title: 'Update head', kind: 'destructive', group: 'Heads & assets' },
+  set_interest_settings: { title: 'Set interest rate card', kind: 'destructive', group: 'Heads & assets' },
   delete_head: { title: 'Delete head', kind: 'destructive', group: 'Heads & assets' },
   update_asset: { title: 'Update asset', kind: 'destructive', group: 'Heads & assets' },
   delete_asset: { title: 'Delete asset', kind: 'destructive', group: 'Heads & assets' },

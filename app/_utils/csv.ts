@@ -1,5 +1,15 @@
 export type CsvValue = string | number | null | undefined
 
+// A database value as the text a CSV or spreadsheet cell holds: dates as ISO instants, a
+// json/jsonb value (a parsed object or array) as JSON — String(v) would give "[object
+// Object]" — and everything else as its plain string.
+export function cell_text(v: unknown): string {
+  if (v === null || v === undefined) return ''
+  if (v instanceof Date) return v.toISOString()
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
 export function csv_cell(value: CsvValue): string {
   if (value === null || value === undefined) return ''
   const s = String(value)

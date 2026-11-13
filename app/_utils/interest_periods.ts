@@ -2,6 +2,10 @@
 // is a client component and builds its quarter picker from these, so nothing here may pull
 // the Prisma client (and its Decimal) into the browser bundle.
 
+import type { DayBasis, InterestFrequency } from '@/app/_utils/interest_config'
+
+export type { InterestFrequency }
+
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // yyyy-MM-dd -> days since the epoch, on the UTC calendar. Calendar days carry no zone, so
@@ -21,6 +25,21 @@ function day_string(n: number): string {
   return new Date(n * DAY_MS).toISOString().slice(0, 10)
 }
 
+const is_leap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+
+// The divisor a day's interest is cut by: rate/100 ÷ this. 'fixed_365' is 365 always. The
+// other two follow the year the day falls in — the calendar year, or the Apr–Mar financial
+// year, which holds 29 February (and so has 366 days) when the leap day falls in the
+// January–March half, i.e. in the year after the one it starts.
+export function days_in_year_basis(day: number, basis: DayBasis): number {
+  if (basis === 'fixed_365') return 365
+  const date = new Date(day * DAY_MS)
+  const year = date.getUTCFullYear()
+  if (basis === 'calendar_year') return is_leap(year) ? 366 : 365
+  const financial_year_end = date.getUTCMonth() >= 3 ? year + 1 : year
+  return is_leap(financial_year_end) ? 366 : 365
+}
+
 // Number of days in the inclusive range, or a throw when it is malformed or backwards.
 export function inclusive_days(from: string, to: string): number {
   const days = day_number(to) - day_number(from) + 1
@@ -29,7 +48,6 @@ export function inclusive_days(from: string, to: string): number {
 }
 
 export type InterestPeriod = { label: string; from: string; to: string }
-export type InterestFrequency = 'monthly' | 'quarterly'
 
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 

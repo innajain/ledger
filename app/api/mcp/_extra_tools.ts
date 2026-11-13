@@ -63,10 +63,14 @@ import {
   require_admin,
   resolve_counterparty,
   account_balances_for,
+  interestCardShape,
+  slabs_from_args,
 } from './_helpers'
 import { compute_tax_for_fy, serialize_tax_result } from '@/app/_core/tax_core'
 import { current_financial_year, parse_fy, fy_label } from '@/app/_utils/financial_year'
 import { audit } from '@/lib/logger'
+import { ActionError } from '@/app/_actions/_result'
+import { save_interest_settings_core } from '@/app/_core/interest_core'
 import {
   ATTACHMENT_TYPE_BY_EXT,
   ALLOWED_ATTACHMENT_TYPES,
@@ -300,6 +304,51 @@ export function register_extra_tools(server: McpServer) {
           tax_treatment,
         ),
       )
+    },
+  )
+
+  server.registerTool(
+    'set_interest_settings',
+    {
+      description:
+        "Save a savings-interest rate card on an account (or clear it), so get_expected_interest and the account page need only dates from then on, on every device. Give the card as rate (one flat yearly percent) or slabs (progressive: each band's rate applies only to the part of the balance inside it, lowest band first, last band without up_to), plus the bank's day_basis, rounding, round_each_day and how often it credits (frequency). Replaces whatever was saved. Pass clear: true on its own to remove it. Accounts only; changes no balance.",
+      inputSchema: {
+        head: z.string().describe('Account: id or name'),
+        ...interestCardShape,
+        clear: z.boolean().optional().describe('Remove the saved rate card. Give it on its own'),
+      },
+    },
+    async (args, extra) => {
+      const uid = get_uid(extra as ToolExtra)
+      const heads = await load_heads(uid)
+      const target = resolve_ref(args.head, heads, 'accounting head')
+      if (target.type !== 'account') return error_text(`"${target.name}" is not an account — interest settings are for accounts only`)
+
+      let slabs: ReturnType<typeof slabs_from_args>
+      try {
+        slabs = slabs_from_args(args)
+      } catch (error) {
+        return error_text(error instanceof Error ? error.message : 'Invalid rate card')
+      }
+      const gave_card = slabs !== null || args.day_basis !== undefined || args.rounding !== undefined || args.round_each_day !== undefined
+      if (args.clear && (gave_card || args.frequency !== undefined)) return error_text('Give clear on its own, not with a rate card')
+      if (!args.clear && !slabs) return error_text('Give the rate card as rate (flat) or slabs, or clear: true to remove the saved one')
+
+      try {
+        const saved = await save_interest_settings_core(
+          uid,
+          target.id,
+          args.clear
+            ? null
+            : { slabs, day_basis: args.day_basis, rounding: args.rounding, round_each_day: args.round_each_day, frequency: args.frequency },
+        )
+        audit(saved ? 'interest_settings.save' : 'interest_settings.clear', uid, { surface: 'mcp' })
+        return text({ ok: true, account: target.name, interest_settings: saved, message: saved ? 'Rate card saved' : 'Rate card cleared' })
+      } catch (error) {
+        // A malformed card is the caller's to fix, not a failed tool.
+        if (error instanceof ActionError) return error_text(error.message)
+        throw error
+      }
     },
   )
 

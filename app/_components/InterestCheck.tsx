@@ -1,22 +1,81 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Card } from '@/app/_components/Card'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { format_day } from '@/app/_utils/format_date'
 import { recent_interest_periods, type InterestFrequency } from '@/app/_utils/interest_periods'
+import {
+  MAX_SLABS,
+  DAY_BASES,
+  ROUNDINGS,
+  validate_interest_config,
+  type DayBasis,
+  type InterestConfig,
+  type InterestRounding,
+  type InterestSettings,
+} from '@/app/_utils/interest_config'
 import type { ActionResult } from '@/app/_actions/_result'
 import type { ExpectedInterest } from '@/app/_core/interest_core'
 
 const CUSTOM = 'custom'
+// Band limits are round numbers, so ₹50,000 not ₹50,000.00 — but a typed ₹50,000.5 still shows.
+const limit_fmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 })
 const field_classes =
   'px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100'
 const label_classes = 'block text-sm text-slate-600 dark:text-slate-300 mb-1'
+
+const DAY_BASIS_LABEL: Record<DayBasis, string> = {
+  fixed_365: '365 days, always',
+  calendar_year: 'Days in the calendar year (366 in a leap year)',
+  financial_year: 'Days in the Apr–Mar financial year',
+}
+const ROUNDING_LABEL: Record<InterestRounding, string> = {
+  nearest_rupee: 'Nearest rupee',
+  round_up_rupee: 'Up to the next rupee',
+  paise: 'Keep the paise',
+}
+
+type RateMode = 'flat' | 'slabs'
+// The rate card as typed. Strings, not numbers, so a half-typed "2." stays put while editing.
+type SlabRow = { up_to: string; rate: string }
+
+const EMPTY_SLABS: SlabRow[] = [
+  { up_to: '', rate: '' },
+  { up_to: '', rate: '' },
+]
+
+// The saved rate card as the strings the form edits: one band is a flat rate, more than one
+// is a slab table (the last band has no limit, so its box stays empty).
+function form_from_saved(saved: InterestSettings | null): { mode: RateMode; rate: string; slabs: SlabRow[] } {
+  if (!saved) return { mode: 'flat', rate: '', slabs: EMPTY_SLABS }
+  if (saved.slabs.length === 1) return { mode: 'flat', rate: String(saved.slabs[0].rate_pct), slabs: EMPTY_SLABS }
+  return {
+    mode: 'slabs',
+    rate: '',
+    slabs: saved.slabs.map(s => ({ up_to: s.up_to === null ? '' : String(s.up_to), rate: String(s.rate_pct) })),
+  }
+}
+
+// What the open-ended last band starts above: the previous band's limit once it is typed.
+function last_band_floor(rows: SlabRow[], index: number): string {
+  const previous = index > 0 ? rows[index - 1].up_to.trim() : ''
+  const amount = previous === '' ? NaN : Number(previous)
+  return Number.isFinite(amount) ? limit_fmt.format(amount) : 'the limit above'
+}
+
+function band_label(up_to: number | null, previous_top: number | null): string {
+  if (up_to === null) return previous_top === null ? 'Whole balance' : `Above ${limit_fmt.format(previous_top)}`
+  if (previous_top === null) return `Up to ${limit_fmt.format(up_to)}`
+  return `${limit_fmt.format(previous_top)} – ${limit_fmt.format(up_to)}`
+}
 
 export function InterestCheck({
   headId,
   today,
   getExpectedInterest,
+  saved,
+  saveSettings,
   includeSubheads = false,
   subEntityLabel = 'sub-heads',
 }: {
@@ -31,28 +90,41 @@ export function InterestCheck({
     head_id: string,
     from: string,
     to: string,
-    rate_pct: number,
+    config: InterestConfig,
     include_subheads?: boolean,
   ) => Promise<ActionResult<ExpectedInterest>>
+  /** The rate card saved on this account (null when none is) — the form starts from it. */
+  saved: InterestSettings | null
+  saveSettings: (head_id: string, settings: InterestSettings | null) => Promise<ActionResult<InterestSettings | null>>
   /** Follows the head page's scope toggle; callers key the component on it so a flip remounts. */
   includeSubheads?: boolean
   subEntityLabel?: string
 }) {
   // Period in progress first, then the completed ones a bank has already paid for. The
   // newest completed one is the default: it is the one with a credit to check against.
-  const [frequency, setFrequency] = useState<InterestFrequency>('quarterly')
+  // Everything else starts from the card saved on the account, so a saved account needs only
+  // dates — the server renders it the same way, so there is no flash of an empty form.
+  const initial = form_from_saved(saved)
+  const [frequency, setFrequency] = useState<InterestFrequency>(saved?.frequency ?? 'quarterly')
   const periods = recent_interest_periods(frequency, today, frequency === 'monthly' ? 12 : 4, true)
   const [preset, setPreset] = useState('1')
   const [from, setFrom] = useState(periods[1].from)
   const [to, setTo] = useState(periods[1].to)
-  const [rate, setRate] = useState('')
+  const [mode, setMode] = useState<RateMode>(initial.mode)
+  const [rate, setRate] = useState(initial.rate)
+  const [slabs, setSlabs] = useState<SlabRow[]>(initial.slabs)
+  const [day_basis, setDayBasis] = useState<DayBasis>(saved?.day_basis ?? 'fixed_365')
+  const [rounding, setRounding] = useState<InterestRounding>(saved?.rounding ?? 'nearest_rupee')
+  const [round_each_day, setRoundEachDay] = useState(saved?.round_each_day ?? false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ExpectedInterest | null>(null)
+  // Whether the account has a card saved, and a one-line note after saving or clearing it.
+  const [has_saved, setHasSaved] = useState(saved !== null)
+  const [saving, setSaving] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
   // Monotonic request id: responses that resolve after a newer request started are dropped
   const seqRef = useRef(0)
-  const rate_key = `interest-rate:${headId}`
-  const frequency_key = `interest-frequency:${headId}`
 
   function chooseFrequency(next: InterestFrequency) {
     setFrequency(next)
@@ -63,20 +135,6 @@ export function InterestCheck({
     setTo(newest.to)
   }
 
-  // A bank's rate and how often it credits rarely change, so the last ones used for this
-  // account are remembered — per browser, since they are conveniences and not ledger data.
-  useEffect(() => {
-    try {
-      const saved_rate = localStorage.getItem(rate_key)
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (saved_rate) setRate(saved_rate)
-      const saved_frequency = localStorage.getItem(frequency_key)
-      if (saved_frequency === 'monthly') chooseFrequency('monthly')
-    } catch {}
-    // chooseFrequency only reads `today`; this runs once per account on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rate_key, frequency_key])
-
   function choosePreset(value: string) {
     setPreset(value)
     const period = periods[Number(value)]
@@ -85,13 +143,40 @@ export function InterestCheck({
     setTo(period.to)
   }
 
+  function setRow(index: number, patch: Partial<SlabRow>) {
+    setSlabs(rows => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
+  }
+  // A new band goes in just before the open-ended last one, which always stays last.
+  function addBand() {
+    setSlabs(rows => (rows.length >= MAX_SLABS ? rows : [...rows.slice(0, -1), { up_to: '', rate: '' }, rows[rows.length - 1]]))
+  }
+  function removeBand(index: number) {
+    setSlabs(rows => (rows.length <= 2 ? rows : rows.filter((_, i) => i !== index)))
+  }
+
+  // The rows are typed text; turn them into numbers and let the shared validator say what is
+  // wrong, so the message here is the same one the server would give. Null (with the error
+  // set) when the card isn't usable yet.
+  function build_config(): InterestConfig | null {
+    const to_number = (s: string) => (s.trim() === '' ? NaN : Number(s))
+    const bands =
+      mode === 'flat'
+        ? [{ up_to: null, rate_pct: to_number(rate) }]
+        : slabs.map((r, i) => ({ up_to: i === slabs.length - 1 ? null : to_number(r.up_to), rate_pct: to_number(r.rate) }))
+    try {
+      return validate_interest_config({ slabs: bands, day_basis, rounding, round_each_day })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Check the rate'
+      setError(/between 0 and 100/.test(message) && mode === 'flat' ? 'Enter the yearly rate as a percentage, for example 2.5' : message)
+      return null
+    }
+  }
+
   async function calculate(e: React.FormEvent) {
     e.preventDefault()
-    const rate_pct = Number(rate)
-    if (!rate.trim() || !Number.isFinite(rate_pct) || rate_pct <= 0 || rate_pct > 100) {
-      setError('Enter the yearly rate as a percentage, for example 2.5')
-      return
-    }
+    setNote(null)
+    const config = build_config()
+    if (!config) return
     if (!from || !to) {
       setError('Pick both dates')
       return
@@ -100,14 +185,10 @@ export function InterestCheck({
     setBusy(true)
     setError(null)
     try {
-      const res = await getExpectedInterest(headId, from, to, rate_pct, includeSubheads)
+      const res = await getExpectedInterest(headId, from, to, config, includeSubheads)
       if (seq !== seqRef.current) return
       if (!res.success) throw new Error(res.message)
       setResult(res.data!)
-      try {
-        localStorage.setItem(rate_key, rate.trim())
-        localStorage.setItem(frequency_key, frequency)
-      } catch {}
     } catch (e) {
       if (seq !== seqRef.current) return
       setError(e instanceof Error ? e.message : String(e))
@@ -117,6 +198,34 @@ export function InterestCheck({
     }
   }
 
+  // Saves the card as it stands on the account, or clears what is saved. It lives on the
+  // account, so it follows you to every device and is what the MCP tool uses by default.
+  async function persist(clear: boolean) {
+    setNote(null)
+    let settings: InterestSettings | null = null
+    if (!clear) {
+      const config = build_config()
+      if (!config) return
+      settings = { ...config, frequency }
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await saveSettings(headId, settings)
+      if (!res.success) throw new Error(res.message)
+      setHasSaved(!clear)
+      setNote(
+        clear ? 'Cleared — this account has no saved rate card now.' : 'Saved on this account. It is used on every device and by the assistant.',
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const flat_rate = result && result.config.slabs.length === 1 ? result.config.slabs[0].rate_pct : null
+
   return (
     <Card>
       <div className="p-4 sm:p-6 space-y-4">
@@ -124,92 +233,238 @@ export function InterestCheck({
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Interest check</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             What a bank would pay on this account{includeSubheads ? ` and its ${subEntityLabel}` : ''}: every day&apos;s closing balance earns the
-            yearly rate ÷ 365, and the total is credited to the nearest rupee. Hold it against the interest you were actually paid.
+            yearly rate ÷ days in the year, and the total is credited the way the bank rounds it. Hold it against the interest you were actually paid.
           </p>
         </div>
 
-        <form onSubmit={calculate} className="flex flex-wrap items-end gap-3">
-          <div>
-            <label htmlFor={`interest-rate-${headId}`} className={label_classes}>
-              Rate (% a year)
-            </label>
-            <input
-              id={`interest-rate-${headId}`}
-              type="number"
-              inputMode="decimal"
-              min="0"
-              max="100"
-              step="any"
-              placeholder="2.5"
-              value={rate}
-              onChange={e => setRate(e.target.value)}
-              className={`${field_classes} w-28`}
-            />
+        <form onSubmit={calculate} className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label htmlFor={`interest-mode-${headId}`} className={label_classes}>
+                Rate card
+              </label>
+              <select
+                id={`interest-mode-${headId}`}
+                value={mode}
+                onChange={e => setMode(e.target.value === 'slabs' ? 'slabs' : 'flat')}
+                className={field_classes}
+              >
+                <option value="flat">One flat rate</option>
+                <option value="slabs">Slabs (by balance)</option>
+              </select>
+            </div>
+            {mode === 'flat' && (
+              <div>
+                <label htmlFor={`interest-rate-${headId}`} className={label_classes}>
+                  Rate (% a year)
+                </label>
+                <input
+                  id={`interest-rate-${headId}`}
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="any"
+                  placeholder="2.5"
+                  value={rate}
+                  onChange={e => setRate(e.target.value)}
+                  className={`${field_classes} w-28`}
+                />
+              </div>
+            )}
+            <div>
+              <label htmlFor={`interest-frequency-${headId}`} className={label_classes}>
+                Credited
+              </label>
+              <select
+                id={`interest-frequency-${headId}`}
+                value={frequency}
+                onChange={e => chooseFrequency(e.target.value === 'monthly' ? 'monthly' : 'quarterly')}
+                className={field_classes}
+              >
+                <option value="quarterly">Quarterly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor={`interest-period-${headId}`} className={label_classes}>
+                Period
+              </label>
+              <select id={`interest-period-${headId}`} value={preset} onChange={e => choosePreset(e.target.value)} className={field_classes}>
+                {periods.map((p, i) => (
+                  <option key={p.from} value={String(i)}>
+                    {p.label}
+                  </option>
+                ))}
+                <option value={CUSTOM}>Custom dates</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor={`interest-from-${headId}`} className={label_classes}>
+                From
+              </label>
+              <input
+                id={`interest-from-${headId}`}
+                type="date"
+                value={from}
+                onChange={e => {
+                  setFrom(e.target.value)
+                  setPreset(CUSTOM)
+                }}
+                className={field_classes}
+              />
+            </div>
+            <div>
+              <label htmlFor={`interest-to-${headId}`} className={label_classes}>
+                To
+              </label>
+              <input
+                id={`interest-to-${headId}`}
+                type="date"
+                value={to}
+                onChange={e => {
+                  setTo(e.target.value)
+                  setPreset(CUSTOM)
+                }}
+                className={field_classes}
+              />
+            </div>
           </div>
-          <div>
-            <label htmlFor={`interest-frequency-${headId}`} className={label_classes}>
-              Credited
-            </label>
-            <select
-              id={`interest-frequency-${headId}`}
-              value={frequency}
-              onChange={e => chooseFrequency(e.target.value === 'monthly' ? 'monthly' : 'quarterly')}
-              className={field_classes}
+
+          {mode === 'slabs' && (
+            <fieldset className="space-y-2">
+              <legend className="text-sm text-slate-600 dark:text-slate-300 mb-1">
+                Each band&apos;s rate applies only to the part of the balance inside it
+              </legend>
+              {slabs.map((row, i) => {
+                const last = i === slabs.length - 1
+                return (
+                  <div key={i} className="flex flex-wrap items-center gap-2">
+                    <span className="w-14 text-sm text-slate-500 dark:text-slate-400">{last ? 'Above' : 'Up to'}</span>
+                    {last ? (
+                      <span className={`${field_classes} w-40 opacity-70`}>{last_band_floor(slabs, i)}</span>
+                    ) : (
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="any"
+                        aria-label={`Band ${i + 1} upper limit in rupees`}
+                        placeholder="₹ upper limit"
+                        value={row.up_to}
+                        onChange={e => setRow(i, { up_to: e.target.value })}
+                        className={`${field_classes} w-40`}
+                      />
+                    )}
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      max="100"
+                      step="any"
+                      aria-label={`Band ${i + 1} rate, percent a year`}
+                      placeholder="% a year"
+                      value={row.rate}
+                      onChange={e => setRow(i, { rate: e.target.value })}
+                      className={`${field_classes} w-28`}
+                    />
+                    {!last && slabs.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => removeBand(i)}
+                        aria-label={`Remove band ${i + 1}`}
+                        className="px-2 py-1 text-sm text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+              {slabs.length < MAX_SLABS && (
+                <button type="button" onClick={addBand} className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                  + Add a band
+                </button>
+              )}
+            </fieldset>
+          )}
+
+          <details className="text-sm">
+            <summary className="cursor-pointer text-slate-600 dark:text-slate-300">Rounding and day count</summary>
+            <div className="flex flex-wrap items-end gap-3 pt-3">
+              <div>
+                <label htmlFor={`interest-basis-${headId}`} className={label_classes}>
+                  Days in a year
+                </label>
+                <select
+                  id={`interest-basis-${headId}`}
+                  value={day_basis}
+                  onChange={e => setDayBasis(e.target.value as DayBasis)}
+                  className={field_classes}
+                >
+                  {DAY_BASES.map(b => (
+                    <option key={b} value={b}>
+                      {DAY_BASIS_LABEL[b]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor={`interest-rounding-${headId}`} className={label_classes}>
+                  Credit is rounded
+                </label>
+                <select
+                  id={`interest-rounding-${headId}`}
+                  value={rounding}
+                  onChange={e => setRounding(e.target.value as InterestRounding)}
+                  className={field_classes}
+                >
+                  {ROUNDINGS.map(r => (
+                    <option key={r} value={r}>
+                      {ROUNDING_LABEL[r]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="flex items-center gap-2 py-2 text-slate-600 dark:text-slate-300">
+                <input type="checkbox" checked={round_each_day} onChange={e => setRoundEachDay(e.target.checked)} />
+                Round each day to the paisa first (a bank that credits daily)
+              </label>
+            </div>
+          </details>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={busy}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium transition-colors"
             >
-              <option value="quarterly">Quarterly</option>
-              <option value="monthly">Monthly</option>
-            </select>
+              {busy ? 'Calculating…' : 'Calculate'}
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => persist(false)}
+              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 disabled:opacity-60 text-sm font-medium transition-colors"
+            >
+              {saving ? 'Saving…' : has_saved ? 'Update saved rate card' : 'Save rate card on this account'}
+            </button>
+            {has_saved && (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => persist(true)}
+                className="text-sm text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 disabled:opacity-60"
+              >
+                Clear saved
+              </button>
+            )}
           </div>
-          <div>
-            <label htmlFor={`interest-period-${headId}`} className={label_classes}>
-              Period
-            </label>
-            <select id={`interest-period-${headId}`} value={preset} onChange={e => choosePreset(e.target.value)} className={field_classes}>
-              {periods.map((p, i) => (
-                <option key={p.from} value={String(i)}>
-                  {p.label}
-                </option>
-              ))}
-              <option value={CUSTOM}>Custom dates</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor={`interest-from-${headId}`} className={label_classes}>
-              From
-            </label>
-            <input
-              id={`interest-from-${headId}`}
-              type="date"
-              value={from}
-              onChange={e => {
-                setFrom(e.target.value)
-                setPreset(CUSTOM)
-              }}
-              className={field_classes}
-            />
-          </div>
-          <div>
-            <label htmlFor={`interest-to-${headId}`} className={label_classes}>
-              To
-            </label>
-            <input
-              id={`interest-to-${headId}`}
-              type="date"
-              value={to}
-              onChange={e => {
-                setTo(e.target.value)
-                setPreset(CUSTOM)
-              }}
-              className={field_classes}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={busy}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium transition-colors"
-          >
-            {busy ? 'Calculating…' : 'Calculate'}
-          </button>
+          {note && (
+            <p role="status" className="text-sm text-slate-500 dark:text-slate-400">
+              {note}
+            </p>
+          )}
         </form>
 
         {error && (
@@ -222,15 +477,16 @@ export function InterestCheck({
           <div className="rounded-lg bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 p-4 space-y-2">
             <div className="flex items-baseline justify-between gap-4 flex-wrap">
               <span className="text-sm text-slate-600 dark:text-slate-300">
-                {result.projected ? 'Projected' : 'Expected'} interest, {format_day(result.from)} to {format_day(result.to)} at {result.rate_pct}%
+                {result.projected ? 'Projected' : 'Expected'} interest, {format_day(result.from)} to {format_day(result.to)}
+                {flat_rate !== null ? ` at ${flat_rate}%` : ` on ${result.config.slabs.length} bands`}
               </span>
               <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                <MaskedAmount value={result.interest_rounded} />
+                <MaskedAmount value={result.interest_rounded} precise={result.config.rounding === 'paise'} />
               </span>
             </div>
             <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-1 pt-1 border-t border-slate-200 dark:border-slate-600">
               <li className="flex justify-between gap-4">
-                <span>Before rounding</span>
+                <span>{result.config.round_each_day ? 'Sum of each day, to the paisa' : 'Before rounding'}</span>
                 <MaskedAmount value={result.interest} precise />
               </li>
               <li className="flex justify-between gap-4">
@@ -246,6 +502,18 @@ export function InterestCheck({
                 <MaskedAmount value={result.highest_balance} />
               </li>
             </ul>
+            {result.by_slab.length > 1 && (
+              <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-1 pt-1 border-t border-slate-200 dark:border-slate-600">
+                {result.by_slab.map((s, i) => (
+                  <li key={i} className="flex justify-between gap-4">
+                    <span>
+                      {band_label(s.up_to, i === 0 ? null : result.by_slab[i - 1].up_to)} · {s.rate_pct}%
+                    </span>
+                    <MaskedAmount value={s.interest} precise />
+                  </li>
+                ))}
+              </ul>
+            )}
             {result.negative_days > 0 && (
               <p className="text-sm text-amber-700 dark:text-amber-400">
                 {result.negative_days} {result.negative_days === 1 ? 'day' : 'days'} closed below zero and earned nothing.

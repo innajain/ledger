@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { csv_cell, to_csv, formula_guard } from './csv'
+import { csv_cell, to_csv, formula_guard, cell_text } from './csv'
 
 describe('csv_cell', () => {
   it('passes simple values through unquoted', () => {
@@ -56,5 +56,26 @@ describe('to_csv', () => {
 
   it('emits only the header row when there are no data rows', () => {
     expect(to_csv(['x', 'y'], [])).toBe('x,y\r\n')
+  })
+})
+
+describe('cell_text', () => {
+  it('renders null, dates and plain values', () => {
+    expect(cell_text(null)).toBe('')
+    expect(cell_text(undefined)).toBe('')
+    expect(cell_text(new Date('2026-01-02T03:04:05.000Z'))).toBe('2026-01-02T03:04:05.000Z')
+    expect(cell_text(42)).toBe('42')
+    expect(cell_text(true)).toBe('true')
+    expect(cell_text('abc')).toBe('abc')
+  })
+
+  it('renders a json column value as JSON, never "[object Object]"', () => {
+    expect(cell_text({ slabs: [{ up_to: null, rate_pct: 2.5 }] })).toBe('{"slabs":[{"up_to":null,"rate_pct":2.5}]}')
+    expect(cell_text([1, 2])).toBe('[1,2]')
+  })
+
+  it('survives a round trip through a CSV cell', () => {
+    const text = cell_text({ note: 'a "quoted", comma' })
+    expect(csv_cell(text)).toBe('"{""note"":""a \\""quoted\\"", comma""}"')
   })
 })

@@ -8,7 +8,8 @@ import { env } from '@/lib/env'
 import { resolve_access_token } from '@/lib/mcp/oauth'
 import { compute_net_worth, subtree_total, compute_xirr_for_accounts } from '@/app/_core/valuation_core'
 import { compute_balances_core, closing_balance_core } from '@/app/_core/balances_core'
-import { expected_interest_core } from '@/app/_core/interest_core'
+import { expected_interest_core, load_interest_settings } from '@/app/_core/interest_core'
+import { parse_saved_interest_settings } from '@/app/_utils/interest_config'
 import { ActionError } from '@/app/_actions/_result'
 import {
   create_transaction_core,
@@ -49,6 +50,8 @@ import {
   parse_date,
   parse_day,
   lineItemShape,
+  interestCardShape,
+  slabs_from_args,
   ist_datetime,
   build_line_items,
   stored_lines_to_input,
@@ -440,19 +443,15 @@ function register_tools(server: McpServer) {
     'get_expected_interest',
     {
       description:
-        'Savings interest a bank would pay on one account over a period, the way Indian banks work it out: each IST day\'s closing rupee balance earns rate/365, the days are summed, and the credit is rounded to the nearest rupee. Use it to check an interest credit ("is my Kotak interest right at 2.5%?") — compare expected_interest_rounded with the amount actually credited. Omit from and to for the last completed calendar period — a quarter by default, the cut most banks credit on; pass frequency: "monthly" for a bank that credits every month (then it is the last completed calendar month). The daily balances are the same closing balances get_balances as_of reports, so a gap of a rupee or so usually means a refund or reversal is dated on its original transaction\'s day instead of the day the bank counted it (fix with a per-line datetime). Days that close below zero earn nothing. A period ending after today is a projection and also counts scheduled (future) transactions.',
+        'Savings interest a bank would pay on one account over a period, the way Indian banks work it out: each IST day\'s closing rupee balance earns the rate ÷ days in the year, the days are summed, and the credit is rounded. Use it to check an interest credit ("is my Kotak interest right at 2.5%?") — compare expected_interest_rounded with the amount actually credited. If the account has a rate card saved (see get_head interest_settings, set it with set_interest_settings) you need only dates — or nothing at all for the last completed period. Otherwise give the rate card as either rate (one flat yearly percent, what most banks quote) or slabs (a progressive card: each band\'s rate applies only to the part of the balance inside it, e.g. IDFC FIRST [{up_to: 300000, rate: 2.5}, {up_to: 2500000, rate: 7}, {up_to: 50000000, rate: 6.25}, {rate: 5}]). A rate card given in the call is used as given (defaults for what it omits) and ignores the saved one. Match the bank\'s own rules with day_basis (fixed_365 default, calendar_year, or financial_year for a bank that uses 366 in a leap year), rounding (nearest_rupee default, round_up_rupee, or paise) and round_each_day (a bank that credits daily). Omit from and to for the last completed calendar period — a quarter by default, the cut most banks credit on; pass frequency: "monthly" for a bank that credits every month (then it is the last completed calendar month). The daily balances are the same closing balances get_balances as_of reports, so a gap of a rupee or so usually means a refund or reversal is dated on its original transaction\'s day instead of the day the bank counted it (fix with a per-line datetime). Days that close below zero earn nothing. A period ending after today is a projection and also counts scheduled (future) transactions.',
       inputSchema: {
         head: z.string().describe('Account: id or name'),
-        rate: z.number().positive().max(100).describe('Yearly interest rate in percent, e.g. 2.5'),
+        ...interestCardShape,
         from: z
           .string()
           .optional()
           .describe('First day, dd-MM-yyyy or yyyy-MM-dd (IST). Give it with to, or omit both for the last completed quarter (or month)'),
         to: z.string().optional().describe('Last day (inclusive), dd-MM-yyyy or yyyy-MM-dd (IST)'),
-        frequency: z
-          .enum(['quarterly', 'monthly'])
-          .optional()
-          .describe('How often the bank credits interest (default quarterly). Only picks the default period when from and to are omitted'),
         include_subheads: z.boolean().optional().describe("Also cover the account's sub-accounts (default false)"),
       },
     },
@@ -462,26 +461,54 @@ function register_tools(server: McpServer) {
       const head = resolve_ref(args.head, heads, 'accounting head')
       if (head.type !== 'account') return error_text(`"${head.name}" is not an account — interest is worked out for accounts only`)
       if (!args.from !== !args.to) return error_text('Give both from and to, or neither for the last completed calendar quarter (or month)')
-      const [last_period] = recent_interest_periods(args.frequency ?? 'quarterly', ist_ymd(new Date()), 1)
+      let given: ReturnType<typeof slabs_from_args>
+      try {
+        given = slabs_from_args(args)
+      } catch (error) {
+        return error_text(error instanceof Error ? error.message : 'Invalid rate card')
+      }
+      // A card given in the call is used as given, with the bank's usual defaults for what it
+      // leaves out. With none given, the card saved on the account is used — that is what
+      // saving one is for — and a day_basis/rounding/round_each_day in the call overrides it.
+      const saved = await load_interest_settings(uid, head.id)
+      if (!given && !saved) {
+        return error_text(
+          `No rate card is saved for "${head.name}" — give rate (flat) or slabs, or save one with set_interest_settings so later checks need only dates`,
+        )
+      }
+      const config = given
+        ? { slabs: given, day_basis: args.day_basis, rounding: args.rounding, round_each_day: args.round_each_day }
+        : {
+            slabs: saved!.slabs,
+            day_basis: args.day_basis ?? saved!.day_basis,
+            rounding: args.rounding ?? saved!.rounding,
+            round_each_day: args.round_each_day ?? saved!.round_each_day,
+          }
+      const [last_period] = recent_interest_periods(args.frequency ?? saved?.frequency ?? 'quarterly', ist_ymd(new Date()), 1)
       const from = args.from ? ist_ymd(parse_day(args.from)) : last_period.from
       const to = args.to ? ist_ymd(parse_day(args.to)) : last_period.to
       const head_ids = args.include_subheads ? [...get_subtree_head_ids(head.id, heads)] : [head.id]
       try {
-        const r = await expected_interest_core(uid, head_ids, from, to, args.rate)
+        const r = await expected_interest_core(uid, head_ids, from, to, config)
         return text({
           account: head.name,
           from: r.from,
           to: r.to,
           days: r.days,
-          rate_pct: r.rate_pct,
+          rate_card_source: given ? 'given in this call' : 'saved on the account',
+          rate_card: r.config.slabs.map(b => ({ up_to: b.up_to, rate_pct: b.rate_pct })),
+          day_basis: r.config.day_basis,
+          rounding: r.config.rounding,
+          round_each_day: r.config.round_each_day,
           expected_interest_rounded: r.interest_rounded,
           expected_interest: r.interest,
+          interest_by_band: r.by_slab,
           average_daily_balance: r.average_balance,
           lowest_closing_balance: r.lowest_balance,
           highest_closing_balance: r.highest_balance,
           negative_balance_days: r.negative_days,
           projected: r.projected,
-          note: 'daily closing rupee balance x rate/365, summed; rounded figure is to the nearest rupee, as a bank credits it',
+          note: 'daily closing rupee balance × rate ÷ days in the year, summed; expected_interest_rounded is rounded the way the rounding field says, as the bank would credit it. interest_by_band is before any per-day rounding',
         })
       } catch (error) {
         // A bad period or rate is the caller's to fix, not a failed tool.
@@ -661,6 +688,10 @@ function register_tools(server: McpServer) {
         linked_user: linked_user ? { username: linked_user.username, upi_id: linked_user.upi_id } : null,
         lock_date: head.lock_date ? get_indian_date_from_date_obj(head.lock_date) : null,
         tax_treatment: head.tax_treatment,
+        // Only set on an account that has a savings-interest rate card saved.
+        ...(parse_saved_interest_settings(head.interest_settings)
+          ? { interest_settings: parse_saved_interest_settings(head.interest_settings) }
+          : {}),
         xirr,
         by_asset,
       }
@@ -1041,12 +1072,22 @@ function register_tools(server: McpServer) {
       // is day-precision IST, so it serializes as dd-MM-yyyy (a raw Date would
       // JSON-ify to a UTC instant reading one day early), and parent comes with
       // its name so the hierarchy is readable without a second id-joining pass.
-      const as_row = <T extends { lock_date: Date | null; parent_id: string | null; linked_user_id: string | null; tax_treatment: string | null }>(
+      const as_row = <
+        T extends {
+          lock_date: Date | null
+          parent_id: string | null
+          linked_user_id: string | null
+          tax_treatment: string | null
+          interest_settings: unknown
+        },
+      >(
         h: T,
       ) => {
-        const { lock_date, parent_id, linked_user_id, tax_treatment, ...rest } = h
+        const { lock_date, parent_id, linked_user_id, tax_treatment, interest_settings, ...rest } = h
+        const saved_interest = parse_saved_interest_settings(interest_settings)
         return {
           ...rest,
+          ...(saved_interest ? { interest_settings: saved_interest } : {}),
           ...(parent_id ? { parent_id, parent: name_by_id.get(parent_id) ?? null } : {}),
           ...(linked_user_id ? { linked_user_id } : {}),
           ...(lock_date ? { lock_date: get_indian_date_from_date_obj(lock_date) } : {}),

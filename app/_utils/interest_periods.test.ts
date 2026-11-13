@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { inclusive_days, recent_quarters, recent_months, recent_interest_periods } from './interest_periods'
+import { day_number, days_in_year_basis, inclusive_days, recent_quarters, recent_months, recent_interest_periods } from './interest_periods'
 
 describe('inclusive_days', () => {
   it('counts both ends', () => {
@@ -82,5 +82,34 @@ describe('recent_interest_periods', () => {
   it('picks the cut that matches how often the bank credits', () => {
     expect(recent_interest_periods('quarterly', '2026-11-13', 1)[0].label).toBe('Jul–Sep 2026')
     expect(recent_interest_periods('monthly', '2026-11-13', 1)[0].label).toBe('Oct 2026')
+  })
+})
+
+describe('days_in_year_basis', () => {
+  const on = (ymd: string, basis: 'fixed_365' | 'calendar_year' | 'financial_year') => days_in_year_basis(day_number(ymd), basis)
+
+  it('is 365 always for the fixed basis, even on a leap day', () => {
+    expect(on('2028-02-29', 'fixed_365')).toBe(365)
+    expect(on('2027-06-01', 'fixed_365')).toBe(365)
+  })
+
+  it('follows the calendar year', () => {
+    expect(on('2028-01-01', 'calendar_year')).toBe(366)
+    expect(on('2028-12-31', 'calendar_year')).toBe(366)
+    expect(on('2027-12-31', 'calendar_year')).toBe(365)
+    expect(on('2100-03-01', 'calendar_year')).toBe(365) // a century year is not a leap year
+    expect(on('2000-03-01', 'calendar_year')).toBe(366)
+  })
+
+  it('treats the Apr–Mar financial year holding 29 Feb as 366 days, from its first day to its last', () => {
+    // FY 2027-28 runs 1 Apr 2027 – 31 Mar 2028 and holds 29 Feb 2028
+    expect(on('2027-04-01', 'financial_year')).toBe(366)
+    expect(on('2027-12-31', 'financial_year')).toBe(366)
+    expect(on('2028-02-29', 'financial_year')).toBe(366)
+    expect(on('2028-03-31', 'financial_year')).toBe(366)
+    // the day after it ends, the next financial year starts at 365
+    expect(on('2028-04-01', 'financial_year')).toBe(365)
+    // and the calendar-leap year's Jan–Mar belongs to the FY that holds the leap day, not the one before
+    expect(on('2027-03-31', 'financial_year')).toBe(365)
   })
 })

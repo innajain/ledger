@@ -104,6 +104,12 @@ model accounting_head {
   // IST day are verified against the real account and cannot be touched.
   lock_date DateTime?
 
+  // Savings-interest rate card (account type only): the slabs, day count and rounding the
+  // bank uses, plus how often it credits, so the interest check needs only dates. Shape is
+  // InterestConfig + frequency (app/_utils/interest_config.ts); validated on write and on
+  // read, so an unreadable value is treated as unset rather than trusted. Null = none saved.
+  interest_settings Json?
+
   // Income-tax treatment (income/expense type only). Null = unclassified — the
   // /tax page warns about it; valid value = how this head counts towards the
   // taxpayer's liability under the new regime. Enforced in application code.

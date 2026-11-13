@@ -20,6 +20,7 @@ import { create_upi_payment } from '@/app/_actions/transactions'
 import type { ActionResult } from '@/app/_actions/_result'
 import type { ClosingBalance } from '@/app/heads/[type]/[id]/closing_balance'
 import type { ExpectedInterest } from '@/app/_core/interest_core'
+import type { InterestConfig, InterestSettings } from '@/app/_utils/interest_config'
 
 export type LineItem = {
   id: string
@@ -128,9 +129,12 @@ type HeadDetailPageProps = {
       head_id: string,
       from: string,
       to: string,
-      rate_pct: number,
+      config: InterestConfig,
       include_subheads?: boolean,
     ) => Promise<ActionResult<ExpectedInterest>>
+    /** The rate card saved on this account, or null when none is — the card starts from it. */
+    saved: InterestSettings | null
+    saveSettings: (head_id: string, settings: InterestSettings | null) => Promise<ActionResult<InterestSettings | null>>
   }
 }
 
@@ -358,6 +362,8 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
           headId={head.id}
           today={interestCheck.today}
           getExpectedInterest={interestCheck.getExpectedInterest}
+          saved={interestCheck.saved}
+          saveSettings={interestCheck.saveSettings}
           includeSubheads={inSubtree}
           subEntityLabel={subEntityLabel}
         />

@@ -39,3 +39,33 @@ describe('build_sql_dump', () => {
     expect(sql).toContain(`INSERT INTO "we""ird" ("a""b") VALUES ('x');`)
   })
 })
+
+describe('json values', () => {
+  it('writes a json/jsonb value as quoted JSON, not "[object Object]"', () => {
+    const sql = build_sql_dump(
+      [
+        {
+          table: 'accounting_head',
+          columns: ['id', 'interest_settings'],
+          rows: [['h1', { slabs: [{ up_to: null, rate_pct: 2.5 }], day_basis: 'fixed_365' }]],
+        },
+      ],
+      { title: 't', generatedAt: new Date('2026-01-01T00:00:00Z') },
+    )
+    expect(sql).toContain(`'{"slabs":[{"up_to":null,"rate_pct":2.5}],"day_basis":"fixed_365"}'`)
+    expect(sql).not.toContain('[object Object]')
+  })
+
+  it("doubles a quote inside a JSON string so it can't end the literal early", () => {
+    const sql = build_sql_dump([{ table: 'x', columns: ['v'], rows: [[{ note: "it's" }]] }], {
+      title: 't',
+      generatedAt: new Date('2026-01-01T00:00:00Z'),
+    })
+    expect(sql).toContain(`'{"note":"it''s"}'`)
+  })
+
+  it('still writes null as NULL', () => {
+    const sql = build_sql_dump([{ table: 'x', columns: ['v'], rows: [[null]] }], { title: 't', generatedAt: new Date('2026-01-01T00:00:00Z') })
+    expect(sql).toContain('VALUES (NULL);')
+  })
+})

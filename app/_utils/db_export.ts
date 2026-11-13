@@ -1,6 +1,6 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
-import { to_csv, formula_guard } from './csv'
+import { to_csv, formula_guard, cell_text } from './csv'
 import { build_zip } from './zip'
 import { build_xlsx, type XlsxTable } from './xlsx'
 import { build_sql_dump } from './sql_dump'
@@ -83,11 +83,7 @@ export type TableExport = {
   rows: unknown[][]
 }
 
-export function cell(v: unknown): string {
-  if (v === null || v === undefined) return ''
-  if (v instanceof Date) return v.toISOString()
-  return String(v)
-}
+export const cell = cell_text
 
 async function tables_meta(tables: string[]): Promise<Map<string, { name: string; numeric: boolean }[]>> {
   const rows = await prisma.$queryRawUnsafe<{ table_name: string; column_name: string; data_type: string }[]>(

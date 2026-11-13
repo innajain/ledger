@@ -11,6 +11,9 @@ function literal(v: unknown, numeric: boolean): string {
   if (v === null || v === undefined) return 'NULL'
   if (v instanceof Date) return `'${v.toISOString()}'`
   if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE'
+  // A json/jsonb column arrives as a parsed object or array. String(v) would write the text
+  // "[object Object]", which restores as garbage (or fails outright on a jsonb column).
+  if (typeof v === 'object') return `'${JSON.stringify(v).replace(/'/g, "''")}'`
 
   if (numeric || typeof v === 'number' || typeof v === 'bigint') return String(v)
   return `'${String(v).replace(/'/g, "''")}'`

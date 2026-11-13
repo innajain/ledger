@@ -80,7 +80,17 @@ export const load_heads = (uid: string) =>
   prisma.accounting_head.findMany({
     where: { user_id: uid },
     orderBy: [{ type: 'asc' }, { order_index: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-    select: { id: true, name: true, type: true, is_active: true, linked_user_id: true, parent_id: true, lock_date: true, tax_treatment: true },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      is_active: true,
+      linked_user_id: true,
+      parent_id: true,
+      lock_date: true,
+      tax_treatment: true,
+      interest_settings: true,
+    },
   })
 
 export const load_assets = () =>
@@ -201,6 +211,53 @@ export function parse_day(s: string): Date {
   const m = t.match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (m) return get_date_obj_from_indian_date(`${m[3]}-${m[2]}-${m[1]}`)
   throw new Error(`Invalid date "${s}" — use dd-MM-yyyy or yyyy-MM-dd`)
+}
+
+// The rate card as a tool takes it, shared by get_expected_interest and set_interest_settings
+// so the two can never describe a bank differently. A band's `up_to` is optional for the model
+// (omitted on the last band); the core wants an explicit null, which slabs_from_args supplies.
+export const interestCardShape = {
+  rate: z.number().min(0).max(100).optional().describe('Flat yearly interest rate in percent, e.g. 2.5. Give this or slabs, not both'),
+  slabs: z
+    .array(
+      z.object({
+        up_to: z.number().positive().optional().describe('Top of this band in rupees; omit on the last band (no upper limit)'),
+        rate: z.number().min(0).max(100).describe('Yearly rate in percent for the part of the balance inside this band'),
+      }),
+    )
+    .min(1)
+    .max(10)
+    .optional()
+    .describe('Progressive rate card, lowest band first. Give this or rate, not both'),
+  day_basis: z
+    .enum(['fixed_365', 'calendar_year', 'financial_year'])
+    .optional()
+    .describe('Days in the year the rate is divided by: 365 always (default), the calendar year (366 in a leap year), or the Apr–Mar financial year'),
+  rounding: z
+    .enum(['nearest_rupee', 'round_up_rupee', 'paise'])
+    .optional()
+    .describe('How the total becomes a credit: nearest rupee (default), up to the next rupee, or kept to the paisa'),
+  round_each_day: z
+    .boolean()
+    .optional()
+    .describe("Round each day's interest to the paisa before summing — for a bank that credits daily (default false)"),
+  frequency: z
+    .enum(['quarterly', 'monthly'])
+    .optional()
+    .describe('How often the bank credits interest (default quarterly). Only decides the default period when from and to are omitted'),
+}
+
+// The bands a call gave, as the core wants them: null when it gave neither a flat rate nor
+// slabs (the caller decides whether a saved card fills the gap), and the call's own error
+// when it gave both.
+export function slabs_from_args(args: {
+  rate?: number
+  slabs?: { up_to?: number; rate: number }[]
+}): { up_to: number | null; rate_pct: number }[] | null {
+  if (args.rate !== undefined && args.slabs !== undefined) throw new Error('Give the rate card as rate (flat) or slabs, not both')
+  if (args.slabs) return args.slabs.map(b => ({ up_to: b.up_to ?? null, rate_pct: b.rate }))
+  if (args.rate !== undefined) return [{ up_to: null, rate_pct: args.rate }]
+  return null
 }
 
 export const lineItemShape = z

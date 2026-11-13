@@ -6,6 +6,13 @@ import { ist_midnight, ist_ymd } from '@/app/_utils/ist_date'
 import { ActionError } from '@/app/_actions/_result'
 import { compute_daily_balance_interest, type DailyMovement } from '@/app/_utils/savings_interest'
 import { inclusive_days } from '@/app/_utils/interest_periods'
+import {
+  parse_saved_interest_settings,
+  validate_interest_config,
+  validate_interest_settings,
+  type InterestConfig,
+  type InterestSettings,
+} from '@/app/_utils/interest_config'
 
 // Every day in the window is walked once, so the window is bounded: ten years is far past
 // any real reconciliation and keeps a typo'd year from walking centuries.
@@ -15,22 +22,28 @@ export type ExpectedInterest = {
   from: string
   to: string
   days: number
-  rate_pct: number
+  // The settings the figure was worked out with, echoed so a result is self-describing.
+  config: InterestConfig
   average_balance: number
   lowest_balance: number
   highest_balance: number
   negative_days: number
-  // Exact to the paisa, and what a bank would actually credit (nearest rupee).
+  // Exact to the paisa (the sum of each day's paisa when the config rounds each day)...
   interest: number
+  // ...and what a bank would actually credit, rounded the way the config says.
   interest_rounded: number
+  // Where the interest came from, one entry per rate band, before any per-day rounding.
+  by_slab: { up_to: number | null; rate_pct: number; interest: number }[]
   // The period runs past today, so the later days are a projection: scheduled
   // transactions are folded in and nothing after today has really closed.
   projected: boolean
 }
 
 // Savings interest a bank would pay on these heads over the inclusive IST days
-// [from, to] (yyyy-MM-dd) at rate_pct a year: daily closing balance x rate/365, summed
-// (see savings_interest.ts). Callers resolve and authorise the heads; this takes ids.
+// [from, to] (yyyy-MM-dd): each day's closing balance earns its band's rate ÷ days in the
+// year, summed and rounded as `config` says (see savings_interest.ts). `config` is
+// untrusted input from a client or a tool call and is validated here. Callers resolve and
+// authorise the heads; this takes ids.
 //
 // Only rupee holdings count. Interest accrues on cash, and a head that also holds units
 // (a demat account) would otherwise earn "interest" on their book value.
@@ -47,10 +60,13 @@ export async function expected_interest_core(
   head_ids: string[],
   from: string,
   to: string,
-  rate_pct: number,
+  raw_config: unknown,
 ): Promise<ExpectedInterest> {
-  if (typeof rate_pct !== 'number' || !Number.isFinite(rate_pct) || rate_pct <= 0 || rate_pct > 100) {
-    throw new ActionError('VALIDATION', 'Rate must be more than 0 and at most 100% a year')
+  let config: InterestConfig
+  try {
+    config = validate_interest_config(raw_config)
+  } catch (error) {
+    throw new ActionError('VALIDATION', error instanceof Error ? error.message : 'Invalid interest settings')
   }
   let days: number
   try {
@@ -107,20 +123,52 @@ export async function expected_interest_core(
     movements,
     from,
     to,
-    annual_rate_pct: new Prisma.Decimal(rate_pct),
+    config,
   })
   const money = (v: Prisma.Decimal) => v.toDecimalPlaces(2).toNumber()
   return {
     from,
     to,
     days: r.days,
-    rate_pct,
+    config,
     average_balance: money(r.average_balance),
     lowest_balance: money(r.lowest_balance),
     highest_balance: money(r.highest_balance),
     negative_days: r.negative_days,
     interest: money(r.interest),
     interest_rounded: r.interest_rounded.toNumber(),
+    by_slab: r.by_slab.map(s => ({ up_to: s.up_to, rate_pct: s.rate_pct, interest: money(s.interest) })),
     projected,
   }
+}
+
+// The rate card saved on an account, or null when none is saved (or what is stored no
+// longer passes validation — see parse_saved_interest_settings). Scoped to the caller's own
+// heads: another user's head id reads as nothing saved.
+export async function load_interest_settings(user_id: string, head_id: string): Promise<InterestSettings | null> {
+  const head = await prisma.accounting_head.findUnique({ where: { id: head_id, user_id }, select: { interest_settings: true } })
+  return parse_saved_interest_settings(head?.interest_settings)
+}
+
+// Saves a rate card on one of the caller's accounts, or clears it with null. `raw` is
+// untrusted input and is validated here. This is a label on the account, like lock_date's
+// sibling settings: it changes no balance, so nothing is invalidated and a linked
+// counterparty's copy is untouched.
+export async function save_interest_settings_core(user_id: string, head_id: string, raw: unknown): Promise<InterestSettings | null> {
+  const head = await prisma.accounting_head.findUnique({ where: { id: head_id, user_id }, select: { type: true } })
+  if (!head) throw new ActionError('NOT_FOUND', 'Head not found')
+  if (head.type !== 'account') throw new ActionError('VALIDATION', 'Interest settings are for accounts only')
+
+  if (raw === null) {
+    await prisma.accounting_head.update({ where: { id: head_id, user_id }, data: { interest_settings: Prisma.DbNull } })
+    return null
+  }
+  let settings: InterestSettings
+  try {
+    settings = validate_interest_settings(raw)
+  } catch (error) {
+    throw new ActionError('VALIDATION', error instanceof Error ? error.message : 'Invalid interest settings')
+  }
+  await prisma.accounting_head.update({ where: { id: head_id, user_id }, data: { interest_settings: settings } })
+  return settings
 }
