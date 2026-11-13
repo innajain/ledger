@@ -10,6 +10,7 @@ import { compute_net_worth, subtree_total, compute_xirr_for_accounts } from '@/a
 import { compute_balances_core, closing_balance_core } from '@/app/_core/balances_core'
 import { expected_interest_core, load_interest_settings } from '@/app/_core/interest_core'
 import { parse_saved_interest_settings } from '@/app/_utils/interest_config'
+import { compute_spendable } from '@/app/_utils/spendable'
 import { ActionError } from '@/app/_actions/_result'
 import {
   create_transaction_core,
@@ -147,7 +148,7 @@ function register_tools(server: McpServer) {
     'get_net_worth',
     {
       description:
-        'Headline dashboard figures: total net worth, Investments current value + XIRR, and Savings current value. Pass include_allocations to also get the per-head allocation breakdown.',
+        'Headline dashboard figures: total net worth, Investments current value + XIRR, and Savings current value, plus spendable — what is left once Investments and locked-away allocations (a security deposit) are taken out, with the outside_investments and locked figures it is built from. Spendable is net: funded set-asides (insurance, charity) against overspent envelopes (discretionary, big-ticket), so a negative value means the overspent envelopes outweigh what is set aside, not an overdrawn account. Pass include_allocations to also get the per-head allocation breakdown.',
       inputSchema: { include_allocations: z.boolean().optional().describe('Include the full allocation breakdown (default false)') },
     },
     async (args, extra) => {
@@ -155,12 +156,16 @@ function register_tools(server: McpServer) {
       const { networth, allocations } = await compute_net_worth(uid)
       const invest = subtree_total(allocations, 'Investments')
       const savings = subtree_total(allocations, 'Savings')
+      const spendable = compute_spendable(allocations)
       const xirr = invest && invest.total !== 0 ? await compute_xirr_for_accounts(uid, invest.ids, invest.total) : null
       return text({
         net_worth: networth,
         investments: invest?.total ?? 0,
         investments_xirr: xirr,
         savings: savings?.total ?? 0,
+        outside_investments: spendable.outside_investments,
+        locked: spendable.locked,
+        spendable: spendable.spendable,
         ...(args.include_allocations
           ? {
               allocations: allocations

@@ -10,6 +10,7 @@ import { normalize_line_items } from '@/app/_utils/normalize_txn'
 import { get_inbox } from '@/app/_utils/links'
 import { pick_welcome_message } from '@/app/_utils/home_welcome'
 import { is_future_txn_due } from '@/app/_utils/future_txn'
+import { compute_spendable } from '@/app/_utils/spendable'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
 import { HomeNetWorthTrend, HomeNetWorthTrendFallback } from '@/app/_components/HomeNetWorthTrend'
 import type { AssetBalance } from '@/app/_utils/home_networth_series'
@@ -50,7 +51,7 @@ async function Home() {
 
   const user = await get_current_user()
   if (!user) {
-    return <ClientPage welcomeMessage={welcome_message} invest={null} savings={null} networth={null} />
+    return <ClientPage welcomeMessage={welcome_message} invest={null} savings={null} networth={null} spendable={null} />
   }
 
   // The asset table is a shared catalog — only price what this user actually holds.
@@ -129,6 +130,17 @@ async function Home() {
 
   const networth = allocation_values.reduce((sum, v) => sum.add(v?.total ?? new Prisma.Decimal(0)), new Prisma.Decimal(0)).toNumber()
 
+  // Net worth less Investments less locked-away allocations. Same figures as the card above
+  // and the MCP get_net_worth, from one function so they can't drift apart.
+  const spendable = compute_spendable(
+    allocations.map(a => ({
+      id: a.id,
+      name: a.name,
+      parent_id: a.parent_id,
+      total: (allocation_value_by_id.get(a.id) ?? new Prisma.Decimal(0)).toNumber(),
+    })),
+  )
+
   const investSubtreeIds = invest ? Array.from(get_subtree_accounting_head_ids(invest)) : []
   const investXirrSlot =
     invest && invest_with_value && invest_with_value.total !== 0 ? (
@@ -190,6 +202,7 @@ async function Home() {
       investXirrSlot={investXirrSlot}
       savings={savings_with_value}
       networth={networth}
+      spendable={spendable}
       networthTrendSlot={networthTrendSlot}
       upcoming={upcoming}
       requests={requests}
