@@ -24,7 +24,7 @@ pnpm analyze                   # ANALYZE=true next build (bundle analyzer)
 
 Tests are colocated `*.test.ts` files (e.g. `app/_utils/normalize_txn.test.ts`); vitest resolves the `@/` alias. A pre-commit hook (simple-git-hooks + lint-staged) runs prettier+eslint on staged files.
 
-**CI** (`.github/workflows/ci.yml`, on push/PR to `main`) is the full gate: `prisma generate` → `pnpm typecheck` → `pnpm lint` → `pnpm test` → `prettier --check`. Run those locally before pushing — CI reaches no DB (tests are pure units; a placeholder `DATABASE_URL` satisfies `prisma.config.ts`). A nightly `db-backup.yml` `pg_dump`s prod into a 30-day artifact.
+**CI** (`.github/workflows/ci.yml`, on push/PR to `main`) is the full gate: `prisma generate` → `pnpm typecheck` → `pnpm lint` → `pnpm test` → `prettier --check`. Run those locally before pushing — CI reaches no DB (tests are pure units; a placeholder `DATABASE_URL` satisfies `prisma.config.ts`).
 
 **Seed script** — idempotent (wipes + recreates a single user), deterministic PRNG: `pnpm dlx tsx scripts/seed_sample_user.ts` (user `rahul` / `rahul1234`). It reads `DATABASE_URL`; point that at the unpooled Neon host to seed prod.
 

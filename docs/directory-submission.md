@@ -162,9 +162,10 @@ Run against the seeded `rahul` account.
 - [ ] Reviewer account seeded with a fresh password, and the demo video recorded.
 - [ ] The privacy policy (`app/privacy/page.tsx`) matches the wiring. It was rewritten for the server
       setup (Oracle Cloud, Cloudflare R2 backups) on 14 November 2026; re-read it after any change.
-- [ ] The policy's promises are true: server logs limited to 30 days (journald `MaxRetentionSec`), and the
-      old Neon archive deleted and the nightly GitHub backup workflow (`.github/workflows/db-backup.yml`,
-      which still dumps the frozen Neon database) retired.
+- [x] The policy's promises are true: server logs limited to 30 days (journald `MaxRetentionSec`), and the
+      old Neon archive deleted and the nightly GitHub backup workflow (`.github/workflows/db-backup.yml`)
+      retired. Done 14 November 2026: Neon and Vercel projects deleted (Neon purges after 7 days, about 21
+      November), the workflow and its plaintext artifacts removed.
 - [ ] You are comfortable running this as a public service: anyone can sign up, and it runs on one
       server with no failover.
 

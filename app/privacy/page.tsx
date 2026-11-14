@@ -74,9 +74,9 @@ async function Page() {
             on our server before upload, so Cloudflare cannot read them. They process data on our behalf.
           </li>
           <li>
-            <strong>Previous hosting, until it is removed</strong> — before 14 November 2026 Ledger ran on Vercel with a database at Neon. A read-only
-            archive of that database as it stood on that date remains at Neon and in private nightly backups at GitHub; it will be deleted once the
-            move is verified, and sooner for your data if you ask.
+            <strong>Previous hosting, now removed</strong> — before 14 November 2026 Ledger ran on Vercel with a database at Neon. Both were deleted
+            on 14 November 2026. Neon keeps a deleted project for 7 days before it is purged for good, so a copy of the old database can remain there
+            until about 21 November 2026; no other copy of it is kept outside this server and its encrypted backups.
           </li>
           <li>
             <strong>Other Ledger users</strong> — only as described under linked accounts. Another user who knows your exact username can look up your
