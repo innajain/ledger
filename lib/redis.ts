@@ -1,20 +1,28 @@
 import 'server-only'
 import Redis from 'ioredis'
+import { MemoryRedis, type MemoryStore } from './memory_redis'
 import { env } from './env'
 import { logger } from './logger'
 import { currentMetrics } from './metrics/context'
 import { publishQueryEvent } from './dev/query-bus'
 
-const baseRedis = new Redis(env.REDIS_URL, {
-  maxRetriesPerRequest: 3,
-  retryStrategy: times => {
-    if (times > 3) {
-      return null
-    }
-    return Math.min(times * 50, 2000)
-  },
-  lazyConnect: true,
-})
+// CACHE_DRIVER=memory swaps ioredis for an in-process stand-in. The map lives on globalThis so every
+// bundle that loads this module sees the same keys; each load still builds its own instance, so the
+// instrumentation wrappers below are applied once per instance, never stacked.
+const g = globalThis as unknown as { __memory_cache?: MemoryStore }
+const baseRedis: Redis =
+  env.CACHE_DRIVER === 'memory'
+    ? (new MemoryRedis(Date.now, 60_000, (g.__memory_cache ??= new Map())) as unknown as Redis)
+    : new Redis(env.REDIS_URL, {
+        maxRetriesPerRequest: 3,
+        retryStrategy: times => {
+          if (times > 3) {
+            return null
+          }
+          return Math.min(times * 50, 2000)
+        },
+        lazyConnect: true,
+      })
 
 baseRedis.on('error', err => {
   logger.error({ err }, 'Redis client error')

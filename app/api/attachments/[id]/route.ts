@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { get_current_user_id } from '@/app/_actions/auth'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
+import { blob_driver, read_attachment } from '@/lib/blob_store'
 
 const BLOB_HOST_SUFFIX = '.blob.vercel-storage.com'
 
@@ -31,6 +32,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     include: { transaction: true },
   })
   if (!att || att.transaction.user_id !== user_id) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  if (blob_driver() === 'fs') {
+    const bytes = await read_attachment(att)
+    if (!bytes) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return new Response(new Uint8Array(bytes), {
+      headers: {
+        'Content-Type': att.content_type ?? 'application/octet-stream',
+        'Cache-Control': 'private, max-age=3600',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    })
+  }
 
   const fetch_url = resolve_blob_fetch_url(att.url, att.pathname)
   if (!fetch_url) return NextResponse.json({ error: 'Not found' }, { status: 404 })

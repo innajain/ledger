@@ -1,8 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
-import { put, del } from '@vercel/blob'
+import { attachments_enabled, delete_blobs, put_attachment, read_attachment } from '@/lib/blob_store'
 import { prisma } from '@/lib/prisma'
-import { env } from '@/lib/env'
 import { validate_line_items } from '@/app/_utils/validate_line_items'
 import {
   find_user_by_username_core,
@@ -94,19 +93,6 @@ const tax_treatment_enum = z.enum([
   'tax_paid',
   'not_income',
 ])
-
-function blob_fetch_url(att_url: string, pathname: string): string | null {
-  if (env.NEXT_PUBLIC_VERCEL_BLOB_API_URL) return `${new URL(env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin}/${pathname}`
-  let parsed: URL
-  try {
-    parsed = new URL(att_url)
-  } catch {
-    return null
-  }
-  if (parsed.protocol !== 'https:') return null
-  if (parsed.hostname !== 'blob.vercel-storage.com' && !parsed.hostname.endsWith('.blob.vercel-storage.com')) return null
-  return parsed.toString()
-}
 
 async function owned_attachment(uid: string, attachment_id: string) {
   const att = await prisma.transaction_attachment.findUnique({
@@ -803,8 +789,8 @@ export function register_extra_tools(server: McpServer) {
         )
       const checked = verify_attachment_bytes(body, content_type)
       if (!checked.ok) return error_text(checked.error)
-      if (!env.BLOB_READ_WRITE_TOKEN) return error_text('Blob storage is not configured on this server')
-      const blob = await put(`attachments/${Date.now()}-${args.filename}`, body, { access: 'private', contentType: checked.content_type })
+      if (!attachments_enabled()) return error_text('Blob storage is not configured on this server')
+      const blob = await put_attachment({ user_id: uid, filename: args.filename, body, content_type: checked.content_type })
       const att = await prisma.transaction_attachment.create({
         data: {
           transaction_id: tx.id,
@@ -845,7 +831,7 @@ export function register_extra_tools(server: McpServer) {
       if (!content_type || !ALLOWED_ATTACHMENT_TYPES.has(content_type))
         return error_text(`Unsupported attachment type "${content_type ?? ext}" — allowed: ${[...ALLOWED_ATTACHMENT_TYPES].join(', ')}`)
 
-      if (!env.BLOB_READ_WRITE_TOKEN) return error_text('Blob storage is not configured on this server')
+      if (!attachments_enabled()) return error_text('Blob storage is not configured on this server')
 
       const origin = get_origin(extra as ToolExtra)
       if (!origin) return error_text('Could not determine this server origin — use add_attachment for small files instead')
@@ -890,11 +876,8 @@ export function register_extra_tools(server: McpServer) {
       const is_text = att.content_type === 'text/plain' || att.content_type === 'application/json'
       if (!is_image && !is_text) return text({ ...meta, note: 'Inline preview not supported for this type — open the transaction in the web app' })
       if ((att.size ?? 0) > 5 * 1024 * 1024) return text({ ...meta, note: 'Too large to return inline' })
-      const url = blob_fetch_url(att.url, att.pathname)
-      if (!url || !env.BLOB_READ_WRITE_TOKEN) return error_text('Attachment blob is not reachable')
-      const resp = await fetch(url, { headers: { authorization: `Bearer ${env.BLOB_READ_WRITE_TOKEN}` } })
-      if (!resp.ok) return error_text(`Blob fetch failed (${resp.status})`)
-      const buf = Buffer.from(await resp.arrayBuffer())
+      const buf = await read_attachment(att)
+      if (!buf) return error_text('Attachment blob is not reachable')
       if (is_text) {
         const full = buf.toString('utf8')
         const clipped = full.length > 100_000 ? `${full.slice(0, 100_000)}\n… [truncated]` : full
@@ -924,7 +907,7 @@ export function register_extra_tools(server: McpServer) {
       const uid = get_uid(extra as ToolExtra)
       const att = await owned_attachment(uid, args.attachment_id)
       if (!att) return error_text('Attachment not found')
-      await del(att.url)
+      await delete_blobs([att.url])
       await prisma.transaction_attachment.delete({ where: { id: att.id } })
       audit('attachment.delete', uid, { surface: 'mcp' })
       return text({ ok: true, message: 'Attachment deleted' })
