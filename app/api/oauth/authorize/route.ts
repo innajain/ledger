@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { getPublicOrigin } from 'mcp-handler'
 import { verify_token } from '@/app/_core/auth_core'
 import { get_client, create_auth_code, DEFAULT_SCOPE } from '@/lib/mcp/oauth'
 import { isProd } from '@/lib/env'
@@ -70,7 +71,9 @@ export async function GET(req: Request) {
   const user = await current_user(req)
   if (!user) {
     const next = encodeURIComponent(url.pathname + url.search)
-    return Response.redirect(new URL(`/login?next=${next}`, url.origin).toString(), 302)
+    // The public origin, not req.url's: behind a reverse proxy req.url carries the server's own host
+    // (https://localhost:3000), which sent a signed-out user to a login page that does not exist.
+    return Response.redirect(new URL(`/login?next=${next}`, getPublicOrigin(req)).toString(), 302)
   }
 
   const csrf = randomBytes(16).toString('hex')
