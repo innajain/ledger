@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 import { env, isDev } from '@/lib/env'
+import { moved_redirect_url } from '@/lib/moved'
 
 const PUBLIC_PATHS = [
   '/login',
@@ -87,6 +88,10 @@ function nextWithSecurity(requestHeaders: Headers, formAction?: string): NextRes
 }
 
 export async function proxy(request: NextRequest) {
+  // Retired deployment: forward everything to the live one, before any auth or data access.
+  const moved = moved_redirect_url(request.url, process.env.VERCEL === '1')
+  if (moved) return NextResponse.redirect(moved, 308)
+
   const pathname = new URL(request.url).pathname
 
   const requestHeaders = new Headers(request.headers)
