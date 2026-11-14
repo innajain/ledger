@@ -12,12 +12,12 @@ and the ChatGPT domain-verification route at `/.well-known/openai-apps-challenge
 ## Before you open either portal
 
 1. **Deploy** the current `main` to the server: rsync the tree, `pnpm build`, then
-   `sudo systemctl restart ledger-next`.
-2. **Set `SUPPORT_EMAIL`** in `~/ledger-next/.env` on the server and restart. `/privacy` and `/docs`
+   `sudo systemctl restart ledger`.
+2. **Set `SUPPORT_EMAIL`** in `~/ledger/.env` on the server and restart. `/privacy` and `/docs`
    show it as the contact; until it is set they fall back to "the operator of this Ledger instance",
    which reviewers will not accept. It is published on those pages, so choose an address you are
    happy to have public.
-3. **Create the reviewer account.** On the server, from `~/ledger-next`, point the seed at the local
+3. **Create the reviewer account.** On the server, from `~/ledger`, point the seed at the local
    database and run it with a fresh password:
 
    ```bash
@@ -123,7 +123,7 @@ investments and income tax — right from the chat.
 
 3. **Upload** it and resolve anything the automated checks flag.
 4. **Domain verification:** the portal shows a token. Set `OPENAI_APPS_CHALLENGE_TOKEN` to it
-   in `~/ledger-next/.env` on the server and restart `ledger-next`;
+   in `~/ledger/.env` on the server and restart `ledger`;
    `https://<address>/.well-known/openai-apps-challenge` then returns the bare token. Unset it again
    after the check passes.
 5. **Review details:** reviewer credentials (as above), the test cases below, the demo video
