@@ -5,6 +5,9 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
+  // 'memory' replaces Redis with an in-process cache (lib/memory_redis.ts): for a single-process
+  // deployment with no Redis server. REDIS_URL is then unused.
+  CACHE_DRIVER: z.enum(['redis', 'memory']).default('redis'),
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   CRON_SECRET: z.string().min(1).optional(),
 
@@ -13,6 +16,10 @@ const schema = z.object({
   VAPID_SUBJECT: z.string().min(1).default('mailto:admin@ledger.local'),
 
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  // 'fs' keeps attachments on local disk under BLOB_FS_DIR instead of Vercel Blob (lib/blob_store.ts).
+  // Set NEXT_PUBLIC_BLOB_STORAGE=fs alongside it so the browser uploads through this server too.
+  BLOB_STORAGE: z.enum(['vercel', 'fs']).default('vercel'),
+  BLOB_FS_DIR: z.string().min(1).default('./.data/blobs'),
   NEXT_PUBLIC_VERCEL_BLOB_API_URL: z.string().url().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 

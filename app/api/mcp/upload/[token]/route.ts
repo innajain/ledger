@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { put } from '@vercel/blob'
+import { attachments_enabled, put_attachment } from '@/lib/blob_store'
 import { prisma } from '@/lib/prisma'
-import { env } from '@/lib/env'
 import { rate_limit } from '@/lib/rate_limit'
 import { audit, logger } from '@/lib/logger'
 import { claim_upload_grant, release_upload_grant } from '@/lib/mcp/attachment_upload'
@@ -61,15 +60,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
     }
 
-    if (!env.BLOB_READ_WRITE_TOKEN) {
+    if (!attachments_enabled()) {
       await release_upload_grant(grant.id)
       return NextResponse.json({ error: 'Blob storage is not configured on this server' }, { status: 500 })
     }
 
-    const blob = await put(`attachments/${Date.now()}-${grant.filename}`, body, {
-      access: 'private',
-      contentType: checked.content_type,
-    })
+    const blob = await put_attachment({ user_id: grant.user_id, filename: grant.filename, body, content_type: checked.content_type })
 
     const att = await prisma.transaction_attachment.create({
       data: {

@@ -53,6 +53,23 @@ function FileIcon({ content_type }: { content_type: string | null }) {
   )
 }
 
+// Vercel Blob: loaded on first file pick (the client SDK doesn't belong in the form's initial
+// bundle when most visits never attach a file). Parallel: each upload is two round trips (token
+// handshake + PUT). The index keeps pathnames unique — concurrent uploads share the same
+// Date.now() millisecond.
+async function uploadToBlob(files: FileList): Promise<AttachmentInput[]> {
+  const { upload } = await import('@vercel/blob/client')
+  return Promise.all(
+    Array.from(files).map(async (file, i) => {
+      const blob = await upload(`attachments/${Date.now()}-${i}-${file.name}`, file, {
+        access: 'private',
+        handleUploadUrl: '/api/upload',
+      })
+      return { url: blob.url, pathname: blob.pathname, filename: file.name, content_type: file.type || null, size: file.size }
+    }),
+  )
+}
+
 export function AttachmentUpload({ existingAttachments = [], onPendingChange, onDeleteExisting }: Props) {
   const [pending, setPending] = useState<AttachmentInput[]>([])
   const [uploading, setUploading] = useState(false)
@@ -66,20 +83,28 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
     setUploadError(null)
     setUploading(true)
     try {
-      // Loaded on first file pick — the blob client SDK doesn't belong in the form's
-      // initial bundle when most visits never attach a file.
-      const { upload } = await import('@vercel/blob/client')
-      // Parallel: each upload is two round trips (token handshake + PUT). The index keeps
-      // pathnames unique — concurrent uploads share the same Date.now() millisecond.
-      const uploaded: AttachmentInput[] = await Promise.all(
-        Array.from(files).map(async (file, i) => {
-          const blob = await upload(`attachments/${Date.now()}-${i}-${file.name}`, file, {
-            access: 'private',
-            handleUploadUrl: '/api/upload',
-          })
-          return { url: blob.url, pathname: blob.pathname, filename: file.name, content_type: file.type || null, size: file.size }
-        }),
-      )
+      const uploaded: AttachmentInput[] =
+        process.env.NEXT_PUBLIC_BLOB_STORAGE === 'fs'
+          ? // Single-server deployment: the file goes through this server onto its disk.
+            await Promise.all(
+              Array.from(files).map(async file => {
+                const res = await fetch(`/api/upload/fs?filename=${encodeURIComponent(file.name)}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': file.type || 'application/octet-stream' },
+                  body: file,
+                })
+                const data = (await res.json().catch(() => ({}))) as { url?: string; pathname?: string; content_type?: string; error?: string }
+                if (!res.ok || !data.url || !data.pathname) throw new Error(data.error ?? 'Upload failed')
+                return {
+                  url: data.url,
+                  pathname: data.pathname,
+                  filename: file.name,
+                  content_type: data.content_type ?? (file.type || null),
+                  size: file.size,
+                }
+              }),
+            )
+          : await uploadToBlob(files)
       const next = [...pending, ...uploaded]
       setPending(next)
       onPendingChange(next)

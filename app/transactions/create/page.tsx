@@ -1,10 +1,10 @@
 import ClientPage from './ClientPage'
+import { attachments_enabled } from '@/lib/blob_store'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { list_tag_names_core } from '@/app/_core/tags_core'
 import { profile } from '@/lib/metrics/profile'
-import { env } from '@/lib/env'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 
 async function Page() {
@@ -28,7 +28,7 @@ async function Page() {
     list_tag_names_core(user.id),
   ])
 
-  return <ClientPage accounts={accounts} assets={assets} defaults={defaults} tags={tags} attachmentsEnabled={!!env.BLOB_READ_WRITE_TOKEN} />
+  return <ClientPage accounts={accounts} assets={assets} defaults={defaults} tags={tags} attachmentsEnabled={attachments_enabled()} />
 }
 
 export default profile('/transactions/create', Page)

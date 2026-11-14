@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { list, del } from '@vercel/blob'
+import { delete_blobs, list_blobs } from '@/lib/blob_store'
 import { prisma } from '@/lib/prisma'
 import { check_cron_auth } from '@/lib/cron'
 import { logger } from '@/lib/logger'
@@ -14,23 +14,16 @@ export async function GET(request: Request) {
     const referenced = new Set((await prisma.transaction_attachment.findMany({ select: { pathname: true } })).map(a => a.pathname))
 
     const now = Date.now()
-    let cursor: string | undefined
-    let scanned = 0
+    const blobs = await list_blobs()
+    const scanned = blobs.length
     const orphan_pathnames: string[] = []
-    do {
-      const page = await list({ cursor, limit: 1000 })
-      scanned += page.blobs.length
-      for (const blob of page.blobs) {
-        if (referenced.has(blob.pathname)) continue
-        if (now - blob.uploadedAt.getTime() < GRACE_MS) continue
-        orphan_pathnames.push(blob.pathname)
-      }
-      cursor = page.cursor
-    } while (cursor)
-
-    if (orphan_pathnames.length > 0) {
-      await del(orphan_pathnames)
+    for (const blob of blobs) {
+      if (referenced.has(blob.pathname)) continue
+      if (now - blob.uploadedAt.getTime() < GRACE_MS) continue
+      orphan_pathnames.push(blob.pathname)
     }
+
+    await delete_blobs(orphan_pathnames)
 
     logger.info({ scanned, deleted: orphan_pathnames.length }, 'orphan-blob cleanup complete')
     return NextResponse.json({ success: true, scanned, deleted: orphan_pathnames.length })

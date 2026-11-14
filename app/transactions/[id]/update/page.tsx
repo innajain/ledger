@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { attachments_enabled } from '@/lib/blob_store'
 import { get_current_user } from '@/app/_actions/auth'
 import ClientPage from './ClientPage'
 import { update_transaction } from './transactions_update'
@@ -6,7 +7,6 @@ import { convert_future_transaction } from '@/app/_actions/transactions'
 import { get_line_item_defaults } from '@/app/_actions/preferences'
 import { list_tag_names_core, tags_for_transaction_core } from '@/app/_core/tags_core'
 import { profile } from '@/lib/metrics/profile'
-import { env } from '@/lib/env'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 import { NotFound } from '@/app/_components/NotFound'
 
@@ -92,7 +92,7 @@ async function Page({ params }: Props) {
       updateTransaction={update_transaction}
       convertFutureTransaction={convert_future_transaction}
       existingAttachments={attachmentsForClient}
-      attachmentsEnabled={!!env.BLOB_READ_WRITE_TOKEN}
+      attachmentsEnabled={attachments_enabled()}
     />
   )
 }
