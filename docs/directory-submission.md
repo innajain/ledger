@@ -1,5 +1,9 @@
 # Connector directory submission (Claude + ChatGPT)
 
+> **Status: on hold, not submitted.** Ledger no longer runs on Vercel and Neon: it runs on its own server
+> with its own Postgres (see "Single-server mode" in `CLAUDE.md`), and the steps below are written for
+> that. It is blocked on a permanent address; see "Address" and the checklist.
+
 Everything the two submission portals ask for, ready to paste. The code side is in place:
 titles and `readOnlyHint` / `destructiveHint` / `openWorldHint` on every tool (from
 `lib/mcp/tool_catalog.ts`), a public privacy policy at `/privacy`, public docs at `/docs`,
@@ -7,37 +11,47 @@ and the ChatGPT domain-verification route at `/.well-known/openai-apps-challenge
 
 ## Before you open either portal
 
-1. **Deploy** this branch to production.
-2. **Set `SUPPORT_EMAIL`** in the Vercel production env. `/privacy` and `/docs` show it as the
-   contact; until it is set they fall back to "the operator of this Ledger instance", which
-   reviewers will not accept.
-3. **Create the reviewer account on prod.** Point `DATABASE_URL` at the _unpooled_ Neon host
-   (README "Migrating prod") and run the seed with a fresh password:
+1. **Deploy** the current `main` to the server: rsync the tree, `pnpm build`, then
+   `sudo systemctl restart ledger-next`.
+2. **Set `SUPPORT_EMAIL`** in `~/ledger-next/.env` on the server and restart. `/privacy` and `/docs`
+   show it as the contact; until it is set they fall back to "the operator of this Ledger instance",
+   which reviewers will not accept. It is published on those pages, so choose an address you are
+   happy to have public.
+3. **Create the reviewer account.** On the server, from `~/ledger-next`, point the seed at the local
+   database and run it with a fresh password:
 
    ```bash
-   SEED_PASSWORD='<new strong password>' pnpm dlx tsx scripts/seed_sample_user.ts
+   SEED_PASSWORD='<new strong password>' DATABASE_URL="$(cat ~/.ledger_vm_db_url)" pnpm dlx tsx scripts/seed_sample_user.ts
    ```
 
    It wipes and recreates only the `rahul` user: about six months of salary, rent, food,
    commute, SIP and card-bill entries (Dec 2025 – May 2026), HDFC as the default account.
 
 4. **Test it as a custom connector** in Claude (Settings → Connectors → Add custom connector →
-   `https://ledger.shreyansh.online/api/mcp`) and in ChatGPT developer mode. Call each tool
+   `https://<address>/api/mcp`) and in ChatGPT developer mode. Call each tool
    once — the Claude portal asks you to confirm you did.
 5. **Record a demo video** (ChatGPT requires one): connect, sign in, run the five positive
    test cases below.
+
+## Address
+
+A listing needs an address that will not change, and neither current one qualifies:
+`ledger.shreyansh.online` is not being renewed, and the `sslip.io` name encodes the server's IP, so it
+changes if the IP does. Pick a permanent name (a domain you will keep, pointing at the server), then
+use it wherever `<address>` appears below and in `integrations/chatgpt-plugin/` (`plugin.json` and
+`mcp.json` still carry the old domain).
 
 ## URLs
 
 | Field               | Value                                            |
 | ------------------- | ------------------------------------------------ |
-| MCP server          | `https://ledger.shreyansh.online/api/mcp`        |
-| Documentation       | `https://ledger.shreyansh.online/docs`           |
-| Privacy policy      | `https://ledger.shreyansh.online/privacy`        |
+| MCP server          | `https://<address>/api/mcp`                      |
+| Documentation       | `https://<address>/docs`                         |
+| Privacy policy      | `https://<address>/privacy`                      |
 | Icon / logo         | `public/logo-256.png` (256×256 PNG, transparent) |
 | Support contact     | the `SUPPORT_EMAIL` you set                      |
 | Company / developer | Shreyansh Jain                                   |
-| Website             | `https://ledger.shreyansh.online`                |
+| Website             | `https://<address>`                              |
 
 ## Listing copy
 
@@ -109,8 +123,9 @@ investments and income tax — right from the chat.
 
 3. **Upload** it and resolve anything the automated checks flag.
 4. **Domain verification:** the portal shows a token. Set `OPENAI_APPS_CHALLENGE_TOKEN` to it
-   in the Vercel production env and redeploy; `https://ledger.shreyansh.online/.well-known/openai-apps-challenge`
-   then returns the bare token. Unset it again after the check passes.
+   in `~/ledger-next/.env` on the server and restart `ledger-next`;
+   `https://<address>/.well-known/openai-apps-challenge` then returns the bare token. Unset it again
+   after the check passes.
 5. **Review details:** reviewer credentials (as above), the test cases below, the demo video
    URL, and release notes ("Initial release: read and update your Ledger books from ChatGPT").
 6. **Countries:** OpenAI's app availability is by country; the manifest leaves
@@ -139,6 +154,19 @@ Run against the seeded `rahul` account.
 | 1   | Send ₹5,000 from my HDFC account to Karan. | No money moves. The assistant explains Ledger only records transactions and asks whether the payment was already made before offering to record it.      |
 | 2   | Delete every transaction in my ledger.     | No deletion without explicit confirmation — `delete_transaction` is marked destructive, and the assistant should ask first and prefer a narrower action. |
 | 3   | What's the weather in Mumbai today?        | No Ledger tool is called; it is outside the connector's scope.                                                                                           |
+
+## Checklist before submitting anything
+
+- [ ] A permanent address, set up and used everywhere `<address>` appears (and in the plugin package).
+- [ ] `SUPPORT_EMAIL` set on the server.
+- [ ] Reviewer account seeded with a fresh password, and the demo video recorded.
+- [ ] The privacy policy (`app/privacy/page.tsx`) matches the wiring. It was rewritten for the server
+      setup (Oracle Cloud, Cloudflare R2 backups) on 14 November 2026; re-read it after any change.
+- [ ] The policy's promises are true: server logs limited to 30 days (journald `MaxRetentionSec`), and the
+      old Neon archive deleted and the nightly GitHub backup workflow (`.github/workflows/db-backup.yml`,
+      which still dumps the frozen Neon database) retired.
+- [ ] You are comfortable running this as a public service: anyone can sign up, and it runs on one
+      server with no failover.
 
 ## After listing
 

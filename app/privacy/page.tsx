@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 async function Page() {
   const support = env.SUPPORT_EMAIL
   return (
-    <DocShell title="Privacy Policy" subtitle="Effective 30 September 2026">
+    <DocShell title="Privacy Policy" subtitle="Effective 14 November 2026">
       <p>
         Ledger is a personal-finance record-keeping app operated by Shreyansh Jain (&ldquo;we&rdquo;, &ldquo;us&rdquo;). This policy covers the Ledger
         web app and its connector for AI assistants such as Claude and ChatGPT. Ledger records what you tell it: it never moves money, connects to
@@ -46,9 +46,10 @@ async function Page() {
             whose request it was can see, kept for 30 days.
           </li>
           <li>
-            <strong>Technical data</strong> — your IP address, used only for rate limiting and held in our cache for at most an hour; per-request
-            performance measurements (the page, timings and database query counts) linked to your account ID; page-speed measurements with no account
-            attached; and error reports.
+            <strong>Technical data</strong> — your IP address, used only for rate limiting and held in the server&rsquo;s memory for at most an hour;
+            page-speed measurements with no account attached; earlier per-request performance measurements (the page, timings and database query
+            counts) linked to your account ID, which we no longer record; and error messages in the server&rsquo;s log, which do not contain
+            passwords, the content of your requests, IP addresses or account names.
           </li>
         </DocList>
         <p>
@@ -68,10 +69,14 @@ async function Page() {
       <DocSection title="Who receives it">
         <DocList>
           <li>
-            <strong>Service providers that run Ledger</strong> — Vercel (application hosting and private file storage), Neon (PostgreSQL database), a
-            managed Redis service (short-lived cache), Sentry (error monitoring, configured to collect no request bodies, headers, cookies, IP
-            addresses, query parameters or variable values), and GitHub (private storage for nightly database backups). They process data on our
-            behalf, possibly outside your country.
+            <strong>Service providers that run Ledger</strong> — Oracle Cloud Infrastructure hosts the single server, in Mumbai, India, on which the
+            app, its database and its files run. Cloudflare provides the domain name service and stores encrypted offsite backups; they are encrypted
+            on our server before upload, so Cloudflare cannot read them. They process data on our behalf.
+          </li>
+          <li>
+            <strong>Previous hosting, until it is removed</strong> — before 14 November 2026 Ledger ran on Vercel with a database at Neon. A read-only
+            archive of that database as it stood on that date remains at Neon and in private nightly backups at GitHub; it will be deleted once the
+            move is verified, and sooner for your data if you ask.
           </li>
           <li>
             <strong>Other Ledger users</strong> — only as described under linked accounts. Another user who knows your exact username can look up your
@@ -97,13 +102,18 @@ async function Page() {
       <DocSection title="How long we keep it">
         <DocList>
           <li>Your account, ledger entries and performance records: until you delete them or ask us to delete your account.</li>
-          <li>Database backups: 30 days, so deleted data is gone from backups within 30 days.</li>
-          <li>Attachments: removed from storage when deleted; a weekly job clears anything left behind.</li>
+          <li>
+            Backups: taken hourly on the server and kept for 48 hours, then one a day for 30 days and one a week up to 90 days; the encrypted offsite
+            copies are kept for 35 days. Deleted data is therefore gone from backups within 90 days.
+          </li>
+          <li>
+            Attachments: removed from the server when deleted (and from the offsite copies within 35 days); a weekly job clears anything left behind.
+          </li>
           <li>
             AI connector tokens: access tokens expire after 1 hour and refresh tokens after 90 days, rotating on each use. Attachment upload links
             expire after 10 minutes and work once.
           </li>
-          <li>Rate-limit counters: at most one hour. Error reports: up to 90 days, per Sentry&rsquo;s retention.</li>
+          <li>Rate-limit counters: at most one hour, and they are cleared whenever the server restarts. Server logs: 30 days.</li>
         </DocList>
       </DocSection>
 
@@ -132,8 +142,8 @@ async function Page() {
       <DocSection title="Security">
         <p>
           All traffic uses HTTPS. Passwords are stored as bcrypt hashes; OAuth codes, access and refresh tokens, and attachment upload links are
-          stored only as SHA-256 hashes. Attachments sit in a private store and are served only to their owner, and every database query is scoped to
-          the signed-in user.
+          stored only as SHA-256 hashes. Attachments sit on the server&rsquo;s disk, outside the public web files, and are served only to their owner;
+          offsite backups are encrypted before they leave the server; and every database query is scoped to the signed-in user.
         </p>
       </DocSection>
 
