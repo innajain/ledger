@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { MaskedAmount } from './_components/MaskedAmount'
 import { HomeUpcomingTransactions, type HomeUpcomingTransaction } from './_components/HomeUpcomingTransactions'
 import { HomeRequests, type HomeRequest } from './_components/HomeRequests'
-import type { Spendable } from './_utils/spendable'
 
 export default function ClientPage({
   welcomeMessage,
@@ -14,7 +13,6 @@ export default function ClientPage({
   investXirrSlot,
   savings,
   networth,
-  spendable,
   networthTrendSlot,
   upcoming = [],
   requests = [],
@@ -25,7 +23,6 @@ export default function ClientPage({
   investXirrSlot?: React.ReactNode
   savings: { id: string; name: string; total: number } | null
   networth: number | null
-  spendable: Spendable | null
   networthTrendSlot?: React.ReactNode
   upcoming?: HomeUpcomingTransaction[]
   requests?: HomeRequest[]
@@ -63,7 +60,7 @@ export default function ClientPage({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Investments. The amount needs its own click-to-reveal, so it can't sit inside the
             card's <Link> (nesting an interactive control inside an anchor is invalid and was
             exactly what silently broke the toggle — every click hit the link, not the amount).
@@ -154,47 +151,6 @@ export default function ClientPage({
             </div>
           )
         })()}
-
-        {/* Spendable: what is left once investments and locked-away money are taken out. It is
-            net, so the breakdown is on the card rather than behind a click — the figure alone
-            would read as a cash balance, which it is not. No link: there is no single head
-            behind it. */}
-        {spendable && (
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 bg-amber-600 dark:bg-amber-500 rounded-lg flex items-center justify-center">
-                <svg aria-hidden="true" className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Spendable</h2>
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-              <MaskedAmount value={spendable.spendable} />
-            </p>
-            <dl className="text-sm text-slate-500 dark:text-slate-400 mt-3 space-y-1">
-              <div className="flex justify-between gap-4">
-                <dt>Outside investments</dt>
-                <dd className="whitespace-nowrap">
-                  <MaskedAmount value={spendable.outside_investments} />
-                </dd>
-              </div>
-              {spendable.locked.map(l => (
-                <div key={l.name} className="flex justify-between gap-4">
-                  <dt>Less {l.name}</dt>
-                  <dd className="whitespace-nowrap">
-                    <MaskedAmount value={-l.total} />
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        )}
       </div>
 
       {loggedIn && (
