@@ -52,18 +52,23 @@ async function verifyToken(token: string): Promise<{ uid: string; username: stri
 }
 
 function buildCsp(nonce: string, formAction = `form-action 'self'`): string {
-  const blobSrc = env.NEXT_PUBLIC_VERCEL_BLOB_API_URL
-    ? new URL(env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin
-    : 'https://vercel.com https://*.blob.vercel-storage.com'
+  // With BLOB_STORAGE=fs attachments are uploaded through and served from this origin
+  // (/api/upload/fs, /api/files, /api/attachments), so no Vercel Blob host is allowed.
+  const blobSrc =
+    env.BLOB_STORAGE === 'fs'
+      ? ''
+      : env.NEXT_PUBLIC_VERCEL_BLOB_API_URL
+        ? ` ${new URL(env.NEXT_PUBLIC_VERCEL_BLOB_API_URL).origin}`
+        : ' https://vercel.com https://*.blob.vercel-storage.com'
 
   const scriptSrc = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev() ? " 'unsafe-eval'" : ''}`
   return [
     `default-src 'self'`,
     scriptSrc,
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' data: ${blobSrc}`,
+    `img-src 'self' data:${blobSrc}`,
     `font-src 'self'`,
-    `connect-src 'self' ${blobSrc}`,
+    `connect-src 'self'${blobSrc}`,
     `worker-src 'self'`,
     `manifest-src 'self'`,
     `frame-ancestors 'none'`,
