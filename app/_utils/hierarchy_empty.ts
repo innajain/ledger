@@ -52,6 +52,16 @@ export function count_empty_subtrees<T extends { id: string; is_active: boolean 
 }
 
 /**
+ * True when the tree draws no row at all for this node: an inactive head whose whole subtree totals
+ * zero (an inactive head that still holds money stays visible, greyed). Such a node must not count as
+ * a child — an archived, emptied head would otherwise stop its parent from folding (Savings ▸ Surprise
+ * Expenses next to a hidden, archived Buffer Liquid Money) and leave a chevron that expands to nothing.
+ */
+export function is_hidden_inactive<T extends { id: string; is_active: boolean }>(node: HierarchyNode<T>, totals: Map<string, number>): boolean {
+  return !node.item.is_active && is_zero_total(aggregate_total(node, totals))
+}
+
+/**
  * A group that holds nothing itself and has exactly one visible child is pure scaffolding — the row
  * and its child say the same thing twice ("Bank ▸ Kotak", both ₹13,811.23). This walks such wrappers
  * away and returns the node that should actually be rendered in their place, repeating for a chain of

@@ -4,7 +4,14 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { update_hierarchy_order } from '@/app/_actions/resources'
-import { aggregate_total, count_empty_subtrees, fold_single_child, is_empty_subtree, is_zero_total } from '@/app/_utils/hierarchy_empty'
+import {
+  aggregate_total,
+  count_empty_subtrees,
+  fold_single_child,
+  is_empty_subtree,
+  is_hidden_inactive,
+  is_zero_total,
+} from '@/app/_utils/hierarchy_empty'
 import { useToast } from './Toast'
 import { MaskedAmount } from './MaskedAmount'
 
@@ -266,8 +273,10 @@ export function HierarchyTree<T extends BaseItem>({
     onHiddenCountChange?.(hiddenCount)
   }, [hiddenCount, onHiddenCountChange])
 
+  // Only the children that will actually draw a row: archived, emptied heads never do, and with
+  // "Hide empty" on neither do all-zero subtrees. Folding, the chevron and expansion all go by this.
   const visibleChildrenOf = useCallback(
-    (n: Node<T>) => (hideZero ? n.children.filter(child => !is_empty_subtree(child, totals)) : n.children),
+    (n: Node<T>) => n.children.filter(child => !is_hidden_inactive(child, totals) && !(hideZero && is_empty_subtree(child, totals))),
     [hideZero, totals],
   )
 
@@ -304,7 +313,7 @@ export function HierarchyTree<T extends BaseItem>({
     const cursorClasses = canDrag ? 'cursor-grab active:cursor-grabbing' : ''
 
     if (!item.is_active) {
-      if (displayCurr !== 0) {
+      if (!is_hidden_inactive(node, totals)) {
         return (
           <li key={item.id} className="mb-2">
             <div className={`${baseClasses} ${depthClasses} opacity-50`}>

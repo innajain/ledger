@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { aggregate_total, count_empty_subtrees, fold_single_child, is_empty_subtree, is_zero_total, type HierarchyNode } from './hierarchy_empty'
+import {
+  aggregate_total,
+  count_empty_subtrees,
+  fold_single_child,
+  is_empty_subtree,
+  is_hidden_inactive,
+  is_zero_total,
+  type HierarchyNode,
+} from './hierarchy_empty'
 
 type Item = { id: string; is_active: boolean }
 
@@ -103,6 +111,16 @@ describe('count_empty_subtrees', () => {
   })
 })
 
+describe('is_hidden_inactive', () => {
+  it('is true only for an inactive node whose whole subtree is zero', () => {
+    expect(is_hidden_inactive(node('closed', [], false), new Map())).toBe(true)
+    expect(is_hidden_inactive(node('closed', [node('child', [], false)], false), new Map([['child', 1e-12]]))).toBe(true)
+    expect(is_hidden_inactive(node('closed', [], false), new Map([['closed', 5]]))).toBe(false)
+    expect(is_hidden_inactive(node('closed', [node('child')], false), new Map([['child', 5]]))).toBe(false)
+    expect(is_hidden_inactive(node('open'), new Map())).toBe(false)
+  })
+})
+
 describe('fold_single_child', () => {
   const all = (n: HierarchyNode<Item>) => n.children
 
@@ -140,6 +158,25 @@ describe('fold_single_child', () => {
     const visible = (n: HierarchyNode<Item>) => n.children.filter(c => !is_empty_subtree(c, totals))
     expect(fold_single_child(tree, totals, visible).item.id).toBe('kotak')
     expect(fold_single_child(tree, totals, all).item.id).toBe('bank')
+  })
+
+  it('ignores an archived, emptied sibling that the tree does not draw', () => {
+    // Savings ▸ Surprise Expenses, next to an archived Buffer Liquid Money (with archived children) at zero.
+    const tree = node('savings', [node('surprise'), node('buffer', [node('buffer-bank', [], false), node('buffer-cash', [], false)], false)])
+    const totals = new Map([['surprise', -4588.01]])
+    const drawn = (n: HierarchyNode<Item>) => n.children.filter(c => !is_hidden_inactive(c, totals))
+    expect(fold_single_child(tree, totals, drawn).item.id).toBe('surprise')
+    expect(fold_single_child(tree, totals, all).item.id).toBe('savings')
+  })
+
+  it('keeps the wrapper when the archived sibling still holds money', () => {
+    const tree = node('savings', [node('surprise'), node('buffer', [], false)])
+    const totals = new Map([
+      ['surprise', -4588.01],
+      ['buffer', 20000],
+    ])
+    const drawn = (n: HierarchyNode<Item>) => n.children.filter(c => !is_hidden_inactive(c, totals))
+    expect(fold_single_child(tree, totals, drawn).item.id).toBe('savings')
   })
 
   it('never folds an inactive node away, on either side', () => {
