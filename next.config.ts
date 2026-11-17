@@ -22,8 +22,10 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
-    // Inline the (render-blocking) CSS into the HTML — saves a round trip before first paint.
-    inlineCss: true,
+    // No `inlineCss`: it saved one round trip on a first visit but put the whole
+    // stylesheet into every HTML response three times over (a <style> tag plus two copies
+    // in the RSC payload, ~230 KB of a ~270 KB page), where a stylesheet file is fetched
+    // once and then cached.
     optimizePackageImports: ['date-fns', 'date-fns-tz', 'recharts', 'lightweight-charts'],
   },
 
