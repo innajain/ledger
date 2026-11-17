@@ -1,7 +1,6 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
 import pino from 'pino'
-import * as Sentry from '@sentry/nextjs'
 import { isDev } from './env'
 import { currentMetrics } from './metrics/context'
 
@@ -11,13 +10,6 @@ function correlationBindings(): Record<string, string> {
   if (metrics) {
     bindings.request_id = metrics.request_id
     bindings.route = metrics.route
-  }
-
-  const span = Sentry.getActiveSpan()
-  if (span) {
-    const trace = Sentry.spanToJSON(span)
-    bindings.trace_id = trace.trace_id
-    bindings.span_id = trace.span_id
   }
   return bindings
 }

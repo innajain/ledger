@@ -221,19 +221,19 @@ The user-scoped collector pulls each table holding the caller's data (heads, tra
 
 ## Technology Stack
 
-| Layer             | Technology                                          |
-| ----------------- | --------------------------------------------------- |
-| **Framework**     | Next.js 16.2 (App Router)                           |
-| **Language**      | TypeScript 6                                        |
-| **UI**            | React 19, Tailwind CSS 4                            |
-| **ORM**           | Prisma 7.8 (`prisma-client` engine)                 |
-| **Database**      | PostgreSQL (Neon Serverless)                        |
-| **Cache**         | Redis (ioredis)                                     |
-| **File storage**  | Vercel Blob (private, proxied)                      |
-| **Observability** | Sentry (errors, traces, logs), Pino, in-DB profiler |
-| **Market data**   | Yahoo Finance, AMFI India                           |
-| **Auth**          | JWT + bcryptjs                                      |
-| **Returns**       | `xirr`                                              |
+| Layer             | Technology                          |
+| ----------------- | ----------------------------------- |
+| **Framework**     | Next.js 16.2 (App Router)           |
+| **Language**      | TypeScript 6                        |
+| **UI**            | React 19, Tailwind CSS 4            |
+| **ORM**           | Prisma 7.8 (`prisma-client` engine) |
+| **Database**      | PostgreSQL (Neon Serverless)        |
+| **Cache**         | Redis (ioredis)                     |
+| **File storage**  | Vercel Blob (private, proxied)      |
+| **Observability** | Pino (JSON logs), in-DB profiler    |
+| **Market data**   | Yahoo Finance, AMFI India           |
+| **Auth**          | JWT + bcryptjs                      |
+| **Returns**       | `xirr`                              |
 
 ---
 
@@ -509,7 +509,7 @@ Checks performed:
 
 ## Runtime Observability & Performance Profiling
 
-Every server-rendered page is wrapped with `profile()` (see [`lib/metrics/profile.ts`](lib/metrics/profile.ts)), which uses Node's `AsyncLocalStorage` to attribute work to a per-request context. `proxy.ts` creates a trusted `x-request-id`, forwards it to the application and returns it on the response; Pino records that ID together with the active Sentry `trace_id` / `span_id`. Prisma is `$extends`-instrumented to count queries and time them; ioredis is wrapped to track hits/misses; `recordCompute` / `recordExternal` helpers tag explicit spans. Each profiled render emits one `request.completed` JSON log with its duration and DB/Redis/external/compute totals.
+Every server-rendered page is wrapped with `profile()` (see [`lib/metrics/profile.ts`](lib/metrics/profile.ts)), which uses Node's `AsyncLocalStorage` to attribute work to a per-request context. `proxy.ts` creates a trusted `x-request-id`, forwards it to the application and returns it on the response; Pino records that ID and the route on every log line within the request. Prisma is `$extends`-instrumented to count queries and time them; ioredis is wrapped to track hits/misses; `recordCompute` / `recordExternal` helpers tag explicit spans. Each profiled render emits one `request.completed` JSON log with its duration and DB/Redis/external/compute totals.
 
 Three tables collect the data:
 
@@ -523,16 +523,14 @@ Writes are fire-and-forget so profiling never blocks the response. Set `PROFILIN
 
 In dev only, a separate **query toaster** ([`DevQueryToaster`](app/_components/DevQueryToaster.tsx)) subscribes to an SSE stream at `/api/dev/queries` and fires a toast per DB query / Redis op as it happens — useful for spotting N+1s and cache misses inline. Set `DEV_QUERY_TOASTS=off` to silence it; the gate also short-circuits `publishQueryEvent` so the per-event ring buffer is skipped entirely.
 
-Sentry adds the production runtime layer across browser, Node.js, and Edge runtimes:
+Errors and logs go to stdout as Pino JSON (journald on the server). There is no third-party error tracker; Sentry was removed in November 2026.
 
-- **Errors** — route-handler failures plus App Router `error.tsx` / `global-error.tsx` boundaries; caught server-action failures pass through `reportActionError()` so unexpected exceptions are still reported while validation/not-found outcomes remain normal control flow
-- **Traces** — page spans carry DB, Redis, external-call, compute, and slow-query measurements as `ledger.*` attributes, never `user_id`. Sampled at 10% by default; override with `SENTRY_TRACES_SAMPLE_RATE` (server/edge) or `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` (browser). The authoritative per-request numbers live in Postgres, so a low trace rate costs no profiling fidelity
-- **Logs** — Pino `warn` and above are forwarded to Sentry; `info` (including one `request.completed` per render) stays on stdout for the platform log drain, so routine traffic doesn't spend the log quota. `authorization`, cookies, passwords, push keys, tokens, and secrets are redacted before transport
+- **Errors** — caught server-action failures pass through `reportActionError()`, which logs unexpected exceptions once while validation/not-found outcomes remain normal control flow; Next logs route and render failures itself
+- **Redaction** — `authorization`, cookies, passwords, push keys, tokens, and secrets are redacted before anything is written
 - **Audit events** — successful financial, auth, settings, attachment, and admin mutations emit `event: "audit"` with a stable one-way `actor_ref` plus safe counts/booleans; raw user IDs, descriptions, amounts, account names, and filenames are not included. Failed logins emit `event: "auth.denied"` with a hashed `subject_ref`/`ip_ref`, so repeated attempts against one account are correlatable without logging the username
-- **No Session Replay and no console forwarding** — both were removed deliberately. Recorded DOM and raw `console` text are the two channels most likely to carry account names, amounts, and descriptions past the server-side redaction, and neither survives the rule that this project logs no financial detail
-- **Source maps** — uploaded during Vercel builds and removed from the deployed assets; browser events tunnel through `/monitoring`
+- **No session replay and no console forwarding** — recorded DOM and raw `console` text are the two channels most likely to carry account names, amounts, and descriptions past the redaction, so neither exists
 
-Sentry is optional in local development: when `NEXT_PUBLIC_SENTRY_DSN` is unset, its SDK is disabled and the local profiler plus stdout logs continue to work. The Vercel Marketplace integration supplies the DSN plus `SENTRY_ORG`, `SENTRY_PROJECT`, and the build-only `SENTRY_AUTH_TOKEN` in deployed environments. `sendDefaultPii` is disabled throughout. Set `LEDGER_LOG_LEVEL` (`debug`, `info`, `warn`, or `error`) to override the default Pino level.
+Set `LEDGER_LOG_LEVEL` (`debug`, `info`, `warn`, or `error`) to override the default Pino level.
 
 Health checks are split so that the cheap one can stay wide open:
 

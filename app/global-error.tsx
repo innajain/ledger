@@ -1,19 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
-import { report_client_error } from '@/app/_utils/report_client_error'
-
-export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => {
-    report_client_error(error)
-  }, [error])
-
+export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html lang="en">
       <body>
         <main>
           <h1>Something went wrong</h1>
-          <p>The error has been reported. Please try again.</p>
+          <p>Please try again. If it keeps happening, the server log has the details.</p>
           <button type="button" onClick={reset}>
             Try again
           </button>

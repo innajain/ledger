@@ -1,15 +1,9 @@
 'use client'
 
-import { useEffect } from 'react'
-import { report_client_error } from '@/app/_utils/report_client_error'
 import { Button } from '@/app/_components/Button'
 import { WarningIcon } from '@/app/_components/icons'
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => {
-    report_client_error(error)
-  }, [error])
-
   return (
     <div className="min-h-[400px] flex items-center justify-center">
       <div className="text-center space-y-4 max-w-md">

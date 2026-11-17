@@ -1,6 +1,5 @@
 import type { NextConfig } from 'next'
 import bundleAnalyzer from '@next/bundle-analyzer'
-import { withSentryConfig } from '@sentry/nextjs/config'
 
 const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === 'true' })
 
@@ -58,18 +57,4 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withSentryConfig(withBundleAnalyzer(nextConfig), {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  silent: !process.env.CI,
-  telemetry: false,
-  tunnelRoute: '/monitoring',
-  sourcemaps: {
-    deleteSourcemapsAfterUpload: true,
-  },
-  // No `webpack.treeshake` block: `next build` runs Turbopack, where Sentry's
-  // webpack options are inert, and the only webpack build left is `pnpm analyze`
-  // — whose whole job is to report what the production bundle looks like.
-  // Shrinking just that build would make its numbers lie.
-})
+export default withBundleAnalyzer(nextConfig)

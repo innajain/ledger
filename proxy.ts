@@ -13,7 +13,6 @@ const PUBLIC_PATHS = [
   '/sitemap.xml',
   '/sw.js',
   '/manifest.webmanifest',
-  '/monitoring',
   '/api/health',
   '/api/health/ready',
   // The service worker's delivery receipt; the random token in the body is the credential.

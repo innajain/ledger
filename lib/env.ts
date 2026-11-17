@@ -21,7 +21,6 @@ const schema = z.object({
   BLOB_STORAGE: z.enum(['vercel', 'fs']).default('vercel'),
   BLOB_FS_DIR: z.string().min(1).default('./.data/blobs'),
   NEXT_PUBLIC_VERCEL_BLOB_API_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 
   // Public contact shown on /privacy and /docs; both connector directories require one.
   SUPPORT_EMAIL: z.string().email().optional(),

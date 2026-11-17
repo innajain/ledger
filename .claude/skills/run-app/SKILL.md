@@ -39,7 +39,7 @@ redis-cli ping   # PONG
 
 ## 3. Env
 
-`example.env` carries placeholder Sentry/VAPID/blob values that are not needed
+`example.env` carries placeholder VAPID/blob values that are not needed
 to boot. The minimum `lib/env.ts` accepts:
 
 ```bash
