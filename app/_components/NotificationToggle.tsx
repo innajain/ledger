@@ -2,17 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { save_push_subscription, delete_push_subscription, send_test_notification } from '@/app/_actions/notifications'
+import { decode_vapid_public_key, subscription_uses_key } from '@/app/_utils/vapid_key'
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const raw = atob(base64)
-  const out = new Uint8Array(raw.length)
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i)
-  return out
-}
+// Inlined at build time; null when the server was built without a usable key.
+const VAPID_KEY = decode_vapid_public_key(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)
 
 export function NotificationToggle() {
   const [supported, setSupported] = useState(true)
@@ -30,7 +23,9 @@ export function NotificationToggle() {
     if (Notification.permission === 'denied') setDenied(true)
     navigator.serviceWorker.ready
       .then(reg => reg.pushManager.getSubscription())
-      .then(sub => setEnabled(!!sub))
+      // A subscription made with an older server key can no longer be delivered to, so it
+      // counts as off and Enable replaces it.
+      .then(sub => setEnabled(!!sub && !!VAPID_KEY && subscription_uses_key(sub.options.applicationServerKey, VAPID_KEY)))
       .catch(() => {})
   }, [])
 
@@ -38,7 +33,7 @@ export function NotificationToggle() {
     setBusy(true)
     setMsg(null)
     try {
-      if (!VAPID_PUBLIC_KEY) {
+      if (!VAPID_KEY) {
         setMsg('Push notifications are not configured on the server yet.')
         return
       }
@@ -49,9 +44,16 @@ export function NotificationToggle() {
         return
       }
       const reg = await navigator.serviceWorker.ready
+      // The browser refuses to subscribe again with a different key while an old
+      // subscription exists, so drop one made with a previous server key first.
+      const old = await reg.pushManager.getSubscription()
+      if (old && !subscription_uses_key(old.options.applicationServerKey, VAPID_KEY)) {
+        await delete_push_subscription(old.endpoint).catch(() => {})
+        await old.unsubscribe()
+      }
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+        applicationServerKey: VAPID_KEY as BufferSource,
       })
       const json = sub.toJSON()
       const r = await save_push_subscription({
