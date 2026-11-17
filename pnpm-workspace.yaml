@@ -11,3 +11,8 @@ onlyBuiltDependencies:
   - prisma
   - sharp
   - unrs-resolver
+overrides:
+  # @vercel/cli-config (via @vercel/blob > @vercel/oidc) pins zod 4.1.11 exactly, which has
+  # GHSA-mrhx-c7xc-m3w5; no release of that chain moves off it yet. Same major, so lifting it
+  # is safe. Drop this once @vercel/cli-config depends on zod >=4.6.6 itself.
+  '@vercel/cli-config>zod': ^4.6.6
