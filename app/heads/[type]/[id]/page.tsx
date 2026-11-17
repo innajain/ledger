@@ -4,19 +4,20 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { USER_TIMEZONE } from '@/lib/config'
 import { prisma } from '@/lib/prisma'
 import { get_current_user } from '@/app/_actions/auth'
-import { get_prices_for_assets } from '@/app/_utils/price_fetcher'
-import { accounting_head_type, asset_type, Prisma } from '@/generated/prisma/client'
-import { HeadDetailPage, type HeadData, type LineItem } from '@/app/_components/HeadDetailPage'
+import { accounting_head_type, Prisma } from '@/generated/prisma/client'
+import { HeadDetailPage, type HeadData } from '@/app/_components/HeadDetailPage'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
-import { compute_fifo_remaining } from '@/app/_utils/fifo'
+import { LINE_ITEMS_PAGE } from '@/app/_utils/line_item_paging'
 import { normalize_txn } from '@/app/_utils/normalize_txn'
-import { NOT_FUTURE, is_future_txn_due } from '@/app/_utils/future_txn'
+import { is_future_txn_due } from '@/app/_utils/future_txn'
 import { compute_future_sufficiency } from '@/app/_utils/future_balance'
 import { compute_head_rollup, head_detail_link, load_subtree_head_ids } from '@/app/_utils/subtree_value'
 import { HEAD_CONFIG, headBasePath, isHeadType } from '../head_config'
 import { get_closing_balance } from './closing_balance'
+import { head_txn_select, load_head_line_items } from './head_line_items'
+import { get_more_head_line_items } from './more_line_items'
 import { get_expected_interest, save_interest_settings } from './expected_interest'
 import { parse_saved_interest_settings } from '@/app/_utils/interest_config'
 import { ist_ymd } from '@/app/_utils/ist_date'
@@ -35,33 +36,6 @@ type Props = {
 // descendants. It rides in the URL so the view is shareable and the server can scope the
 // queries instead of shipping both datasets to the browser.
 export type HeadScope = 'self' | 'subtree'
-
-/**
- * Exactly the columns this page reads. `include: { accounting_head: true, asset: true }`
- * hangs whole rows off every line item — lock_date, tax_treatment, order_index, parent
- * ids and the rest — which on a subtree with thousands of line items is megabytes of
- * duplicated columns pulled over the wire on every render. Measured on a 2,767-transaction
- * subtree: 6.1 MB against 3.4 MB. (The MCP route keeps its own `slim_txn_select` for the
- * same reason.)
- */
-const head_txn_select = {
-  id: true,
-  datetime: true,
-  description: true,
-  line_items: {
-    select: {
-      id: true,
-      accounting_head_id: true,
-      asset_id: true,
-      quantity: true,
-      txn_value: true,
-      datetime: true,
-      description: true,
-      accounting_head: { select: { id: true, name: true, type: true } },
-      asset: { select: { id: true, name: true, type: true, ticker: true } },
-    },
-  },
-} satisfies Prisma.transactionSelect
 
 // react.cache so generateMetadata and the page share one fetch per request.
 const get_head_row = cache((id: string, user_id: string, type: accounting_head_type) =>
@@ -104,14 +78,11 @@ async function Page({ params, searchParams }: Props) {
   const scope: HeadScope = scoped_head_ids.size > 1 ? 'subtree' : 'self'
   const scoped_id_filter = { accounting_head_id: { in: [...scoped_head_ids] } }
 
-  // One transaction query replaces the old double fetch (head.line_items include plus a
-  // re-fetch of the same transactions); the rollup and linked-user lookups are
-  // independent, so they run alongside it.
-  const [rawTransactions, futureTransactions, rollup, linked_user] = await Promise.all([
-    prisma.transaction.findMany({
-      where: { user_id: user.id, ...NOT_FUTURE, line_items: { some: scoped_id_filter } },
-      select: head_txn_select,
-    }),
+  // The line-item pass (one transaction query, prices, totals, FIFO) is shared with the
+  // "Show more" action; the future, rollup and linked-user lookups are independent, so
+  // they run alongside it.
+  const [core, futureTransactions, rollup, linked_user] = await Promise.all([
+    load_head_line_items({ user_id: user.id, head_id: head.id, is_account: isAccount, scoped_head_ids, scope }),
     prisma.transaction.findMany({
       where: { user_id: user.id, is_future: true, line_items: { some: scoped_id_filter } },
       select: head_txn_select,
@@ -122,128 +93,8 @@ async function Page({ params, searchParams }: Props) {
       ? prisma.user.findUnique({ where: { id: head.linked_user_id }, select: { id: true, username: true, upi_id: true } })
       : null,
   ])
-
-  const transactions = rawTransactions.map(normalize_txn)
-  const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()
-  for (const tx of transactions) for (const li of tx.line_items) normalizedById.set(li.id, li)
-
-  // The line items in scope, rewired to their parent transaction — this head's own in
-  // the default view, the whole subtree's in the "including sub-heads" one.
-  const head_line_items = rawTransactions.flatMap(tx =>
-    tx.line_items.filter(li => scoped_head_ids.has(li.accounting_head_id)).map(li => ({ ...li, transaction: tx })),
-  )
-
-  const uniqueAssets = Array.from(new Map(head_line_items.map(li => [li.asset.id, li.asset])).values())
-  const priceByAsset = await get_prices_for_assets(uniqueAssets)
-
-  let acc_total = new Prisma.Decimal(0)
-  // Book value — what the transactions actually recorded, never marked to market. Summed
-  // over every line item (not just the assets left in `map`), so a fully exited holding
-  // still contributes its realized cost the way acc_total does.
-  let book_total = new Prisma.Decimal(0)
-  // The root head's own value, whatever the page is scoped to. Nothing in the details
-  // card prints it — it is the basis for the things that settle against this head alone
-  // (UPI, "you owe"), which a subtree total would overstate.
-  let own_total = new Prisma.Decimal(0)
-  const cashflows: { amount: number; when: Date }[] = []
-  const map: Record<string, { asset_id: string; asset_name: string; total_qty: Prisma.Decimal; total_book: Prisma.Decimal; asset_type: asset_type }> =
-    {}
-  const lineItemsWithValues: (LineItem & { _sortDate: Date })[] = []
-  // Decimal-precision copy of each line item's lot, for the FIFO pass below —
-  // lineItemsWithValues has already been flattened to numbers for the client.
-  const lots: { id: string; head_id: string; asset_id: string; asset_type: asset_type; qty: Prisma.Decimal; book: Prisma.Decimal; date: Date }[] = []
-
-  for (const li of head_line_items) {
-    const n = normalizedById.get(li.id)!
-    const qty = n.quantity!
-    const txn_value = n.txn_value!
-    const asset = li.asset
-    const priceDecimal = (priceByAsset.get(asset.id) ?? null) && new Prisma.Decimal(priceByAsset.get(asset.id)!.price)
-    const current_value = compute_current_value(asset.type, qty, priceDecimal, txn_value)
-
-    acc_total = acc_total.add(current_value)
-    book_total = book_total.add(txn_value)
-    if (li.accounting_head_id === head.id) own_total = own_total.add(current_value)
-    cashflows.push({ amount: -txn_value.toNumber(), when: li.datetime ?? li.transaction.datetime })
-
-    if (!map[asset.id])
-      map[asset.id] = {
-        asset_id: asset.id,
-        asset_name: asset.name,
-        total_qty: new Prisma.Decimal(0),
-        total_book: new Prisma.Decimal(0),
-        asset_type: asset.type,
-      }
-    map[asset.id].total_qty = map[asset.id].total_qty.add(qty)
-    map[asset.id].total_book = map[asset.id].total_book.add(txn_value)
-
-    lineItemsWithValues.push({
-      id: li.id,
-      asset_id: asset.id,
-      asset_name: asset.name,
-      quantity: qty.toNumber(),
-      txn_value: txn_value.toNumber(),
-      current_value: current_value.toNumber(),
-      transaction_id: li.transaction.id,
-      transaction_date: li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
-      transaction_description: li.transaction.description,
-      line_item_description: li.description,
-      asset_type: asset.type,
-      remaining_quantity: null,
-      // Which head the line actually sits on. Only rendered in the subtree view, where a
-      // row's own head is no longer implied by the page you are on.
-      head_name: scope === 'subtree' ? li.accounting_head.name : null,
-      head_link: scope === 'subtree' ? head_detail_link(li.accounting_head.type, li.accounting_head_id) : null,
-      _sortDate: li.datetime ?? li.transaction.datetime,
-    })
-    lots.push({
-      id: li.id,
-      head_id: li.accounting_head_id,
-      asset_id: asset.id,
-      asset_type: asset.type,
-      qty,
-      book: txn_value,
-      date: li.datetime ?? li.transaction.datetime,
-    })
-  }
-
-  // FIFO one queue per head *and* asset: which buy lots are still open. Keying on the
-  // head as well matters in the subtree view — units bought in one sub-account are not
-  // the units sold from a sibling, and a shared queue would close the wrong lots. In the
-  // default view every line shares one head, so the key is the asset as before. Feeds the
-  // per-row remaining badge (accounts only, as before) and the invested total below.
-  const remaining_by_id = compute_fifo_remaining(
-    lots.filter(l => l.asset_type !== asset_type.rupees).map(l => ({ id: l.id, group_key: `${l.head_id}|${l.asset_id}`, qty: l.qty, date: l.date })),
-  )
-
-  if (isAccount) {
-    for (const li of lineItemsWithValues) {
-      li.remaining_quantity = remaining_by_id.has(li.id) ? remaining_by_id.get(li.id)!.toNumber() : null
-    }
-  }
-
-  // Invested — the cost basis of what the head still holds, the same measure the asset
-  // page calls "Current investment": open lots at their own purchase cost, prorated when
-  // a lot is part-sold, plus rupees at face value (cash's cost basis is itself). It
-  // parts ways with book value only once units are sold, because book keeps the
-  // proceeds-vs-cost difference of the closed lots — a fully exited holding leaves its
-  // realized gain sitting in book while contributing nothing here.
-  let invested_total = new Prisma.Decimal(0)
-  let holds_non_rupees = false
-  for (const lot of lots) {
-    if (lot.asset_type === asset_type.rupees) {
-      invested_total = invested_total.add(lot.book)
-      continue
-    }
-    holds_non_rupees = true
-    if (!lot.qty.greaterThan(0)) continue
-    const remaining = remaining_by_id.get(lot.id)
-    if (remaining && remaining.greaterThan(0)) invested_total = invested_total.add(lot.book.mul(remaining).div(lot.qty))
-  }
-
-  lineItemsWithValues.sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime())
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const line_items: LineItem[] = lineItemsWithValues.map(({ _sortDate, ...rest }) => rest)
+  const { transactions, uniqueAssets, priceByAsset, acc_total, book_total, own_total, cashflows, map, invested_total, holds_non_rupees, line_items } =
+    core
 
   const breakdown: HeadData['breakdown'] = []
   for (const e of Object.values(map)) {
@@ -358,13 +209,16 @@ async function Page({ params, searchParams }: Props) {
         xirr: xirr_value,
         upi_id: linked_user?.upi_id ?? null,
         breakdown,
-        line_items,
+        // One page with the HTML; the rest arrive through get_more_head_line_items.
+        line_items: line_items.slice(0, LINE_ITEMS_PAGE),
+        line_item_count: line_items.length,
         value_timeseries,
         future_transactions: future_transactions_for_client,
       }}
       config={{ backLink: headBasePath(type), backText: cfg.backText, entityName: cfg.entityName, subEntityLabel: cfg.subEntityLabel }}
       scope={scope}
       closingBalanceAction={type === 'income_expense' ? undefined : get_closing_balance}
+      loadMoreLineItems={get_more_head_line_items}
       interestCheck={
         type === 'account'
           ? {

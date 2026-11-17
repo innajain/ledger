@@ -4,12 +4,12 @@ import { get_current_user, is_current_user_admin } from '@/app/_actions/auth'
 import { get_price_for_asset } from '@/app/_utils/price_fetcher'
 import { asset_type, Prisma } from '@/generated/prisma/client'
 import ClientPage from './ClientPage'
+import { build_asset_line_items, fetch_asset_transactions } from './asset_line_items'
+import { get_more_asset_line_items } from './more_line_items'
+import { LINE_ITEMS_PAGE } from '@/app/_utils/line_item_paging'
 import { calculate_xirr } from '@/app/_utils/xirr_calculator'
 import { compute_value_timeseries, reconcile_timeseries_tail } from '@/app/_utils/value_timeseries'
 import { compute_current_value } from '@/app/_utils/compute_current_value'
-import { compute_fifo_remaining } from '@/app/_utils/fifo'
-import { normalize_txn } from '@/app/_utils/normalize_txn'
-import { NOT_FUTURE } from '@/app/_utils/future_txn'
 import { profile } from '@/lib/metrics/profile'
 import { LoggedOutNotice } from '@/app/_components/LoggedOutNotice'
 import { NotFound } from '@/app/_components/NotFound'
@@ -39,10 +39,7 @@ async function Page({ params }: Props) {
   const [isAdmin, asset, rawTransactions, priceResp] = await Promise.all([
     is_current_user_admin(),
     assetPromise,
-    prisma.transaction.findMany({
-      where: { user_id: user.id, ...NOT_FUTURE, line_items: { some: { asset_id: id } } },
-      include: { line_items: { include: { accounting_head: true, asset: true } } },
-    }),
+    fetch_asset_transactions(user.id, id),
     assetPromise.then(a => (a ? get_price_for_asset(a.type, a.ticker ?? null) : null)),
   ])
 
@@ -50,18 +47,14 @@ async function Page({ params }: Props) {
     return <NotFound title="Asset not found" backHref="/assets" backLabel="Back to assets" />
   }
 
-  const transactions = rawTransactions.map(normalize_txn)
-  const normalizedById = new Map<string, (typeof transactions)[0]['line_items'][0]>()
-  for (const tx of transactions) for (const li of tx.line_items) normalizedById.set(li.id, li)
-
-  // The asset's own line items, rewired to their parent transaction — the same set the
-  // old `asset.line_items` include produced, without fetching everything twice.
-  const asset_line_items = rawTransactions.flatMap(tx => tx.line_items.filter(li => li.asset_id === id).map(li => ({ ...li, transaction: tx })))
-
-  const real_line_items = asset_line_items.filter(li => li.accounting_head.type === 'account')
-  const allocation_line_items = asset_line_items.filter(li => li.accounting_head.type === 'allocation')
-
   const priceDecimal = priceResp ? new Prisma.Decimal(priceResp.price) : null
+  // Normalisation, the account/allocation split, FIFO and the line-item rows are shared
+  // with the "Show more" action (asset_line_items.ts).
+  const { transactions, normalizedById, real_line_items, allocation_line_items, current_investment, line_items } = build_asset_line_items(
+    asset,
+    rawTransactions,
+    priceDecimal,
+  )
 
   let asset_total = new Prisma.Decimal(0)
   let book_total = new Prisma.Decimal(0)
@@ -129,53 +122,6 @@ async function Page({ params }: Props) {
     })
   }
 
-  const items_with_meta = real_line_items.map(li => {
-    const n = normalizedById.get(li.id)!
-    const qty = n.quantity!
-    const book = n.txn_value!
-    return {
-      li,
-      qty,
-      book,
-      current_value: compute_current_value(asset.type, qty, priceDecimal, book),
-      sortDate: li.datetime ?? li.transaction.datetime,
-    }
-  })
-
-  const remaining_by_id =
-    asset.type !== asset_type.rupees
-      ? compute_fifo_remaining(
-          items_with_meta.map(item => ({ id: item.li.id, group_key: item.li.accounting_head.id, qty: item.qty, date: item.sortDate })),
-        )
-      : new Map<string, Prisma.Decimal>()
-
-  let current_investment = new Prisma.Decimal(0)
-  for (const { li, qty, book } of items_with_meta) {
-    if (qty.greaterThan(0)) {
-      const remaining = remaining_by_id.get(li.id) ?? new Prisma.Decimal(0)
-      if (remaining.greaterThan(0)) current_investment = current_investment.add(book.mul(remaining).div(qty))
-    }
-  }
-
-  const line_items = items_with_meta
-    .map(({ li, qty, book, current_value, sortDate }) => ({
-      id: li.id,
-      accounting_head_id: li.accounting_head.id,
-      account_name: li.accounting_head.name,
-      quantity: qty.toNumber(),
-      txn_value: book.toNumber(),
-      current_value: current_value.toNumber(),
-      transaction_id: li.transaction.id,
-      transaction_date: li.datetime ? li.datetime.toISOString() : li.transaction.datetime.toISOString(),
-      transaction_description: li.transaction.description,
-      line_item_description: li.description,
-      remaining_quantity: remaining_by_id.has(li.id) ? remaining_by_id.get(li.id)!.toNumber() : null,
-      _sortDate: sortDate,
-    }))
-    .sort((a, b) => b._sortDate.getTime() - a._sortDate.getTime())
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    .map(({ _sortDate, ...rest }) => rest)
-
   let xirr_value: number | null = null
   if (asset.type !== asset_type.rupees && real_line_items.length > 0) {
     const cashflows = real_line_items.map(li => ({
@@ -209,10 +155,13 @@ async function Page({ params }: Props) {
         xirr: xirr_value,
         breakdown,
         allocation_breakdown,
-        line_items,
+        // One page with the HTML; the rest arrive through get_more_asset_line_items.
+        line_items: line_items.slice(0, LINE_ITEMS_PAGE),
+        line_item_count: line_items.length,
         value_timeseries,
       }}
       isAdmin={isAdmin}
+      loadMoreLineItems={get_more_asset_line_items}
     />
   )
 }

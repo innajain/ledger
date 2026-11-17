@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useMoreItems } from '@/app/_components/use_more_items'
+import { LINE_ITEMS_PAGE } from '@/app/_utils/line_item_paging'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ViewPageHeader, InfoCard, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents'
@@ -77,7 +79,10 @@ export type HeadData = {
     txn_value: number | null
     current_value: number
   }[]
+  // The first page of line items, newest first; `line_item_count` is the full count and
+  // the rest come from `loadMoreLineItems`. Without a count, `line_items` is the whole list.
   line_items: LineItem[]
+  line_item_count?: number
   value_timeseries?: ValuePoint[]
   // This head's future line items, in effective-datetime order — one row per line item,
   // not per transaction (a transaction with two lines here, e.g. rent + brokerage, shows
@@ -118,6 +123,8 @@ type HeadDetailPageProps = {
    */
   scope?: HeadScopeValue
   closingBalanceAction?: (head_id: string, date: string, include_subheads?: boolean) => Promise<ActionResult<ClosingBalance>>
+  /** The next page of line items after `offset`, in the same order and scope as the first. */
+  loadMoreLineItems?: (head_id: string, offset: number, include_subheads?: boolean) => Promise<ActionResult<LineItem[]>>
   // account-type heads only — reconciliation runs against a single bank account
   /**
    * Account heads only: interest is paid on money held somewhere, not on a label over it.
@@ -138,8 +145,6 @@ type HeadDetailPageProps = {
   }
 }
 
-const LINE_ITEMS_PAGE = 100
-
 // Book and current value coincide for a head that only ever held rupees, so printing both
 // would just be the same number twice. Compared at paise — the resolution the amounts are
 // displayed at — so a sub-paise pricing artefact doesn't sprout a redundant line.
@@ -155,7 +160,7 @@ function Amount({ value }: { value: number }) {
   )
 }
 
-export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAction, interestCheck }: HeadDetailPageProps) {
+export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAction, loadMoreLineItems, interestCheck }: HeadDetailPageProps) {
   const router = useRouter()
   const editLink = `${config.backLink}/${head.id}/update`
   const subEntityLabel = config.subEntityLabel ?? 'sub-heads'
@@ -167,7 +172,11 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
   const ownTotal = head.own_total ?? head.total
   const scopeSuffix = inSubtree ? ` (with ${subEntityLabel})` : ''
   const [pay_status, set_pay_status] = useState<{ kind: 'ok'; txn_id: string } | { kind: 'err'; message: string } | null>(null)
-  const [visibleLineItems, setVisibleLineItems] = useState(LINE_ITEMS_PAGE)
+  const lineItems = useMoreItems(
+    head.line_items,
+    loadMoreLineItems ? (head.line_item_count ?? head.line_items.length) : head.line_items.length,
+    offset => loadMoreLineItems!(head.id, offset, inSubtree),
+  )
 
   const holdingsItems: HoldingItem[] = head.breakdown.map(b => ({
     id: b.asset_id,
@@ -407,17 +416,17 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
         <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Line items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {head.line_items.length} item
-            {head.line_items.length !== 1 ? 's' : ''}
+            {lineItems.total} item
+            {lineItems.total !== 1 ? 's' : ''}
             {inSubtree && ` across this ${config.entityName.toLowerCase()} and its ${subEntityLabel}`}
           </p>
         </div>
 
-        {head.line_items.length === 0 ? (
+        {lineItems.items.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
-            {head.line_items.slice(0, visibleLineItems).map(li => (
+            {lineItems.items.map(li => (
               <LineItemRow
                 key={li.id}
                 assetName={li.asset_name}
@@ -434,16 +443,17 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
                 headLink={li.head_link}
               />
             ))}
-            {head.line_items.length > visibleLineItems && (
+            {lineItems.remaining > 0 && (
               <div className="p-3 text-center">
                 <button
                   type="button"
-                  onClick={() => setVisibleLineItems(v => v + LINE_ITEMS_PAGE)}
-                  className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  onClick={lineItems.showMore}
+                  disabled={lineItems.loading}
+                  className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-60"
                 >
-                  Show {Math.min(LINE_ITEMS_PAGE, head.line_items.length - visibleLineItems)} more ({head.line_items.length - visibleLineItems}{' '}
-                  remaining)
+                  {lineItems.loading ? 'Loading…' : `Show ${Math.min(LINE_ITEMS_PAGE, lineItems.remaining)} more (${lineItems.remaining} remaining)`}
                 </button>
+                {lineItems.error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{lineItems.error}</p>}
               </div>
             )}
           </div>

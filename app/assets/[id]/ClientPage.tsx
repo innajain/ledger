@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useMoreItems } from '@/app/_components/use_more_items'
+import { LINE_ITEMS_PAGE } from '@/app/_utils/line_item_paging'
+import type { ActionResult } from '@/app/_actions/_result'
 import { ViewPageHeader, InfoCard } from '@/app/_components/ViewPageComponents'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { asset_type } from '@/generated/prisma/enums'
@@ -19,7 +21,7 @@ type BreakdownItem = {
   current_value: number
 }
 
-type LineItem = {
+export type AssetLineItem = {
   id: string
   accounting_head_id: string
   account_name: string
@@ -55,14 +57,31 @@ type AssetForClient = {
   xirr?: number | null
   breakdown: BreakdownItem[]
   allocation_breakdown: AllocationBreakdownItem[]
-  line_items?: LineItem[]
+  // The first page of line items, newest first; `line_item_count` is the full count and
+  // the rest come from `loadMoreLineItems`.
+  line_items?: AssetLineItem[]
+  line_item_count?: number
   value_timeseries?: ValuePoint[]
 }
 
-const LINE_ITEMS_PAGE = 100
+// A stable empty list: useMoreItems ties loaded pages to the first page's identity.
+const EMPTY_LINE_ITEMS: AssetLineItem[] = []
 
-export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; isAdmin: boolean }) {
-  const [visibleLineItems, setVisibleLineItems] = useState(LINE_ITEMS_PAGE)
+export default function ClientPage({
+  asset,
+  isAdmin,
+  loadMoreLineItems,
+}: {
+  asset: AssetForClient
+  isAdmin: boolean
+  loadMoreLineItems?: (asset_id: string, offset: number) => Promise<ActionResult<AssetLineItem[]>>
+}) {
+  const firstLineItems = asset.line_items ?? EMPTY_LINE_ITEMS
+  const lineItems = useMoreItems(
+    firstLineItems,
+    loadMoreLineItems ? (asset.line_item_count ?? firstLineItems.length) : firstLineItems.length,
+    offset => loadMoreLineItems!(asset.id, offset),
+  )
   return (
     <div className="space-y-6">
       <ViewPageHeader
@@ -330,17 +349,17 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
         <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Line items</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {(asset.line_items ?? []).length} item
-            {(asset.line_items ?? []).length !== 1 ? 's' : ''}
+            {lineItems.total} item
+            {lineItems.total !== 1 ? 's' : ''}
           </p>
         </div>
 
-        {(asset.line_items ?? []).length === 0 ? (
+        {lineItems.items.length === 0 ? (
           <div className="p-8 text-center text-slate-500 dark:text-slate-400">No transactions for this asset</div>
         ) : (
           <div className="divide-y divide-slate-200 max-h-96 overflow-y-auto">
             <div>
-              {(asset.line_items ?? []).slice(0, visibleLineItems).map(li => {
+              {lineItems.items.map(li => {
                 const is_depleted = li.remaining_quantity !== null && li.remaining_quantity === 0
                 const remaining_txn_value =
                   li.remaining_quantity !== null && li.txn_value !== null && li.quantity !== 0
@@ -407,16 +426,19 @@ export default function ClientPage({ asset, isAdmin }: { asset: AssetForClient; 
                   </div>
                 )
               })}
-              {(asset.line_items ?? []).length > visibleLineItems && (
+              {lineItems.remaining > 0 && (
                 <div className="p-3 text-center">
                   <button
                     type="button"
-                    onClick={() => setVisibleLineItems(v => v + LINE_ITEMS_PAGE)}
-                    className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    onClick={lineItems.showMore}
+                    disabled={lineItems.loading}
+                    className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-60"
                   >
-                    Show {Math.min(LINE_ITEMS_PAGE, (asset.line_items ?? []).length - visibleLineItems)} more (
-                    {(asset.line_items ?? []).length - visibleLineItems} remaining)
+                    {lineItems.loading
+                      ? 'Loading…'
+                      : `Show ${Math.min(LINE_ITEMS_PAGE, lineItems.remaining)} more (${lineItems.remaining} remaining)`}
                   </button>
+                  {lineItems.error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{lineItems.error}</p>}
                 </div>
               )}
             </div>
