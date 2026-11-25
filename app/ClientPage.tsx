@@ -34,14 +34,14 @@ export default function ClientPage({
           visitors never see. */}
       <h1 className="sr-only">Dashboard</h1>
 
-      <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400">{welcomeMessage}</p>
+      <p className="text-base sm:text-lg text-ink-2">{welcomeMessage}</p>
 
       {networth !== null && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
+        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total net worth</p>
-              <p className="text-3xl sm:text-5xl font-bold text-slate-900 dark:text-slate-100">
+              <p className="text-sm font-medium text-ink-3 mb-1">Total net worth</p>
+              <p className="text-3xl sm:text-5xl font-bold text-ink">
                 <MaskedAmount value={networth} />
               </p>
             </div>
@@ -71,15 +71,15 @@ export default function ClientPage({
           const content = (
             <>
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center">
                   <svg aria-hidden="true" className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                 </div>
                 {investXirrSlot}
               </div>
-              <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Investment allocation</h2>
-              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+              <h2 className="text-sm font-medium text-ink-3 mb-1">Investment allocation</h2>
+              <p className="text-3xl font-bold text-ink">
                 {invest ? (
                   <span className="pointer-events-auto inline-block">
                     <MaskedAmount value={invest.total} />
@@ -88,22 +88,20 @@ export default function ClientPage({
                   '—'
                 )}
               </p>
-              {invest && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{invest.name}</p>}
+              {invest && <p className="text-sm text-ink-3 mt-2">{invest.name}</p>}
             </>
           )
           return invest ? (
-            <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
+            <div className="relative bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
               <Link
                 href={`/heads/allocation/${invest.id}`}
                 aria-label={`View ${invest.name} allocation`}
-                className="absolute inset-0 z-0 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+                className="absolute inset-0 z-0 rounded-lg hover:bg-sunken transition-colors"
               />
               <div className="relative z-10 pointer-events-none">{content}</div>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
-              {content}
-            </div>
+            <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">{content}</div>
           )
         })()}
 
@@ -123,8 +121,8 @@ export default function ClientPage({
                   </svg>
                 </div>
               </div>
-              <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Savings allocation</h2>
-              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+              <h2 className="text-sm font-medium text-ink-3 mb-1">Savings allocation</h2>
+              <p className="text-3xl font-bold text-ink">
                 {savings ? (
                   <span className="pointer-events-auto inline-block">
                     <MaskedAmount value={savings.total} />
@@ -133,22 +131,20 @@ export default function ClientPage({
                   '—'
                 )}
               </p>
-              {savings && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{savings.name}</p>}
+              {savings && <p className="text-sm text-ink-3 mt-2">{savings.name}</p>}
             </>
           )
           return savings ? (
-            <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
+            <div className="relative bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
               <Link
                 href={`/heads/allocation/${savings.id}`}
                 aria-label={`View ${savings.name} allocation`}
-                className="absolute inset-0 z-0 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+                className="absolute inset-0 z-0 rounded-lg hover:bg-sunken transition-colors"
               />
               <div className="relative z-10 pointer-events-none">{content}</div>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
-              {content}
-            </div>
+            <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">{content}</div>
           )
         })()}
       </div>

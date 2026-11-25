@@ -16,10 +16,7 @@ interface ViewPageHeaderProps {
 export function ViewPageHeader({ backLink, backText, title, description, editLink, editText }: ViewPageHeaderProps) {
   return (
     <div>
-      <Link
-        href={backLink}
-        className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
-      >
+      <Link href={backLink} className="inline-flex items-center gap-2 text-ink-2 hover:text-ink transition-colors font-medium mb-4">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
@@ -28,13 +25,13 @@ export function ViewPageHeader({ backLink, backText, title, description, editLin
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
-          {description && <p className="text-slate-600 dark:text-slate-400 mt-1">{description}</p>}
+          <h1 className="text-2xl sm:text-3xl font-bold text-ink">{title}</h1>
+          {description && <p className="text-ink-2 mt-1">{description}</p>}
         </div>
         {editLink && (
           <Link
             href={editLink}
-            className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium inline-flex items-center gap-2 justify-center sm:justify-start sm:whitespace-nowrap"
+            className="px-4 py-2 bg-accent text-on-accent rounded-lg hover:bg-accent-hover transition-colors font-medium inline-flex items-center gap-2 justify-center sm:justify-start sm:whitespace-nowrap"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -64,13 +61,13 @@ interface InfoCardProps {
 
 export function InfoCard({ title, fields }: InfoCardProps) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">{title}</h2>
+    <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
+      <h2 className="text-lg font-semibold text-ink mb-4">{title}</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {fields.map((field, idx) => (
           <div key={idx}>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{field.label}</p>
-            {typeof field.value === 'string' ? <p className="text-slate-900 dark:text-slate-100 font-medium">{field.value}</p> : field.value}
+            <p className="text-sm text-ink-3 mb-1">{field.label}</p>
+            {typeof field.value === 'string' ? <p className="text-ink font-medium">{field.value}</p> : field.value}
           </div>
         ))}
       </div>
@@ -85,9 +82,9 @@ interface HoldingsHeaderProps {
 
 export function HoldingsHeader({ title = 'Holdings', count }: HoldingsHeaderProps) {
   return (
-    <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
-      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+    <div className="p-4 sm:p-6 border-b border-rule">
+      <h2 className="text-lg font-semibold text-ink">{title}</h2>
+      <p className="text-sm text-ink-3 mt-1">
         {count} line item{count !== 1 ? 's' : ''}
       </p>
     </div>
@@ -140,64 +137,55 @@ export function LineItemRow({
   const showLineNote = !!lineItemDescription && lineItemDescription !== title
   const showAssetTag = assetType !== asset_type.rupees
   return (
-    <div className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
+    <div className={`p-4 hover:bg-sunken transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <Link
-              href={`/transactions/${transactionId}`}
-              className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
-            >
+            <Link href={`/transactions/${transactionId}`} className="font-semibold text-ink hover:text-accent transition-colors truncate">
               {title}
             </Link>
             {headName &&
               (headLink ? (
                 <Link
                   href={headLink}
-                  className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                  className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-accent-soft text-accent hover:bg-accent-soft transition-colors"
                 >
                   {headName}
                 </Link>
               ) : (
-                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                  {headName}
-                </span>
+                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-accent-soft text-accent">{headName}</span>
               ))}
             {showAssetTag &&
               (assetLink ? (
                 <Link
                   href={assetLink}
-                  className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-sunken text-ink-2 hover:text-accent transition-colors"
                 >
                   {assetName}
                 </Link>
               ) : (
-                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                  {assetName}
-                </span>
+                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-sunken text-ink-2">{assetName}</span>
               ))}
           </div>
 
-          {showLineNote && <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{lineItemDescription}</p>}
+          {showLineNote && <p className="text-sm text-ink-2 mt-1">{lineItemDescription}</p>}
 
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-ink-3 mt-1">
             <LocalDateTime value={transactionDate} />
           </p>
 
           {assetType !== asset_type.rupees && (
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              <div className="text-slate-600 dark:text-slate-400">
-                <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
-                <span className="font-medium text-slate-900 dark:text-slate-100">{quantity} units</span>
+              <div className="text-ink-2">
+                <span className="text-ink-3">Quantity:</span> <span className="font-medium text-ink">{quantity} units</span>
               </div>
               {remainingQuantity !== undefined && remainingQuantity !== null && (
-                <div className="text-slate-600 dark:text-slate-400">
-                  <span className="text-slate-500 dark:text-slate-400">Remaining:</span>{' '}
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{remainingQuantity} units</span>
+                <div className="text-ink-2">
+                  <span className="text-ink-3">Remaining:</span> <span className="font-medium text-ink">{remainingQuantity} units</span>
                   {remaining_txn_value !== null && (
                     <>
                       {' '}
-                      <span className="text-slate-500 dark:text-slate-400">
+                      <span className="text-ink-3">
                         (<MaskedAmount value={remaining_txn_value} /> book)
                       </span>
                     </>
@@ -209,9 +197,7 @@ export function LineItemRow({
         </div>
 
         <div className="text-right shrink-0">
-          <div
-            className={`text-lg font-semibold ${displayed_amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'}`}
-          >
+          <div className={`text-lg font-semibold ${displayed_amount > 0 ? 'text-pos' : 'text-ink'}`}>
             <MaskedAmount value={displayed_amount} />
           </div>
         </div>

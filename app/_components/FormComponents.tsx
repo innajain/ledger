@@ -15,15 +15,12 @@ interface PageHeaderProps {
 export function PageHeader({ backLink, backText, title, description }: PageHeaderProps) {
   return (
     <div>
-      <Link
-        href={backLink}
-        className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
-      >
+      <Link href={backLink} className="inline-flex items-center gap-2 text-ink-2 hover:text-ink transition-colors font-medium mb-4">
         <ChevronLeftIcon />
         {backText}
       </Link>
-      <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
-      <p className="text-slate-600 dark:text-slate-400 mt-1">{description}</p>
+      <h1 className="text-2xl sm:text-3xl font-bold text-ink">{title}</h1>
+      <p className="text-ink-2 mt-1">{description}</p>
     </div>
   )
 }
@@ -36,7 +33,7 @@ interface FormCardProps {
 export function FormCard({ title, children }: FormCardProps) {
   return (
     <Card className="p-4 sm:p-6">
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">{title}</h2>
+      <h2 className="text-lg font-semibold text-ink mb-4">{title}</h2>
       <div className="space-y-4">{children}</div>
     </Card>
   )
@@ -57,7 +54,7 @@ export function TextInput({ label, value, onChange, placeholder, required, helpT
   const uid = useId()
   return (
     <div>
-      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+      <label htmlFor={uid} className="block text-sm font-medium text-ink-2 mb-2">
         {label}
       </label>
       <input
@@ -69,9 +66,9 @@ export function TextInput({ label, value, onChange, placeholder, required, helpT
         required={required}
         autoComplete={autoComplete}
         inputMode={inputMode}
-        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+        className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
       />
-      {helpText && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{helpText}</p>}
+      {helpText && <p className="text-xs text-ink-3 mt-1">{helpText}</p>}
     </div>
   )
 }
@@ -90,7 +87,7 @@ export function HeadTypeSelect({ label, value, onChange, disabled, restrictedTo 
 
   return (
     <div>
-      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+      <label htmlFor={uid} className="block text-sm font-medium text-ink-2 mb-2">
         {label}
       </label>
       <select
@@ -98,7 +95,7 @@ export function HeadTypeSelect({ label, value, onChange, disabled, restrictedTo 
         value={value}
         onChange={e => onChange(e.target.value as accounting_head_type)}
         disabled={disabled}
-        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {allowedTypes.includes('account') && <option value="account">Account</option>}
         {allowedTypes.includes('allocation') && <option value="allocation">Allocation</option>}
@@ -123,14 +120,14 @@ export function ParentSelect({ label, value, onChange, parents, excludeId, helpT
 
   return (
     <div>
-      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+      <label htmlFor={uid} className="block text-sm font-medium text-ink-2 mb-2">
         {label}
       </label>
       <select
         id={uid}
         value={value ?? ''}
         onChange={e => onChange(e.target.value || null)}
-        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+        className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
       >
         <option value="">None (top level)</option>
         {filteredParents.map(p => (
@@ -139,7 +136,7 @@ export function ParentSelect({ label, value, onChange, parents, excludeId, helpT
           </option>
         ))}
       </select>
-      {helpText && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{helpText}</p>}
+      {helpText && <p className="text-xs text-ink-3 mt-1">{helpText}</p>}
     </div>
   )
 }
@@ -154,14 +151,14 @@ export function AssetTypeSelect({ label, value, onChange }: AssetTypeSelectProps
   const uid = useId()
   return (
     <div>
-      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+      <label htmlFor={uid} className="block text-sm font-medium text-ink-2 mb-2">
         {label}
       </label>
       <select
         id={uid}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+        className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
       >
         <option value="rupees">Rupees</option>
         <option value="mf">Mutual fund</option>
@@ -188,14 +185,14 @@ export function ParentAssetSelect({ label, value, onChange, parents, excludeId, 
 
   return (
     <div>
-      <label htmlFor={uid} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+      <label htmlFor={uid} className="block text-sm font-medium text-ink-2 mb-2">
         {label}
       </label>
       <select
         id={uid}
         value={value ?? ''}
         onChange={e => onChange(e.target.value || null)}
-        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+        className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
       >
         <option value="">None (top level)</option>
         {filteredParents.map(p => (
@@ -204,7 +201,7 @@ export function ParentAssetSelect({ label, value, onChange, parents, excludeId, 
           </option>
         ))}
       </select>
-      {helpText && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{helpText}</p>}
+      {helpText && <p className="text-xs text-ink-3 mt-1">{helpText}</p>}
     </div>
   )
 }
@@ -219,23 +216,17 @@ export function ErrorAlert({ message, onDismiss }: ErrorAlertProps) {
 
   return (
     <div role="alert" className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-      <svg
-        aria-hidden="true"
-        className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
+      <svg aria-hidden="true" className="w-5 h-5 text-neg shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <div className="flex-1">
-        <p className="text-sm text-red-700 dark:text-red-400">{message}</p>
+        <p className="text-sm text-neg">{message}</p>
       </div>
       {onDismiss && (
         <button
           type="button"
           onClick={onDismiss}
-          className="p-1 -m-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
+          className="p-1 -m-1 text-neg hover:text-red-800 dark:hover:text-red-300 transition-colors"
           aria-label="Dismiss error"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,8 +249,8 @@ export function ToggleSwitch({ label, helpText, value, onChange }: ToggleSwitchP
   return (
     <div className="flex items-center justify-between gap-4 py-2">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</p>
-        {helpText && <p className="text-xs text-slate-500 dark:text-slate-400">{helpText}</p>}
+        <p className="text-sm font-medium text-ink-2">{label}</p>
+        {helpText && <p className="text-xs text-ink-3">{helpText}</p>}
       </div>
       <button
         type="button"
@@ -289,7 +280,7 @@ interface FormActionsProps {
 
 export function FormActions({ cancelLink, submitText, busy, onDelete, deleteText }: FormActionsProps) {
   return (
-    <div className="pt-6 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3">
+    <div className="pt-6 border-t border-rule flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3">
       {}
       {onDelete ? (
         <Button variant="dangerOutline" size="lg" onClick={onDelete} className="w-full sm:w-auto">

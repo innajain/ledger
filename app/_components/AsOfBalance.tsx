@@ -73,8 +73,8 @@ export function AsOfBalance({
     <Card>
       <div className="p-4 sm:p-6 space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Balance on a date</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <h2 className="text-lg font-semibold text-ink">Balance on a date</h2>
+          <p className="text-sm text-ink-3 mt-1">
             Closing balance at the end of that day (book value){includeSubheads ? `, including ${subEntityLabel}` : ''} — handy for checking against a
             bank statement. Pick a future date to project the balance forward using scheduled transactions.
           </p>
@@ -85,37 +85,37 @@ export function AsOfBalance({
             aria-label="Balance on date"
             value={date}
             onChange={e => onDateChange(e.target.value)}
-            className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+            className="px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 bg-raised text-ink"
           />
           {busy && (
-            <span role="status" aria-live="polite" className="text-sm text-slate-500 dark:text-slate-400">
+            <span role="status" aria-live="polite" className="text-sm text-ink-3">
               Computing…
             </span>
           )}
         </div>
 
         {error && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <p role="alert" className="text-sm text-neg">
             {error}
           </p>
         )}
 
         {result && !busy && (
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 p-4 space-y-2">
+          <div className="rounded-lg bg-sunken border border-rule p-4 space-y-2">
             <div className="flex items-baseline justify-between gap-4 flex-wrap">
-              <span className="text-sm text-slate-600 dark:text-slate-300">Closing balance on {format_day(result.date)}</span>
-              <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              <span className="text-sm text-ink-2">Closing balance on {format_day(result.date)}</span>
+              <span className="text-xl font-bold text-ink">
                 <MaskedAmount value={result.balance.total_value} />
               </span>
             </div>
-            {result.balance.rows.length === 0 && <p className="text-sm text-slate-500 dark:text-slate-400">No activity on or before this date.</p>}
+            {result.balance.rows.length === 0 && <p className="text-sm text-ink-3">No activity on or before this date.</p>}
             {(result.balance.rows.length > 1 || result.balance.rows.some(r => Math.abs(r.qty - r.value) > 0.005)) && (
-              <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-1 pt-1 border-t border-slate-200 dark:border-slate-600">
+              <ul className="text-sm text-ink-2 space-y-1 pt-1 border-t border-rule">
                 {result.balance.rows.map(r => (
                   <li key={r.asset_name} className="flex justify-between gap-4">
                     <span>
                       {r.asset_name}
-                      {Math.abs(r.qty - r.value) > 0.005 && <span className="text-slate-500 dark:text-slate-400"> · {r.qty} units</span>}
+                      {Math.abs(r.qty - r.value) > 0.005 && <span className="text-ink-3"> · {r.qty} units</span>}
                     </span>
                     <span>
                       <MaskedAmount value={r.value} />

@@ -12,10 +12,10 @@ const REDIRECT_DELAY_MS = 1500
 
 const ErrorBanner = ({ message }: { message: string }) => (
   <div role="alert" className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-    <svg aria-hidden="true" className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className="w-5 h-5 text-neg shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
-    <p className="text-sm text-red-700 dark:text-red-400">{message}</p>
+    <p className="text-sm text-neg">{message}</p>
   </div>
 )
 
@@ -25,23 +25,17 @@ const SuccessBanner = ({ message }: { message: string }) => (
     aria-live="polite"
     className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3"
   >
-    <svg
-      aria-hidden="true"
-      className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg aria-hidden="true" className="w-5 h-5 text-pos shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
-    <p className="text-sm text-green-700 dark:text-green-400">{message}</p>
+    <p className="text-sm text-pos">{message}</p>
   </div>
 )
 
 const inputCls =
-  'block w-full px-3 py-2 pr-12 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors'
-const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
-const eyeBtnCls = 'absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors'
+  'block w-full px-3 py-2 pr-12 bg-raised border border-rule-strong text-ink placeholder:text-ink-3 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-colors'
+const labelCls = 'block text-sm font-medium text-ink-2 mb-2'
+const eyeBtnCls = 'absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-ink-2 transition-colors'
 
 export function AccountSection({ username, upiId }: { username: string; upiId: string | null }) {
   const router = useRouter()
@@ -138,21 +132,21 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
       <SectionHeading id="account">Account</SectionHeading>
       <div className="space-y-6">
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center text-white font-semibold text-lg">
+            <div className="w-12 h-12 rounded-full bg-sunken border border-rule flex items-center justify-center text-ink font-serif text-xl">
               {username.charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Username</p>
-              <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">{username}</p>
+              <p className="text-sm text-ink-3">Username</p>
+              <p className="text-lg font-semibold text-ink">{username}</p>
             </div>
           </div>
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Change password</h3>
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-ink mb-4">Change password</h3>
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>
               <label htmlFor="currentPassword" className={labelCls}>
@@ -254,8 +248,8 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Change username</h3>
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-ink mb-4">Change username</h3>
           <form onSubmit={handleUsernameChange} className="space-y-4">
             <div>
               <label htmlFor="newUsername" className={labelCls}>
@@ -298,7 +292,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
                   <EyeIcon open={showUsernamePassword} />
                 </button>
               </div>
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">We need your password to confirm this change</p>
+              <p className="mt-2 text-xs text-ink-3">We need your password to confirm this change</p>
             </div>
 
             {usernameError && <ErrorBanner message={usernameError} />}
@@ -320,9 +314,9 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Your UPI ID</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-ink mb-1">Your UPI ID</h3>
+          <p className="text-sm text-ink-2 mb-4">
             Set your UPI handle once. Anyone who links an account to you sees a &ldquo;Pay via UPI&rdquo; button using this address &mdash; they no
             longer enter it themselves.
           </p>
@@ -341,7 +335,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
                 onChange={e => setUpi(e.target.value)}
                 className={inputCls.replace(' pr-12', '')}
               />
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Leave blank and save to clear it.</p>
+              <p className="mt-2 text-xs text-ink-3">Leave blank and save to clear it.</p>
             </div>
 
             {upiError && <ErrorBanner message={upiError} />}

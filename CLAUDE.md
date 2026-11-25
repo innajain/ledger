@@ -142,6 +142,10 @@ Health checks are split: `GET /api/health` is liveness — public, uncached, and
 
 **Env exceptions.** `next.config.ts` reads `process.env` directly instead of `lib/env.ts`, because `lib/env.ts` is `server-only` and throws on a bad parse, neither of which the build config can afford. Client components read their `NEXT_PUBLIC_*` values from `process.env` too (they are inlined at build time). Every other module imports `env`.
 
+## Visual system ("ledger paper")
+
+The palette, fonts and corner/shadow scale live in **`app/globals.css`** — read its header before styling anything. Components use the **semantic tokens** (`bg-paper`, `bg-raised`, `bg-sunken`, `text-ink` / `ink-2` / `ink-3`, `border-rule` / `rule-strong`, `accent` / `accent-hover` / `accent-soft` / `on-accent`, `pos`, `neg`, `warn`), which flip with the theme by themselves — so a token class never needs a `dark:` twin, and new code shouldn't add one. The Tailwind `slate` / `blue` / `green` / `red` / `amber` ramps and `white` are re-pointed at the same warm palette only so classes not yet moved to a token still land on it; don't reach for them in new code. Every amount is `num` (Geist Mono, tabular figures) — `MaskedAmount` applies it by default (`numeric={false}` for a figure with its own face); `h1`/`h2` are Newsreader serif via a base rule. Ordinary spending renders in `ink`, not red: `neg` is for an overdrawn or failing figure, `pos` for money in. Small shadows are zeroed in the theme and radii are near-square; no gradients. Chart libraries take literal colours, so `app/_utils/chart_palette.ts` mirrors the tokens — keep the two in step, along with `THEME_COLOR` (`app/_utils/theme_color.ts`), the manifest colours and `public/offline.html`.
+
 ## Code style
 
 Prettier: no semicolons, single quotes, `arrowParens: avoid`, `printWidth: 150`. Node 24 (`.nvmrc`). `@/*` maps to repo root.

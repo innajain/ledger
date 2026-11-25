@@ -71,7 +71,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     <div
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className={`pointer-events-auto animate-slide-in-right bg-white dark:bg-slate-800 border shadow-lg rounded-lg p-4 min-w-75 max-w-md flex items-start gap-3 ${BORDER_CLS[toast.type]}`}
+      className={`pointer-events-auto animate-slide-in-right bg-paper border shadow-lg rounded-lg p-4 min-w-75 max-w-md flex items-start gap-3 ${BORDER_CLS[toast.type]}`}
     >
       {}
       <div className="shrink-0">
@@ -103,7 +103,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       </div>
 
       {}
-      <p className="flex-1 text-sm text-slate-900 dark:text-slate-100">
+      <p className="flex-1 text-sm text-ink">
         <span className="sr-only">{toast.type}: </span>
         {toast.message}
       </p>
@@ -113,7 +113,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss notification"
-        className="shrink-0 p-1 -m-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+        className="shrink-0 p-1 -m-1 text-slate-400 hover:text-ink-2 transition-colors"
       >
         <CloseIcon className="w-5 h-5" />
       </button>

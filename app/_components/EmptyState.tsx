@@ -20,13 +20,13 @@ type EmptyStateProps = {
 export function EmptyState({ icon, title, description, actionUrl, actionLabel, embedded = false }: EmptyStateProps) {
   const body = (
     <>
-      <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">{icon}</div>
-      <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">{title}</h3>
-      <p className={`text-slate-600 dark:text-slate-400 max-w-md mx-auto${actionUrl ? ' mb-6' : ''}`}>{description}</p>
+      <div className="w-16 h-16 bg-sunken rounded-full flex items-center justify-center mx-auto mb-4">{icon}</div>
+      <h3 className="text-lg font-medium text-ink mb-2">{title}</h3>
+      <p className={`text-ink-2 max-w-md mx-auto${actionUrl ? ' mb-6' : ''}`}>{description}</p>
       {actionUrl && (
         <Link
           href={actionUrl}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium"
+          className="inline-flex items-center px-4 py-2 bg-accent text-on-accent rounded-lg hover:bg-accent-hover transition-colors font-medium"
         >
           {actionLabel}
         </Link>

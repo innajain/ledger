@@ -294,31 +294,31 @@ export function SwipeStack({
             {renderCard(top)}
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute top-4 left-4 rotate-[-12deg] rounded-md border-2 border-green-500 px-2 py-0.5 text-sm font-extrabold uppercase tracking-widest text-green-600 dark:text-green-400 bg-white/80 dark:bg-slate-900/80"
+              className="pointer-events-none absolute top-4 left-4 rotate-[-12deg] rounded-md border-2 border-green-500 px-2 py-0.5 text-sm font-extrabold uppercase tracking-widest text-pos bg-paper/80"
               style={{ opacity: dx > 0 ? progress : 0 }}
             >
               {right_label(top, account)}
             </span>
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute top-4 right-4 rotate-12 rounded-md border-2 border-red-500 px-2 py-0.5 text-sm font-extrabold uppercase tracking-widest text-red-600 dark:text-red-400 bg-white/80 dark:bg-slate-900/80"
+              className="pointer-events-none absolute top-4 right-4 rotate-12 rounded-md border-2 border-red-500 px-2 py-0.5 text-sm font-extrabold uppercase tracking-widest text-neg bg-paper/80"
               style={{ opacity: dx < 0 ? progress : 0 }}
             >
               Reject
             </span>
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 rounded-md border-2 border-slate-400 px-2 py-0.5 text-sm font-extrabold uppercase tracking-widest text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80"
+              className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 rounded-md border-2 border-slate-400 px-2 py-0.5 text-sm font-extrabold uppercase tracking-widest text-ink-2 bg-paper/80"
               style={{ opacity: dy < 0 && visible.length > 1 ? Math.min(1, -dy / SKIP_THRESHOLD) : 0 }}
             >
               Later
             </span>
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-8 text-center">
+          <div className="rounded-lg border border-dashed border-rule-strong p-8 text-center">
             <CheckCircleIcon className="mx-auto w-8 h-8 text-green-500" />
-            <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">All caught up</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Nothing left to approve.</p>
+            <p className="mt-2 font-semibold text-ink">All caught up</p>
+            <p className="text-sm text-ink-3">Nothing left to approve.</p>
           </div>
         )}
       </div>
@@ -330,7 +330,7 @@ export function SwipeStack({
             onClick={() => decide(top, -1)}
             disabled={fly !== null}
             aria-label="Reject"
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-red-300 dark:border-red-700 bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 shadow-sm active:scale-95 transition-transform"
+            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-red-300 dark:border-red-700 bg-paper text-neg shadow-sm active:scale-95 transition-transform"
           >
             <CloseIcon className="w-6 h-6" />
           </button>
@@ -340,14 +340,14 @@ export function SwipeStack({
               onClick={() => skip(top)}
               disabled={fly !== null || visible.length < 2}
               aria-label="Move to the back"
-              className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm active:scale-95 transition-transform disabled:opacity-40"
+              className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-rule-strong bg-paper text-ink-2 shadow-sm active:scale-95 transition-transform disabled:opacity-40"
             >
               <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19V5m-6 6l6-6 6 6" />
               </svg>
             </button>
-            <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums text-center">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">{visible.length} left</span> · ↑ later
+            <p className="text-xs text-ink-3 tabular-nums text-center">
+              <span className="font-semibold text-ink-2">{visible.length} left</span> · ↑ later
             </p>
           </div>
           <button
@@ -355,7 +355,7 @@ export function SwipeStack({
             onClick={() => decide(top, 1)}
             disabled={fly !== null}
             aria-label={right_label(top, account)}
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-green-300 dark:border-green-700 bg-white dark:bg-slate-800 text-green-600 dark:text-green-400 shadow-sm active:scale-95 transition-transform"
+            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-green-300 dark:border-green-700 bg-paper text-pos shadow-sm active:scale-95 transition-transform"
           >
             <svg aria-hidden="true" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />

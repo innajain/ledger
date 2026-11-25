@@ -31,12 +31,12 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
         createLabel={isAdmin ? 'New asset' : undefined}
       />
       {assets.length > 0 ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
+        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Asset hierarchy</h2>
+            <h2 className="text-lg font-semibold text-ink">Asset hierarchy</h2>
             <div className="flex items-center gap-2 sm:gap-3">
               {hideZero && hiddenCount > 0 && (
-                <span className="text-xs text-slate-500 dark:text-slate-400" title="Assets whose total (including everything under them) is zero">
+                <span className="text-xs text-ink-3" title="Assets whose total (including everything under them) is zero">
                   {hiddenCount} empty hidden
                 </span>
               )}
@@ -65,18 +65,10 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
               const qty = accQty.values().reduce((sum, q) => sum + q, 0)
               const xirr = xirrByAsset.get(asset.id) ?? null
               return (
-                <span className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                <span className="flex items-center gap-3 text-sm text-ink-2">
                   <span>{qty} units</span>
                   {xirr !== null && (
-                    <span
-                      className={
-                        xirr > 0
-                          ? 'text-green-600 dark:text-green-400 font-medium'
-                          : xirr < 0
-                            ? 'text-red-600 dark:text-red-400 font-medium'
-                            : 'text-slate-600 dark:text-slate-400'
-                      }
-                    >
+                    <span className={xirr > 0 ? 'text-pos font-medium' : xirr < 0 ? 'text-neg font-medium' : 'text-ink-2'}>
                       {(xirr * 100).toFixed(2)}% XIRR
                     </span>
                   )}

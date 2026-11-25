@@ -34,9 +34,9 @@ export function HoldingsGrid({
 }: HoldingsGridProps) {
   return (
     <Card>
-      <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+      <div className="p-4 sm:p-6 border-b border-rule">
+        <h2 className="text-lg font-semibold text-ink">{title}</h2>
+        <p className="text-sm text-ink-3 mt-1">
           {items.length} {items.length !== 1 ? 'items' : 'item'}
         </p>
       </div>
@@ -47,42 +47,33 @@ export function HoldingsGrid({
         <div className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
             {items.map((item, i) => (
-              <div
-                key={i}
-                className="bg-white dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 shadow-sm transition-colors"
-              >
+              <div key={i} className="bg-raised rounded-lg p-4 border border-rule shadow-sm transition-colors">
                 <div className="flex flex-col h-full justify-between">
                   <div>
-                    <Link
-                      href={item.link}
-                      className="text-slate-900 dark:text-slate-100 font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    >
+                    <Link href={item.link} className="text-ink font-semibold hover:text-accent transition-colors">
                       {item.name}
                     </Link>
 
-                    <div className="mt-3 text-sm text-slate-600 dark:text-slate-400 space-y-2">
+                    <div className="mt-3 text-sm text-ink-2 space-y-2">
                       {item.asset_type === asset_type.rupees ? (
                         <div>
-                          <span className="text-slate-500 dark:text-slate-400">Value:</span>{' '}
-                          <span className="font-medium text-slate-900 dark:text-slate-100">
+                          <span className="text-ink-3">Value:</span>{' '}
+                          <span className="font-medium text-ink">
                             <MaskedAmount value={item.current_value} />
                           </span>
                         </div>
                       ) : (
                         <>
                           <div>
-                            <span className="text-slate-500 dark:text-slate-400">Quantity:</span>{' '}
-                            <span className="font-medium text-slate-900 dark:text-slate-100">{item.quantity} units</span>
+                            <span className="text-ink-3">Quantity:</span> <span className="font-medium text-ink">{item.quantity} units</span>
                           </div>
                           <div>
-                            <span className="text-slate-500 dark:text-slate-400">Book:</span>{' '}
-                            <span className="font-medium text-slate-900 dark:text-slate-100">
-                              {item.txn_value === null ? '—' : <MaskedAmount value={item.txn_value} />}
-                            </span>
+                            <span className="text-ink-3">Book:</span>{' '}
+                            <span className="font-medium text-ink">{item.txn_value === null ? '—' : <MaskedAmount value={item.txn_value} />}</span>
                           </div>
                           <div>
-                            <span className="text-slate-500 dark:text-slate-400">Current:</span>{' '}
-                            <span className="font-medium text-slate-900 dark:text-slate-100">
+                            <span className="text-ink-3">Current:</span>{' '}
+                            <span className="font-medium text-ink">
                               <MaskedAmount value={item.current_value} />
                             </span>
                           </div>
@@ -92,10 +83,7 @@ export function HoldingsGrid({
                   </div>
 
                   <div className="mt-4 text-right">
-                    <Link
-                      href={item.link}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-                    >
+                    <Link href={item.link} className="text-xs text-accent hover:text-accent font-medium">
                       {linkLabel}
                     </Link>
                   </div>

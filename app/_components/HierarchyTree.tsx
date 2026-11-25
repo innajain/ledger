@@ -303,11 +303,8 @@ export function HierarchyTree<T extends BaseItem>({
 
     const canDrag = reorderEnabled && !!scope
 
-    const baseClasses = 'flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors'
-    const depthClasses =
-      depth === 0
-        ? `bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700${accentBorderClass ? ` border-l-4 ${accentBorderClass}` : ''}`
-        : ''
+    const baseClasses = 'flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-sunken transition-colors'
+    const depthClasses = depth === 0 ? `bg-paper border border-rule${accentBorderClass ? ` border-l-4 ${accentBorderClass}` : ''}` : ''
     const dragClasses = isDragging ? 'opacity-50' : ''
     const dragOverClasses = isDragOver ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-800' : ''
     const cursorClasses = canDrag ? 'cursor-grab active:cursor-grabbing' : ''
@@ -317,8 +314,8 @@ export function HierarchyTree<T extends BaseItem>({
         return (
           <li key={item.id} className="mb-2">
             <div className={`${baseClasses} ${depthClasses} opacity-50`}>
-              <span className="text-sm italic text-slate-600 dark:text-slate-400">{item.name} (inactive)</span>
-              <span className="ml-auto font-semibold text-sm text-slate-900 dark:text-slate-100">
+              <span className="text-sm italic text-ink-2">{item.name} (inactive)</span>
+              <span className="ml-auto font-semibold text-sm text-ink">
                 <MaskedAmount value={displayCurr} />
               </span>
             </div>
@@ -343,7 +340,7 @@ export function HierarchyTree<T extends BaseItem>({
           onDragEnd={canDrag ? handleDragEnd : undefined}
         >
           {canDrag && (
-            <span className="shrink-0 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-slate-400 dark:text-slate-500">
+            <span className="shrink-0 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-ink-3">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
               </svg>
@@ -360,7 +357,7 @@ export function HierarchyTree<T extends BaseItem>({
               aria-expanded={isExpanded}
               aria-controls={`tree-children-${item.id}`}
               aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${item.name}`}
-              className="shrink-0 w-6 h-6 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
+              className="shrink-0 w-6 h-6 flex items-center justify-center text-ink-2 hover:text-ink hover:bg-rule rounded transition-colors"
             >
               <svg
                 className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
@@ -379,7 +376,7 @@ export function HierarchyTree<T extends BaseItem>({
             <div className="flex-1 min-w-0">
               <Link
                 href={getItemUrl(item.id)}
-                className="font-medium text-sm sm:text-base text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors inline-block"
+                className="font-medium text-sm sm:text-base text-ink hover:text-accent transition-colors inline-block"
                 onClick={e => e.stopPropagation()}
                 draggable={false}
               >
@@ -398,7 +395,7 @@ export function HierarchyTree<T extends BaseItem>({
                     }}
                     disabled={saving}
                     aria-label={`Move ${item.name} up`}
-                    className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-40"
+                    className="p-0.5 text-slate-400 hover:text-ink-2 disabled:opacity-40"
                   >
                     <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -412,7 +409,7 @@ export function HierarchyTree<T extends BaseItem>({
                     }}
                     disabled={saving}
                     aria-label={`Move ${item.name} down`}
-                    className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-40"
+                    className="p-0.5 text-slate-400 hover:text-ink-2 disabled:opacity-40"
                   >
                     <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -420,7 +417,7 @@ export function HierarchyTree<T extends BaseItem>({
                   </button>
                 </span>
               )}
-              <span className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100">
+              <span className="font-semibold text-sm sm:text-base text-ink">
                 <MaskedAmount value={displayCurr} />
               </span>
             </div>
@@ -428,22 +425,19 @@ export function HierarchyTree<T extends BaseItem>({
         </div>
 
         {visibleChildren.length > 0 && isExpanded && (
-          <ul
-            id={`tree-children-${item.id}`}
-            className="mt-2 ml-4 sm:ml-6 md:ml-9 space-y-1 border-l-2 border-slate-200 dark:border-slate-700 pl-2 sm:pl-3 md:pl-4"
-          >
+          <ul id={`tree-children-${item.id}`} className="mt-2 ml-4 sm:ml-6 md:ml-9 space-y-1 border-l-2 border-rule pl-2 sm:pl-3 md:pl-4">
             {showSelfRow && (
               <li key={`${item.id}-self`} className="mb-2">
-                <div className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <div className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg bg-sunken">
                   {canDrag && <span className="w-5 sm:w-6 shrink-0"></span>}
                   <span className="w-5 sm:w-6 shrink-0"></span>
                   <div className="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-4">
                     <div className="flex-1 min-w-0">
-                      <span className="text-xs sm:text-sm italic text-slate-600 dark:text-slate-400">Held directly</span>
+                      <span className="text-xs sm:text-sm italic text-ink-2">Held directly</span>
                       {renderExtraInfo && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
                     </div>
                     <div className="shrink-0 text-right">
-                      <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <span className="text-xs sm:text-sm font-medium text-ink-2">
                         <MaskedAmount value={ownCurr} />
                       </span>
                     </div>
@@ -461,14 +455,14 @@ export function HierarchyTree<T extends BaseItem>({
   return (
     <div>
       {scope && onReorderToggle && (
-        <div className="flex items-center gap-3 mb-4 pb-4 flex-wrap border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-3 mb-4 pb-4 flex-wrap border-b border-rule">
           <button
             onClick={() => onReorderToggle?.(!reorderEnabled)}
             disabled={saving}
             className={`px-3 py-1.5 text-sm rounded-md transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
               reorderEnabled
                 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800'
-                : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 hover:bg-rule'
             }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -477,15 +471,13 @@ export function HierarchyTree<T extends BaseItem>({
             {reorderEnabled ? 'Done reordering' : 'Reorder'}
           </button>
           {reorderEnabled && (
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {saving ? 'Saving…' : 'Drag rows, or use the arrows, to reorder within a level'}
-            </span>
+            <span className="text-sm text-ink-3">{saving ? 'Saving…' : 'Drag rows, or use the arrows, to reorder within a level'}</span>
           )}
         </div>
       )}
       <ul className="space-y-2">{roots.map(r => renderNode(r, 0))}</ul>
       {hideZero && hiddenCount > 0 && roots.every(r => is_empty_subtree(r, totals)) && (
-        <p className="text-sm text-slate-500 dark:text-slate-400 py-2">
+        <p className="text-sm text-ink-3 py-2">
           Everything here totals zero — {hiddenCount} {hiddenCount === 1 ? 'entry is' : 'entries are'} hidden. Use “Show empty” to see them.
         </p>
       )}

@@ -44,9 +44,7 @@ const SETTINGS_HREF = '/settings'
 // h-16 header. Below lg the overflow menu (hamburger) takes over.
 const navLinkClasses = (active: boolean, block = false) =>
   `${block ? 'block px-4 ' : 'px-3 2xl:px-4 '}py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-    active
-      ? 'bg-blue-600 text-white shadow-sm'
-      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
+    active ? 'bg-blue-600 text-white shadow-sm' : 'text-ink-2 hover:text-ink hover:bg-sunken'
   }`
 
 function NavLink({
@@ -88,15 +86,11 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const isActive = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 
   return (
-    <header className="sticky top-0 z-50 shadow-sm transition-all backdrop-blur-sm border-b bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+    <header className="sticky top-0 z-50 shadow-sm transition-all backdrop-blur-sm border-b bg-paper border-rule">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
         <div className="flex items-center justify-between h-16">
           {}
-          <Link
-            href="/"
-            className="flex items-center space-x-2 text-slate-900 dark:text-slate-100 hover:text-slate-700 dark:hover:text-slate-300 transition-all shrink-0 group"
-            onClick={closeMenu}
-          >
+          <Link href="/" className="flex items-center space-x-2 text-ink hover:text-ink-2 transition-all shrink-0 group" onClick={closeMenu}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
               <Image src="/logo-256.png" alt="Ledger" width={24} height={24} />
             </div>
@@ -123,9 +117,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
                 aria-label="Settings"
                 aria-current={isActive(SETTINGS_HREF) ? 'page' : undefined}
                 className={`hidden lg:block p-2 rounded-lg transition-colors ${
-                  isActive(SETTINGS_HREF)
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  isActive(SETTINGS_HREF) ? 'bg-blue-600 text-white shadow-sm' : 'text-ink-2 hover:text-ink hover:bg-sunken'
                 }`}
               >
                 <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,7 +133,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
             )}
             {isLoggedIn && (
               <button
-                className="lg:hidden p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className="lg:hidden p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-sunken transition-colors"
                 onClick={toggleMenu}
                 aria-label="Toggle menu"
                 aria-expanded={isMenuOpen}
@@ -169,9 +161,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
                   // No disclosure on mobile — the menu is already a list, so the
                   // group just becomes a labelled, indented section.
                   <li key={item.label}>
-                    <div className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      {item.label}
-                    </div>
+                    <div className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-3">{item.label}</div>
                     <ul className="flex flex-col gap-1 list-none p-0 m-0 pl-3">
                       {item.children.map(c => (
                         <li key={c.href}>
@@ -186,7 +176,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
                   </li>
                 ),
               )}
-              <li className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+              <li className="mt-2 pt-2 border-t border-rule">
                 <NavLink href={SETTINGS_HREF} label="Settings" active={isActive(SETTINGS_HREF)} block onClick={closeMenu} />
               </li>
             </ul>

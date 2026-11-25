@@ -10,9 +10,9 @@ import { Spinner } from '@/app/_components/icons'
 import { SectionHeading } from './SectionHeading'
 import type { AccountOpt, AssetOpt } from './types'
 
-const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
+const labelCls = 'block text-sm font-medium text-ink-2 mb-2'
 const selectCls =
-  'block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors'
+  'block w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-colors'
 
 export function PreferencesSection({ accounts, assets, defaults }: { accounts: AccountOpt[]; assets: AssetOpt[]; defaults: LineItemDefaults }) {
   const uid = useId()
@@ -66,17 +66,17 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
         <NotificationToggle />
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Appearance</h3>
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-ink mb-4">Appearance</h3>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Theme</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">System follows your OS setting.</p>
+              <p className="text-sm font-medium text-ink-2">Theme</p>
+              <p className="text-xs text-ink-3">System follows your OS setting.</p>
             </div>
             <select
               value={theme}
               onChange={e => set_theme(e.target.value as 'light' | 'dark' | 'system')}
-              className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors"
+              className="px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-colors"
               aria-label="Theme"
             >
               <option value="system">System</option>
@@ -87,16 +87,14 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Privacy</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-            Hide amounts above a threshold. Masked amounts can be revealed individually by clicking them.
-          </p>
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-ink mb-2">Privacy</h3>
+          <p className="text-sm text-ink-2 mb-4">Hide amounts above a threshold. Masked amounts can be revealed individually by clicking them.</p>
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Mask large amounts</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">When off, all amounts are shown in full.</p>
+                <p className="text-sm font-medium text-ink-2">Mask large amounts</p>
+                <p className="text-xs text-ink-3">When off, all amounts are shown in full.</p>
               </div>
               <button
                 type="button"
@@ -105,7 +103,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
                 aria-checked={masking_enabled}
                 aria-label="Toggle amount masking"
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  masking_enabled ? 'bg-blue-600 dark:bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'
+                  masking_enabled ? 'bg-accent' : 'bg-slate-300 dark:bg-slate-600'
                 }`}
               >
                 <span
@@ -137,17 +135,17 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
                     setThresholdInput(String(mask_threshold))
                   }
                 }}
-                className="block w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="block w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Amounts strictly above this value will be hidden by default.</p>
+              <p className="mt-2 text-xs text-ink-3">Amounts strictly above this value will be hidden by default.</p>
             </div>
           </div>
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Transaction line defaults</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-ink mb-2">Transaction line defaults</h3>
+          <p className="text-sm text-ink-2 mb-4">
             Pre-selected account and asset for new lines on the create and edit transaction pages. Leave blank to fall back to the first account/asset
             of that type.
           </p>
@@ -223,16 +221,10 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
                 role="alert"
                 className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3"
               >
-                <svg
-                  aria-hidden="true"
-                  className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg aria-hidden="true" className="w-5 h-5 text-neg shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm text-red-700 dark:text-red-400">{defaultsError}</p>
+                <p className="text-sm text-neg">{defaultsError}</p>
               </div>
             )}
 
@@ -242,16 +234,10 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
                 aria-live="polite"
                 className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3"
               >
-                <svg
-                  aria-hidden="true"
-                  className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg aria-hidden="true" className="w-5 h-5 text-pos shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm text-green-700 dark:text-green-400">{defaultsSuccess}</p>
+                <p className="text-sm text-pos">{defaultsSuccess}</p>
               </div>
             )}
 

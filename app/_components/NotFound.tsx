@@ -26,10 +26,10 @@ export function NotFound({
   showStatus = false,
 }: NotFoundProps) {
   return (
-    <div className="max-w-md mx-auto mt-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-8 text-center">
-      {showStatus && <p className="text-sm font-medium text-slate-500 dark:text-slate-400 tabular-nums mb-1">404</p>}
-      <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h1>
-      <p className="text-slate-600 dark:text-slate-400 mt-2">{description}</p>
+    <div className="max-w-md mx-auto mt-16 bg-paper border border-rule rounded-lg shadow-sm p-8 text-center">
+      {showStatus && <p className="text-sm font-medium text-ink-3 tabular-nums mb-1">404</p>}
+      <h1 className="text-xl font-semibold text-ink">{title}</h1>
+      <p className="text-ink-2 mt-2">{description}</p>
       <ButtonLink href={backHref} variant="primary" className="mt-6">
         {backLabel}
       </ButtonLink>

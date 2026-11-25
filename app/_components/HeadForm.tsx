@@ -79,15 +79,13 @@ function LinkedUserField({
 
   return (
     <div>
-      <label htmlFor={`${uid}-linked-user`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+      <label htmlFor={`${uid}-linked-user`} className="block text-sm font-medium text-ink-2 mb-1">
         Linked User (Optional)
       </label>
       {linkedUserId ? (
         <div className="flex items-center gap-3">
-          <span className="px-3 py-1.5 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium">
-            Linked to @{linkedUsername ?? 'user'}
-          </span>
-          <button type="button" onClick={() => onChange(null, null)} className="text-sm text-red-600 dark:text-red-400 hover:underline">
+          <span className="px-3 py-1.5 rounded-md bg-accent-soft text-accent text-sm font-medium">Linked to @{linkedUsername ?? 'user'}</span>
+          <button type="button" onClick={() => onChange(null, null)} className="text-sm text-neg hover:underline">
             Clear
           </button>
         </div>
@@ -106,26 +104,24 @@ function LinkedUserField({
             }}
             placeholder="another user's username"
             autoComplete="off"
-            className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+            className="flex-1 px-3 py-2 border border-rule-strong rounded-lg bg-raised text-ink"
           />
           <button
             type="button"
             onClick={link}
             disabled={busy || !input.trim()}
-            className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium disabled:opacity-50"
+            className="px-4 py-2 bg-sunken text-ink-2 rounded-lg font-medium disabled:opacity-50"
           >
             {busy ? 'Linking…' : 'Link'}
           </button>
         </div>
       )}
       {err && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400 mt-1">
+        <p role="alert" className="text-sm text-neg mt-1">
           {err}
         </p>
       )}
-      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-        Link this account to another user so transactions touching it sync to their ledger for approval.
-      </p>
+      <p className="text-sm text-ink-3 mt-1">Link this account to another user so transactions touching it sync to their ledger for approval.</p>
     </div>
   )
 }
@@ -319,7 +315,7 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
 
           {isLinkable && (
             <div>
-              <label htmlFor={`${uid}-lock-date`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor={`${uid}-lock-date`} className="block text-sm font-medium text-ink-2 mb-2">
                 Reconciliation Lock (Optional)
               </label>
               <input
@@ -327,9 +323,9 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
                 type="date"
                 value={lockDate}
                 onChange={e => setLockDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
               />
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-ink-3 mt-1">
                 Line items on or before this day are verified against the real account — creating, editing or deleting them is blocked until the lock
                 is moved back. Clear to unlock.
               </p>

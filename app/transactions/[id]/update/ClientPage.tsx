@@ -207,12 +207,12 @@ export default function ClientPage({
       <div>
         <Link
           href={`/transactions/${transaction.id}`}
-          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
+          className="inline-flex items-center gap-2 text-ink-2 hover:text-ink transition-colors font-medium mb-4"
         >
           <ChevronLeftIcon />
           Transaction
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Edit transaction</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Edit transaction</h1>
       </div>
 
       {transaction.is_future && (
@@ -228,12 +228,12 @@ export default function ClientPage({
 
       <form onSubmit={onSubmit} className="space-y-6">
         {}
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Transaction details</h2>
+        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
+          <h2 className="text-lg font-semibold text-ink mb-4">Transaction details</h2>
 
           <div className="space-y-4">
             <div>
-              <label htmlFor={`${uid}-date`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor={`${uid}-date`} className="block text-sm font-medium text-ink-2 mb-2">
                 Date & time
               </label>
               <input
@@ -241,17 +241,17 @@ export default function ClientPage({
                 type="datetime-local"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
               />
               {date && (
-                <div className="text-sm text-slate-600 dark:text-slate-400 mt-2 italic">
+                <div className="text-sm text-ink-2 mt-2 italic">
                   <LocalDateTime value={date} />
                 </div>
               )}
             </div>
 
             <div>
-              <label htmlFor={`${uid}-description`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor={`${uid}-description`} className="block text-sm font-medium text-ink-2 mb-2">
                 Description
               </label>
               <input
@@ -260,18 +260,18 @@ export default function ClientPage({
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Enter transaction description"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+                className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
               />
             </div>
 
             <div>
-              <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Tags</span>
+              <span className="block text-sm font-medium text-ink-2 mb-2">Tags</span>
               <TagPicker options={tags} value={tagIds} onChange={setTagIds} />
             </div>
 
             {attachmentsEnabled && (
               <div>
-                <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Attachments</span>
+                <span className="block text-sm font-medium text-ink-2 mb-2">Attachments</span>
                 <AttachmentUpload
                   existingAttachments={existingAttachments}
                   onPendingChange={setPendingAttachments}
@@ -281,20 +281,17 @@ export default function ClientPage({
             )}
 
             <div>
-              <label
-                htmlFor={`${uid}-is-future`}
-                className="flex items-start gap-3 cursor-pointer rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4"
-              >
+              <label htmlFor={`${uid}-is-future`} className="flex items-start gap-3 cursor-pointer rounded-lg border border-rule bg-sunken p-4">
                 <input
                   id={`${uid}-is-future`}
                   type="checkbox"
                   checked={isFuture}
                   onChange={e => setIsFuture(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 dark:text-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="mt-0.5 h-4 w-4 rounded border-rule-strong text-accent focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <span>
-                  <span className="block text-sm font-medium text-slate-900 dark:text-slate-100">Future transaction</span>
-                  <span className="block text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                  <span className="block text-sm font-medium text-ink">Future transaction</span>
+                  <span className="block text-sm text-ink-3 mt-0.5">
                     Won&apos;t affect balances, net worth or XIRR until converted to a real transaction.
                   </span>
                 </span>
@@ -319,7 +316,7 @@ export default function ClientPage({
         <TransactionBalanceSummary items={items} accounts={accounts} assets={assets} />
 
         {}
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex justify-end gap-3 pt-6 border-t border-rule">
           <ButtonLink href={`/transactions/${transaction.id}`} variant="secondary">
             Cancel
           </ButtonLink>

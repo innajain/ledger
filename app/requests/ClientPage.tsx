@@ -63,18 +63,16 @@ function net_of(preview: RequestPreviewLine[]): number {
 }
 
 function SignedAmount({ value }: { value: number }) {
-  const cls = value > 0 ? 'text-green-700 dark:text-green-400' : value < 0 ? 'text-red-700 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'
+  const cls = value > 0 ? 'text-pos' : value < 0 ? 'text-neg' : 'text-ink-2'
   return <MaskedAmount value={value} keep_sign className={`font-medium tabular-nums ${cls}`} />
 }
 
 function LineRow({ line, struck = false }: { line: RequestPreviewLine; struck?: boolean }) {
   return (
     <li className={`flex justify-between gap-4 text-sm ${struck ? 'line-through opacity-70' : ''}`}>
-      <span className="text-slate-600 dark:text-slate-400 truncate">{line.asset_name}</span>
+      <span className="text-ink-2 truncate">{line.asset_name}</span>
       <span className="shrink-0 text-right">
-        {line.txn_value !== null && line.quantity !== null && (
-          <span className="text-slate-500 dark:text-slate-400 mr-1">{qty_fmt.format(line.quantity)} units ·</span>
-        )}
+        {line.txn_value !== null && line.quantity !== null && <span className="text-ink-3 mr-1">{qty_fmt.format(line.quantity)} units ·</span>}
         {line.txn_value === null && line.quantity === null ? '—' : <SignedAmount value={line_amount(line)} />}
       </span>
     </li>
@@ -106,7 +104,7 @@ function NetEffect({
   const text =
     net === 0 ? 'No change to the balance between you' : `${label}, the balance moves ${net > 0 ? 'in your favour' : `in @${other}’s favour`}`
   return (
-    <p className="flex flex-wrap items-baseline justify-between gap-x-3 border-t border-slate-200 dark:border-slate-700 pt-1.5 text-xs text-slate-500 dark:text-slate-400">
+    <p className="flex flex-wrap items-baseline justify-between gap-x-3 border-t border-rule pt-1.5 text-xs text-ink-3">
       <span>{text}</span>
       {net !== 0 && (
         <span>
@@ -120,8 +118,8 @@ function NetEffect({
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt>
-      <dd className="mt-0.5 text-sm text-slate-900 dark:text-slate-100">{children}</dd>
+      <dt className="text-xs font-medium uppercase tracking-wide text-ink-3">{label}</dt>
+      <dd className="mt-0.5 text-sm text-ink">{children}</dd>
     </div>
   )
 }
@@ -132,14 +130,14 @@ function ChangeSummary({ previous, current }: { previous: RequestSnapshot; curre
   const descChanged = (previous.description ?? '') !== (current.description ?? '')
   const linesChanged = JSON.stringify(previous.preview) !== JSON.stringify(current.preview)
   if (!dateChanged && !descChanged && !linesChanged) {
-    return <p className="text-xs text-slate-500 dark:text-slate-400">Only their own lines changed — nothing shared with you differs.</p>
+    return <p className="text-xs text-ink-3">Only their own lines changed — nothing shared with you differs.</p>
   }
   return (
     <div className="rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-900/20 p-3 space-y-2">
       <p className="text-xs font-semibold uppercase tracking-wide text-violet-800 dark:text-violet-300">What changed</p>
       {dateChanged && (
-        <p className="text-sm text-slate-700 dark:text-slate-300">
-          <span className="text-slate-500 dark:text-slate-400">Date: </span>
+        <p className="text-sm text-ink-2">
+          <span className="text-ink-3">Date: </span>
           <span className="line-through opacity-70">
             <LocalDateTime value={previous.datetime} />
           </span>
@@ -148,8 +146,8 @@ function ChangeSummary({ previous, current }: { previous: RequestSnapshot; curre
         </p>
       )}
       {descChanged && (
-        <p className="text-sm text-slate-700 dark:text-slate-300">
-          <span className="text-slate-500 dark:text-slate-400">Description: </span>
+        <p className="text-sm text-ink-2">
+          <span className="text-ink-3">Description: </span>
           <span className="line-through opacity-70">{previous.description || 'none'}</span>
           {' → '}
           {current.description || 'none'}
@@ -158,7 +156,7 @@ function ChangeSummary({ previous, current }: { previous: RequestSnapshot; curre
       {linesChanged && (
         <div className="grid gap-2 sm:grid-cols-2">
           <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Before</p>
+            <p className="text-xs text-ink-3 mb-1">Before</p>
             {previous.preview.length === 0 ? (
               <p className="text-sm italic text-slate-500">none</p>
             ) : (
@@ -170,7 +168,7 @@ function ChangeSummary({ previous, current }: { previous: RequestSnapshot; curre
             )}
           </div>
           <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">After</p>
+            <p className="text-xs text-ink-3 mb-1">After</p>
             {current.preview.length === 0 ? (
               <p className="text-sm italic text-slate-500">none</p>
             ) : (
@@ -217,35 +215,31 @@ function RequestShell({
 }) {
   const current: RequestSnapshot | null = datetime ? { datetime, description, preview } : null
   return (
-    <article
-      className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 border-l-4 ${ACCENT_CLS[kind.tone]} p-4 sm:p-5 space-y-4`}
-    >
+    <article className={`bg-paper rounded-lg shadow-sm border border-rule border-l-4 ${ACCENT_CLS[kind.tone]} p-4 sm:p-5 space-y-4`}>
       <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           <Badge tone={kind.tone}>{kind.label}</Badge>
-          <p className="font-semibold text-slate-900 dark:text-slate-100">{headline}</p>
+          <p className="font-semibold text-ink">{headline}</p>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <p className="text-xs text-ink-3">
           Requested <LocalDateTime value={requested_at} />
         </p>
       </header>
 
       {current ? (
         <dl className="grid gap-3 sm:grid-cols-[2fr_1fr]">
-          <Field label="Description">
-            {description ? description : <span className="italic text-slate-500 dark:text-slate-400">No description</span>}
-          </Field>
+          <Field label="Description">{description ? description : <span className="italic text-ink-3">No description</span>}</Field>
           <Field label="Transaction date">
             <LocalDateTime value={datetime!} />
           </Field>
         </dl>
       ) : (
-        <p className="text-sm italic text-slate-500 dark:text-slate-400">Neither copy of this transaction exists any more.</p>
+        <p className="text-sm italic text-ink-3">Neither copy of this transaction exists any more.</p>
       )}
 
       {preview.length > 0 && (
-        <div className="rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-3 space-y-1.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <div className="rounded-md bg-sunken border border-rule p-3 space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-3">
             Shared lines{account_name ? ` · your “${account_name}” account` : ''}
           </p>
           <ul className="space-y-0.5">
@@ -267,8 +261,7 @@ function RequestShell({
 }
 
 function Note({ tone, children }: { tone: 'amber' | 'slate' | 'red'; children: ReactNode }) {
-  const cls =
-    tone === 'amber' ? 'text-amber-700 dark:text-amber-400' : tone === 'red' ? 'text-red-700 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'
+  const cls = tone === 'amber' ? 'text-amber-700 dark:text-amber-400' : tone === 'red' ? 'text-neg' : 'text-ink-2'
   return <p className={`text-sm ${cls}`}>{children}</p>
 }
 
@@ -441,13 +434,13 @@ function Section({ id, title, count, hint, children }: { id: string; title: stri
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="space-y-3 scroll-mt-20">
       <div>
-        <h2 id={`${id}-title`} className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <h2 id={`${id}-title`} className="flex items-center gap-2 text-lg font-semibold text-ink">
           {title}
           <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 text-xs font-semibold rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
             {count}
           </span>
         </h2>
-        <p className="hidden sm:block text-sm text-slate-500 dark:text-slate-400">{hint}</p>
+        <p className="hidden sm:block text-sm text-ink-3">{hint}</p>
       </div>
       {children}
     </section>
@@ -457,8 +450,8 @@ function Section({ id, title, count, hint, children }: { id: string; title: stri
 function PersonGroup({ username, count, children }: { username: string; count: number; children: ReactNode }) {
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-        @{username} <span className="font-normal text-slate-500 dark:text-slate-400">· {count}</span>
+      <h3 className="text-sm font-semibold text-ink-2">
+        @{username} <span className="font-normal text-ink-3">· {count}</span>
       </h3>
       <div className="space-y-3">{children}</div>
     </div>
@@ -472,13 +465,11 @@ function StatTile({ href, label, count, tone }: { href: string; label: string; c
       href={href}
       aria-disabled={!active}
       className={`rounded-lg border px-3 py-2.5 sm:px-4 sm:py-3 transition-colors ${
-        active
-          ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500'
-          : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 pointer-events-none opacity-60'
+        active ? 'bg-paper border-rule hover:border-slate-400 dark:hover:border-slate-500' : 'bg-sunken border-rule pointer-events-none opacity-60'
       }`}
     >
-      <p className="truncate text-[11px] sm:text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+      <p className="truncate text-[11px] sm:text-xs font-medium uppercase tracking-wide text-ink-3">{label}</p>
+      <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-ink tabular-nums">
         {count}
         {active && <span className={`inline-block w-2 h-2 rounded-full ${DOT_CLS[tone]}`} aria-hidden="true" />}
       </p>
@@ -590,13 +581,13 @@ export default function ClientPage({
   const renderAcceptAll = (suffix: string) => (
     <div className="space-y-3">
       <div>
-        {suffix === 'wide' && <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Accept all at once</p>}
+        {suffix === 'wide' && <p className="text-sm font-semibold text-ink">Accept all at once</p>}
         {accounts.length === 0 ? (
           <p className="text-sm text-amber-600 dark:text-amber-400">
             Create one of your own accounts (e.g. “Cash”) to bulk-approve these against — a linked account can’t be the balancing account.
           </p>
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-ink-3">
             Approves every new or edited request from a person, balanced onto one of your accounts (an account-to-account transfer you can reclassify
             later). Deletions are not included.
           </p>
@@ -605,17 +596,17 @@ export default function ClientPage({
       {accounts.length > 0 &&
         changeGroups.map(([otherId, g]) => (
           <div key={otherId} className="flex flex-wrap items-center gap-3">
-            <span className="text-sm text-slate-700 dark:text-slate-300">
+            <span className="text-sm text-ink-2">
               <strong>@{g.username}</strong> — {g.count} request{g.count === 1 ? '' : 's'}
             </span>
-            <label htmlFor={`${uid}-balance-${suffix}-${otherId}`} className="text-sm text-slate-500 dark:text-slate-400">
+            <label htmlFor={`${uid}-balance-${suffix}-${otherId}`} className="text-sm text-ink-3">
               balance with
             </label>
             <select
               id={`${uid}-balance-${suffix}-${otherId}`}
               value={balancingByOther[otherId] ?? defaultAccountId ?? accounts[0].id}
               onChange={e => setBalancingByOther(prev => ({ ...prev, [otherId]: e.target.value }))}
-              className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+              className="px-2 py-1 text-sm border border-rule-strong rounded-lg bg-raised text-ink"
             >
               {accounts.map(a => (
                 <option key={a.id} value={a.id}>
@@ -634,9 +625,9 @@ export default function ClientPage({
   return (
     <div className="space-y-5 sm:space-y-8">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Requests</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Requests</h1>
         {/* Phones skip the explainer so the first card sits near the top of the screen. */}
-        <p className="hidden sm:block text-slate-600 dark:text-slate-400 mt-1">
+        <p className="hidden sm:block text-ink-2 mt-1">
           Transactions on an account linked to someone else are kept in both ledgers. Each change, edit or deletion waits here until the other side
           agrees.
         </p>
@@ -646,7 +637,7 @@ export default function ClientPage({
 
       {items.length === 0 && outbox.length === 0 ? (
         <EmptyState
-          icon={<CheckCircleIcon className="w-8 h-8 text-slate-400 dark:text-slate-500" />}
+          icon={<CheckCircleIcon className="w-8 h-8 text-ink-3" />}
           title="Nothing awaiting you"
           description="Approval requests from linked accounts will show up here."
         />
@@ -681,22 +672,20 @@ export default function ClientPage({
               hint="Someone changed a transaction you share. Nothing moves in your ledger until you approve."
             >
               {changeGroups.length > 0 && (
-                <div className="hidden sm:block rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-4">
-                  {renderAcceptAll('wide')}
-                </div>
+                <div className="hidden sm:block rounded-lg border border-dashed border-rule-strong p-4">{renderAcceptAll('wide')}</div>
               )}
               {/* Phones get a swipe deck; wider screens keep the full grouped list. */}
               <div className="sm:hidden space-y-3">
                 {accounts.length > 0 && pending.some(i => i.kind === 'change' && !i.previous) && (
                   <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <label htmlFor={`${uid}-swipe-account`} className="text-slate-500 dark:text-slate-400">
+                    <label htmlFor={`${uid}-swipe-account`} className="text-ink-3">
                       New transactions balance with
                     </label>
                     <select
                       id={`${uid}-swipe-account`}
                       value={swipeAccountId}
                       onChange={e => setSwipeAccountId(e.target.value)}
-                      className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                      className="px-2 py-1 text-sm border border-rule-strong rounded-lg bg-raised text-ink"
                     >
                       {accounts.map(a => (
                         <option key={a.id} value={a.id}>
@@ -714,8 +703,8 @@ export default function ClientPage({
                   onError={setError}
                 />
                 {changeGroups.length > 0 && (
-                  <details className="group rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
-                    <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <details className="group rounded-lg border border-dashed border-rule-strong">
+                    <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-ink">
                       Accept all at once
                       <span aria-hidden="true" className="text-slate-400 transition-transform group-open:rotate-180">
                         ▾

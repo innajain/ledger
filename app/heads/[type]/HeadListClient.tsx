@@ -47,10 +47,10 @@ export default function HeadListClient({ type, heads, totals, assetQuantities, p
         ))}
       />
       {heads.length > 0 ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
+        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
             <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{cfg.hierarchyTitle}</h2>
+              <h2 className="text-lg font-semibold text-ink">{cfg.hierarchyTitle}</h2>
               {cfg.showPeriodToggle && (
                 <ParamToggle<PeriodValue>
                   param="period"
@@ -66,7 +66,7 @@ export default function HeadListClient({ type, heads, totals, assetQuantities, p
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               {hideZero && hiddenCount > 0 && (
-                <span className="text-xs text-slate-500 dark:text-slate-400" title="Entries whose total (including everything under them) is zero">
+                <span className="text-xs text-ink-3" title="Entries whose total (including everything under them) is zero">
                   {hiddenCount} empty hidden
                 </span>
               )}

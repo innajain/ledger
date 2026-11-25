@@ -32,11 +32,11 @@ export function SessionSection() {
   return (
     <section>
       <SectionHeading id="session">Session</SectionHeading>
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+      <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Log out</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Log out of this device. You&apos;ll need to log in again to return.</p>
+            <h3 className="text-lg font-semibold text-ink">Log out</h3>
+            <p className="text-sm text-ink-2 mt-1">Log out of this device. You&apos;ll need to log in again to return.</p>
           </div>
           <Button variant="secondary" className="shrink-0" onClick={handleLogout} disabled={loggingOut}>
             {loggingOut ? 'Logging out…' : 'Log out'}

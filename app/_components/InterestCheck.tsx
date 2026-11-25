@@ -21,9 +21,8 @@ import type { ExpectedInterest } from '@/app/_core/interest_core'
 const CUSTOM = 'custom'
 // Band limits are round numbers, so ₹50,000 not ₹50,000.00 — but a typed ₹50,000.5 still shows.
 const limit_fmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 })
-const field_classes =
-  'px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100'
-const label_classes = 'block text-sm text-slate-600 dark:text-slate-300 mb-1'
+const field_classes = 'px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 bg-raised text-ink'
+const label_classes = 'block text-sm text-ink-2 mb-1'
 
 const DAY_BASIS_LABEL: Record<DayBasis, string> = {
   fixed_365: '365 days, always',
@@ -230,8 +229,8 @@ export function InterestCheck({
     <Card>
       <div className="p-4 sm:p-6 space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Interest check</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <h2 className="text-lg font-semibold text-ink">Interest check</h2>
+          <p className="text-sm text-ink-3 mt-1">
             What a bank would pay on this account{includeSubheads ? ` and its ${subEntityLabel}` : ''}: every day&apos;s closing balance earns the
             yearly rate ÷ days in the year, and the total is credited the way the bank rounds it. Hold it against the interest you were actually paid.
           </p>
@@ -333,14 +332,12 @@ export function InterestCheck({
 
           {mode === 'slabs' && (
             <fieldset className="space-y-2">
-              <legend className="text-sm text-slate-600 dark:text-slate-300 mb-1">
-                Each band&apos;s rate applies only to the part of the balance inside it
-              </legend>
+              <legend className="text-sm text-ink-2 mb-1">Each band&apos;s rate applies only to the part of the balance inside it</legend>
               {slabs.map((row, i) => {
                 const last = i === slabs.length - 1
                 return (
                   <div key={i} className="flex flex-wrap items-center gap-2">
-                    <span className="w-14 text-sm text-slate-500 dark:text-slate-400">{last ? 'Above' : 'Up to'}</span>
+                    <span className="w-14 text-sm text-ink-3">{last ? 'Above' : 'Up to'}</span>
                     {last ? (
                       <span className={`${field_classes} w-40 opacity-70`}>{last_band_floor(slabs, i)}</span>
                     ) : (
@@ -390,7 +387,7 @@ export function InterestCheck({
           )}
 
           <details className="text-sm">
-            <summary className="cursor-pointer text-slate-600 dark:text-slate-300">Rounding and day count</summary>
+            <summary className="cursor-pointer text-ink-2">Rounding and day count</summary>
             <div className="flex flex-wrap items-end gap-3 pt-3">
               <div>
                 <label htmlFor={`interest-basis-${headId}`} className={label_classes}>
@@ -426,7 +423,7 @@ export function InterestCheck({
                   ))}
                 </select>
               </div>
-              <label className="flex items-center gap-2 py-2 text-slate-600 dark:text-slate-300">
+              <label className="flex items-center gap-2 py-2 text-ink-2">
                 <input type="checkbox" checked={round_each_day} onChange={e => setRoundEachDay(e.target.checked)} />
                 Round each day to the paisa first (a bank that credits daily)
               </label>
@@ -445,7 +442,7 @@ export function InterestCheck({
               type="button"
               disabled={saving}
               onClick={() => persist(false)}
-              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 disabled:opacity-60 text-sm font-medium transition-colors"
+              className="px-4 py-2 rounded-lg border border-rule-strong text-ink-2 hover:bg-sunken disabled:opacity-60 text-sm font-medium transition-colors"
             >
               {saving ? 'Saving…' : has_saved ? 'Update saved rate card' : 'Save rate card on this account'}
             </button>
@@ -461,30 +458,30 @@ export function InterestCheck({
             )}
           </div>
           {note && (
-            <p role="status" className="text-sm text-slate-500 dark:text-slate-400">
+            <p role="status" className="text-sm text-ink-3">
               {note}
             </p>
           )}
         </form>
 
         {error && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <p role="alert" className="text-sm text-neg">
             {error}
           </p>
         )}
 
         {result && !busy && (
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 p-4 space-y-2">
+          <div className="rounded-lg bg-sunken border border-rule p-4 space-y-2">
             <div className="flex items-baseline justify-between gap-4 flex-wrap">
-              <span className="text-sm text-slate-600 dark:text-slate-300">
+              <span className="text-sm text-ink-2">
                 {result.projected ? 'Projected' : 'Expected'} interest, {format_day(result.from)} to {format_day(result.to)}
                 {flat_rate !== null ? ` at ${flat_rate}%` : ` on ${result.config.slabs.length} bands`}
               </span>
-              <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              <span className="text-xl font-bold text-ink">
                 <MaskedAmount value={result.interest_rounded} precise={result.config.rounding === 'paise'} />
               </span>
             </div>
-            <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-1 pt-1 border-t border-slate-200 dark:border-slate-600">
+            <ul className="text-sm text-ink-2 space-y-1 pt-1 border-t border-rule">
               <li className="flex justify-between gap-4">
                 <span>{result.config.round_each_day ? 'Sum of each day, to the paisa' : 'Before rounding'}</span>
                 <MaskedAmount value={result.interest} precise />
@@ -503,7 +500,7 @@ export function InterestCheck({
               </li>
             </ul>
             {result.by_slab.length > 1 && (
-              <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-1 pt-1 border-t border-slate-200 dark:border-slate-600">
+              <ul className="text-sm text-ink-2 space-y-1 pt-1 border-t border-rule">
                 {result.by_slab.map((s, i) => (
                   <li key={i} className="flex justify-between gap-4">
                     <span>
@@ -520,7 +517,7 @@ export function InterestCheck({
               </p>
             )}
             {result.projected && (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-ink-3">
                 This period runs past today, so the days still to come use the current balance plus any scheduled transactions.
               </p>
             )}

@@ -30,9 +30,9 @@ export function LinkedUserNotify({ targetUserId, username, owedAmount }: { targe
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Notify @{username}</h2>
-      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Sends a push notification to their device (if they’ve enabled notifications).</p>
+    <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6">
+      <h2 className="text-lg font-semibold text-ink">Notify @{username}</h2>
+      <p className="text-sm text-ink-3 mt-1">Sends a push notification to their device (if they’ve enabled notifications).</p>
 
       {owes && (
         <button
@@ -53,14 +53,14 @@ export function LinkedUserNotify({ targetUserId, username, owedAmount }: { targe
           rows={2}
           aria-label={`Message to @${username}`}
           placeholder={`Message to @${username}…`}
-          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
         />
         <div className="mt-2 flex justify-end">
           <button
             type="button"
             onClick={() => send(message)}
             disabled={busy || !message.trim()}
-            className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-accent text-on-accent rounded-lg hover:bg-accent-hover font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {busy ? 'Sending…' : 'Send notification'}
           </button>
@@ -68,7 +68,7 @@ export function LinkedUserNotify({ targetUserId, username, owedAmount }: { targe
       </div>
 
       {status && (
-        <p role="status" aria-live="polite" className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+        <p role="status" aria-live="polite" className="mt-2 text-sm text-ink-2">
           {status}
         </p>
       )}

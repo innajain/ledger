@@ -134,15 +134,15 @@ async function Page() {
         <div className="space-y-6">
           {tools_by_group.map(({ group, tools }) => (
             <div key={group}>
-              <h3 className="font-medium text-slate-900 dark:text-slate-100 mb-2">{group}</h3>
-              <ul className="divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
+              <h3 className="font-medium text-ink mb-2">{group}</h3>
+              <ul className="divide-y divide-rule border border-rule rounded-lg bg-paper">
                 {tools.map(name => {
                   const badge = KIND_BADGE[MCP_TOOLS[name].kind]
                   return (
                     <li key={name} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
                       <span className="min-w-0">
-                        <span className="text-slate-900 dark:text-slate-100">{MCP_TOOLS[name].title}</span>{' '}
-                        <span className="font-mono text-xs text-slate-500 dark:text-slate-400 break-all">{name}</span>
+                        <span className="text-ink">{MCP_TOOLS[name].title}</span>{' '}
+                        <span className="font-mono text-xs text-ink-3 break-all">{name}</span>
                       </span>
                       <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${badge.className}`}>{badge.label}</span>
                     </li>

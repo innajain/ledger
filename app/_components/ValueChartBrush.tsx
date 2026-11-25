@@ -4,6 +4,7 @@ import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, Tooltip, 
 import { useState, useMemo, type KeyboardEvent, type MouseEvent } from 'react'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 import { useTheme } from './ThemeProvider'
+import { chart_palette, with_alpha } from '@/app/_utils/chart_palette'
 import { usePrivacy } from './PrivacyProvider'
 
 export type ValuePoint = {
@@ -39,6 +40,7 @@ export function ValueChartBrush({ points, title }: Props) {
   const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number } | null>(null)
   const { resolved_theme } = useTheme()
   const isDark = resolved_theme === 'dark'
+  const pal = chart_palette(isDark)
   const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
 
   // Gain, the axis and the tooltip all describe the same holding, so they reveal as one
@@ -91,15 +93,15 @@ export function ValueChartBrush({ points, title }: Props) {
   const gainPct = !amountsHidden && last.invested !== 0 ? (gain / last.invested) * 100 : null
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
+    <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
-          {title && <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>}
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Drag the strip handles below to zoom</p>
+          {title && <h2 className="text-lg font-semibold text-ink">{title}</h2>}
+          <p className="text-xs text-ink-3 mt-1">Drag the strip handles below to zoom</p>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gain</p>
-          <p className={`text-base sm:text-lg font-semibold ${gain >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+          <p className="text-xs uppercase tracking-wide text-ink-3">Gain</p>
+          <p className={`text-base sm:text-lg font-semibold ${gain >= 0 ? 'text-pos' : 'text-neg'}`}>
             {masking_enabled ? (
               <span
                 role="button"
@@ -126,29 +128,22 @@ export function ValueChartBrush({ points, title }: Props) {
           <ComposedChart data={points} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="brushColorInvested" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                <stop offset="5%" stopColor={pal.invested} stopOpacity={0.15} />
+                <stop offset="95%" stopColor={pal.invested} stopOpacity={0} />
               </linearGradient>
               <linearGradient id="brushColorCurrent" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                <stop offset="5%" stopColor={pal.current} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={pal.current} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-200 dark:text-slate-700" vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickFormatter={fmtAxisDate}
-              tick={{ fontSize: 11 }}
-              stroke="currentColor"
-              className="text-slate-500 dark:text-slate-400"
-              minTickGap={40}
-            />
+            <CartesianGrid stroke={pal.grid} vertical={false} />
+            <XAxis dataKey="date" tickFormatter={fmtAxisDate} tick={{ fontSize: 11 }} stroke="currentColor" className="text-ink-3" minTickGap={40} />
             <YAxis
               yAxisId="left"
               tickFormatter={v => compactFmt.format(v as number)}
               tick={amountsHidden ? false : { fontSize: 11 }}
               stroke="currentColor"
-              className="text-slate-500 dark:text-slate-400"
+              className="text-ink-3"
               width={amountsHidden ? 8 : 52}
             />
             <YAxis
@@ -156,7 +151,7 @@ export function ValueChartBrush({ points, title }: Props) {
               orientation="right"
               tickFormatter={v => `${((v as number) * 100).toFixed(0)}%`}
               tick={{ fontSize: 11 }}
-              stroke="#f59e0b"
+              stroke={pal.xirr}
               width={42}
               domain={domains.rightDomain}
               allowDataOverflow
@@ -169,24 +164,24 @@ export function ValueChartBrush({ points, title }: Props) {
               }}
               labelFormatter={label => (typeof label === 'string' ? fmtTooltipDate(label) : String(label ?? ''))}
               contentStyle={{
-                backgroundColor: isDark ? 'rgb(30 41 59)' : 'rgb(255 255 255)',
-                border: `1px solid ${isDark ? 'rgb(51 65 85)' : 'rgb(226 232 240)'}`,
-                borderRadius: 8,
-                color: isDark ? 'rgb(241 245 249)' : 'rgb(15 23 42)',
+                backgroundColor: pal.tooltip_bg,
+                border: `1px solid ${pal.tooltip_border}`,
+                borderRadius: 4,
+                color: pal.tooltip_text,
                 fontSize: 12,
               }}
-              labelStyle={{ color: isDark ? 'rgb(148 163 184)' : 'rgb(100 116 139)', marginBottom: 4 }}
+              labelStyle={{ color: pal.tooltip_muted, marginBottom: 4 }}
             />
             <Legend
-              formatter={value => <span className="text-xs text-slate-700 dark:text-slate-300 capitalize">{value}</span>}
+              formatter={value => <span className="text-xs text-ink-2 capitalize">{value}</span>}
               wrapperStyle={{ fontSize: 12, paddingBottom: 8 }}
             />
             <Area
               yAxisId="left"
               type="monotone"
               dataKey="invested"
-              stroke="#3b82f6"
-              strokeWidth={2}
+              stroke={pal.invested}
+              strokeWidth={1.5}
               fill="url(#brushColorInvested)"
               isAnimationActive={false}
             />
@@ -194,7 +189,7 @@ export function ValueChartBrush({ points, title }: Props) {
               yAxisId="left"
               type="monotone"
               dataKey="current"
-              stroke="#10b981"
+              stroke={pal.current}
               strokeWidth={2}
               fill="url(#brushColorCurrent)"
               isAnimationActive={false}
@@ -203,8 +198,8 @@ export function ValueChartBrush({ points, title }: Props) {
               yAxisId="right"
               type="monotone"
               dataKey="xirr"
-              stroke="#f59e0b"
-              strokeWidth={2}
+              stroke={pal.xirr}
+              strokeWidth={1.5}
               strokeDasharray="4 3"
               dot={false}
               connectNulls
@@ -213,8 +208,8 @@ export function ValueChartBrush({ points, title }: Props) {
             <Brush
               dataKey="date"
               height={28}
-              stroke="#3b82f6"
-              fill="rgba(59, 130, 246, 0.05)"
+              stroke={pal.grid}
+              fill={with_alpha(pal.current, 0.05)}
               tickFormatter={fmtAxisDate}
               travellerWidth={10}
               onChange={(e: { startIndex?: number; endIndex?: number }) => {

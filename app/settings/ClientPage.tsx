@@ -59,7 +59,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Settings</h1>
+        <h1 className="text-3xl font-bold text-ink mb-2">Settings</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-8 lg:gap-10">
@@ -72,9 +72,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
                     type="button"
                     onClick={() => goTo(s.id)}
                     className={`block w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      activeSection === s.id
-                        ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      activeSection === s.id ? 'bg-accent text-white shadow-sm' : 'text-ink-2 hover:text-ink hover:bg-sunken'
                     }`}
                   >
                     {s.label}
@@ -95,7 +93,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
               id="settings-section"
               value={activeSection}
               onChange={e => goTo(e.target.value)}
-              className="appearance-none block w-full px-3 py-2 pr-10 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-colors"
+              className="appearance-none block w-full px-3 py-2 pr-10 bg-paper border border-rule-strong text-ink rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-colors"
             >
               {sectionLinks.map(s => (
                 <option key={s.id} value={s.id}>
@@ -104,7 +102,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
               ))}
             </select>
             <svg
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 dark:text-slate-400"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

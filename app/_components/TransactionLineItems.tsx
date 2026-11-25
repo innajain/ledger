@@ -151,7 +151,7 @@ export const TransactionLineItems = memo(function TransactionLineItems({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line items</h2>
+        <h2 className="text-xl font-bold text-ink">Line items</h2>
       </div>
 
       {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
@@ -162,21 +162,21 @@ export const TransactionLineItems = memo(function TransactionLineItems({
           <div
             key={typeKey}
             /* no overflow-hidden: the Combobox dropdowns inside must be able to overhang the card */
-            className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors"
+            className="bg-paper rounded-lg shadow-sm border border-rule transition-colors"
           >
-            <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-700 rounded-t-lg bg-slate-50 dark:bg-slate-900/40">
+            <div className="px-6 py-3 border-b border-rule rounded-t-lg bg-sunken">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <h3 className="font-semibold text-ink flex items-center gap-2">
                     <span aria-hidden="true" className={`w-2 h-2 rounded-full shrink-0 ${dotClasses[config.color as keyof typeof dotClasses]}`} />
                     {config.title}
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{config.hint}</p>
+                  <p className="text-xs text-ink-3 mt-0.5">{config.hint}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => onAddItem(typeKey)}
-                  className="shrink-0 inline-flex items-center gap-2 px-2 py-1 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
+                  className="shrink-0 inline-flex items-center gap-2 px-2 py-1 bg-accent text-on-accent rounded-md hover:bg-accent-hover transition-colors text-sm"
                 >
                   <svg aria-hidden="true" className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -202,7 +202,7 @@ export const TransactionLineItems = memo(function TransactionLineItems({
                 />
               ))}
               {list.length === 0 && (lockedGroups[typeKey] || []).length === 0 && (
-                <div className="text-sm text-slate-500 dark:text-slate-400 italic">Nothing here yet — use Add to create a line.</div>
+                <div className="text-sm text-ink-3 italic">Nothing here yet — use Add to create a line.</div>
               )}
               {list.length > 0 &&
                 list.map(({ item: it, idx }) => {
@@ -307,8 +307,8 @@ function LineItemCard({
   locked = false,
 }: LineItemCardProps) {
   const fieldCls =
-    'w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800'
-  const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
+    'w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800'
+  const labelCls = 'block text-sm font-medium text-ink-2 mb-2'
 
   const isRupees = asset?.type === asset_type.rupees
   const uid = useId()
@@ -318,11 +318,9 @@ function LineItemCard({
   const showDate = dateOpen || item.datetime !== ''
 
   return (
-    <div
-      className={`bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border ${locked ? 'border-slate-300 dark:border-slate-500' : 'border-slate-200 dark:border-slate-600'}`}
-    >
+    <div className={`bg-sunken rounded-lg p-4 border ${locked ? 'border-rule-strong' : 'border-rule'}`}>
       {locked && (
-        <div className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-ink-3">
           <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
@@ -367,9 +365,7 @@ function LineItemCard({
             {isRupees ? 'Amount (₹)' : 'Quantity'}
           </label>
           <div className="relative">
-            {isRupees && (
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500 dark:text-slate-400">₹</span>
-            )}
+            {isRupees && <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-3">₹</span>}
             <input
               id={`${uid}-quantity`}
               type="number"
@@ -396,7 +392,7 @@ function LineItemCard({
               Value (₹)
             </label>
             <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500 dark:text-slate-400">₹</span>
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-3">₹</span>
               <input
                 id={`${uid}-value`}
                 type="number"
@@ -437,7 +433,7 @@ function LineItemCard({
         <div className="flex flex-wrap items-center gap-2">
           {showDate ? (
             <>
-              <label htmlFor={`${uid}-date`} className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              <label htmlFor={`${uid}-date`} className="text-xs font-medium text-ink-3">
                 Custom date
               </label>
               <input
@@ -446,7 +442,7 @@ function LineItemCard({
                 value={item.datetime}
                 onChange={e => onUpdateItem(idx, 'datetime', e.target.value)}
                 disabled={locked}
-                className="px-2 py-1 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                className="px-2 py-1 text-sm bg-raised border border-rule-strong text-ink rounded-md focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800"
               />
               {!locked && (
                 <button
@@ -455,7 +451,7 @@ function LineItemCard({
                     onUpdateItem(idx, 'datetime', '')
                     setDateOpen(false)
                   }}
-                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline"
+                  className="text-xs text-ink-3 hover:text-ink-2 underline"
                 >
                   Use the transaction date
                 </button>
@@ -463,11 +459,7 @@ function LineItemCard({
             </>
           ) : (
             !locked && (
-              <button
-                type="button"
-                onClick={() => setDateOpen(true)}
-                className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-              >
+              <button type="button" onClick={() => setDateOpen(true)} className="inline-flex items-center gap-1 text-xs text-ink-3 hover:text-ink-2">
                 <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -486,7 +478,7 @@ function LineItemCard({
           <button
             type="button"
             onClick={() => onRemoveItem(idx)}
-            className="inline-flex items-center gap-1 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium"
+            className="inline-flex items-center gap-1 text-sm text-neg hover:text-red-700 dark:hover:text-red-300 font-medium"
           >
             <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -535,12 +527,12 @@ function DerivedHint({
   }
 
   if (value === null) {
-    if (required) return <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 italic">Required — account lines are never worked out</p>
-    return <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 italic">Left blank — worked out on save</p>
+    if (required) return <p className="mt-1 text-xs text-ink-3 italic">Required — account lines are never worked out</p>
+    return <p className="mt-1 text-xs text-ink-3 italic">Left blank — worked out on save</p>
   }
 
   return (
-    <p className={`mt-1 text-xs ${isZero ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
+    <p className={`mt-1 text-xs ${isZero ? 'text-amber-600 dark:text-amber-400' : 'text-ink-3'}`}>
       <span className="font-medium">= {rupees ? currency_fmt.format(value) : qty_fmt.format(value)}</span>{' '}
       <span className="italic">{isZero ? '(auto — zero is not allowed)' : '(auto)'}</span>
     </p>

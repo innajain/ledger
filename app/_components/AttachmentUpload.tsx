@@ -140,11 +140,8 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
       {hasAny && (
         <div className="space-y-2">
           {existing.map(att => (
-            <div
-              key={att.id}
-              className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600"
-            >
-              <span className="text-slate-500 dark:text-slate-400 shrink-0">
+            <div key={att.id} className="flex items-center gap-3 p-3 bg-sunken rounded-lg border border-rule">
+              <span className="text-ink-3 shrink-0">
                 <FileIcon content_type={att.content_type} />
               </span>
               {att.content_type?.startsWith('image/') ? (
@@ -156,11 +153,11 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
                   href={att.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate block"
+                  className="text-sm font-medium text-accent hover:underline truncate block"
                 >
                   {att.filename}
                 </a>
-                {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{format_bytes(att.size)}</p>}
+                {att.size && <p className="text-xs text-ink-3">{format_bytes(att.size)}</p>}
               </div>
               {onDeleteExisting && (
                 <button
@@ -180,16 +177,13 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
           ))}
 
           {pending.map((att, idx) => (
-            <div
-              key={idx}
-              className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
-            >
+            <div key={idx} className="flex items-center gap-3 p-3 bg-accent-soft rounded-lg border border-accent/30">
               <span className="text-blue-500 shrink-0">
                 <FileIcon content_type={att.content_type} />
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{att.filename}</p>
-                {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{format_bytes(att.size)}</p>}
+                <p className="text-sm font-medium text-ink truncate">{att.filename}</p>
+                {att.size && <p className="text-xs text-ink-3">{format_bytes(att.size)}</p>}
               </div>
               <button
                 type="button"
@@ -209,7 +203,7 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
 
       <button type="button" className="flex items-center gap-3 group" onClick={() => !uploading && inputRef.current?.click()} disabled={uploading}>
         <input ref={inputRef} type="file" multiple accept="image/*,.pdf,.txt,.json" className="hidden" onChange={e => handleFiles(e.target.files)} />
-        <span className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-500 dark:text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 dark:group-hover:border-blue-500 dark:group-hover:text-blue-400 transition-colors">
+        <span className="flex items-center gap-2 px-4 py-2 border border-dashed border-rule-strong rounded-lg text-sm text-ink-3 group-hover:border-blue-400 group-hover:text-blue-500 dark:group-hover:border-blue-500 dark:group-hover:text-blue-400 transition-colors">
           {uploading ? (
             <>
               <svg aria-hidden="true" className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -234,7 +228,7 @@ export function AttachmentUpload({ existingAttachments = [], onPendingChange, on
         </span>
       </button>
 
-      {uploadError && <p className="text-sm text-red-600 dark:text-red-400">{uploadError}</p>}
+      {uploadError && <p className="text-sm text-neg">{uploadError}</p>}
     </div>
   )
 }

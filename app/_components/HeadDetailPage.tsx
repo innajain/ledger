@@ -158,7 +158,7 @@ function book_differs(book: number | null | undefined, current: number): book is
 
 function Amount({ value }: { value: number }) {
   return (
-    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+    <p className="text-2xl font-bold text-ink">
       <MaskedAmount value={value} />
     </p>
   )
@@ -226,10 +226,7 @@ export function HeadDetailPage({
       />
 
       {head.parent && (
-        <Link
-          href={head.parent.link}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-        >
+        <Link href={head.parent.link} className="inline-flex items-center gap-1.5 text-sm text-ink-3 hover:text-accent transition-colors">
           <span aria-hidden>↑</span>
           <span>
             Part of <span className="font-medium">{head.parent.name}</span>
@@ -262,9 +259,9 @@ export function HeadDetailPage({
             <p className="text-sm font-medium text-green-900 dark:text-green-100">
               Send money via UPI{head.linked_user ? ` to @${head.linked_user.username}` : ''}
             </p>
-            <p className="text-xs font-mono text-green-700 dark:text-green-300 break-all">{head.upi_id}</p>
+            <p className="text-xs font-mono text-pos break-all">{head.upi_id}</p>
             {ownTotal < 0 && (
-              <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+              <p className="text-xs text-pos mt-1">
                 You owe{' '}
                 <span className="font-semibold">
                   <MaskedAmount value={-ownTotal} />
@@ -295,7 +292,7 @@ export function HeadDetailPage({
           <button
             type="button"
             onClick={() => set_pay_status(null)}
-            className="p-1 -m-1 text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 text-sm"
+            className="p-1 -m-1 text-pos hover:text-green-900 dark:hover:text-green-100 text-sm"
             aria-label="Dismiss"
           >
             <CloseIcon className="w-4 h-4" />
@@ -309,7 +306,7 @@ export function HeadDetailPage({
           <button
             type="button"
             onClick={() => set_pay_status(null)}
-            className="p-1 -m-1 text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 text-sm"
+            className="p-1 -m-1 text-neg hover:text-red-900 dark:hover:text-red-100 text-sm"
             aria-label="Dismiss"
           >
             <CloseIcon className="w-4 h-4" />
@@ -345,13 +342,7 @@ export function HeadDetailPage({
                   label: 'XIRR',
                   value: (
                     <span
-                      className={
-                        head.xirr > 0
-                          ? 'text-green-600 dark:text-green-400 font-semibold'
-                          : head.xirr < 0
-                            ? 'text-red-600 dark:text-red-400 font-semibold'
-                            : 'text-slate-500 dark:text-slate-400 font-semibold'
-                      }
+                      className={head.xirr > 0 ? 'text-pos font-semibold' : head.xirr < 0 ? 'text-neg font-semibold' : 'text-ink-3 font-semibold'}
                     >
                       {(head.xirr * 100).toFixed(2)}%
                     </span>
@@ -392,22 +383,22 @@ export function HeadDetailPage({
 
       {head.children && head.children.length > 0 && (
         <Card>
-          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 capitalize">{subEntityLabel}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <div className="p-4 sm:p-6 border-b border-rule">
+            <h2 className="text-lg font-semibold text-ink capitalize">{subEntityLabel}</h2>
+            <p className="text-sm text-ink-3 mt-1">
               {head.children.length} sub-{head.children.length !== 1 ? 'entries' : 'entry'} — totals include everything under them
             </p>
           </div>
-          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+          <div className="divide-y divide-rule">
             {head.children.map(child => (
               // Stretched-link treatment (see the home cards): the amount needs its own
               // click-to-reveal, so it can't nest inside the row's <Link>.
-              <div key={child.id} className="relative hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
+              <div key={child.id} className="relative hover:bg-sunken transition-colors">
                 <Link href={child.link} aria-label={child.name} className="absolute inset-0 z-0" />
                 <div className="relative z-10 pointer-events-none flex items-center justify-between gap-4 p-4">
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{child.name}</span>
+                  <span className="font-medium text-ink">{child.name}</span>
                   <span className="flex items-center gap-2 shrink-0">
-                    <span className="font-semibold text-slate-900 dark:text-slate-100 pointer-events-auto">
+                    <span className="font-semibold text-ink pointer-events-auto">
                       <MaskedAmount value={child.total} />
                     </span>
                     <span aria-hidden="true" className="text-slate-400">
@@ -425,9 +416,9 @@ export function HeadDetailPage({
 
       {}
       <Card>
-        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Line items</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        <div className="p-4 sm:p-6 border-b border-rule">
+          <h2 className="text-lg font-semibold text-ink">Line items</h2>
+          <p className="text-sm text-ink-3 mt-1">
             {lineItems.total} item
             {lineItems.total !== 1 ? 's' : ''}
             {inSubtree && ` across this ${config.entityName.toLowerCase()} and its ${subEntityLabel}`}
@@ -446,7 +437,7 @@ export function HeadDetailPage({
             }
           />
         ) : (
-          <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-rule max-h-96 overflow-y-auto">
             {lineItems.items.map(li => (
               <LineItemRow
                 key={li.id}
@@ -470,11 +461,11 @@ export function HeadDetailPage({
                   type="button"
                   onClick={lineItems.showMore}
                   disabled={lineItems.loading}
-                  className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-60"
+                  className="px-4 py-2 text-sm font-medium text-accent hover:bg-accent-soft rounded-lg transition-colors disabled:opacity-60"
                 >
                   {lineItems.loading ? 'Loading…' : `Show ${Math.min(LINE_ITEMS_PAGE, lineItems.remaining)} more (${lineItems.remaining} remaining)`}
                 </button>
-                {lineItems.error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{lineItems.error}</p>}
+                {lineItems.error && <p className="mt-2 text-sm text-neg">{lineItems.error}</p>}
               </div>
             )}
           </div>
@@ -487,17 +478,17 @@ export function HeadDetailPage({
 
       {head.future_transactions && head.future_transactions.length > 0 && (
         <Card>
-          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Future transactions</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <div className="p-4 sm:p-6 border-b border-rule">
+            <h2 className="text-lg font-semibold text-ink">Future transactions</h2>
+            <p className="text-sm text-ink-3 mt-1">
               Scheduled entries — they don&apos;t affect balances until converted to real transactions.
               {inSubtree &&
                 ` Sufficiency is judged against the combined balance of this ${config.entityName.toLowerCase()} and its ${subEntityLabel}.`}
             </p>
           </div>
-          <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-rule max-h-96 overflow-y-auto">
             {head.future_transactions.map(ft => (
-              <div key={ft.id} className="relative hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
+              <div key={ft.id} className="relative hover:bg-sunken transition-colors">
                 <Link
                   href={`/transactions/${ft.transaction_id}`}
                   aria-label={ft.description || 'View future transaction'}
@@ -505,8 +496,8 @@ export function HeadDetailPage({
                 />
                 <div className="relative z-10 pointer-events-none flex items-center justify-between gap-4 p-4">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 dark:text-slate-100 truncate">{ft.description || 'No description'}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                    <p className="font-medium text-ink truncate">{ft.description || 'No description'}</p>
+                    <p className="text-xs text-ink-3 mt-0.5 flex items-center gap-1.5">
                       <LocalDateTime value={ft.datetime} />
                       {ft.due && (
                         <span className="shrink-0 font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
@@ -528,16 +519,12 @@ export function HeadDetailPage({
                             Could fall short
                           </span>
                         ))}
-                      <span
-                        className={`font-semibold pointer-events-auto ${
-                          ft.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
-                        }`}
-                      >
+                      <span className={`font-semibold pointer-events-auto ${ft.amount > 0 ? 'text-pos' : 'text-ink'}`}>
                         <MaskedAmount value={ft.amount} keep_sign />
                       </span>
                     </div>
                     {ft.balance_after && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 pointer-events-auto">
+                      <p className="text-xs text-ink-3 pointer-events-auto">
                         Balance after: <MaskedAmount value={ft.balance_after.balance} />
                       </p>
                     )}

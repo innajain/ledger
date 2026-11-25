@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Newsreader } from 'next/font/google'
 import dynamic from 'next/dynamic'
 import Navbar from './_components/Navbar'
 import { get_current_user } from './_actions/auth'
@@ -24,12 +24,18 @@ const geistSans = Geist({
   subsets: ['latin'],
 })
 
+// Every amount is set in it (the `num` utility), so it is render-critical too.
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
-  // Only used for reference chips and a couple of textareas — never above the fold,
-  // so don't compete with the render-critical font for bandwidth.
-  preload: false,
+})
+
+// Headings and a page's one hero figure. Variable, with optical sizing, so the large
+// net-worth number gets the display cut and a section heading the text one.
+const newsreader = Newsreader({
+  variable: '--font-newsreader',
+  subsets: ['latin'],
+  axes: ['opsz'],
 })
 
 export const metadata: Metadata = {
@@ -93,7 +99,7 @@ export default async function RootLayout({
         {}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-900 transition-colors`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable} font-sans antialiased bg-paper text-ink`}>
         {PROFILING_ENABLED && <WebVitalsReporter />}
         <ServiceWorkerRegistrar />
         <ThemeProvider initial={prefs.theme} persist={persist}>
@@ -113,24 +119,21 @@ export default async function RootLayout({
                 <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">{children}</main>
 
                 {}
-                <footer
-                  data-site-footer
-                  className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 mt-auto transition-colors"
-                >
+                <footer data-site-footer className="bg-paper border-t border-rule mt-auto transition-colors">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-                      <p className="text-center sm:text-left text-sm text-slate-500 dark:text-slate-400">
+                      <p className="text-center sm:text-left text-sm text-ink-3">
                         Made with <span className="text-red-500">♥</span> by
                         <Link
                           href="https://github.com/innajain"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-slate-700 dark:text-slate-300 hover:underline mx-1"
+                          className="text-ink-2 hover:underline mx-1"
                         >
                           Shreyansh Jain
                         </Link>
                       </p>
-                      <nav className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+                      <nav className="flex items-center gap-4 text-sm text-ink-3">
                         <Link href="/docs" className="hover:underline">
                           AI connector
                         </Link>

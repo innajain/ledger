@@ -40,7 +40,7 @@ export function BackToTop() {
       onClick={scrollToTop}
       // margin, not transform: the entrance animation owns `transform` while it runs.
       style={lift > 0 ? { marginBottom: lift } : undefined}
-      className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-40 p-3 bg-blue-600 dark:bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors animate-slide-in-up"
+      className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-40 p-3 bg-accent text-on-accent rounded-full shadow-lg hover:bg-accent-hover transition-colors animate-slide-in-up"
       aria-label="Back to top"
     >
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

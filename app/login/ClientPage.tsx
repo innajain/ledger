@@ -89,24 +89,24 @@ export default function ClientPage({ user }: Props) {
   if (user) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
-        <div className="w-full max-w-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-8 transition-colors">
+        <div className="w-full max-w-md bg-paper border border-rule rounded-lg p-8 transition-colors">
           <div className="flex items-center justify-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 flex items-center justify-center">
               <Image src="/logo-256.png" alt="Ledger" width={40} height={40} />
             </div>
           </div>
 
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">You&apos;re logged in</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-1">Welcome back,</p>
-            <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">{user.username}</p>
+            <h2 className="text-2xl font-bold text-ink mb-2">You&apos;re logged in</h2>
+            <p className="text-ink-2 mb-1">Welcome back,</p>
+            <p className="text-lg font-semibold text-accent">{user.username}</p>
           </div>
 
           <div className="space-y-3">
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium shadow-sm"
+              className="w-full px-4 py-3 bg-accent text-on-accent rounded-lg hover:bg-accent-hover transition-colors font-medium shadow-sm"
             >
               Go to dashboard
             </button>
@@ -115,7 +115,7 @@ export default function ClientPage({ user }: Props) {
               type="button"
               onClick={handleLogout}
               disabled={loading}
-              className="w-full px-4 py-3 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-60 transition-colors font-medium"
+              className="w-full px-4 py-3 bg-raised text-ink-2 border border-rule rounded-lg hover:bg-sunken disabled:opacity-60 transition-colors font-medium"
             >
               {loading ? 'Logging out…' : 'Log out'}
             </button>
@@ -123,7 +123,7 @@ export default function ClientPage({ user }: Props) {
 
           {error && (
             <div role="alert" className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+              <p className="text-sm text-neg">{error}</p>
             </div>
           )}
           {success && (
@@ -132,7 +132,7 @@ export default function ClientPage({ user }: Props) {
               aria-live="polite"
               className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
             >
-              <p className="text-sm text-green-700 dark:text-green-400">{success}</p>
+              <p className="text-sm text-pos">{success}</p>
             </div>
           )}
         </div>
@@ -145,20 +145,18 @@ export default function ClientPage({ user }: Props) {
       <div className="w-full max-w-md">
         {}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 mb-4 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
             <Image src="/logo-256.png" alt="Ledger" width={40} height={40} />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-            {isSignup ? 'Create account' : 'Welcome to Ledger'}
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">{isSignup ? 'Create an account to start your ledger' : 'Log in to your account'}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-ink mb-2">{isSignup ? 'Create account' : 'Welcome to Ledger'}</h1>
+          <p className="text-ink-2">{isSignup ? 'Create an account to start your ledger' : 'Log in to your account'}</p>
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-8 transition-colors">
+        <div className="bg-paper border border-rule rounded-lg p-8 transition-colors">
           <form onSubmit={isSignup ? handleSignup : handleLogin} className="space-y-5">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor="username" className="block text-sm font-medium text-ink-2 mb-2">
                 Username
               </label>
               <input
@@ -170,12 +168,12 @@ export default function ClientPage({ user }: Props) {
                 placeholder="Enter your username"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                className="block w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-all"
+                className="block w-full px-4 py-3 bg-raised border border-rule-strong text-ink placeholder:text-ink-3 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-ink-2 mb-2">
                 Password
               </label>
               <div className="relative">
@@ -188,14 +186,14 @@ export default function ClientPage({ user }: Props) {
                   placeholder="Enter your password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="block w-full px-4 py-3 pr-12 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none transition-all"
+                  className="block w-full px-4 py-3 pr-12 bg-raised border border-rule-strong text-ink placeholder:text-ink-3 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   aria-pressed={showPassword}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-ink-2 transition-colors"
                 >
                   {showPassword ? (
                     <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,7 +217,7 @@ export default function ClientPage({ user }: Props) {
                   )}
                 </button>
               </div>
-              {isSignup && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Choose a password you&apos;ll remember</p>}
+              {isSignup && <p className="mt-2 text-xs text-ink-3">Choose a password you&apos;ll remember</p>}
             </div>
 
             {error && (
@@ -227,16 +225,10 @@ export default function ClientPage({ user }: Props) {
                 role="alert"
                 className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3"
               >
-                <svg
-                  aria-hidden="true"
-                  className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg aria-hidden="true" className="w-5 h-5 text-neg shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+                <p className="text-sm text-neg">{error}</p>
               </div>
             )}
 
@@ -246,23 +238,17 @@ export default function ClientPage({ user }: Props) {
                 aria-live="polite"
                 className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3"
               >
-                <svg
-                  aria-hidden="true"
-                  className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg aria-hidden="true" className="w-5 h-5 text-pos shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm text-green-700 dark:text-green-400">{success}</p>
+                <p className="text-sm text-pos">{success}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading || !username || !password}
-              className="w-full px-4 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all font-medium shadow-sm flex items-center justify-center gap-2"
+              className="w-full px-4 py-3 bg-accent text-on-accent rounded-lg hover:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed transition-all font-medium shadow-sm flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -290,7 +276,7 @@ export default function ClientPage({ user }: Props) {
                 setError(null)
                 setSuccess(null)
               }}
-              className="text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className="text-sm text-ink-2 hover:text-accent transition-colors"
             >
               {isSignup ? (
                 <>
@@ -306,7 +292,7 @@ export default function ClientPage({ user }: Props) {
         </div>
 
         {}
-        <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">Your personal ledger for managing finances</p>
+        <p className="mt-8 text-center text-sm text-ink-3">Your personal ledger for managing finances</p>
       </div>
     </div>
   )

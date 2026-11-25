@@ -46,15 +46,14 @@ export function HomeNetWorthSparkline({ points, days }: Props) {
   // either endpoint is itself something the mask would hide, even though the delta isn't.
   const total_masked = masking_enabled && !reveal_all && (Math.abs(first) > mask_threshold || Math.abs(last) > mask_threshold)
   const pct = !total_masked && first !== 0 ? (change / Math.abs(first)) * 100 : null
-  const tone =
-    change > 0 ? 'text-green-600 dark:text-green-400' : change < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'
+  const tone = change > 0 ? 'text-pos' : change < 0 ? 'text-neg' : 'text-ink-3'
   const { line, area } = build_path(points)
 
   return (
-    <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700">
+    <div className="mt-5 pt-4 border-t border-rule">
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Last {days} days</p>
+          <p className="text-xs font-medium text-ink-3">Last {days} days</p>
           {/* no manual sign: currency_fmt is signDisplay:'exceptZero', and the masked form drops
               the sign on purpose */}
           <p className={`text-sm font-semibold ${tone}`}>
@@ -89,13 +88,13 @@ export function HomeNetWorthSparkline({ points, days }: Props) {
 
 export function HomeNetWorthSparklineFallback({ days }: { days: number }) {
   return (
-    <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700 animate-pulse">
+    <div className="mt-5 pt-4 border-t border-rule animate-pulse">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Last {days} days</p>
-          <div className="mt-1 h-4 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+          <p className="text-xs font-medium text-ink-3">Last {days} days</p>
+          <div className="mt-1 h-4 w-24 rounded bg-sunken" />
         </div>
-        <div className="h-12 w-32 sm:w-48 shrink-0 rounded bg-slate-100 dark:bg-slate-700/50" />
+        <div className="h-12 w-32 sm:w-48 shrink-0 rounded bg-sunken" />
       </div>
     </div>
   )

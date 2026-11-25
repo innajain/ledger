@@ -191,10 +191,7 @@ export default function ClientPage({
           </div>
         </div>
       )}
-      <Link
-        href="/transactions"
-        className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium"
-      >
+      <Link href="/transactions" className="inline-flex items-center gap-2 text-ink-2 hover:text-ink transition-colors font-medium">
         <ChevronLeftIcon />
         Transactions
       </Link>
@@ -211,12 +208,12 @@ export default function ClientPage({
       )}
 
       {}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
+      <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
             {/* The specific thing is the title; "transaction" is already in the breadcrumb. */}
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 break-words">{transaction.description || 'Transaction'}</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <h1 className="text-2xl font-bold text-ink break-words">{transaction.description || 'Transaction'}</h1>
+            <p className="text-sm text-ink-3 mt-1">
               <LocalDateTime value={transaction.date} />
             </p>
             {transaction.tags.length > 0 && (
@@ -225,7 +222,7 @@ export default function ClientPage({
                   <li key={g.id}>
                     <Link
                       href={`/tags/${g.id}`}
-                      className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-sm text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                      className="inline-flex items-center px-3 py-1 rounded-full bg-accent-soft border border-accent/30 text-sm text-accent hover:bg-accent-soft transition-colors"
                     >
                       {g.name}
                     </Link>
@@ -237,23 +234,15 @@ export default function ClientPage({
         </div>
 
         {}
-        <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+        <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-accent/30">
           <p className="text-sm text-blue-900 dark:text-blue-100 mb-1">Total</p>
-          <p
-            className={`text-3xl font-bold ${
-              transaction.total > 0
-                ? 'text-green-600 dark:text-green-400'
-                : transaction.total < 0
-                  ? 'text-slate-900 dark:text-slate-100'
-                  : 'text-slate-500 dark:text-slate-400'
-            }`}
-          >
+          <p className={`text-3xl font-bold ${transaction.total > 0 ? 'text-pos' : transaction.total < 0 ? 'text-ink' : 'text-ink-3'}`}>
             <MaskedAmount value={transaction.total} />
           </p>
         </div>
 
         {}
-        <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex justify-end gap-2 mt-6 pt-6 border-t border-rule">
           <ButtonLink href={`/transactions/${transaction.id}/update`} variant="primary">
             <PencilIcon />
             Edit
@@ -268,14 +257,14 @@ export default function ClientPage({
       {}
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-          <ErrorCircleIcon className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+          <ErrorCircleIcon className="w-5 h-5 text-neg shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+            <p className="text-sm text-neg">{error}</p>
           </div>
           <button
             type="button"
             onClick={() => setError(null)}
-            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
+            className="text-neg hover:text-red-800 dark:hover:text-red-300 transition-colors"
             aria-label="Dismiss error"
           >
             <CloseIcon />
@@ -285,14 +274,11 @@ export default function ClientPage({
 
       {}
       {transaction.attachments.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Attachments</h2>
+        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
+          <h2 className="text-lg font-semibold text-ink mb-4">Attachments</h2>
           <div className="space-y-2">
             {transaction.attachments.map(att => (
-              <div
-                key={att.id}
-                className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600"
-              >
+              <div key={att.id} className="flex items-center gap-3 p-3 bg-sunken rounded-lg border border-rule">
                 {att.content_type?.startsWith('image/') && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={att.url} alt={att.filename} className="h-10 w-10 object-cover rounded shrink-0" />
@@ -302,11 +288,11 @@ export default function ClientPage({
                     href={att.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate block"
+                    className="text-sm font-medium text-accent hover:underline truncate block"
                   >
                     {att.filename}
                   </a>
-                  {att.size && <p className="text-xs text-slate-500 dark:text-slate-400">{format_bytes(att.size)}</p>}
+                  {att.size && <p className="text-xs text-ink-3">{format_bytes(att.size)}</p>}
                 </div>
               </div>
             ))}
@@ -316,7 +302,7 @@ export default function ClientPage({
 
       {}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Line items</h2>
+        <h2 className="text-xl font-bold text-ink">Line items</h2>
 
         {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
           const items = linesByType[typeKey] || []
@@ -325,44 +311,38 @@ export default function ClientPage({
           const config = headTypeConfig[typeKey]
           // Section identity as a small colored icon on a quiet header, not a tinted banner.
           const iconColor = {
-            green: 'text-green-600 dark:text-green-400',
+            green: 'text-pos',
             orange: 'text-orange-600 dark:text-orange-400',
             purple: 'text-purple-600 dark:text-purple-400',
           }
 
           return (
-            <div
-              key={typeKey}
-              className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors"
-            >
-              <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div key={typeKey} className="bg-paper rounded-lg shadow-sm border border-rule overflow-hidden transition-colors">
+              <div className="px-6 py-3 border-b border-rule bg-sunken">
                 <div className={`flex items-center gap-2 ${iconColor[config.color as keyof typeof iconColor]}`}>
                   {config.icon}
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">{config.title}</h3>
+                  <h3 className="font-semibold text-ink">{config.title}</h3>
                 </div>
               </div>
-              <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+              <ul className="divide-y divide-rule">
                 {items.map(li => (
-                  <li key={li.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                  <li key={li.id} className="p-4 hover:bg-sunken transition-colors">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <Link
                             href={`/heads/${li.accounting_head_type}/${li.accounting_head_id}`}
-                            className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            className="font-medium text-ink hover:text-accent transition-colors"
                           >
                             {li.account_name}
                           </Link>
                           <span className="text-slate-400">→</span>
-                          <Link
-                            href={`/assets/${li.asset_id}`}
-                            className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                          >
+                          <Link href={`/assets/${li.asset_id}`} className="text-ink-2 hover:text-accent transition-colors">
                             {li.asset_name}
                           </Link>
                         </div>
 
-                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                        <div className="text-sm text-ink-2">
                           {li.asset_type === asset_type.rupees ? (
                             <span className="font-medium">{li.quantity === null ? '—' : <MaskedAmount value={li.quantity} />}</span>
                           ) : (
@@ -373,7 +353,7 @@ export default function ClientPage({
                           )}
                         </div>
 
-                        {li.description && <p className="text-sm italic text-slate-500 dark:text-slate-400 mt-2">{li.description}</p>}
+                        {li.description && <p className="text-sm italic text-ink-3 mt-2">{li.description}</p>}
                         {li.datetime && (
                           <p className="text-xs text-slate-400 mt-1">
                             <LocalDateTime value={li.datetime} />

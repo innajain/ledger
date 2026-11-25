@@ -18,12 +18,11 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'dangerOutline' | 'ghost'
 type Size = 'sm' | 'md' | 'lg'
 
 const VARIANT_CLS: Record<Variant, string> = {
-  primary: 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600 shadow-sm',
-  secondary: 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600',
+  primary: 'bg-accent text-on-accent hover:bg-accent-hover shadow-sm',
+  secondary: 'bg-sunken text-ink-2 hover:bg-rule',
   danger: 'bg-red-600 text-white hover:bg-red-700',
-  dangerOutline:
-    'bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-slate-700',
-  ghost: 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700',
+  dangerOutline: 'bg-paper text-neg border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-slate-700',
+  ghost: 'text-ink-2 hover:text-ink hover:bg-sunken',
 }
 
 const SIZE_CLS: Record<Size, string> = {

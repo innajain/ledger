@@ -136,11 +136,11 @@ export function Combobox({ options, value, onChange, disabled = false, placehold
         onFocus={openList}
         onClick={openList}
         onKeyDown={onKeyDown}
-        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800"
+        className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800"
       />
       <svg
         aria-hidden="true"
-        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 dark:text-slate-400"
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -152,9 +152,9 @@ export function Combobox({ options, value, onChange, disabled = false, placehold
           ref={listRef}
           id={listId}
           role="listbox"
-          className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg py-1"
+          className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto bg-paper border border-rule rounded-lg shadow-lg py-1"
         >
-          {filtered.length === 0 && <li className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No matches</li>}
+          {filtered.length === 0 && <li className="px-3 py-2 text-sm text-ink-3">No matches</li>}
           {filtered.map((o, i) => (
             <li
               key={o.id}
@@ -168,11 +168,11 @@ export function Combobox({ options, value, onChange, disabled = false, placehold
               }}
               onMouseEnter={() => setActive(i)}
               className={`px-3 py-2 text-sm cursor-pointer flex items-baseline justify-between gap-2 ${
-                i === active ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100' : 'text-slate-900 dark:text-slate-100'
+                i === active ? 'bg-accent-soft text-blue-900 dark:text-blue-100' : 'text-ink'
               } ${o.id === value ? 'font-semibold' : ''}`}
             >
               <span className="truncate">{o.name}</span>
-              {o.hint && <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">{o.hint}</span>}
+              {o.hint && <span className="shrink-0 text-xs text-ink-3">{o.hint}</span>}
             </li>
           ))}
         </ul>

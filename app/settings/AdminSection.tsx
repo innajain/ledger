@@ -48,11 +48,11 @@ export function AdminSection() {
       <SectionHeading id="admin">Admin</SectionHeading>
       <div className="space-y-6">
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Flush Redis cache</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-semibold text-ink">Flush Redis cache</h3>
+              <p className="text-sm text-ink-2 mt-1">
                 Clears every cached price, balance, and chart series. Next page render will rebuild from source.
               </p>
             </div>
@@ -63,11 +63,11 @@ export function AdminSection() {
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors space-y-4">
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Validate transactions</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-semibold text-ink">Validate transactions</h3>
+              <p className="text-sm text-ink-2 mt-1">
                 Run the integrity checker against every transaction, across every user, and list any that do not balance.
               </p>
             </div>
@@ -101,8 +101,8 @@ export function AdminSection() {
                           href={`/transactions/${t.id}`}
                           className="block px-4 py-3 rounded-lg border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                         >
-                          <span className="text-sm font-mono text-slate-900 dark:text-slate-100">{t.id}</span>
-                          <span className="block text-xs text-red-700 dark:text-red-300 mt-1">{t.message}</span>
+                          <span className="text-sm font-mono text-ink">{t.id}</span>
+                          <span className="block text-xs text-neg mt-1">{t.message}</span>
                         </Link>
                       </li>
                     ))}
@@ -114,11 +114,11 @@ export function AdminSection() {
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Complete DB dump</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-semibold text-ink">Complete DB dump</h3>
+              <p className="text-sm text-ink-2 mt-1">
                 Download the entire database — every table, every user — as a restorable SQL file. Sensitive: includes all users&apos; data and
                 password hashes.
               </p>

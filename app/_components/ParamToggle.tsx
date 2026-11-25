@@ -6,8 +6,8 @@ import { Spinner } from '@/app/_components/icons'
 
 const BASE =
   'relative px-3 py-1.5 text-sm font-medium rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 inline-flex items-center gap-1.5'
-const ACTIVE = 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-const IDLE = 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'
+const ACTIVE = 'bg-raised text-ink shadow-sm'
+const IDLE = 'text-ink-2 hover:text-ink'
 
 /**
  * Spinner for the link being navigated to. useLinkStatus only reports for the <Link>
@@ -65,8 +65,8 @@ export function ParamToggle<T extends string>({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {leading && <span className="text-sm text-slate-500 dark:text-slate-400">{leading}</span>}
-      <div role="group" aria-label={groupLabel} className="inline-flex gap-1 p-1 rounded-lg bg-slate-100 dark:bg-slate-800">
+      {leading && <span className="text-sm text-ink-3">{leading}</span>}
+      <div role="group" aria-label={groupLabel} className="inline-flex gap-1 p-1 rounded-lg bg-sunken">
         {options.map(o => (
           // scroll={false} keeps the reader where they were — the page they are reading is
           // the thing being re-scoped, not a new destination.

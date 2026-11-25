@@ -11,18 +11,18 @@ export function DetailSkeleton() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {Array.from({ length: 3 }, (_, i) => (
-          <div key={i} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 space-y-2">
+          <div key={i} className="bg-paper rounded-lg border border-rule p-4 space-y-2">
             <div className="h-3 w-20 skeleton rounded" />
             <div className="h-7 w-32 skeleton rounded" />
           </div>
         ))}
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
+      <div className="bg-paper rounded-lg border border-rule p-4 sm:p-6">
         <div className="h-64 sm:h-80 skeleton rounded" />
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
+      <div className="bg-paper rounded-lg border border-rule divide-y divide-rule">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} className="p-4 space-y-2">
             <div className="h-4 w-1/3 skeleton rounded" />

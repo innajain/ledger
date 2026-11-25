@@ -20,6 +20,11 @@ type Props = {
    * (e.g. the transactions list, which colors and signs every amount).
    */
   keep_sign?: boolean
+  /**
+   * Set in the tabular mono face (the `num` utility) so amounts line up in a column. Off
+   * only for a figure that carries its own face, like a page's serif hero number.
+   */
+  numeric?: boolean
 }
 
 const BULLETS = '•••••'
@@ -39,7 +44,8 @@ function build_mask(value: number, formatter: Intl.NumberFormat, keep_sign: bool
   return `${prefix}${BULLETS}`.trimStart()
 }
 
-export function MaskedAmount({ value, precise = false, className, interactive = true, keep_sign = false }: Props) {
+export function MaskedAmount({ value, precise = false, className: callerClass, interactive = true, keep_sign = false, numeric = true }: Props) {
+  const className = numeric ? `num${callerClass ? ` ${callerClass}` : ''}` : callerClass
   const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
   const formatter = precise ? precise_currency_fmt : currency_fmt
   const formatted = formatter.format(value)

@@ -19,24 +19,22 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
       <SectionHeading id="data">Data</SectionHeading>
       <div className="space-y-6">
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive accounts &amp; categories</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-            Archived accounts and categories, hidden from transaction pickers. Click to manage.
-          </p>
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-ink mb-1">Inactive accounts &amp; categories</h3>
+          <p className="text-sm text-ink-2 mb-4">Archived accounts and categories, hidden from transaction pickers. Click to manage.</p>
           {inactiveAccounts.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400 italic">No archived accounts or categories.</p>
+            <p className="text-sm text-ink-3 italic">No archived accounts or categories.</p>
           ) : (
             <ul className="space-y-2">
               {inactiveAccounts.map(a => (
                 <li key={a.id}>
                   <Link
                     href={accountUrl(a)}
-                    className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                    className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-rule hover:bg-sunken transition-colors group"
                   >
-                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    <span className="text-sm font-medium text-ink group-hover:text-accent transition-colors">
                       {a.name}
-                      {a.is_placeholder && <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">(placeholder)</span>}
+                      {a.is_placeholder && <span className="ml-2 text-xs text-ink-3">(placeholder)</span>}
                     </span>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -57,22 +55,22 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Inactive assets</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Archived assets, hidden from transaction pickers. Click to manage.</p>
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+          <h3 className="text-lg font-semibold text-ink mb-1">Inactive assets</h3>
+          <p className="text-sm text-ink-2 mb-4">Archived assets, hidden from transaction pickers. Click to manage.</p>
           {inactiveAssets.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400 italic">No archived assets.</p>
+            <p className="text-sm text-ink-3 italic">No archived assets.</p>
           ) : (
             <ul className="space-y-2">
               {inactiveAssets.map(a => (
                 <li key={a.id}>
                   <Link
                     href={`/assets/${a.id}/update`}
-                    className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
+                    className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-rule hover:bg-sunken transition-colors group"
                   >
-                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    <span className="text-sm font-medium text-ink group-hover:text-accent transition-colors">
                       {a.name}
-                      {a.is_placeholder && <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">(placeholder)</span>}
+                      {a.is_placeholder && <span className="ml-2 text-xs text-ink-3">(placeholder)</span>}
                     </span>
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 capitalize">
                       {a.type}
@@ -85,11 +83,11 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">SQL dump</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-semibold text-ink">SQL dump</h3>
+              <p className="text-sm text-ink-2 mt-1">
                 Download your data as SQL <code>INSERT</code> statements — a restorable, data-only dump scoped to you.
               </p>
             </div>
@@ -108,11 +106,11 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Export CSV (ZIP)</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Download a ZIP with one CSV per table, scoped to your own data.</p>
+              <h3 className="text-lg font-semibold text-ink">Export CSV (ZIP)</h3>
+              <p className="text-sm text-ink-2 mt-1">Download a ZIP with one CSV per table, scoped to your own data.</p>
             </div>
             <a href="/api/export" className={buttonClasses('secondary', 'md', 'shrink-0')}>
               <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,11 +127,11 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Export Excel (linked)</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              <h3 className="text-lg font-semibold text-ink">Export Excel (linked)</h3>
+              <p className="text-sm text-ink-2 mt-1">
                 One workbook, a sheet per table — foreign keys are clickable links to the rows they reference.
               </p>
             </div>

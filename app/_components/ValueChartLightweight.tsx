@@ -15,6 +15,7 @@ import {
   type LineData,
 } from 'lightweight-charts'
 import { useTheme } from './ThemeProvider'
+import { chart_palette, with_alpha } from '@/app/_utils/chart_palette'
 import { usePrivacy } from './PrivacyProvider'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 
@@ -59,6 +60,7 @@ export function ValueChartLightweight({ points, title }: Props) {
   const xirrSeriesRef = useRef<ISeriesApi<'Line'> | null>(null)
   const pointsRef = useRef<ValuePoint[]>(points)
   const { resolved_theme } = useTheme()
+  const pal = chart_palette(resolved_theme === 'dark')
   const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
   const [hover, setHover] = useState<HoverInfo>(null)
 
@@ -83,21 +85,21 @@ export function ValueChartLightweight({ points, title }: Props) {
   useEffect(() => {
     if (!containerRef.current) return
 
-    const isDark = resolved_theme === 'dark'
+    const p = chart_palette(resolved_theme === 'dark')
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: isDark ? '#94a3b8' : '#64748b',
+        textColor: p.text,
         fontSize: 11,
       },
       grid: {
         vertLines: { color: 'transparent' },
-        horzLines: { color: isDark ? '#334155' : '#e2e8f0' },
+        horzLines: { color: p.grid },
       },
 
       rightPriceScale: {
         visible: true,
-        borderColor: isDark ? '#334155' : '#e2e8f0',
+        borderColor: p.grid,
       },
       // Initial value only — toggling the reveal state afterwards updates this via
       // applyOptions() in the effect below rather than recreating the chart, which would
@@ -105,10 +107,10 @@ export function ValueChartLightweight({ points, title }: Props) {
       // leave the rebuilt chart with axes but no data.
       leftPriceScale: {
         visible: !amountsHidden,
-        borderColor: isDark ? '#334155' : '#e2e8f0',
+        borderColor: p.grid,
       },
       timeScale: {
-        borderColor: isDark ? '#334155' : '#e2e8f0',
+        borderColor: p.grid,
         timeVisible: false,
         secondsVisible: false,
         fixLeftEdge: true,
@@ -146,10 +148,10 @@ export function ValueChartLightweight({ points, title }: Props) {
     }
 
     const investedSeries = chart.addSeries(AreaSeries, {
-      lineColor: '#3b82f6',
-      topColor: 'rgba(59, 130, 246, 0.3)',
-      bottomColor: 'rgba(59, 130, 246, 0)',
-      lineWidth: 2,
+      lineColor: p.invested,
+      topColor: with_alpha(p.invested, 0.12),
+      bottomColor: with_alpha(p.invested, 0),
+      lineWidth: 1,
 
       priceScaleId: 'left',
 
@@ -163,9 +165,9 @@ export function ValueChartLightweight({ points, title }: Props) {
       },
     })
     const currentSeries = chart.addSeries(AreaSeries, {
-      lineColor: '#10b981',
-      topColor: 'rgba(16, 185, 129, 0.3)',
-      bottomColor: 'rgba(16, 185, 129, 0)',
+      lineColor: p.current,
+      topColor: with_alpha(p.current, 0.22),
+      bottomColor: with_alpha(p.current, 0),
       lineWidth: 2,
       priceScaleId: 'left',
       lastValueVisible: false,
@@ -178,7 +180,7 @@ export function ValueChartLightweight({ points, title }: Props) {
     })
 
     const xirrSeries = chart.addSeries(LineSeries, {
-      color: '#f59e0b',
+      color: p.xirr,
       lineWidth: 2,
       lineStyle: 2,
       priceScaleId: 'right',
@@ -293,19 +295,19 @@ export function ValueChartLightweight({ points, title }: Props) {
     : undefined
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
+    <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
-          {title && <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>}
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          {title && <h2 className="text-lg font-semibold text-ink">{title}</h2>}
+          <p className="text-xs text-ink-3 mt-1">
             {/* The gestures differ by input device, so name only the ones the reader actually has. */}
             <span className="sm:hidden">Pinch to zoom • Drag to pan • Double-tap axis to reset</span>
             <span className="hidden sm:inline">Ctrl+scroll to zoom • Drag to pan • Double-click axis to reset</span>
           </p>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Gain</p>
-          <p className={`text-base sm:text-lg font-semibold ${gain >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+          <p className="text-xs uppercase tracking-wide text-ink-3">Gain</p>
+          <p className={`text-base sm:text-lg font-semibold ${gain >= 0 ? 'text-pos' : 'text-neg'}`}>
             {masking_enabled ? (
               <span
                 role="button"
@@ -330,12 +332,12 @@ export function ValueChartLightweight({ points, title }: Props) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2" aria-hidden="true">
         {(
           [
-            ['#3b82f6', 'Invested (₹, left)'],
-            ['#10b981', 'Current value (₹, left)'],
-            ['#f59e0b', 'XIRR (%, right)'],
+            [pal.invested, 'Invested (₹, left)'],
+            [pal.current, 'Current value (₹, left)'],
+            [pal.xirr, 'XIRR (%, right)'],
           ] as const
         ).map(([color, label]) => (
-          <span key={label} className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <span key={label} className="inline-flex items-center gap-1.5 text-xs text-ink-3">
             <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
             {label}
           </span>
@@ -344,26 +346,23 @@ export function ValueChartLightweight({ points, title }: Props) {
       <div className="relative">
         <div ref={containerRef} className="w-full h-64 sm:h-80" />
         {hover && (
-          <div
-            style={tooltipStyle}
-            className="z-10 rounded-md border border-slate-700 bg-slate-900/95 text-slate-100 px-3 py-2 text-xs shadow-lg backdrop-blur-sm"
-          >
-            <div className="text-slate-400 mb-1">{fmtTooltipDate(hover.date)}</div>
+          <div style={tooltipStyle} className="z-10 rounded-md border border-rule-strong bg-raised text-ink px-3 py-2 text-xs shadow-lg">
+            <div className="text-ink-3 mb-1">{fmtTooltipDate(hover.date)}</div>
             <div className="flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
-              <span className="text-slate-300">Invested</span>
+              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: pal.invested }} />
+              <span className="text-ink-2">Invested</span>
               <span className="ml-auto font-medium">{fmtAmount(hover.invested)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#10b981' }} />
-              <span className="text-slate-300">Current</span>
+              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: pal.current }} />
+              <span className="text-ink-2">Current</span>
               <span className="ml-auto font-medium">{fmtAmount(hover.current)}</span>
             </div>
             {hover.xirr !== null && (
               <div className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#f59e0b' }} />
-                <span className="text-slate-300">XIRR</span>
-                <span className={`ml-auto font-medium ${hover.xirr > 0 ? 'text-green-400' : hover.xirr < 0 ? 'text-red-400' : ''}`}>
+                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: pal.xirr }} />
+                <span className="text-ink-2">XIRR</span>
+                <span className={`ml-auto font-medium ${hover.xirr > 0 ? 'text-pos' : hover.xirr < 0 ? 'text-neg' : ''}`}>
                   {(hover.xirr * 100).toFixed(2)}%
                 </span>
               </div>

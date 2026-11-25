@@ -97,12 +97,12 @@ const TransactionsCard = React.memo(function TransactionsCard({
   showingFuture: boolean
 }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
-      <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+    <div className="bg-paper rounded-lg shadow-sm border border-rule overflow-hidden transition-colors">
+      <div className="px-6 py-4 border-b border-rule bg-sunken">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{showingFuture ? 'Future transactions' : 'All transactions'}</h2>
+          <h2 className="text-lg font-semibold text-ink">{showingFuture ? 'Future transactions' : 'All transactions'}</h2>
           <div className="flex items-center gap-4 flex-wrap">
-            <span className="text-sm text-slate-500 dark:text-slate-400">
+            <span className="text-sm text-ink-3">
               {isShowingAll
                 ? `All ${totalCount}`
                 : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
@@ -110,14 +110,10 @@ const TransactionsCard = React.memo(function TransactionsCard({
           </div>
         </div>
       </div>
-      <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+      <ul className="divide-y divide-rule">
         {dayGroups.map(group => (
           <React.Fragment key={group.label ?? 'flat'}>
-            {group.label !== null && (
-              <li className="px-6 py-2 bg-slate-50 dark:bg-slate-900/40 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                {group.label}
-              </li>
-            )}
+            {group.label !== null && <li className="px-6 py-2 bg-sunken text-xs font-semibold uppercase tracking-wide text-ink-3">{group.label}</li>}
             {group.txs.map(tx => {
               const borderCls =
                 tx.link_severity === 'error'
@@ -143,12 +139,12 @@ const TransactionsCard = React.memo(function TransactionsCard({
                 // Stretched-link treatment (see the home cards): the amount needs its own
                 // click-to-reveal, so it can't nest inside the row's <Link>. The Link fills
                 // the row invisibly; only the amount opts back into pointer events.
-                <li key={tx.id} className={`relative hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${borderCls}`}>
+                <li key={tx.id} className={`relative hover:bg-sunken transition-colors ${borderCls}`}>
                   <Link href={`/transactions/${tx.id}`} className="absolute inset-0 z-0" aria-label={tx.description || 'View transaction'} />
                   <div className="relative z-10 pointer-events-none px-6 py-3.5 flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{tx.description || 'No description'}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 min-w-0">
+                      <p className="text-sm font-medium text-ink truncate">{tx.description || 'No description'}</p>
+                      <p className="text-sm text-ink-3 flex items-center gap-2 min-w-0">
                         <span>
                           {up_ampm(group.label === null ? full_datetime_fmt.format(new Date(tx.date)) : time_fmt.format(new Date(tx.date)))}
                         </span>
@@ -169,14 +165,14 @@ const TransactionsCard = React.memo(function TransactionsCard({
                       {tx.total_book !== 0 ? (
                         <span
                           className={`text-lg font-semibold inline-block tabular-nums pointer-events-auto ${
-                            tx.total_book > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
+                            tx.total_book > 0 ? 'text-pos' : 'text-ink'
                           }`}
                         >
                           <MaskedAmount value={tx.total_book} keep_sign />
                         </span>
                       ) : (
                         /* a zero net flow (e.g. a transfer) still deserves a figure, not a blank cell */
-                        <span className="text-lg font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{currency_fmt.format(0)}</span>
+                        <span className="text-lg font-semibold text-ink-3 tabular-nums">{currency_fmt.format(0)}</span>
                       )}
                     </div>
                   </div>
@@ -442,7 +438,7 @@ export default function ClientPage({
             <button
               key={t.id}
               type="button"
-              className="flex items-center shrink-0 py-1.5 px-3 border border-slate-200 dark:border-slate-600 rounded-full bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group cursor-pointer relative"
+              className="flex items-center shrink-0 py-1.5 px-3 border border-rule rounded-full bg-sunken hover:bg-sunken transition-colors group cursor-pointer relative"
               onClick={e => {
                 if (deletingTemplate?.id === t.id) {
                   e.stopPropagation()
@@ -460,9 +456,7 @@ export default function ClientPage({
                 setDeletingTemplate({ id: t.id, x: e.clientX, y: e.clientY })
               }}
             >
-              <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate max-w-37.5 sm:max-w-62.5">
-                {t.description || 'Unnamed template'}
-              </span>
+              <span className="text-sm font-medium text-ink truncate max-w-37.5 sm:max-w-62.5">{t.description || 'Unnamed template'}</span>
             </button>
           ))}
         </div>
@@ -471,7 +465,7 @@ export default function ClientPage({
       {deletingTemplate && (
         <div
           role="menu"
-          className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-36 animate-scale-in"
+          className="fixed z-50 bg-paper border border-rule shadow-xl rounded-lg overflow-hidden w-36 animate-scale-in"
           style={{ top: deletingTemplate.y, left: deletingTemplate.x }}
           onKeyDown={e => {
             if (e.key === 'Escape') setDeletingTemplate(null)
@@ -489,7 +483,7 @@ export default function ClientPage({
                 await delete_transaction_template(id)
               }
             }}
-            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-neg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
           >
             <svg aria-hidden="true" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -505,7 +499,7 @@ export default function ClientPage({
       )}
 
       {}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 transition-colors">
+      <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 transition-colors">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <input
@@ -514,7 +508,7 @@ export default function ClientPage({
               placeholder="Search transactions…"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
+              className="w-full px-4 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-raised text-ink placeholder-slate-400 dark:placeholder-slate-500"
             />
           </div>
           <button
@@ -522,26 +516,23 @@ export default function ClientPage({
             onClick={() => setShowFilters(!showFilters)}
             aria-expanded={showFilters}
             aria-controls={`${uid}-filter-panel`}
-            className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium w-full md:w-auto"
+            className="px-4 py-2 border border-rule-strong text-ink-2 rounded-lg hover:bg-sunken transition-colors font-medium w-full md:w-auto"
           >
-            Filters {hasFilters && <span className="ml-1 text-blue-600 dark:text-blue-400">●</span>}
+            Filters {hasFilters && <span className="ml-1 text-accent">●</span>}
           </button>
         </div>
 
         {showFilters && (
-          <div
-            id={`${uid}-filter-panel`}
-            className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-in-up"
-          >
+          <div id={`${uid}-filter-panel`} className="mt-4 pt-4 border-t border-rule grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-in-up">
             <div>
-              <label htmlFor={`${uid}-sort`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-sort`} className="block text-sm font-medium text-ink-2 mb-1">
                 Sort
               </label>
               <select
                 id={`${uid}-sort`}
                 value={searchParams.sort || 'date_desc'}
                 onChange={e => changeSort(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg text-sm bg-raised text-ink focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="date_desc">Date (newest)</option>
                 <option value="date_asc">Date (oldest)</option>
@@ -550,14 +541,14 @@ export default function ClientPage({
               </select>
             </div>
             <div>
-              <label htmlFor={`${uid}-show`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-show`} className="block text-sm font-medium text-ink-2 mb-1">
                 Show
               </label>
               <select
                 id={`${uid}-show`}
                 value={isShowingAll ? 'all' : selectedPageSize}
                 onChange={e => changePageSize(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg text-sm bg-raised text-ink focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="10">10</option>
                 <option value="20">20</option>
@@ -567,21 +558,21 @@ export default function ClientPage({
               </select>
             </div>
             <div>
-              <label htmlFor={`${uid}-type`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-type`} className="block text-sm font-medium text-ink-2 mb-1">
                 Type
               </label>
               <select
                 id={`${uid}-type`}
                 value={showingFuture ? 'future' : 'real'}
                 onChange={e => changeFuture(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg text-sm bg-raised text-ink focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="real">Real transactions</option>
                 <option value="future">Future transactions</option>
               </select>
             </div>
             <div>
-              <label htmlFor={`${uid}-date-from`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-date-from`} className="block text-sm font-medium text-ink-2 mb-1">
                 From date
               </label>
               <input
@@ -590,11 +581,11 @@ export default function ClientPage({
                 value={dateFrom}
                 onChange={e => setDateFrom(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && applyFilters()}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 bg-raised text-ink"
               />
             </div>
             <div>
-              <label htmlFor={`${uid}-date-to`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-date-to`} className="block text-sm font-medium text-ink-2 mb-1">
                 To date
               </label>
               <input
@@ -603,11 +594,11 @@ export default function ClientPage({
                 value={dateTo}
                 onChange={e => setDateTo(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && applyFilters()}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 bg-raised text-ink"
               />
             </div>
             <div>
-              <label htmlFor={`${uid}-min-amount`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-min-amount`} className="block text-sm font-medium text-ink-2 mb-1">
                 Min amount
               </label>
               <input
@@ -618,11 +609,11 @@ export default function ClientPage({
                 onChange={e => setMinAmount(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && applyFilters()}
                 placeholder="0.00"
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 bg-raised text-ink"
               />
             </div>
             <div>
-              <label htmlFor={`${uid}-max-amount`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-max-amount`} className="block text-sm font-medium text-ink-2 mb-1">
                 Max amount
               </label>
               <input
@@ -633,18 +624,18 @@ export default function ClientPage({
                 onChange={e => setMaxAmount(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && applyFilters()}
                 placeholder="0.00"
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 bg-raised text-ink"
               />
             </div>
             <div>
-              <label htmlFor={`${uid}-account`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-account`} className="block text-sm font-medium text-ink-2 mb-1">
                 Account
               </label>
               <select
                 id={`${uid}-account`}
                 value={accountId}
                 onChange={e => setAccountId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 bg-raised text-ink"
               >
                 <option value="">All accounts</option>
                 {accounts.map(acc => (
@@ -655,14 +646,14 @@ export default function ClientPage({
               </select>
             </div>
             <div>
-              <label htmlFor={`${uid}-asset`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-asset`} className="block text-sm font-medium text-ink-2 mb-1">
                 Asset
               </label>
               <select
                 id={`${uid}-asset`}
                 value={assetId}
                 onChange={e => setAssetId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 bg-raised text-ink"
               >
                 <option value="">All assets</option>
                 {assets.map(asset => (
@@ -673,7 +664,7 @@ export default function ClientPage({
               </select>
             </div>
             <div>
-              <label htmlFor={`${uid}-group`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor={`${uid}-group`} className="block text-sm font-medium text-ink-2 mb-1">
                 Tag
               </label>
               <select
@@ -681,7 +672,7 @@ export default function ClientPage({
                 value={tagId}
                 onChange={e => setTagId(e.target.value)}
                 disabled={tags.length === 0}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 disabled:opacity-60"
+                className="w-full px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 bg-raised text-ink disabled:opacity-60"
               >
                 <option value="">All tags</option>
                 {tags.map(g => (
@@ -691,7 +682,7 @@ export default function ClientPage({
                 ))}
               </select>
               {tags.length === 0 && (
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                <p className="mt-1 text-xs text-ink-3">
                   No tags yet —{' '}
                   <Link href="/tags" className="underline hover:no-underline">
                     create one
@@ -701,17 +692,13 @@ export default function ClientPage({
               )}
             </div>
             <div className="md:col-span-2 flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-              >
+              <button type="button" onClick={clearFilters} className="px-4 py-2 text-ink-2 hover:text-ink transition-colors">
                 Clear all
               </button>
               <button
                 type="button"
                 onClick={applyFilters}
-                className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                className="px-4 py-2 bg-accent text-on-accent rounded-lg hover:bg-accent-hover transition-colors"
               >
                 Apply filters
               </button>
@@ -727,20 +714,16 @@ export default function ClientPage({
               key={chip.key}
               type="button"
               onClick={() => removeFilter(chip.key)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-sm text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-soft border border-accent/30 text-sm text-accent hover:bg-accent-soft transition-colors"
               title="Remove filter"
             >
               <span>{chip.label}</span>
-              <span aria-hidden className="text-blue-500 dark:text-blue-400">
+              <span aria-hidden className="text-accent">
                 ✕
               </span>
             </button>
           ))}
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 ml-1"
-          >
+          <button type="button" onClick={clearFilters} className="text-sm text-ink-3 hover:text-ink ml-1">
             Clear all
           </button>
         </div>
@@ -759,12 +742,12 @@ export default function ClientPage({
 
           {}
           {totalPages > 1 && !isShowingAll && (
-            <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-4 transition-colors gap-2">
+            <div className="flex items-center justify-between bg-paper rounded-lg shadow-sm border border-rule px-4 sm:px-6 py-4 transition-colors gap-2">
               <button
                 type="button"
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="px-3 sm:px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-3 sm:px-4 py-2 text-sm font-medium text-ink-2 bg-raised border border-rule-strong rounded-lg hover:bg-sunken disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <span className="hidden sm:inline">Previous</span>
                 <span className="sm:hidden">Prev</span>
@@ -772,7 +755,7 @@ export default function ClientPage({
               <div className="flex items-center gap-1 sm:gap-2">
                 {page_items(currentPage, totalPages).map((item, i) =>
                   item === 'gap' ? (
-                    <span key={`gap-${i}`} aria-hidden="true" className="px-1 text-slate-400 dark:text-slate-500 select-none">
+                    <span key={`gap-${i}`} aria-hidden="true" className="px-1 text-ink-3 select-none">
                       …
                     </span>
                   ) : (
@@ -782,9 +765,7 @@ export default function ClientPage({
                       onClick={() => goToPage(item)}
                       aria-current={currentPage === item ? 'page' : undefined}
                       className={`px-2.5 sm:px-3 py-1.5 sm:py-1 text-sm font-medium rounded-lg transition-colors min-w-9 tabular-nums ${
-                        currentPage === item
-                          ? 'bg-blue-600 dark:bg-blue-500 text-white'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        currentPage === item ? 'bg-accent text-on-accent' : 'text-ink-2 hover:bg-sunken'
                       }`}
                     >
                       {item}
@@ -796,7 +777,7 @@ export default function ClientPage({
                 type="button"
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="px-3 sm:px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-3 sm:px-4 py-2 text-sm font-medium text-ink-2 bg-raised border border-rule-strong rounded-lg hover:bg-sunken disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next
               </button>
@@ -827,7 +808,7 @@ export default function ClientPage({
         >
           <div className="text-sm min-w-0">
             <p className="font-medium truncate">Transaction deleted{undoSnapshot.description ? ` — “${undoSnapshot.description}”` : ''}</p>
-            {undoSnapshot.had_attachments && <p className="text-xs text-slate-300 dark:text-slate-400">Attachments can’t be restored</p>}
+            {undoSnapshot.had_attachments && <p className="text-xs text-ink-3">Attachments can’t be restored</p>}
           </div>
           <button
             type="button"

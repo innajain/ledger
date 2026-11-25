@@ -30,33 +30,27 @@ type Row = { label: string; value: number | null; emphasize?: boolean; indent?: 
 function ComputationCard({ rows, booleanRows = [] }: { rows: Row[]; booleanRows?: { label: string; value: boolean }[] }) {
   return (
     <Card>
-      <div className="divide-y divide-slate-200 dark:divide-slate-700">
+      <div className="divide-y divide-rule">
         {rows.map(row =>
           row.value === null ? null : (
             <div
               key={row.label}
               className={`flex items-center justify-between gap-4 py-3 ${row.indent ? 'pl-12 pr-6' : 'px-6'} ${
-                row.emphasize
-                  ? 'font-semibold text-slate-900 dark:text-slate-100'
-                  : row.indent
-                    ? 'text-sm text-slate-500 dark:text-slate-400'
-                    : 'text-sm text-slate-700 dark:text-slate-300'
+                row.emphasize ? 'font-semibold text-ink' : row.indent ? 'text-sm text-ink-3' : 'text-sm text-ink-2'
               }`}
             >
               <span>
                 {row.label}
-                {row.note && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{row.note}</span>}
+                {row.note && <span className="ml-2 text-xs text-ink-3">{row.note}</span>}
               </span>
               <MaskedAmount value={row.value} />
             </div>
           ),
         )}
         {booleanRows.map(row => (
-          <div key={row.label} className="flex items-center justify-between gap-4 px-6 py-3 text-sm text-slate-700 dark:text-slate-300">
+          <div key={row.label} className="flex items-center justify-between gap-4 px-6 py-3 text-sm text-ink-2">
             <span>{row.label}</span>
-            <span className={row.value ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-slate-500 dark:text-slate-400'}>
-              {row.value ? 'Yes' : 'No'}
-            </span>
+            <span className={row.value ? 'text-neg font-semibold' : 'text-ink-3'}>{row.value ? 'Yes' : 'No'}</span>
           </div>
         ))}
       </div>
@@ -136,21 +130,21 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">Tax</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">New regime only — computed live from tagged heads, never stored.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Tax</h1>
+        <p className="text-ink-2 mt-1">New regime only — computed live from tagged heads, never stored.</p>
       </div>
 
       <section className="space-y-4">
         <SectionHeading>Computation</SectionHeading>
         <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
-          <label htmlFor="tax-fy" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label htmlFor="tax-fy" className="text-sm font-medium text-ink-2">
             Financial year
           </label>
           <select
             id="tax-fy"
             value={selected_fy}
             onChange={e => router.push(`/tax?fy=${Number(e.target.value)}${include_future ? '&projected=1' : ''}`)}
-            className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+            className="px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
           >
             {fy_options.map(o => (
               <option key={o.value} value={o.value}>
@@ -159,24 +153,24 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
             ))}
           </select>
 
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm font-medium text-ink-2 cursor-pointer">
             <input
               type="checkbox"
               checked={include_future}
               onChange={e => router.push(`/tax?fy=${selected_fy}${e.target.checked ? '&projected=1' : ''}`)}
-              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              className="w-4 h-4 rounded border-rule-strong text-blue-600 focus:ring-2 focus:ring-accent"
             />
             <span className="whitespace-nowrap">Project to year end</span>
           </label>
         </div>
 
         {include_future ? (
-          <div className="rounded-lg border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-800 dark:text-blue-200">
+          <div className="rounded-lg border border-accent/30 bg-accent-soft p-4 text-sm text-accent">
             <span className="font-semibold">Projected —</span> includes scheduled (future) transactions as well as actuals. Only as good as what is
             actually scheduled: if the rest of the year is not in the ledger, this understates the year.
           </div>
         ) : (
-          <div className="text-sm text-slate-500 dark:text-slate-400">
+          <div className="text-sm text-ink-3">
             Year to date — actuals only. The §87A rebate can make this read ₹0 early in the year and still leave tax due by March; tick{' '}
             <span className="font-medium">Project to year end</span> to see the full-year position.
           </div>
@@ -225,7 +219,7 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
             {
               label: 'Total income',
               value: (
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <p className="text-2xl font-bold text-ink">
                   <MaskedAmount value={c.total_income} />
                 </p>
               ),
@@ -233,7 +227,7 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
             {
               label: 'Total tax',
               value: (
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <p className="text-2xl font-bold text-ink">
                   <MaskedAmount value={c.total_tax} />
                 </p>
               ),
@@ -241,7 +235,7 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
             {
               label: 'Balance payable',
               value: (
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <p className="text-2xl font-bold text-ink">
                   <MaskedAmount value={c.balance_payable} />
                 </p>
               ),
@@ -256,13 +250,13 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
       <section className="space-y-4">
         <SectionHeading>Head classification</SectionHeading>
         <Card>
-          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
-            <h2 className="font-semibold text-slate-900 dark:text-slate-100">Income / expense heads</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <div className="p-4 sm:p-6 border-b border-rule">
+            <h2 className="font-semibold text-ink">Income / expense heads</h2>
+            <p className="text-sm text-ink-3 mt-1">
               Tag a head to decide how it counts toward tax. Unclassified heads with activity in the selected FY are excluded and warned about above.
             </p>
             {heads.some(h => h.tax_treatment === 'gift_56_2_x') && (
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+              <p className="text-xs text-ink-3 mt-2">
                 Gifts are treated as from non-relatives (the ledger has no relative flag): the ₹50,000 §56(2)(x) exemption only applies to relatives.
               </p>
             )}
@@ -273,16 +267,16 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
             </div>
           )}
           {heads.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">No income/expense heads yet.</div>
+            <div className="p-8 text-center text-sm text-ink-3">No income/expense heads yet.</div>
           ) : (
-            <div className="divide-y divide-slate-200 dark:divide-slate-700">
+            <div className="divide-y divide-rule">
               {heads.map(head => {
                 const net = netByHead.get(head.id) ?? 0
                 return (
                   <div key={head.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{head.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                      <p className="text-sm font-medium text-ink">{head.name}</p>
+                      <p className="text-xs text-ink-3">
                         <MaskedAmount value={net} />
                       </p>
                     </div>
@@ -290,7 +284,7 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
                       value={head.tax_treatment ?? ''}
                       disabled={busyId === head.id}
                       onChange={e => run(head.id, (e.target.value || null) as tax_treatment | null)}
-                      className="px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed max-w-full"
+                      className="px-2 py-1.5 text-sm border border-rule-strong rounded-lg bg-raised text-ink disabled:opacity-50 disabled:cursor-not-allowed max-w-full"
                     >
                       <option value="">Unclassified</option>
                       {TREATMENT_OPTIONS.map(o => (

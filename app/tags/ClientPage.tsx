@@ -79,7 +79,7 @@ export default function ClientPage({ tags }: { tags: TagRow[] }) {
         <Card className="p-4 sm:p-6">
           <form onSubmit={onCreate} className="space-y-4">
             <div>
-              <label htmlFor={`${uid}-name`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor={`${uid}-name`} className="block text-sm font-medium text-ink-2 mb-2">
                 Name
               </label>
               <input
@@ -89,12 +89,12 @@ export default function ClientPage({ tags }: { tags: TagRow[] }) {
                 autoFocus
                 onChange={e => setName(e.target.value)}
                 placeholder="Eating out"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div>
-              <label htmlFor={`${uid}-description`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Description <span className="font-normal text-slate-500 dark:text-slate-400">(optional)</span>
+              <label htmlFor={`${uid}-description`} className="block text-sm font-medium text-ink-2 mb-2">
+                Description <span className="font-normal text-ink-3">(optional)</span>
               </label>
               <input
                 id={`${uid}-description`}
@@ -102,7 +102,7 @@ export default function ClientPage({ tags }: { tags: TagRow[] }) {
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Lunches and dinners out, excluding groceries"
-                className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             {error && <ErrorAlert message={error} onDismiss={() => setError(null)} />}
@@ -145,24 +145,20 @@ export default function ClientPage({ tags }: { tags: TagRow[] }) {
             <li key={g.id}>
               <Link
                 href={`/tags/${g.id}`}
-                className="block h-full bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-5 hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
+                className="block h-full bg-paper rounded-lg shadow-sm border border-rule p-5 hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 truncate">{g.name}</h2>
-                    {g.description && <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{g.description}</p>}
+                    <h2 className="text-lg font-semibold text-ink truncate">{g.name}</h2>
+                    {g.description && <p className="text-sm text-ink-3 mt-0.5 line-clamp-2">{g.description}</p>}
                   </div>
                   {/* Non-interactive: the whole card is the link, so the amount can't
                       offer its own click-to-reveal here. */}
-                  <span
-                    className={`shrink-0 text-lg font-semibold tabular-nums ${
-                      g.net > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'
-                    }`}
-                  >
+                  <span className={`shrink-0 text-lg font-semibold tabular-nums ${g.net > 0 ? 'text-pos' : 'text-ink'}`}>
                     <MaskedAmount value={g.net} interactive={false} keep_sign />
                   </span>
                 </div>
-                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                <p className="mt-3 text-sm text-ink-3">
                   {g.count === 0 && g.future_count === 0
                     ? 'No transactions yet'
                     : `${g.count} transaction${g.count === 1 ? '' : 's'}${g.future_count > 0 ? ` · ${g.future_count} scheduled` : ''}`}

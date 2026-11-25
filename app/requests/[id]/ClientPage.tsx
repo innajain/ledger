@@ -39,7 +39,7 @@ function DiffCard({ ctx }: { ctx: EditorContext }) {
 
       {dateChanged && (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Date &amp; Time</p>
+          <p className="text-xs font-medium text-ink-3 uppercase tracking-wide">Date &amp; Time</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-3 py-2 text-sm text-red-800 dark:text-red-300 line-through">
               {prev.datetime ? <LocalDateTime value={prev.datetime} /> : '—'}
@@ -53,7 +53,7 @@ function DiffCard({ ctx }: { ctx: EditorContext }) {
 
       {descChanged && (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Description</p>
+          <p className="text-xs font-medium text-ink-3 uppercase tracking-wide">Description</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-3 py-2 text-sm text-red-800 dark:text-red-300 line-through italic">
               {prev.description || 'No description'}
@@ -67,7 +67,7 @@ function DiffCard({ ctx }: { ctx: EditorContext }) {
 
       {linesChanged && (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Shared lines</p>
+          <p className="text-xs font-medium text-ink-3 uppercase tracking-wide">Shared lines</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-3 py-2 space-y-1">
               {prev.mirrored_lines.length === 0 ? (
@@ -95,8 +95,8 @@ function DiffCard({ ctx }: { ctx: EditorContext }) {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 pt-0.5">
-            <p className="text-center text-xs text-slate-500 dark:text-slate-400">Before</p>
-            <p className="text-center text-xs text-slate-500 dark:text-slate-400">After</p>
+            <p className="text-center text-xs text-ink-3">Before</p>
+            <p className="text-center text-xs text-ink-3">After</p>
           </div>
         </div>
       )}
@@ -113,8 +113,7 @@ function toLocalInput(iso: string | null): string {
 }
 
 // readOnly (not disabled) so keyboard users can still reach the fields — muted styles applied directly
-const lockedFieldCls =
-  'w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg opacity-70 cursor-not-allowed'
+const lockedFieldCls = 'w-full px-3 py-2 bg-sunken border border-rule-strong text-ink rounded-lg opacity-70 cursor-not-allowed'
 
 export default function ClientPage({
   ctx,
@@ -253,17 +252,14 @@ export default function ClientPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          href="/requests"
-          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors font-medium mb-4"
-        >
+        <Link href="/requests" className="inline-flex items-center gap-2 text-ink-2 hover:text-ink transition-colors font-medium mb-4">
           <ChevronLeftIcon className="w-5 h-5" />
           Requests
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink">
           {ctx.mode === 'revert' ? 'Revert to approved' : `Approve request from @${ctx.other_username}`}
         </h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
+        <p className="text-ink-2 mt-1">
           The mirrored lines below are fixed. Add your own balancing lines so the transaction balances in your ledger.
         </p>
       </div>
@@ -271,17 +267,17 @@ export default function ClientPage({
       <DiffCard ctx={ctx} />
 
       {}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 transition-colors">
+      <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Transaction details</h2>
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <h2 className="text-lg font-semibold text-ink">Transaction details</h2>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-3">
             <LockIcon className="w-3.5 h-3.5" />
             Locked
           </span>
         </div>
         <div className="space-y-4">
           <div>
-            <label htmlFor={`${uid}-datetime`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor={`${uid}-datetime`} className="block text-sm font-medium text-ink-2 mb-2">
               Date &amp; time
             </label>
             <input
@@ -293,13 +289,13 @@ export default function ClientPage({
               className={lockedFieldCls}
             />
             {ctx.datetime && (
-              <div className="text-sm text-slate-600 dark:text-slate-400 mt-2 italic">
+              <div className="text-sm text-ink-2 mt-2 italic">
                 <LocalDateTime value={ctx.datetime} />
               </div>
             )}
           </div>
           <div>
-            <label htmlFor={`${uid}-description`} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor={`${uid}-description`} className="block text-sm font-medium text-ink-2 mb-2">
               Description
             </label>
             <input
@@ -330,7 +326,7 @@ export default function ClientPage({
 
         <TransactionBalanceSummary items={items} lockedItems={lockedItems} accounts={accounts} assets={assets} />
 
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex justify-end gap-3 pt-6 border-t border-rule">
           <ButtonLink href="/requests" variant="secondary">
             Cancel
           </ButtonLink>

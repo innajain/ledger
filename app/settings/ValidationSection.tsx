@@ -30,10 +30,10 @@ export function ValidationSection() {
   return (
     <section>
       <SectionHeading id="validation">Validation</SectionHeading>
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm p-4 sm:p-6 transition-colors space-y-4">
+      <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors space-y-4">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">Check my ledger</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <h3 className="text-lg font-semibold text-ink mb-1">Check my ledger</h3>
+          <p className="text-sm text-ink-2">
             Checks that every transaction in your ledger still balances, and lists any that do not — useful after bulk edits or imports.
           </p>
         </div>
@@ -43,7 +43,7 @@ export function ValidationSection() {
         </Button>
 
         {error && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <p role="alert" className="text-sm text-neg">
             {error}
           </p>
         )}
@@ -73,11 +73,10 @@ export function ValidationSection() {
                         href={`/transactions/${t.id}`}
                         className="block px-4 py-3 rounded-lg border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                       >
-                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          {t.description || 'No description'}{' '}
-                          <span className="text-xs text-slate-500 dark:text-slate-400">· {format_day(t.datetime)}</span>
+                        <span className="text-sm font-medium text-ink">
+                          {t.description || 'No description'} <span className="text-xs text-ink-3">· {format_day(t.datetime)}</span>
                         </span>
-                        <span className="block text-xs text-red-700 dark:text-red-300 mt-1">{t.message}</span>
+                        <span className="block text-xs text-neg mt-1">{t.message}</span>
                       </Link>
                     </li>
                   ))}

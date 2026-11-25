@@ -132,14 +132,14 @@ export function TagPicker({ options, value, onChange, disabled = false }: Props)
         <ul className="flex flex-wrap gap-2 mb-2">
           {selected.map(g => (
             <li key={g.id}>
-              <span className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-sm text-blue-800 dark:text-blue-200">
+              <span className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-accent-soft border border-accent/30 text-sm text-accent">
                 {g.name}
                 <button
                   type="button"
                   onClick={() => remove(g.id)}
                   disabled={disabled}
                   aria-label={`Remove from ${g.name}`}
-                  className="text-blue-500 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-100 disabled:opacity-50"
+                  className="text-accent hover:text-blue-800 dark:hover:text-blue-100 disabled:opacity-50"
                 >
                   <CloseIcon className="w-3.5 h-3.5" />
                 </button>
@@ -168,14 +168,14 @@ export function TagPicker({ options, value, onChange, disabled = false }: Props)
         // keeps focus here, so the next click fires no focus event and nothing opens.
         onClick={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+        className="w-full px-3 py-2 bg-raised border border-rule-strong text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
       />
 
       {open && (rowCount > 0 || available.length === 0) && (
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg py-1"
+          className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-rule bg-paper shadow-lg py-1"
         >
           {suggestions.map((g, i) => (
             <li key={g.id}>
@@ -185,9 +185,7 @@ export function TagPicker({ options, value, onChange, disabled = false }: Props)
                 aria-selected={i === active}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => pick(g.id)}
-                className={`w-full text-left px-3 py-2 text-sm ${
-                  i === active ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100' : 'text-slate-700 dark:text-slate-300'
-                }`}
+                className={`w-full text-left px-3 py-2 text-sm ${i === active ? 'bg-accent-soft text-blue-900 dark:text-blue-100' : 'text-ink-2'}`}
               >
                 {g.name}
               </button>
@@ -203,21 +201,19 @@ export function TagPicker({ options, value, onChange, disabled = false }: Props)
                 onClick={() => void createAndPick()}
                 disabled={creating}
                 className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
-                  active === suggestions.length ? 'bg-blue-50 dark:bg-blue-900/30' : ''
-                } text-blue-700 dark:text-blue-300 disabled:opacity-50`}
+                  active === suggestions.length ? 'bg-accent-soft' : ''
+                } text-accent disabled:opacity-50`}
               >
                 {creating ? <Spinner className="w-4 h-4" /> : <span aria-hidden>+</span>}
                 Create “{query.trim()}”
               </button>
             </li>
           )}
-          {available.length === 0 && !canCreate && (
-            <li className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">Type a name to create your first tag</li>
-          )}
+          {available.length === 0 && !canCreate && <li className="px-3 py-2 text-sm text-ink-3">Type a name to create your first tag</li>}
         </ul>
       )}
 
-      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-neg">{error}</p>}
     </div>
   )
 }

@@ -21,8 +21,8 @@ async function Page({ params }: { params: Promise<{ id: string }> }) {
   if (!ctx) {
     return (
       <div className="space-y-3">
-        <p className="text-slate-700 dark:text-slate-300">This request isn’t awaiting your action.</p>
-        <Link href="/requests" className="text-blue-600 dark:text-blue-400 hover:underline">
+        <p className="text-ink-2">This request isn’t awaiting your action.</p>
+        <Link href="/requests" className="text-accent hover:underline">
           ← Back to requests
         </Link>
       </div>

@@ -106,12 +106,12 @@ export function NotificationToggle() {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-4 sm:p-6 transition-colors">
-      <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Notifications</h3>
+    <div className="bg-paper border border-rule rounded-xl shadow-sm p-4 sm:p-6 transition-colors">
+      <h3 className="text-xl font-semibold text-ink mb-4">Notifications</h3>
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <p className="font-medium text-slate-900 dark:text-slate-100">Push notifications</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="font-medium text-ink">Push notifications</p>
+          <p className="text-sm text-ink-3 mt-0.5">
             Get notified about approval requests, rejections, and messages from linked accounts — on this device.
           </p>
         </div>
@@ -122,7 +122,7 @@ export function NotificationToggle() {
                 type="button"
                 onClick={sendTest}
                 disabled={busy}
-                className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-rule-strong text-ink-2 hover:bg-sunken disabled:opacity-50 transition-colors"
               >
                 Send test
               </button>
@@ -132,9 +132,7 @@ export function NotificationToggle() {
               onClick={enabled ? disable : enable}
               disabled={busy || denied}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                enabled
-                  ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600'
-                  : 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600'
+                enabled ? 'bg-sunken text-ink-2 hover:bg-rule' : 'bg-accent text-on-accent hover:bg-accent-hover'
               }`}
             >
               {busy ? '…' : enabled ? 'Disable' : 'Enable'}
@@ -154,7 +152,7 @@ export function NotificationToggle() {
           Notifications are blocked for this site. Re-enable them in your browser’s site settings, then try again.
         </p>
       )}
-      {msg && <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">{msg}</p>}
+      {msg && <p className="mt-3 text-sm text-ink-2">{msg}</p>}
     </div>
   )
 }
