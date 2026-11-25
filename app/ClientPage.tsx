@@ -1,158 +1,66 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
 import { MaskedAmount } from './_components/MaskedAmount'
+import { HomeAllocations, type HomeAllocation } from './_components/HomeAllocations'
+import { HomeRecentTransactions, type HomeRecentTransaction } from './_components/HomeRecentTransactions'
 import { HomeUpcomingTransactions, type HomeUpcomingTransaction } from './_components/HomeUpcomingTransactions'
 import { HomeRequests, type HomeRequest } from './_components/HomeRequests'
 
 export default function ClientPage({
-  welcomeMessage,
+  dateLabel,
   loggedIn = false,
-  invest,
-  investXirrSlot,
-  savings,
   networth,
   networthTrendSlot,
+  allocations = [],
+  allocationExtra,
+  recent = [],
   upcoming = [],
   requests = [],
 }: {
-  welcomeMessage: string
+  /** Today in IST, e.g. "Wednesday, 25 November 2026" — formatted on the server. */
+  dateLabel: string
   loggedIn?: boolean
-  invest: { id: string; name: string; total: number } | null
-  investXirrSlot?: React.ReactNode
-  savings: { id: string; name: string; total: number } | null
   networth: number | null
   networthTrendSlot?: React.ReactNode
+  allocations?: HomeAllocation[]
+  /** A note hung off an allocation row, keyed by head id (the Investments XIRR). */
+  allocationExtra?: Record<string, React.ReactNode>
+  recent?: HomeRecentTransaction[]
   upcoming?: HomeUpcomingTransaction[]
   requests?: HomeRequest[]
 }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {/* Every other route gets its h1 from PageHeader; this one has no visible title, so the
-          outline would otherwise start at h2. Rendered outside the hero, which logged-out
-          visitors never see. */}
-      <h1 className="sr-only">Dashboard</h1>
+          outline would otherwise start at h2. */}
+      <h1 className="sr-only">Home</h1>
 
-      <p className="text-base sm:text-lg text-ink-2">{welcomeMessage}</p>
-
-      {networth !== null && (
-        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-ink-3 mb-1">Total net worth</p>
-              <p className="text-3xl sm:text-5xl font-bold text-ink">
-                <MaskedAmount value={networth} />
+      <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-end pb-8 border-b border-rule">
+        <div className="min-w-0">
+          <p className="font-serif text-[15px] text-ink-3 mb-5">{dateLabel}</p>
+          {networth !== null && (
+            <>
+              <p className="text-[11px] font-medium uppercase tracking-[0.09em] text-ink-3 mb-2">Net worth</p>
+              <p className="font-serif text-5xl sm:text-6xl leading-none tracking-tight text-ink">
+                <MaskedAmount value={networth} precise numeric={false} />
               </p>
-            </div>
-            <div className="shrink-0 w-10 h-10 sm:w-14 sm:h-14 bg-slate-700 dark:bg-slate-600 rounded-xl flex items-center justify-center">
-              <svg aria-hidden="true" className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-          </div>
-          {networthTrendSlot}
+            </>
+          )}
         </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Investments. The amount needs its own click-to-reveal, so it can't sit inside the
-            card's <Link> (nesting an interactive control inside an anchor is invalid and was
-            exactly what silently broke the toggle — every click hit the link, not the amount).
-            Instead the Link is an invisible layer stretched behind the whole card; everything
-            except the amount forwards clicks through to it via pointer-events-none, and the
-            amount sits on top as the one real interactive island. */}
-        {(() => {
-          const content = (
-            <>
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center">
-                  <svg aria-hidden="true" className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                {investXirrSlot}
-              </div>
-              <h2 className="text-sm font-medium text-ink-3 mb-1">Investment allocation</h2>
-              <p className="text-3xl font-bold text-ink">
-                {invest ? (
-                  <span className="pointer-events-auto inline-block">
-                    <MaskedAmount value={invest.total} />
-                  </span>
-                ) : (
-                  '—'
-                )}
-              </p>
-              {invest && <p className="text-sm text-ink-3 mt-2">{invest.name}</p>}
-            </>
-          )
-          return invest ? (
-            <div className="relative bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
-              <Link
-                href={`/heads/allocation/${invest.id}`}
-                aria-label={`View ${invest.name} allocation`}
-                className="absolute inset-0 z-0 rounded-lg hover:bg-sunken transition-colors"
-              />
-              <div className="relative z-10 pointer-events-none">{content}</div>
-            </div>
-          ) : (
-            <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">{content}</div>
-          )
-        })()}
-
-        {/* Savings — same stretched-link treatment as Investments above. */}
-        {(() => {
-          const content = (
-            <>
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-green-600 dark:bg-green-500 rounded-lg flex items-center justify-center">
-                  <svg aria-hidden="true" className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-sm font-medium text-ink-3 mb-1">Savings allocation</h2>
-              <p className="text-3xl font-bold text-ink">
-                {savings ? (
-                  <span className="pointer-events-auto inline-block">
-                    <MaskedAmount value={savings.total} />
-                  </span>
-                ) : (
-                  '—'
-                )}
-              </p>
-              {savings && <p className="text-sm text-ink-3 mt-2">{savings.name}</p>}
-            </>
-          )
-          return savings ? (
-            <div className="relative bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
-              <Link
-                href={`/heads/allocation/${savings.id}`}
-                aria-label={`View ${savings.name} allocation`}
-                className="absolute inset-0 z-0 rounded-lg hover:bg-sunken transition-colors"
-              />
-              <div className="relative z-10 pointer-events-none">{content}</div>
-            </div>
-          ) : (
-            <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">{content}</div>
-          )
-        })()}
-      </div>
+        {networthTrendSlot}
+      </section>
 
       {loggedIn && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <HomeUpcomingTransactions transactions={upcoming} />
-          <HomeRequests requests={requests} />
+        <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
+          <div className="space-y-10 min-w-0">
+            {networth !== null && <HomeAllocations allocations={allocations} networth={networth} extra={allocationExtra} />}
+            <HomeUpcomingTransactions transactions={upcoming} />
+            <HomeRequests requests={requests} />
+          </div>
+          <div className="min-w-0">
+            <HomeRecentTransactions transactions={recent} />
+          </div>
         </div>
       )}
     </div>

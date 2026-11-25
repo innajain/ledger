@@ -8,16 +8,26 @@ import { get_or_compute_balances } from './_actions/compute_balances'
 import { compute_head_value } from '@/app/_utils/head_value'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
 import { get_inbox } from '@/app/_utils/links'
-import { pick_welcome_message } from '@/app/_utils/home_welcome'
-import { is_future_txn_due } from '@/app/_utils/future_txn'
+import { is_future_txn_due, NOT_FUTURE } from '@/app/_utils/future_txn'
+import { USER_TIMEZONE } from '@/lib/config'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
 import { HomeNetWorthTrend, HomeNetWorthTrendFallback } from '@/app/_components/HomeNetWorthTrend'
 import type { AssetBalance } from '@/app/_utils/home_networth_series'
 import type { HomeUpcomingTransaction } from '@/app/_components/HomeUpcomingTransactions'
 import type { HomeRequest } from '@/app/_components/HomeRequests'
+import type { HomeRecentTransaction } from '@/app/_components/HomeRecentTransactions'
 import { profile } from '@/lib/metrics/profile'
 
 const UPCOMING_TRANSACTION_COUNT = 15
+const RECENT_TRANSACTION_COUNT = 10
+
+// "Wednesday, 25 November 2026" in IST — assembled from parts because en-IN puts a comma
+// before the year, and the server's own locale data shouldn't decide the punctuation.
+const date_parts_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: USER_TIMEZONE, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+function today_label(now: Date): string {
+  const part = (type: Intl.DateTimeFormatPartTypes) => date_parts_fmt.formatToParts(now).find(p => p.type === type)?.value ?? ''
+  return `${part('weekday')}, ${part('day')} ${part('month')} ${part('year')}`
+}
 
 // Only the fields the summary/recent rollups and normalize_line_items read — the full
 // accounting_head/asset relation rows multiply the payload of the first-paint page.
@@ -46,11 +56,15 @@ function book_total(line_items: { accounting_head: { type: string }; txn_value: 
 }
 
 async function Home() {
-  const welcome_message = pick_welcome_message()
+  // One `now` for the whole render, so the date line, the due flags and the recent list
+  // can't disagree about what "today" is. Decided on the server: the client re-rendering
+  // against its own clock/timezone would hydrate differently.
+  const now = new Date()
+  const date_label = today_label(now)
 
   const user = await get_current_user()
   if (!user) {
-    return <ClientPage welcomeMessage={welcome_message} invest={null} savings={null} networth={null} />
+    return <ClientPage dateLabel={date_label} networth={null} />
   }
 
   // The asset table is a shared catalog — only price what this user actually holds.
@@ -62,7 +76,7 @@ async function Home() {
     return get_prices_for_assets(all_assets.filter(a => held.has(a.id)))
   })
 
-  const [allocations, assets, { accountsToAssets: balances }, upcoming_txns, priceByAsset, inbox] = await Promise.all([
+  const [allocations, assets, { accountsToAssets: balances }, upcoming_txns, recent_txns, priceByAsset, inbox] = await Promise.all([
     prisma.accounting_head.findMany({ where: { user_id: user.id, type: 'allocation' } }),
     assetsPromise,
     balancesPromise,
@@ -72,12 +86,17 @@ async function Home() {
       orderBy: { datetime: 'asc' },
       take: UPCOMING_TRANSACTION_COUNT,
     }),
+    prisma.transaction.findMany({
+      where: { user_id: user.id, ...NOT_FUTURE },
+      select: { ...txn_select, tag_members: { select: { tag: { select: { name: true } } } } },
+      orderBy: { datetime: 'desc' },
+      take: RECENT_TRANSACTION_COUNT,
+    }),
     pricesPromise,
     get_inbox(user.id),
   ])
 
   const invest = allocations.find(a => a.name === 'Investments')
-  const savings = allocations.find(a => a.name === 'Savings')
 
   const childrenByParent = new Map<string, string[]>()
   for (const acc of allocations) {
@@ -125,7 +144,15 @@ async function Home() {
   }
 
   const invest_with_value = compute_subtree_total(invest)
-  const savings_with_value = compute_subtree_total(savings)
+
+  // The allocations table: each top-level bucket with everything under it, in the order
+  // the user arranged them. A bucket that nets to zero is left out — it would be a line
+  // of ₹0.00 between the ones that hold money.
+  const top_allocations = allocations
+    .filter(a => !a.parent_id)
+    .sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER) || a.name.localeCompare(b.name))
+    .map(a => compute_subtree_total(a)!)
+    .filter(a => a.total !== 0)
 
   const networth = allocation_values.reduce((sum, v) => sum.add(v?.total ?? new Prisma.Decimal(0)), new Prisma.Decimal(0)).toNumber()
 
@@ -158,10 +185,14 @@ async function Home() {
       </Suspense>
     ) : null
 
-  // One `now` for the whole list, so two rows either side of an IST midnight can't
-  // disagree about what "today" is. Decided on the server: the client re-rendering
-  // against its own clock/timezone would hydrate differently.
-  const now = new Date()
+  const recent: HomeRecentTransaction[] = recent_txns.map(txn => ({
+    id: txn.id,
+    date: txn.datetime,
+    description: txn.description,
+    total_book: book_total(normalize_line_items(txn.line_items)),
+    tags: txn.tag_members.map(m => m.tag.name),
+  }))
+
   const upcoming: HomeUpcomingTransaction[] = upcoming_txns.map(txn => ({
     id: txn.id,
     date: txn.datetime,
@@ -184,13 +215,13 @@ async function Home() {
 
   return (
     <ClientPage
-      welcomeMessage={welcome_message}
+      dateLabel={date_label}
       loggedIn
-      invest={invest_with_value}
-      investXirrSlot={investXirrSlot}
-      savings={savings_with_value}
       networth={networth}
       networthTrendSlot={networthTrendSlot}
+      allocations={top_allocations}
+      allocationExtra={invest && investXirrSlot ? { [invest.id]: investXirrSlot } : undefined}
+      recent={recent}
       upcoming={upcoming}
       requests={requests}
     />

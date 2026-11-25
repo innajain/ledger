@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { MaskedAmount } from './MaskedAmount'
 import { LocalDateTime } from './LocalDateTime'
+import { HomeSectionHead, HOME_ROW, HOME_TAG } from './HomeSection'
 
 export type HomeUpcomingTransaction = {
   id: string
@@ -16,39 +17,30 @@ export type HomeUpcomingTransaction = {
 
 export function HomeUpcomingTransactions({ transactions }: { transactions: HomeUpcomingTransaction[] }) {
   return (
-    <div className="bg-paper rounded-lg shadow-sm border border-rule transition-colors flex flex-col">
-      <div className="flex items-center justify-between gap-3 px-6 pt-6 pb-3">
-        <h2 className="text-lg font-semibold text-ink">Upcoming transactions</h2>
-        <Link href="/transactions?future=future" className="shrink-0 text-sm font-medium text-accent hover:underline whitespace-nowrap">
-          View all →
-        </Link>
-      </div>
+    <section>
+      <HomeSectionHead title="Upcoming" href="/transactions?future=future" />
 
       {transactions.length === 0 ? (
-        <div className="px-6 pb-6">
-          <p className="text-sm text-ink-3">Nothing scheduled right now.</p>
-        </div>
+        <p className="py-3 text-sm text-ink-3">Nothing scheduled.</p>
       ) : (
-        <ul className="divide-y divide-rule border-t border-rule max-h-[216px] overflow-y-auto">
+        <ul className="max-h-[232px] overflow-y-auto">
           {transactions.map(tx => (
-            // Same stretched-link treatment as Recent transactions: the amount needs its own
-            // click-to-reveal, so it can't be nested inside the row's <Link>.
-            <li key={tx.id} className="relative hover:bg-sunken transition-colors">
+            // Stretched link: the amount needs its own click-to-reveal, so it can't be
+            // nested inside the row's <Link>.
+            <li key={tx.id} className={HOME_ROW}>
               <Link href={`/transactions/${tx.id}`} className="absolute inset-0 z-0" aria-label={tx.description || 'View transaction'} />
-              <div className="relative z-10 pointer-events-none flex items-center justify-between gap-3 px-6 py-3">
+              <div className="relative z-10 pointer-events-none flex items-baseline justify-between gap-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink truncate">{tx.description || 'No description'}</p>
-                  <p className="text-xs text-ink-3 flex items-center gap-1.5">
+                  <p className="text-sm text-ink truncate flex items-center gap-2">
+                    <span className="truncate">{tx.description || 'No description'}</span>
+                    {tx.is_due && <span className={`${HOME_TAG} text-warn border-warn/40`}>Due</span>}
+                  </p>
+                  <p className="text-xs text-ink-3 mt-0.5">
                     <LocalDateTime value={tx.date} />
-                    {tx.is_due && (
-                      <span className="shrink-0 font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                        Due
-                      </span>
-                    )}
                   </p>
                 </div>
                 {tx.total_book !== 0 && (
-                  <span className={`shrink-0 text-sm font-semibold tabular-nums pointer-events-auto ${tx.total_book > 0 ? 'text-pos' : 'text-ink'}`}>
+                  <span className={`shrink-0 text-sm pointer-events-auto ${tx.total_book > 0 ? 'text-pos' : 'text-ink'}`}>
                     <MaskedAmount value={tx.total_book} keep_sign />
                   </span>
                 )}
@@ -57,6 +49,6 @@ export function HomeUpcomingTransactions({ transactions }: { transactions: HomeU
           ))}
         </ul>
       )}
-    </div>
+    </section>
   )
 }

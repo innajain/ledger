@@ -12,18 +12,12 @@ export async function InvestXirrBadge({ userId, subtreeAccountIds, currentValue 
   if (xirr === null || xirr === undefined) return null
 
   return (
-    <div className="flex flex-col items-end">
-      <span className="text-xs text-ink-3 uppercase tracking-wide font-medium">XIRR</span>
-      <span className={`text-lg font-bold ${xirr > 0 ? 'text-pos' : xirr < 0 ? 'text-neg' : 'text-ink-3'}`}>{(xirr * 100).toFixed(2)}%</span>
-    </div>
+    <span className="ml-2 text-xs text-ink-3">
+      XIRR <span className={`num ${xirr > 0 ? 'text-pos' : xirr < 0 ? 'text-neg' : ''}`}>{(xirr * 100).toFixed(1)}%</span>
+    </span>
   )
 }
 
 export function InvestXirrBadgeFallback() {
-  return (
-    <div className="flex flex-col items-end animate-pulse">
-      <span className="text-xs text-ink-3 uppercase tracking-wide font-medium">XIRR</span>
-      <span className="text-lg font-bold text-ink-3">…</span>
-    </div>
-  )
+  return <span className="ml-2 text-xs text-ink-3 animate-pulse">XIRR …</span>
 }

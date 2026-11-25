@@ -2,6 +2,7 @@
 
 import { MaskedAmount } from './MaskedAmount'
 import { usePrivacy } from './PrivacyProvider'
+import { USER_TIMEZONE } from '@/lib/config'
 
 export type SparkPoint = { date: string; value: number }
 
@@ -9,6 +10,9 @@ type Props = {
   points: SparkPoint[]
   days: number
 }
+
+// Axis labels at either end of the line, in the ledger's own timezone.
+const axis_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: USER_TIMEZONE, day: 'numeric', month: 'short' })
 
 const WIDTH = 100
 const HEIGHT = 32
@@ -47,29 +51,13 @@ export function HomeNetWorthSparkline({ points, days }: Props) {
   const total_masked = masking_enabled && !reveal_all && (Math.abs(first) > mask_threshold || Math.abs(last) > mask_threshold)
   const pct = !total_masked && first !== 0 ? (change / Math.abs(first)) * 100 : null
   const tone = change > 0 ? 'text-pos' : change < 0 ? 'text-neg' : 'text-ink-3'
-  const { line, area } = build_path(points)
+  const { line } = build_path(points)
 
   return (
-    <div className="mt-5 pt-4 border-t border-rule">
-      <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-ink-3">Last {days} days</p>
-          {/* no manual sign: currency_fmt is signDisplay:'exceptZero', and the masked form drops
-              the sign on purpose */}
-          <p className={`text-sm font-semibold ${tone}`}>
-            <MaskedAmount value={change} />
-            {pct !== null && (
-              <span className="font-normal">
-                {' '}
-                ({pct >= 0 ? '+' : ''}
-                {pct.toFixed(1)}%)
-              </span>
-            )}
-          </p>
-        </div>
-        {graphs_visible && (
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" aria-hidden="true" className={`h-12 w-32 sm:w-48 shrink-0 ${tone}`}>
-            <path d={area} fill="currentColor" opacity={0.12} />
+    <div>
+      {graphs_visible && (
+        <>
+          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" aria-hidden="true" className="h-20 w-full text-ink">
             <path
               d={line}
               fill="none"
@@ -80,22 +68,36 @@ export function HomeNetWorthSparkline({ points, days }: Props) {
               vectorEffect="non-scaling-stroke"
             />
           </svg>
-        )}
-      </div>
+          <div className="flex justify-between border-t border-rule-strong pt-1 text-xs text-ink-3 num" aria-hidden="true">
+            <span>{axis_fmt.format(new Date(points[0].date))}</span>
+            <span>{axis_fmt.format(new Date(points[points.length - 1].date))}</span>
+          </div>
+        </>
+      )}
+      <p className="mt-2 text-sm text-ink-3">
+        {/* no manual sign: currency_fmt is signDisplay:'exceptZero', and the masked form drops
+            the sign on purpose */}
+        <span className={tone}>
+          <MaskedAmount value={change} />
+        </span>
+        {pct !== null && (
+          <span className="num">
+            {' '}
+            ({pct >= 0 ? '+' : ''}
+            {pct.toFixed(1)}%)
+          </span>
+        )}{' '}
+        over the last {days} days
+      </p>
     </div>
   )
 }
 
 export function HomeNetWorthSparklineFallback({ days }: { days: number }) {
   return (
-    <div className="mt-5 pt-4 border-t border-rule animate-pulse">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium text-ink-3">Last {days} days</p>
-          <div className="mt-1 h-4 w-24 rounded bg-sunken" />
-        </div>
-        <div className="h-12 w-32 sm:w-48 shrink-0 rounded bg-sunken" />
-      </div>
+    <div className="animate-pulse" aria-label={`Loading the last ${days} days`}>
+      <div className="h-20 w-full rounded-sm bg-sunken" />
+      <div className="mt-3 h-4 w-48 rounded-sm bg-sunken" />
     </div>
   )
 }
