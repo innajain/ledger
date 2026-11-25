@@ -5,8 +5,8 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react'
  * The one button. Every clickable rectangle in the app renders through this so rank is
  * carried by variant, not by a per-page colour choice:
  *
- * - `primary`   — the single most important action on a view (blue, filled)
- * - `secondary` — everything else of button rank (quiet slate fill)
+ * - `primary`   — the single most important action on a view (accent, filled)
+ * - `secondary` — everything else of button rank (ruled outline)
  * - `danger`    — destructive and filled (delete confirmations)
  * - `dangerOutline` — destructive but not the point of the page (delete next to edit)
  * - `ghost`     — text-level actions (clear, dismiss)
@@ -18,10 +18,10 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'dangerOutline' | 'ghost'
 type Size = 'sm' | 'md' | 'lg'
 
 const VARIANT_CLS: Record<Variant, string> = {
-  primary: 'bg-accent text-on-accent hover:bg-accent-hover shadow-sm',
-  secondary: 'bg-sunken text-ink-2 hover:bg-rule',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
-  dangerOutline: 'bg-paper text-neg border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-slate-700',
+  primary: 'bg-accent text-on-accent hover:bg-accent-hover',
+  secondary: 'border border-rule-strong text-ink hover:bg-sunken',
+  danger: 'bg-neg text-paper hover:opacity-90',
+  dangerOutline: 'text-neg border border-neg/40 hover:bg-sunken',
   ghost: 'text-ink-2 hover:text-ink hover:bg-sunken',
 }
 

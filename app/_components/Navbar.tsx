@@ -42,10 +42,14 @@ const SETTINGS_HREF = '/settings'
 // Six flattened links: the desktop row fits from the lg breakpoint (tighter px-3
 // until 2xl); whitespace-nowrap guarantees a label can never wrap and grow the
 // h-16 header. Below lg the overflow menu (hamburger) takes over.
+// The current page is underlined in ink, like a ruled heading — not a filled pill. In
+// the mobile menu, where links stack, it is a sunken row instead.
 const navLinkClasses = (active: boolean, block = false) =>
-  `${block ? 'block px-4 ' : 'px-3 2xl:px-4 '}py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-    active ? 'bg-blue-600 text-white shadow-sm' : 'text-ink-2 hover:text-ink hover:bg-sunken'
-  }`
+  block
+    ? `block px-4 py-2 rounded-sm text-sm whitespace-nowrap transition-colors ${active ? 'bg-sunken text-ink font-medium' : 'text-ink-2 hover:text-ink hover:bg-sunken'}`
+    : `px-3 2xl:px-4 py-1.5 text-sm whitespace-nowrap border-b-[1.5px] transition-colors ${
+        active ? 'border-ink text-ink' : 'border-transparent text-ink-2 hover:text-ink'
+      }`
 
 function NavLink({
   href,
@@ -86,7 +90,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
   const isActive = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 
   return (
-    <header className="sticky top-0 z-50 shadow-sm transition-all backdrop-blur-sm border-b bg-paper border-rule">
+    <header className="sticky top-0 z-50 border-b bg-paper border-rule">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
         <div className="flex items-center justify-between h-16">
           {}
@@ -94,7 +98,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
               <Image src="/logo-256.png" alt="Ledger" width={24} height={24} />
             </div>
-            <span className="font-semibold text-lg">Ledger</span>
+            <span className="font-serif text-[22px] font-semibold tracking-tight">Ledger</span>
           </Link>
 
           {}
@@ -117,7 +121,7 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
                 aria-label="Settings"
                 aria-current={isActive(SETTINGS_HREF) ? 'page' : undefined}
                 className={`hidden lg:block p-2 rounded-lg transition-colors ${
-                  isActive(SETTINGS_HREF) ? 'bg-blue-600 text-white shadow-sm' : 'text-ink-2 hover:text-ink hover:bg-sunken'
+                  isActive(SETTINGS_HREF) ? 'text-ink bg-sunken' : 'text-ink-2 hover:text-ink hover:bg-sunken'
                 }`}
               >
                 <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
