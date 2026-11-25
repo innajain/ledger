@@ -13,6 +13,13 @@ const PUBLIC_PATHS = [
   '/sitemap.xml',
   '/sw.js',
   '/manifest.webmanifest',
+  // Fetched while installing the app and by the service worker, possibly signed out.
+  '/offline.html',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/maskable-192.png',
+  '/icons/maskable-512.png',
+  '/icons/apple-touch-icon.png',
   '/api/health',
   '/api/health/ready',
   // The service worker's delivery receipt; the random token in the body is the credential.

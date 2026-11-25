@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { update_user_preferences, type ThemeChoice } from '@/app/_actions/preferences'
+import { THEME_COLOR } from '@/app/_utils/theme_color'
 
 type ThemeContextValue = {
   theme: ThemeChoice
@@ -25,6 +26,9 @@ function resolve(theme: ThemeChoice): 'light' | 'dark' {
 
 function apply_class(resolved: 'light' | 'dark') {
   document.documentElement.classList.toggle('dark', resolved === 'dark')
+  // The theme-color metas carry media queries that only see the OS scheme; pin both to the
+  // theme actually on screen so an explicit Light/Dark choice also recolours the status bar.
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) meta.setAttribute('content', THEME_COLOR[resolved])
 }
 
 export function ThemeProvider({

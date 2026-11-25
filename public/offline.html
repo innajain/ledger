@@ -1,0 +1,100 @@
+<!doctype html>
+<!--
+  Shown by public/sw.js when a page can't be reached. It is the only thing the service
+  worker caches, so it must stand alone: no scripts (the CSP only allows nonce'd ones),
+  no external assets (the logo is inlined), nothing from the ledger. After editing it,
+  bump OFFLINE_CACHE in sw.js so installed apps pick up the new copy.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1e293b" media="(prefers-color-scheme: dark)" />
+    <title>Offline | Ledger</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --border: #e2e8f0;
+        --text: #0f172a;
+        --muted: #64748b;
+        --accent: #059669;
+        --accent-text: #ffffff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f172a;
+          --card: #1e293b;
+          --border: #334155;
+          --text: #f1f5f9;
+          --muted: #94a3b8;
+          --accent: #10b981;
+          --accent-text: #022c22;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 360px;
+        padding: 32px 24px;
+        text-align: center;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+      }
+      img {
+        width: 64px;
+        height: 64px;
+      }
+      h1 {
+        margin: 12px 0 4px;
+        font-size: 20px;
+      }
+      p {
+        margin: 0 0 24px;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      a {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: var(--accent-text);
+        font-weight: 600;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img
+        alt=""
+        src="data:image/png;base64,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"
+      />
+      <h1>You're offline</h1>
+      <p>Ledger keeps your data on the server, not on this device, so it needs a connection to open this page.</p>
+      <!-- An empty href is this page's own URL — the one that failed — so it retries without a script. -->
+      <a href="">Try again</a>
+    </main>
+  </body>
+</html>

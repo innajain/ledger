@@ -1,10 +1,11 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import dynamic from 'next/dynamic'
 import Navbar from './_components/Navbar'
 import { get_current_user } from './_actions/auth'
 import { get_user_preferences } from './_actions/preferences'
 import { ThemeProvider } from './_components/ThemeProvider'
+import { THEME_COLOR } from './_utils/theme_color'
 import { PrivacyProvider } from './_components/PrivacyProvider'
 import { ToastProvider } from './_components/Toast'
 import { WebVitalsReporter } from './_components/WebVitalsReporter'
@@ -52,13 +53,26 @@ export const metadata: Metadata = {
     index: false,
     follow: false,
   },
+  applicationName: 'Ledger',
+  // Home-screen install on iOS: standalone window, "Ledger" under the icon, and an opaque
+  // touch icon (iOS paints a transparent one black).
+  appleWebApp: { capable: true, title: 'Ledger', statusBarStyle: 'default' },
+  icons: { apple: '/icons/apple-touch-icon.png' },
+  // iOS otherwise turns long amounts and account numbers into tappable phone links.
+  formatDetection: { telephone: false },
 }
 
-export const viewport = {
+export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
+  // Status/title bar colour of the installed app, matched to the navbar. These follow the
+  // OS scheme; ThemeProvider repoints them when the user picks a theme explicitly.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: THEME_COLOR.light },
+    { media: '(prefers-color-scheme: dark)', color: THEME_COLOR.dark },
+  ],
 }
 
 const THEME_INIT_SCRIPT = `(function(){try{var t=document.documentElement.getAttribute('data-theme');if(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.classList.add('dark');}}catch(e){}})();`
