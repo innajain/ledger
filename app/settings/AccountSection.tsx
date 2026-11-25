@@ -132,7 +132,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
       <SectionHeading id="account">Account</SectionHeading>
       <div className="space-y-6">
         {}
-        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-sunken border border-rule flex items-center justify-center text-ink font-serif text-xl">
               {username.charAt(0).toUpperCase()}
@@ -145,7 +145,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
         </div>
 
         {}
-        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-ink mb-4">Change password</h3>
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>
@@ -248,7 +248,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
         </div>
 
         {}
-        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-ink mb-4">Change username</h3>
           <form onSubmit={handleUsernameChange} className="space-y-4">
             <div>
@@ -314,7 +314,7 @@ export function AccountSection({ username, upiId }: { username: string; upiId: s
         </div>
 
         {}
-        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-ink mb-1">Your UPI ID</h3>
           <p className="text-sm text-ink-2 mb-4">
             Set your UPI handle once. Anyone who links an account to you sees a &ldquo;Pay via UPI&rdquo; button using this address &mdash; they no

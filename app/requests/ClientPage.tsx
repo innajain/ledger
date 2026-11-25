@@ -625,7 +625,7 @@ export default function ClientPage({
   return (
     <div className="space-y-5 sm:space-y-8">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Requests</h1>
+        <h1 className="text-3xl sm:text-4xl font-medium text-ink">Requests</h1>
         {/* Phones skip the explainer so the first card sits near the top of the screen. */}
         <p className="hidden sm:block text-ink-2 mt-1">
           Transactions on an account linked to someone else are kept in both ledgers. Each change, edit or deletion waits here until the other side

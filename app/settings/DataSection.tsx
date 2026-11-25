@@ -19,7 +19,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
       <SectionHeading id="data">Data</SectionHeading>
       <div className="space-y-6">
         {}
-        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-ink mb-1">Inactive accounts &amp; categories</h3>
           <p className="text-sm text-ink-2 mb-4">Archived accounts and categories, hidden from transaction pickers. Click to manage.</p>
           {inactiveAccounts.length === 0 ? (
@@ -55,7 +55,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-ink mb-1">Inactive assets</h3>
           <p className="text-sm text-ink-2 mb-4">Archived assets, hidden from transaction pickers. Click to manage.</p>
           {inactiveAssets.length === 0 ? (
@@ -83,7 +83,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-ink">SQL dump</h3>
@@ -106,7 +106,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-ink">Export CSV (ZIP)</h3>
@@ -127,7 +127,7 @@ export function DataSection({ inactiveAccounts, inactiveAssets }: { inactiveAcco
         </div>
 
         {}
-        <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-ink">Export Excel (linked)</h3>

@@ -97,7 +97,7 @@ export default function ClientPage({ user }: Props) {
           </div>
 
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-ink mb-2">You&apos;re logged in</h2>
+            <h2 className="text-3xl font-medium text-ink mb-2">You&apos;re logged in</h2>
             <p className="text-ink-2 mb-1">Welcome back,</p>
             <p className="text-lg font-semibold text-accent">{user.username}</p>
           </div>
@@ -148,7 +148,7 @@ export default function ClientPage({ user }: Props) {
           <div className="inline-flex items-center justify-center w-16 h-16 mb-4">
             <Image src="/logo-256.png" alt="Ledger" width={40} height={40} />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-ink mb-2">{isSignup ? 'Create account' : 'Welcome to Ledger'}</h1>
+          <h1 className="text-3xl sm:text-4xl font-medium text-ink mb-2">{isSignup ? 'Create account' : 'Welcome to Ledger'}</h1>
           <p className="text-ink-2">{isSignup ? 'Create an account to start your ledger' : 'Log in to your account'}</p>
         </div>
 

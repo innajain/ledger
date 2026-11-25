@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 
-const baseClasses = 'bg-paper rounded-lg shadow-sm border border-rule transition-colors'
+// A page section: a rule above, no box (see `sheet` in globals.css).
+const baseClasses = 'sheet'
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <div className={`${baseClasses}${className ? ' ' + className : ''}`}>{children}</div>

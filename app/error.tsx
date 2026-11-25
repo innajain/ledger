@@ -10,7 +10,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         <div className="flex justify-center">
           <WarningIcon className="w-10 h-10 text-amber-500" />
         </div>
-        <h2 className="text-2xl font-bold text-ink">Something went wrong</h2>
+        <h2 className="text-3xl font-medium text-ink">Something went wrong</h2>
         <p className="text-ink-2">{error.message || 'An unexpected error occurred'}</p>
         <Button variant="primary" onClick={reset}>
           Try again

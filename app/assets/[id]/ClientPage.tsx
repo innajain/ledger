@@ -12,8 +12,9 @@ import { asset_type_label } from '@/app/_utils/labels'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 import { Card } from '@/app/_components/Card'
+import { HoldingsGrid } from '@/app/_components/HoldingsGrid'
 import { EmptyState } from '@/app/_components/EmptyState'
-import { HoldingsEmptyIcon, TransactionEmptyIcon } from '@/app/_components/EmptyStateIcons'
+import { TransactionEmptyIcon } from '@/app/_components/EmptyStateIcons'
 
 type BreakdownItem = {
   accounting_head_id: string
@@ -48,7 +49,7 @@ type AllocationBreakdownItem = {
 type AssetForClient = {
   id: string
   name: string
-  type: string
+  type: asset_type
   ticker: string | null
   parent: { id: string; name: string } | null
   children?: { id: string; name: string }[]
@@ -124,9 +125,7 @@ export default function ClientPage({
                 {
                   label: 'XIRR',
                   value: (
-                    <span
-                      className={asset.xirr > 0 ? 'text-pos font-semibold' : asset.xirr < 0 ? 'text-neg font-semibold' : 'text-ink-3 font-semibold'}
-                    >
+                    <span className={`num ${asset.xirr > 0 ? 'text-pos' : asset.xirr < 0 ? 'text-neg' : 'text-ink-3'}`}>
                       {(asset.xirr * 100).toFixed(2)}%
                     </span>
                   ),
@@ -136,27 +135,27 @@ export default function ClientPage({
         ]}
       />
 
-      <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
+      <div className="sheet p-4 sm:p-6">
         <div className={`grid grid-cols-1 ${asset.txn_value_total !== null ? 'sm:grid-cols-3' : ''} gap-4`}>
           <div>
-            <p className="text-sm text-ink-3">Total across accounts</p>
-            <p className="text-3xl font-bold text-ink mt-1">
-              <MaskedAmount value={asset.total} />
+            <p className="text-[11px] font-medium uppercase tracking-[0.09em] text-ink-3">Total across accounts</p>
+            <p className="font-serif text-3xl leading-tight text-ink mt-1">
+              <MaskedAmount value={asset.total} numeric={false} />
             </p>
           </div>
           {asset.current_investment !== null && (
             <div>
-              <p className="text-sm text-ink-3">Current investment</p>
-              <p className="text-3xl font-bold text-ink mt-1">
-                <MaskedAmount value={asset.current_investment} />
+              <p className="text-[11px] font-medium uppercase tracking-[0.09em] text-ink-3">Current investment</p>
+              <p className="font-serif text-3xl leading-tight text-ink mt-1">
+                <MaskedAmount value={asset.current_investment} numeric={false} />
               </p>
             </div>
           )}
           {asset.txn_value_total !== null && (
             <div>
-              <p className="text-sm text-ink-3">Total book value</p>
-              <p className="text-3xl font-bold text-ink mt-1">
-                <MaskedAmount value={asset.txn_value_total} />
+              <p className="text-[11px] font-medium uppercase tracking-[0.09em] text-ink-3">Total book value</p>
+              <p className="font-serif text-3xl leading-tight text-ink mt-1">
+                <MaskedAmount value={asset.txn_value_total} numeric={false} />
               </p>
             </div>
           )}
@@ -166,7 +165,7 @@ export default function ClientPage({
       {asset.children && asset.children.length > 0 && (
         <Card>
           <div className="p-4 sm:p-6 border-b border-rule">
-            <h2 className="text-lg font-semibold text-ink">Sub-assets</h2>
+            <h2 className="text-xl font-medium text-ink">Sub-assets</h2>
             <p className="text-sm text-ink-3 mt-1">
               {asset.children.length} child {asset.children.length !== 1 ? 'assets' : 'asset'}
             </p>
@@ -188,139 +187,44 @@ export default function ClientPage({
         </Card>
       )}
 
-      <div className="bg-paper rounded-lg shadow-sm border border-rule">
-        <div className="p-4 sm:p-6 border-b border-rule">
-          <h2 className="text-lg font-semibold text-ink">Held in accounts</h2>
-          <p className="text-sm text-ink-3 mt-1">
-            {asset.breakdown.length} account
-            {asset.breakdown.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-
-        {asset.breakdown.length === 0 ? (
-          <EmptyState
-            embedded
-            icon={<HoldingsEmptyIcon />}
-            title="Not held anywhere yet"
-            description="Accounts holding this asset appear here once a transaction records it."
-          />
-        ) : (
-          <div className="divide-y divide-rule">
-            <div className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {asset.breakdown.map((b, i) => (
-                  <div key={i} className="bg-raised rounded-lg p-4 border border-rule shadow-sm">
-                    <div className="flex flex-col h-full justify-between">
-                      <div>
-                        <Link href={`/heads/account/${b.accounting_head_id}`} className="text-ink font-semibold hover:text-accent transition-colors">
-                          {b.account_name}
-                        </Link>
-
-                        <div className="mt-3 text-sm text-ink-2 space-y-2">
-                          {asset.type === asset_type.rupees ? (
-                            <div>
-                              <span className="text-ink-3">Value:</span>{' '}
-                              <span className="font-medium text-ink">
-                                <MaskedAmount value={b.current_value} />
-                              </span>
-                            </div>
-                          ) : (
-                            <>
-                              <div>
-                                <span className="text-ink-3">Quantity:</span> <span className="font-medium text-ink">{b.quantity} units</span>
-                              </div>
-                              <div>
-                                <span className="text-ink-3">Book:</span>{' '}
-                                <span className="font-medium text-ink">{b.txn_value === null ? '—' : <MaskedAmount value={b.txn_value} />}</span>
-                              </div>
-                              <div>
-                                <span className="text-ink-3">Current:</span>{' '}
-                                <span className="font-medium text-ink">
-                                  <MaskedAmount value={b.current_value} />
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-4 text-right">
-                        <Link href={`/heads/account/${b.accounting_head_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                          View account →
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      <HoldingsGrid
+        title="Held in accounts"
+        nameHeader="Account"
+        noun="account"
+        items={asset.breakdown.map(b => ({
+          id: b.accounting_head_id,
+          name: b.account_name,
+          link: `/heads/account/${b.accounting_head_id}`,
+          asset_type: asset.type,
+          quantity: b.quantity,
+          txn_value: b.txn_value,
+          current_value: b.current_value,
+        }))}
+        emptyMessage="Not held anywhere yet"
+        emptySubMessage="Accounts holding this asset appear here once a transaction records it."
+      />
 
       {asset.allocation_breakdown.length > 0 && (
-        <div className="bg-paper rounded-lg shadow-sm border border-rule">
-          <div className="p-4 sm:p-6 border-b border-rule">
-            <h2 className="text-lg font-semibold text-ink">Held in allocations</h2>
-            <p className="text-sm text-ink-3 mt-1">
-              {asset.allocation_breakdown.length} allocation{asset.allocation_breakdown.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <div className="divide-y divide-rule">
-            <div className="p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {asset.allocation_breakdown.map((b, i) => (
-                  <div key={i} className="bg-raised rounded-lg p-4 border border-rule shadow-sm">
-                    <div className="flex flex-col h-full justify-between">
-                      <div>
-                        <Link href={`/heads/allocation/${b.allocation_id}`} className="text-ink font-semibold hover:text-accent transition-colors">
-                          {b.allocation_name}
-                        </Link>
-                        <div className="mt-3 text-sm text-ink-2 space-y-2">
-                          {asset.type === asset_type.rupees ? (
-                            <div>
-                              <span className="text-ink-3">Value:</span>{' '}
-                              <span className="font-medium text-ink">
-                                <MaskedAmount value={b.current_value} />
-                              </span>
-                            </div>
-                          ) : (
-                            <>
-                              <div>
-                                <span className="text-ink-3">Quantity:</span> <span className="font-medium text-ink">{b.quantity} units</span>
-                              </div>
-                              <div>
-                                <span className="text-ink-3">Book:</span>{' '}
-                                <span className="font-medium text-ink">{b.txn_value === null ? '—' : <MaskedAmount value={b.txn_value} />}</span>
-                              </div>
-                              <div>
-                                <span className="text-ink-3">Current:</span>{' '}
-                                <span className="font-medium text-ink">
-                                  <MaskedAmount value={b.current_value} />
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="mt-4 text-right">
-                        <Link href={`/heads/allocation/${b.allocation_id}`} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                          View allocation →
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <HoldingsGrid
+          title="Held in allocations"
+          nameHeader="Allocation"
+          noun="allocation"
+          items={asset.allocation_breakdown.map(b => ({
+            id: b.allocation_id,
+            name: b.allocation_name,
+            link: `/heads/allocation/${b.allocation_id}`,
+            asset_type: asset.type,
+            quantity: b.quantity,
+            txn_value: b.txn_value,
+            current_value: b.current_value,
+          }))}
+        />
       )}
 
       {}
-      <div className="bg-paper rounded-lg shadow-sm border border-rule transition-colors">
+      <div className="sheet">
         <div className="p-4 sm:p-6 border-b border-rule">
-          <h2 className="text-lg font-semibold text-ink">Line items</h2>
+          <h2 className="text-xl font-medium text-ink">Line items</h2>
           <p className="text-sm text-ink-3 mt-1">
             {lineItems.total} item
             {lineItems.total !== 1 ? 's' : ''}

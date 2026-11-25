@@ -8,7 +8,7 @@ import Link from 'next/link'
 export function LoggedOutNotice({ title }: { title: string }) {
   return (
     <div className="max-w-md mx-auto mt-16 bg-paper border border-rule rounded-lg shadow-sm p-8 text-center">
-      <h1 className="text-xl font-semibold text-ink">{title}</h1>
+      <h1 className="text-2xl font-medium text-ink">{title}</h1>
       <p className="text-ink-2 mt-2">Log in to see this page.</p>
       <Link
         href="/login"

@@ -37,7 +37,6 @@ type HierarchyTreeProps<T extends BaseItem> = {
   scope?: 'account' | 'asset'
   reorderEnabled?: boolean
   onReorderToggle?: (enabled: boolean) => void
-  accentBorderClass?: string
 
   /** Prune whole subtrees where the node and every descendant is individually zero. */
   hideZero?: boolean
@@ -54,7 +53,6 @@ export function HierarchyTree<T extends BaseItem>({
   scope,
   reorderEnabled = false,
   onReorderToggle,
-  accentBorderClass,
   hideZero = false,
   onHiddenCountChange,
 }: HierarchyTreeProps<T>) {
@@ -303,19 +301,21 @@ export function HierarchyTree<T extends BaseItem>({
 
     const canDrag = reorderEnabled && !!scope
 
-    const baseClasses = 'flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-sunken transition-colors'
-    const depthClasses = depth === 0 ? `bg-paper border border-rule${accentBorderClass ? ` border-l-4 ${accentBorderClass}` : ''}` : ''
+    // Ledger rows, not boxes: every row sits on a hairline, and a top-level row's name
+    // and figure carry a little more weight than the rows nested under it.
+    const baseClasses = 'flex items-center gap-2 sm:gap-3 py-2.5 pr-1 border-b border-rule hover:bg-sunken transition-colors'
+    const depthClasses = depth === 0 ? 'font-medium' : ''
     const dragClasses = isDragging ? 'opacity-50' : ''
-    const dragOverClasses = isDragOver ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-800' : ''
+    const dragOverClasses = isDragOver ? 'ring-2 ring-accent ring-inset' : ''
     const cursorClasses = canDrag ? 'cursor-grab active:cursor-grabbing' : ''
 
     if (!item.is_active) {
       if (!is_hidden_inactive(node, totals)) {
         return (
-          <li key={item.id} className="mb-2">
+          <li key={item.id}>
             <div className={`${baseClasses} ${depthClasses} opacity-50`}>
               <span className="text-sm italic text-ink-2">{item.name} (inactive)</span>
-              <span className="ml-auto font-semibold text-sm text-ink">
+              <span className="ml-auto text-sm text-ink">
                 <MaskedAmount value={displayCurr} />
               </span>
             </div>
@@ -326,7 +326,7 @@ export function HierarchyTree<T extends BaseItem>({
     }
     const rowToggles = visibleChildren.length > 0 && !expandAll && !canDrag
     return (
-      <li key={item.id} className="mb-2">
+      <li key={item.id}>
         <div
           className={`${baseClasses} ${depthClasses} ${dragClasses} ${dragOverClasses} ${cursorClasses}${rowToggles ? ' cursor-pointer' : ''}`}
           draggable={canDrag}
@@ -376,7 +376,7 @@ export function HierarchyTree<T extends BaseItem>({
             <div className="flex-1 min-w-0">
               <Link
                 href={getItemUrl(item.id)}
-                className="font-medium text-sm sm:text-base text-ink hover:text-accent transition-colors inline-block"
+                className="text-sm sm:text-[15px] text-ink hover:text-accent transition-colors inline-block"
                 onClick={e => e.stopPropagation()}
                 draggable={false}
               >
@@ -395,7 +395,7 @@ export function HierarchyTree<T extends BaseItem>({
                     }}
                     disabled={saving}
                     aria-label={`Move ${item.name} up`}
-                    className="p-0.5 text-slate-400 hover:text-ink-2 disabled:opacity-40"
+                    className="p-0.5 text-ink-3 hover:text-ink-2 disabled:opacity-40"
                   >
                     <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -409,7 +409,7 @@ export function HierarchyTree<T extends BaseItem>({
                     }}
                     disabled={saving}
                     aria-label={`Move ${item.name} down`}
-                    className="p-0.5 text-slate-400 hover:text-ink-2 disabled:opacity-40"
+                    className="p-0.5 text-ink-3 hover:text-ink-2 disabled:opacity-40"
                   >
                     <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -417,7 +417,7 @@ export function HierarchyTree<T extends BaseItem>({
                   </button>
                 </span>
               )}
-              <span className="font-semibold text-sm sm:text-base text-ink">
+              <span className="text-sm sm:text-[15px] text-ink">
                 <MaskedAmount value={displayCurr} />
               </span>
             </div>
@@ -425,10 +425,10 @@ export function HierarchyTree<T extends BaseItem>({
         </div>
 
         {visibleChildren.length > 0 && isExpanded && (
-          <ul id={`tree-children-${item.id}`} className="mt-2 ml-4 sm:ml-6 md:ml-9 space-y-1 border-l-2 border-rule pl-2 sm:pl-3 md:pl-4">
+          <ul id={`tree-children-${item.id}`} className="ml-3 sm:ml-4 md:ml-6 border-l border-rule pl-2 sm:pl-3 md:pl-4 font-normal">
             {showSelfRow && (
-              <li key={`${item.id}-self`} className="mb-2">
-                <div className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg bg-sunken">
+              <li key={`${item.id}-self`}>
+                <div className="flex items-center gap-2 sm:gap-3 py-2 pr-1 border-b border-rule">
                   {canDrag && <span className="w-5 sm:w-6 shrink-0"></span>}
                   <span className="w-5 sm:w-6 shrink-0"></span>
                   <div className="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-4">
@@ -437,7 +437,7 @@ export function HierarchyTree<T extends BaseItem>({
                       {renderExtraInfo && <span className="ml-2 sm:ml-3">{renderExtraInfo(item, node)}</span>}
                     </div>
                     <div className="shrink-0 text-right">
-                      <span className="text-xs sm:text-sm font-medium text-ink-2">
+                      <span className="text-xs sm:text-sm text-ink-2">
                         <MaskedAmount value={ownCurr} />
                       </span>
                     </div>
@@ -455,7 +455,7 @@ export function HierarchyTree<T extends BaseItem>({
   return (
     <div>
       {scope && onReorderToggle && (
-        <div className="flex items-center gap-3 mb-4 pb-4 flex-wrap border-b border-rule">
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
           <button
             onClick={() => onReorderToggle?.(!reorderEnabled)}
             disabled={saving}
@@ -475,7 +475,7 @@ export function HierarchyTree<T extends BaseItem>({
           )}
         </div>
       )}
-      <ul className="space-y-2">{roots.map(r => renderNode(r, 0))}</ul>
+      <ul className="border-t border-rule">{roots.map(r => renderNode(r, 0))}</ul>
       {hideZero && hiddenCount > 0 && roots.every(r => is_empty_subtree(r, totals)) && (
         <p className="text-sm text-ink-3 py-2">
           Everything here totals zero — {hiddenCount} {hiddenCount === 1 ? 'entry is' : 'entries are'} hidden. Use “Show empty” to see them.

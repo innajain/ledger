@@ -143,13 +143,10 @@ export default function ClientPage({ tags }: { tags: TagRow[] }) {
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {tags.map(g => (
             <li key={g.id}>
-              <Link
-                href={`/tags/${g.id}`}
-                className="block h-full bg-paper rounded-lg shadow-sm border border-rule p-5 hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
-              >
+              <Link href={`/tags/${g.id}`} className="sheet block h-full p-5 hover:border-blue-300 dark:hover:border-blue-600">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-ink truncate">{g.name}</h2>
+                    <h2 className="text-xl font-medium text-ink truncate">{g.name}</h2>
                     {g.description && <p className="text-sm text-ink-3 mt-0.5 line-clamp-2">{g.description}</p>}
                   </div>
                   {/* Non-interactive: the whole card is the link, so the amount can't

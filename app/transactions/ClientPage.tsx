@@ -81,6 +81,9 @@ type Template = {
 // before the debounced router.push fires. Everything it renders arrives as a prop or is
 // module-level (the Intl formatters); MaskedAmount subscribes to privacy context directly,
 // so masking stays live through the memo.
+// A small square status tag — the paper version of a coloured pill.
+const TAG = 'shrink-0 text-[11px] font-medium uppercase tracking-wide px-1.5 py-px rounded-sm border'
+
 const TransactionsCard = React.memo(function TransactionsCard({
   dayGroups,
   isShowingAll,
@@ -97,54 +100,51 @@ const TransactionsCard = React.memo(function TransactionsCard({
   showingFuture: boolean
 }) {
   return (
-    <div className="bg-paper rounded-lg shadow-sm border border-rule overflow-hidden transition-colors">
-      <div className="px-6 py-4 border-b border-rule bg-sunken">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-lg font-semibold text-ink">{showingFuture ? 'Future transactions' : 'All transactions'}</h2>
-          <div className="flex items-center gap-4 flex-wrap">
-            <span className="text-sm text-ink-3">
-              {isShowingAll
-                ? `All ${totalCount}`
-                : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
-            </span>
-          </div>
-        </div>
+    <div className="sheet">
+      <div className="px-4 sm:px-6 pt-5 pb-1 flex items-baseline justify-between flex-wrap gap-3">
+        <h2 className="text-xl font-medium text-ink">{showingFuture ? 'Future transactions' : 'All transactions'}</h2>
+        <span className="text-xs text-ink-3 num">
+          {isShowingAll
+            ? `All ${totalCount}`
+            : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
+        </span>
       </div>
-      <ul className="divide-y divide-rule">
+      <ul>
         {dayGroups.map(group => (
           <React.Fragment key={group.label ?? 'flat'}>
-            {group.label !== null && <li className="px-6 py-2 bg-sunken text-xs font-semibold uppercase tracking-wide text-ink-3">{group.label}</li>}
-            {group.txs.map(tx => {
+            {group.label !== null && (
+              // A day's heading carries the day's net flow, the way a ledger page totals
+              // each date before the next begins.
+              <li className="px-4 sm:px-6 pt-5 pb-1.5 border-b border-rule-strong flex items-baseline justify-between gap-4 text-[11px] font-medium uppercase tracking-[0.09em] text-ink-3">
+                <span>{group.label}</span>
+                <MaskedAmount value={group.txs.reduce((sum, t) => sum + t.total_book, 0)} keep_sign interactive={false} className="tracking-normal" />
+              </li>
+            )}
+            {group.txs.map((tx, i) => {
               const borderCls =
                 tx.link_severity === 'error'
-                  ? 'border-l-4 border-l-red-400 dark:border-l-red-500'
+                  ? 'border-l-2 border-l-neg'
                   : tx.link_severity === 'warning' || tx.link_severity === 'info'
-                    ? 'border-l-4 border-l-amber-400 dark:border-l-amber-500'
+                    ? 'border-l-2 border-l-warn'
                     : ''
               const badge =
                 tx.link_severity === 'error' ? (
-                  <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                    Rejected
-                  </span>
+                  <span className={`${TAG} text-neg border-neg/40`}>Rejected</span>
                 ) : tx.link_severity === 'warning' ? (
-                  <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                    Needs approval
-                  </span>
+                  <span className={`${TAG} text-warn border-warn/40`}>Needs approval</span>
                 ) : tx.link_severity === 'info' ? (
-                  <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                    Waiting
-                  </span>
+                  <span className={`${TAG} text-warn border-warn/40`}>Waiting</span>
                 ) : null
               return (
                 // Stretched-link treatment (see the home cards): the amount needs its own
                 // click-to-reveal, so it can't nest inside the row's <Link>. The Link fills
                 // the row invisibly; only the amount opts back into pointer events.
-                <li key={tx.id} className={`relative hover:bg-sunken transition-colors ${borderCls}`}>
+                <li key={tx.id} className={`relative hover:bg-sunken transition-colors ${i > 0 ? 'border-t border-rule' : ''} ${borderCls}`}>
                   <Link href={`/transactions/${tx.id}`} className="absolute inset-0 z-0" aria-label={tx.description || 'View transaction'} />
-                  <div className="relative z-10 pointer-events-none px-6 py-3.5 flex items-center justify-between">
+                  <div className="relative z-10 pointer-events-none px-4 sm:px-6 py-2.5 flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-ink truncate">{tx.description || 'No description'}</p>
-                      <p className="text-sm text-ink-3 flex items-center gap-2 min-w-0">
+                      <p className="text-sm text-ink truncate">{tx.description || 'No description'}</p>
+                      <p className="text-xs text-ink-3 flex items-center gap-2 min-w-0 mt-0.5">
                         <span>
                           {up_ampm(group.label === null ? full_datetime_fmt.format(new Date(tx.date)) : time_fmt.format(new Date(tx.date)))}
                         </span>
@@ -154,25 +154,17 @@ const TransactionsCard = React.memo(function TransactionsCard({
                       </p>
                     </div>
                     <div className="ml-4 shrink-0 flex items-center gap-2">
-                      {tx.is_due && (
-                        <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                          Due
-                        </span>
-                      )}
+                      {tx.is_due && <span className={`${TAG} text-warn border-warn/40`}>Due</span>}
                       {badge}
                       {/* Direction rides on the sign (kept even while masked), not on a wall of
                           red: money in is green, money out is plain ink. */}
                       {tx.total_book !== 0 ? (
-                        <span
-                          className={`text-lg font-semibold inline-block tabular-nums pointer-events-auto ${
-                            tx.total_book > 0 ? 'text-pos' : 'text-ink'
-                          }`}
-                        >
+                        <span className={`text-[15px] inline-block pointer-events-auto ${tx.total_book > 0 ? 'text-pos' : 'text-ink'}`}>
                           <MaskedAmount value={tx.total_book} keep_sign />
                         </span>
                       ) : (
                         /* a zero net flow (e.g. a transfer) still deserves a figure, not a blank cell */
-                        <span className="text-lg font-semibold text-ink-3 tabular-nums">{currency_fmt.format(0)}</span>
+                        <span className="text-[15px] text-ink-3 num">{currency_fmt.format(0)}</span>
                       )}
                     </div>
                   </div>
@@ -438,7 +430,7 @@ export default function ClientPage({
             <button
               key={t.id}
               type="button"
-              className="flex items-center shrink-0 py-1.5 px-3 border border-rule rounded-full bg-sunken hover:bg-sunken transition-colors group cursor-pointer relative"
+              className="flex items-center shrink-0 py-1 px-2.5 border border-rule-strong rounded-lg hover:bg-sunken transition-colors group cursor-pointer relative"
               onClick={e => {
                 if (deletingTemplate?.id === t.id) {
                   e.stopPropagation()
@@ -499,8 +491,8 @@ export default function ClientPage({
       )}
 
       {}
-      <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 transition-colors">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div>
+        <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1">
             <input
               type="search"
@@ -508,7 +500,7 @@ export default function ClientPage({
               placeholder="Search transactions…"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              className="w-full px-4 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-raised text-ink placeholder-slate-400 dark:placeholder-slate-500"
+              className="w-full px-3 py-2 border border-rule-strong rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent bg-raised text-ink placeholder:text-ink-3"
             />
           </div>
           <button
@@ -742,7 +734,7 @@ export default function ClientPage({
 
           {}
           {totalPages > 1 && !isShowingAll && (
-            <div className="flex items-center justify-between bg-paper rounded-lg shadow-sm border border-rule px-4 sm:px-6 py-4 transition-colors gap-2">
+            <div className="sheet flex items-center justify-between px-4 sm:px-6 py-4 gap-2">
               <button
                 type="button"
                 onClick={() => goToPage(currentPage - 1)}

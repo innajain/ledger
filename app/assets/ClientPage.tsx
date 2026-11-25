@@ -31,9 +31,9 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
         createLabel={isAdmin ? 'New asset' : undefined}
       />
       {assets.length > 0 ? (
-        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
-            <h2 className="text-lg font-semibold text-ink">Asset hierarchy</h2>
+            <h2 className="text-xl font-medium text-ink">Asset hierarchy</h2>
             <div className="flex items-center gap-2 sm:gap-3">
               {hideZero && hiddenCount > 0 && (
                 <span className="text-xs text-ink-3" title="Assets whose total (including everything under them) is zero">
@@ -56,7 +56,6 @@ export default function ClientPage({ assets, totals, assetAccountQuantities, xir
             hideZero={hideZero}
             onHiddenCountChange={setHiddenCount}
             scope="asset"
-            accentBorderClass="border-l-purple-500"
             reorderEnabled={reorderEnabled}
             onReorderToggle={isAdmin ? setReorderEnabled : undefined}
             renderExtraInfo={asset => {

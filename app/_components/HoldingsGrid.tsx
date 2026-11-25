@@ -22,75 +22,70 @@ type HoldingsGridProps = {
   items: HoldingItem[]
   emptyMessage?: string
   emptySubMessage?: string
-  linkLabel?: string
+  /** Heading of the name column, and the noun the count uses — an asset's page lists accounts. */
+  nameHeader?: string
+  noun?: string
 }
 
+const qty_fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 4 })
+
+/**
+ * What a head holds, as a ruled table: one line per asset with its units, book value and
+ * current value. Rupees have no units or separate book value, so those cells stay empty
+ * rather than repeating the balance.
+ */
 export function HoldingsGrid({
   title,
   items,
   emptyMessage = 'No holdings yet',
   emptySubMessage = 'Holdings will appear here once transactions are recorded',
-  linkLabel = 'View details →',
+  nameHeader = 'Asset',
+  noun = 'item',
 }: HoldingsGridProps) {
   return (
     <Card>
-      <div className="p-4 sm:p-6 border-b border-rule">
-        <h2 className="text-lg font-semibold text-ink">{title}</h2>
-        <p className="text-sm text-ink-3 mt-1">
-          {items.length} {items.length !== 1 ? 'items' : 'item'}
+      <div className="px-4 sm:px-6 pt-5 pb-3 flex items-baseline justify-between gap-3">
+        <h2 className="text-xl font-medium text-ink">{title}</h2>
+        <p className="text-xs text-ink-3 num">
+          {items.length} {items.length !== 1 ? `${noun}s` : noun}
         </p>
       </div>
 
       {items.length === 0 ? (
         <EmptyState embedded icon={<HoldingsEmptyIcon />} title={emptyMessage} description={emptySubMessage} />
       ) : (
-        <div className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
-            {items.map((item, i) => (
-              <div key={i} className="bg-raised rounded-lg p-4 border border-rule shadow-sm transition-colors">
-                <div className="flex flex-col h-full justify-between">
-                  <div>
-                    <Link href={item.link} className="text-ink font-semibold hover:text-accent transition-colors">
-                      {item.name}
-                    </Link>
-
-                    <div className="mt-3 text-sm text-ink-2 space-y-2">
-                      {item.asset_type === asset_type.rupees ? (
-                        <div>
-                          <span className="text-ink-3">Value:</span>{' '}
-                          <span className="font-medium text-ink">
-                            <MaskedAmount value={item.current_value} />
-                          </span>
-                        </div>
-                      ) : (
-                        <>
-                          <div>
-                            <span className="text-ink-3">Quantity:</span> <span className="font-medium text-ink">{item.quantity} units</span>
-                          </div>
-                          <div>
-                            <span className="text-ink-3">Book:</span>{' '}
-                            <span className="font-medium text-ink">{item.txn_value === null ? '—' : <MaskedAmount value={item.txn_value} />}</span>
-                          </div>
-                          <div>
-                            <span className="text-ink-3">Current:</span>{' '}
-                            <span className="font-medium text-ink">
-                              <MaskedAmount value={item.current_value} />
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 text-right">
-                    <Link href={item.link} className="text-xs text-accent hover:text-accent font-medium">
-                      {linkLabel}
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-rule-strong text-[11px] font-medium uppercase tracking-[0.09em] text-ink-3">
+                <th className="text-left font-medium px-4 sm:px-6 py-2">{nameHeader}</th>
+                <th className="text-right font-medium px-3 py-2">Units</th>
+                <th className="text-right font-medium px-3 py-2 hidden sm:table-cell">Book</th>
+                <th className="text-right font-medium px-4 sm:px-6 py-2">Current</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item => {
+                const rupees = item.asset_type === asset_type.rupees
+                return (
+                  <tr key={item.id} className="border-b border-rule last:border-b-0 hover:bg-sunken transition-colors">
+                    <td className="px-4 sm:px-6 py-2.5">
+                      <Link href={item.link} className="text-ink hover:text-accent">
+                        {item.name}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-ink-2 num whitespace-nowrap">{rupees ? '' : qty_fmt.format(item.quantity)}</td>
+                    <td className="px-3 py-2.5 text-right text-ink-2 whitespace-nowrap hidden sm:table-cell">
+                      {rupees || item.txn_value === null ? '' : <MaskedAmount value={item.txn_value} />}
+                    </td>
+                    <td className="px-4 sm:px-6 py-2.5 text-right text-ink whitespace-nowrap">
+                      <MaskedAmount value={item.current_value} />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </Card>

@@ -8,7 +8,7 @@ export function DocShell({ title, subtitle, children }: { title: string; subtitl
   return (
     <article className="max-w-3xl mx-auto text-ink-2 leading-relaxed">
       <header className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-ink">{title}</h1>
+        <h1 className="text-3xl sm:text-4xl font-medium text-ink">{title}</h1>
         {subtitle && <p className="mt-2 text-ink-3">{subtitle}</p>}
       </header>
       <div className="space-y-8">{children}</div>
@@ -19,7 +19,7 @@ export function DocShell({ title, subtitle, children }: { title: string; subtitl
 export function DocSection({ id, title, children }: { id?: string; title: string; children: ReactNode }) {
   return (
     <section id={id} className="space-y-3 scroll-mt-20">
-      <h2 className="text-lg sm:text-xl font-semibold text-ink">{title}</h2>
+      <h2 className="text-xl sm:text-2xl font-medium text-ink">{title}</h2>
       {children}
     </section>
   )

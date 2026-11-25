@@ -19,7 +19,7 @@ export function PageHeader({ backLink, backText, title, description }: PageHeade
         <ChevronLeftIcon />
         {backText}
       </Link>
-      <h1 className="text-2xl sm:text-3xl font-bold text-ink">{title}</h1>
+      <h1 className="text-3xl sm:text-4xl font-medium text-ink">{title}</h1>
       <p className="text-ink-2 mt-1">{description}</p>
     </div>
   )
@@ -33,7 +33,7 @@ interface FormCardProps {
 export function FormCard({ title, children }: FormCardProps) {
   return (
     <Card className="p-4 sm:p-6">
-      <h2 className="text-lg font-semibold text-ink mb-4">{title}</h2>
+      <h2 className="text-xl font-medium text-ink mb-4">{title}</h2>
       <div className="space-y-4">{children}</div>
     </Card>
   )

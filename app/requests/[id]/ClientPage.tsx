@@ -256,7 +256,7 @@ export default function ClientPage({
           <ChevronLeftIcon className="w-5 h-5" />
           Requests
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold text-ink">
+        <h1 className="text-3xl sm:text-4xl font-medium text-ink">
           {ctx.mode === 'revert' ? 'Revert to approved' : `Approve request from @${ctx.other_username}`}
         </h1>
         <p className="text-ink-2 mt-1">
@@ -267,9 +267,9 @@ export default function ClientPage({
       <DiffCard ctx={ctx} />
 
       {}
-      <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
+      <div className="sheet p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-ink">Transaction details</h2>
+          <h2 className="text-xl font-medium text-ink">Transaction details</h2>
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-3">
             <LockIcon className="w-3.5 h-3.5" />
             Locked

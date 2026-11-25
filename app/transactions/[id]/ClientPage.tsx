@@ -208,11 +208,11 @@ export default function ClientPage({
       )}
 
       {}
-      <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
+      <div className="sheet p-4 sm:p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
             {/* The specific thing is the title; "transaction" is already in the breadcrumb. */}
-            <h1 className="text-2xl font-bold text-ink break-words">{transaction.description || 'Transaction'}</h1>
+            <h1 className="text-3xl font-medium text-ink break-words">{transaction.description || 'Transaction'}</h1>
             <p className="text-sm text-ink-3 mt-1">
               <LocalDateTime value={transaction.date} />
             </p>
@@ -274,8 +274,8 @@ export default function ClientPage({
 
       {}
       {transaction.attachments.length > 0 && (
-        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
-          <h2 className="text-lg font-semibold text-ink mb-4">Attachments</h2>
+        <div className="sheet p-4 sm:p-6">
+          <h2 className="text-xl font-medium text-ink mb-4">Attachments</h2>
           <div className="space-y-2">
             {transaction.attachments.map(att => (
               <div key={att.id} className="flex items-center gap-3 p-3 bg-sunken rounded-lg border border-rule">
@@ -302,7 +302,7 @@ export default function ClientPage({
 
       {}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-ink">Line items</h2>
+        <h2 className="text-2xl font-medium text-ink">Line items</h2>
 
         {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
           const items = linesByType[typeKey] || []
@@ -317,7 +317,7 @@ export default function ClientPage({
           }
 
           return (
-            <div key={typeKey} className="bg-paper rounded-lg shadow-sm border border-rule overflow-hidden transition-colors">
+            <div key={typeKey} className="sheet overflow-hidden">
               <div className="px-6 py-3 border-b border-rule bg-sunken">
                 <div className={`flex items-center gap-2 ${iconColor[config.color as keyof typeof iconColor]}`}>
                   {config.icon}

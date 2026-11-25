@@ -25,7 +25,7 @@ export function ViewPageHeader({ backLink, backText, title, description, editLin
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-ink">{title}</h1>
+          <h1 className="text-3xl sm:text-4xl font-medium text-ink">{title}</h1>
           {description && <p className="text-ink-2 mt-1">{description}</p>}
         </div>
         {editLink && (
@@ -61,12 +61,12 @@ interface InfoCardProps {
 
 export function InfoCard({ title, fields }: InfoCardProps) {
   return (
-    <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
-      <h2 className="text-lg font-semibold text-ink mb-4">{title}</h2>
+    <div className="sheet p-4 sm:p-6">
+      <h2 className="text-xl font-medium text-ink mb-4">{title}</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {fields.map((field, idx) => (
           <div key={idx}>
-            <p className="text-sm text-ink-3 mb-1">{field.label}</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.09em] text-ink-3 mb-1.5">{field.label}</p>
             {typeof field.value === 'string' ? <p className="text-ink font-medium">{field.value}</p> : field.value}
           </div>
         ))}
@@ -83,7 +83,7 @@ interface HoldingsHeaderProps {
 export function HoldingsHeader({ title = 'Holdings', count }: HoldingsHeaderProps) {
   return (
     <div className="p-4 sm:p-6 border-b border-rule">
-      <h2 className="text-lg font-semibold text-ink">{title}</h2>
+      <h2 className="text-xl font-medium text-ink">{title}</h2>
       <p className="text-sm text-ink-3 mt-1">
         {count} line item{count !== 1 ? 's' : ''}
       </p>
@@ -137,51 +137,51 @@ export function LineItemRow({
   const showLineNote = !!lineItemDescription && lineItemDescription !== title
   const showAssetTag = assetType !== asset_type.rupees
   return (
-    <div className={`p-4 hover:bg-sunken transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
-      <div className="flex items-start justify-between gap-4">
+    <div className={`px-4 sm:px-6 py-2.5 hover:bg-sunken transition-colors ${is_depleted ? 'opacity-50' : ''}`}>
+      <div className="flex items-baseline justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <Link href={`/transactions/${transactionId}`} className="font-semibold text-ink hover:text-accent transition-colors truncate">
+            <Link href={`/transactions/${transactionId}`} className="text-sm text-ink hover:text-accent transition-colors truncate">
               {title}
             </Link>
             {headName &&
               (headLink ? (
                 <Link
                   href={headLink}
-                  className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-accent-soft text-accent hover:bg-accent-soft transition-colors"
+                  className="shrink-0 text-[11px] px-1.5 py-px rounded-sm border border-accent/40 text-accent hover:bg-accent-soft transition-colors"
                 >
                   {headName}
                 </Link>
               ) : (
-                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-accent-soft text-accent">{headName}</span>
+                <span className="shrink-0 text-[11px] px-1.5 py-px rounded-sm border border-accent/40 text-accent">{headName}</span>
               ))}
             {showAssetTag &&
               (assetLink ? (
                 <Link
                   href={assetLink}
-                  className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-sunken text-ink-2 hover:text-accent transition-colors"
+                  className="shrink-0 text-[11px] px-1.5 py-px rounded-sm border border-rule-strong text-ink-2 hover:text-accent transition-colors"
                 >
                   {assetName}
                 </Link>
               ) : (
-                <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-sunken text-ink-2">{assetName}</span>
+                <span className="shrink-0 text-[11px] px-1.5 py-px rounded-sm border border-rule-strong text-ink-2">{assetName}</span>
               ))}
           </div>
 
-          {showLineNote && <p className="text-sm text-ink-2 mt-1">{lineItemDescription}</p>}
+          {showLineNote && <p className="text-xs text-ink-2 mt-0.5">{lineItemDescription}</p>}
 
-          <p className="text-xs text-ink-3 mt-1">
+          <p className="text-xs text-ink-3 mt-0.5">
             <LocalDateTime value={transactionDate} />
           </p>
 
           {assetType !== asset_type.rupees && (
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
               <div className="text-ink-2">
-                <span className="text-ink-3">Quantity:</span> <span className="font-medium text-ink">{quantity} units</span>
+                <span className="text-ink-3">Units</span> <span className="num text-ink">{quantity}</span>
               </div>
               {remainingQuantity !== undefined && remainingQuantity !== null && (
                 <div className="text-ink-2">
-                  <span className="text-ink-3">Remaining:</span> <span className="font-medium text-ink">{remainingQuantity} units</span>
+                  <span className="text-ink-3">Remaining</span> <span className="num text-ink">{remainingQuantity}</span>
                   {remaining_txn_value !== null && (
                     <>
                       {' '}
@@ -197,7 +197,7 @@ export function LineItemRow({
         </div>
 
         <div className="text-right shrink-0">
-          <div className={`text-lg font-semibold ${displayed_amount > 0 ? 'text-pos' : 'text-ink'}`}>
+          <div className={`text-[15px] ${displayed_amount > 0 ? 'text-pos' : 'text-ink'}`}>
             <MaskedAmount value={displayed_amount} />
           </div>
         </div>

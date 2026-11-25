@@ -73,7 +73,7 @@ export function AsOfBalance({
     <Card>
       <div className="p-4 sm:p-6 space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-ink">Balance on a date</h2>
+          <h2 className="text-xl font-medium text-ink">Balance on a date</h2>
           <p className="text-sm text-ink-3 mt-1">
             Closing balance at the end of that day (book value){includeSubheads ? `, including ${subEntityLabel}` : ''} — handy for checking against a
             bank statement. Pick a future date to project the balance forward using scheduled transactions.

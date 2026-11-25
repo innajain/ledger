@@ -151,7 +151,7 @@ export const TransactionLineItems = memo(function TransactionLineItems({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-ink">Line items</h2>
+        <h2 className="text-2xl font-medium text-ink">Line items</h2>
       </div>
 
       {(['account', 'allocation', 'income_expense'] as const).map(typeKey => {
@@ -162,7 +162,7 @@ export const TransactionLineItems = memo(function TransactionLineItems({
           <div
             key={typeKey}
             /* no overflow-hidden: the Combobox dropdowns inside must be able to overhang the card */
-            className="bg-paper rounded-lg shadow-sm border border-rule transition-colors"
+            className="sheet"
           >
             <div className="px-6 py-3 border-b border-rule rounded-t-lg bg-sunken">
               <div className="flex items-start justify-between gap-4">

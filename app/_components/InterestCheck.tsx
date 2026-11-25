@@ -229,7 +229,7 @@ export function InterestCheck({
     <Card>
       <div className="p-4 sm:p-6 space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-ink">Interest check</h2>
+          <h2 className="text-xl font-medium text-ink">Interest check</h2>
           <p className="text-sm text-ink-3 mt-1">
             What a bank would pay on this account{includeSubheads ? ` and its ${subEntityLabel}` : ''}: every day&apos;s closing balance earns the
             yearly rate ÷ days in the year, and the total is credited the way the bank rounds it. Hold it against the interest you were actually paid.

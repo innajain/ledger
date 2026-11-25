@@ -180,7 +180,7 @@ export default function ClientPage({ tag }: { tag: Tag }) {
           <>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-ink break-words">{tag.name}</h1>
+                <h1 className="text-3xl font-medium text-ink break-words">{tag.name}</h1>
                 {tag.description && <p className="text-ink-2 mt-1">{tag.description}</p>}
               </div>
               <div className="flex shrink-0 gap-2">
@@ -230,7 +230,7 @@ export default function ClientPage({ tag }: { tag: Tag }) {
       ) : (
         <Card className="overflow-hidden">
           <div className="px-6 py-4 border-b border-rule bg-sunken">
-            <h2 className="text-lg font-semibold text-ink">In this tag</h2>
+            <h2 className="text-xl font-medium text-ink">In this tag</h2>
           </div>
           <ul className="divide-y divide-rule">
             {tag.transactions.map(t => (

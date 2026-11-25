@@ -30,8 +30,8 @@ export function LinkedUserNotify({ targetUserId, username, owedAmount }: { targe
   }
 
   return (
-    <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6">
-      <h2 className="text-lg font-semibold text-ink">Notify @{username}</h2>
+    <div className="sheet p-4 sm:p-6">
+      <h2 className="text-xl font-medium text-ink">Notify @{username}</h2>
       <p className="text-sm text-ink-3 mt-1">Sends a push notification to their device (if they’ve enabled notifications).</p>
 
       {owes && (

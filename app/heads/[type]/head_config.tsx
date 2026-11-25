@@ -17,7 +17,6 @@ export type HeadConfig = {
   emptyDescription: string
   emptyActionLabel: string
   emptyIcon: ComponentType
-  accentBorderClass: string
 
   showNegativeAssetBadges: boolean
 
@@ -49,7 +48,6 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
       'An account is anywhere money sits — a bank account, a wallet, a person who owes you. Create one to start posting transactions.',
     emptyActionLabel: 'Create account',
     emptyIcon: AccountEmptyIcon,
-    accentBorderClass: 'border-l-emerald-500',
     showNegativeAssetBadges: true,
     showPeriodToggle: false,
     entityName: 'Account',
@@ -65,7 +63,6 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
     emptyDescription: 'Allocations answer “what is this money for?” — buckets like Savings or Investments that cut across accounts.',
     emptyActionLabel: 'Create allocation',
     emptyIcon: AllocationEmptyIcon,
-    accentBorderClass: 'border-l-amber-500',
     showNegativeAssetBadges: true,
     showPeriodToggle: false,
     entityName: 'Allocation',
@@ -81,7 +78,6 @@ export const HEAD_CONFIG: Record<accounting_head_type, HeadConfig> = {
     emptyDescription: 'Categories explain why money moved — salary, rent, groceries. They power the income and expense summaries.',
     emptyActionLabel: 'Create category',
     emptyIcon: IncomeExpenseEmptyIcon,
-    accentBorderClass: 'border-l-violet-500',
     showNegativeAssetBadges: false,
     showPeriodToggle: true,
     // The tax computation is built entirely from these heads' treatments, so this

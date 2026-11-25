@@ -28,7 +28,7 @@ export function NotFound({
   return (
     <div className="max-w-md mx-auto mt-16 bg-paper border border-rule rounded-lg shadow-sm p-8 text-center">
       {showStatus && <p className="text-sm font-medium text-ink-3 tabular-nums mb-1">404</p>}
-      <h1 className="text-xl font-semibold text-ink">{title}</h1>
+      <h1 className="text-2xl font-medium text-ink">{title}</h1>
       <p className="text-ink-2 mt-2">{description}</p>
       <ButtonLink href={backHref} variant="primary" className="mt-6">
         {backLabel}

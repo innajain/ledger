@@ -7,7 +7,7 @@ async function Page() {
   if (!(await is_current_user_admin())) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-ink">New asset</h1>
+        <h1 className="text-3xl font-medium text-ink">New asset</h1>
         <p className="text-ink-2 mt-1">Assets are managed by admins only.</p>
       </div>
     )

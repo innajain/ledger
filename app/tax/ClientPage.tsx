@@ -130,7 +130,7 @@ export default function ClientPage({ selected_fy, include_future, fy_options, re
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Tax</h1>
+        <h1 className="text-3xl sm:text-4xl font-medium text-ink">Tax</h1>
         <p className="text-ink-2 mt-1">New regime only — computed live from tagged heads, never stored.</p>
       </div>
 

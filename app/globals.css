@@ -169,6 +169,19 @@
   }
 }
 
+/* A section of a page. Paper has no boxes: a section is a strong rule above its
+   content. The negative inline margin cancels the p-4 / sm:p-6 its content carries,
+   so headings and figures line up with the page title while the rule runs a little
+   into the margin, the way a ledger's lines do. Inside a grid, leave room for that
+   overhang with a gap of at least 2rem / sm:3rem. */
+@utility sheet {
+  border-top: 1px solid var(--rule-strong);
+  margin-inline: -1rem;
+  @media (width >= 40rem) {
+    margin-inline: -1.5rem;
+  }
+}
+
 /* An amount: mono, every digit the same width, so a column of them lines up. */
 @utility num {
   font-family: --theme(--font-mono);

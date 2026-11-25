@@ -47,10 +47,10 @@ export default function HeadListClient({ type, heads, totals, assetQuantities, p
         ))}
       />
       {heads.length > 0 ? (
-        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
+        <div className="sheet p-4 sm:p-6">
           <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
             <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-lg font-semibold text-ink">{cfg.hierarchyTitle}</h2>
+              <h2 className="text-xl font-medium text-ink">{cfg.hierarchyTitle}</h2>
               {cfg.showPeriodToggle && (
                 <ParamToggle<PeriodValue>
                   param="period"
@@ -88,7 +88,6 @@ export default function HeadListClient({ type, heads, totals, assetQuantities, p
             scope="account"
             reorderEnabled={reorderEnabled}
             onReorderToggle={setReorderEnabled}
-            accentBorderClass={cfg.accentBorderClass}
             renderExtraInfo={
               cfg.showNegativeAssetBadges
                 ? item => {
@@ -111,7 +110,7 @@ export default function HeadListClient({ type, heads, totals, assetQuantities, p
                         {negativeAssets.map((assetName, idx) => (
                           <span
                             key={`neg-${idx}`}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 rounded-full text-xs font-medium"
+                            className="inline-flex items-center gap-1 px-1.5 py-px border border-neg/40 text-neg rounded-sm text-[11px] font-medium"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path

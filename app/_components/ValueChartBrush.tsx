@@ -93,10 +93,10 @@ export function ValueChartBrush({ points, title }: Props) {
   const gainPct = !amountsHidden && last.invested !== 0 ? (gain / last.invested) * 100 : null
 
   return (
-    <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
+    <div className="sheet p-4 sm:p-6">
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
-          {title && <h2 className="text-lg font-semibold text-ink">{title}</h2>}
+          {title && <h2 className="text-xl font-medium text-ink">{title}</h2>}
           <p className="text-xs text-ink-3 mt-1">Drag the strip handles below to zoom</p>
         </div>
         <div className="text-right shrink-0">

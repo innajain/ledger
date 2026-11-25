@@ -32,7 +32,7 @@ export function SessionSection() {
   return (
     <section>
       <SectionHeading id="session">Session</SectionHeading>
-      <div className="bg-paper border border-rule rounded-lg shadow-sm p-4 sm:p-6 transition-colors">
+      <div className="sheet p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h3 className="text-lg font-semibold text-ink">Log out</h3>

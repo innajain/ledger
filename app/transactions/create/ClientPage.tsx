@@ -300,13 +300,13 @@ export default function ClientPage({
           <ChevronLeftIcon />
           Transactions
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold text-ink">New transaction</h1>
+        <h1 className="text-3xl sm:text-4xl font-medium text-ink">New transaction</h1>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
         {}
-        <div className="bg-paper rounded-lg shadow-sm border border-rule p-4 sm:p-6 transition-colors">
-          <h2 className="text-lg font-semibold text-ink mb-4">Transaction details</h2>
+        <div className="sheet p-4 sm:p-6">
+          <h2 className="text-xl font-medium text-ink mb-4">Transaction details</h2>
 
           <div className="space-y-4">
             <div>

@@ -156,10 +156,11 @@ function book_differs(book: number | null | undefined, current: number): book is
   return book !== null && book !== undefined && Math.round(book * 100) !== Math.round(current * 100)
 }
 
+// The page's figures are its headline, so they take the serif hero face.
 function Amount({ value }: { value: number }) {
   return (
-    <p className="text-2xl font-bold text-ink">
-      <MaskedAmount value={value} />
+    <p className="font-serif text-3xl leading-tight text-ink">
+      <MaskedAmount value={value} numeric={false} />
     </p>
   )
 }
@@ -341,9 +342,7 @@ export function HeadDetailPage({
                 {
                   label: 'XIRR',
                   value: (
-                    <span
-                      className={head.xirr > 0 ? 'text-pos font-semibold' : head.xirr < 0 ? 'text-neg font-semibold' : 'text-ink-3 font-semibold'}
-                    >
+                    <span className={`font-serif text-3xl leading-tight ${head.xirr > 0 ? 'text-pos' : head.xirr < 0 ? 'text-neg' : 'text-ink-3'}`}>
                       {(head.xirr * 100).toFixed(2)}%
                     </span>
                   ),
@@ -384,7 +383,7 @@ export function HeadDetailPage({
       {head.children && head.children.length > 0 && (
         <Card>
           <div className="p-4 sm:p-6 border-b border-rule">
-            <h2 className="text-lg font-semibold text-ink capitalize">{subEntityLabel}</h2>
+            <h2 className="text-xl font-medium text-ink capitalize">{subEntityLabel}</h2>
             <p className="text-sm text-ink-3 mt-1">
               {head.children.length} sub-{head.children.length !== 1 ? 'entries' : 'entry'} — totals include everything under them
             </p>
@@ -412,12 +411,12 @@ export function HeadDetailPage({
         </Card>
       )}
 
-      <HoldingsGrid title={`${config.holdingsTitle || 'Held in assets'}${scopeSuffix}`} items={holdingsItems} linkLabel="View asset →" />
+      <HoldingsGrid title={`${config.holdingsTitle || 'Held in assets'}${scopeSuffix}`} items={holdingsItems} />
 
       {}
       <Card>
         <div className="p-4 sm:p-6 border-b border-rule">
-          <h2 className="text-lg font-semibold text-ink">Line items</h2>
+          <h2 className="text-xl font-medium text-ink">Line items</h2>
           <p className="text-sm text-ink-3 mt-1">
             {lineItems.total} item
             {lineItems.total !== 1 ? 's' : ''}
@@ -479,7 +478,7 @@ export function HeadDetailPage({
       {head.future_transactions && head.future_transactions.length > 0 && (
         <Card>
           <div className="p-4 sm:p-6 border-b border-rule">
-            <h2 className="text-lg font-semibold text-ink">Future transactions</h2>
+            <h2 className="text-xl font-medium text-ink">Future transactions</h2>
             <p className="text-sm text-ink-3 mt-1">
               Scheduled entries — they don&apos;t affect balances until converted to real transactions.
               {inSubtree &&
