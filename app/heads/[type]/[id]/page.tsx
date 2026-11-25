@@ -30,12 +30,24 @@ type Props = {
   searchParams?: Promise<{ scope?: string }>
 }
 
-// Which heads the page reports on. 'self' is this head alone (the default, and what the
-// page has always shown); 'subtree' widens every figure on the page — totals, holdings,
-// line items, XIRR, chart, future transactions, balance-on-a-date — to the head plus its
-// descendants. It rides in the URL so the view is shareable and the server can scope the
-// queries instead of shipping both datasets to the browser.
+// Which heads the page reports on. 'self' is this head alone; 'subtree' widens every
+// figure on the page — totals, holdings, line items, XIRR, chart, future transactions,
+// balance-on-a-date — to the head plus its descendants. It rides in the URL so the view is
+// shareable and the server can scope the queries instead of shipping both datasets to the
+// browser. With no ?scope= the page opens on default_scope below.
 export type HeadScope = 'self' | 'subtree'
+
+// A parent that holds nothing itself — its money sits in its children — opens on the
+// subtree view, because its own view is ₹0 over an empty holdings grid and an empty
+// line-items list. Every other head opens on itself. Two indexed lookups, both by head id
+// (already scoped to the user by the head fetch).
+async function default_scope(head_id: string, user_id: string): Promise<HeadScope> {
+  const [child, own_line] = await Promise.all([
+    prisma.accounting_head.findFirst({ where: { parent_id: head_id, user_id }, select: { id: true } }),
+    prisma.line_item.findFirst({ where: { accounting_head_id: head_id }, select: { id: true } }),
+  ])
+  return child && !own_line ? 'subtree' : 'self'
+}
 
 // react.cache so generateMetadata and the page share one fetch per request.
 const get_head_row = cache((id: string, user_id: string, type: accounting_head_type) =>
@@ -53,7 +65,7 @@ export async function generateMetadata({ params }: Props) {
 
 async function Page({ params, searchParams }: Props) {
   const { type, id } = await params
-  const requested_scope: HeadScope = (await searchParams)?.scope === 'subtree' ? 'subtree' : 'self'
+  const scope_param = (await searchParams)?.scope
   if (!isHeadType(type)) notFound()
   const cfg = HEAD_CONFIG[type]
 
@@ -69,6 +81,11 @@ async function Page({ params, searchParams }: Props) {
   }
 
   const isAccount = type === 'account'
+
+  // Always resolved, even with an explicit ?scope=: the toggle needs to know which view
+  // the bare URL means, so its link back to that view can drop the param.
+  const fallback_scope = await default_scope(head.id, user.id)
+  const requested_scope: HeadScope = scope_param === 'subtree' || scope_param === 'self' ? scope_param : fallback_scope
 
   // The heads every query below is scoped to. Only the subtree view pays for the extra
   // lookup; the default view knows its one id without touching the DB. A head with no
@@ -111,8 +128,11 @@ async function Page({ params, searchParams }: Props) {
     })
   }
 
+  // XIRR only says something on a head that holds (or held) priced assets. On a
+  // rupees-only head every flow is at face value, so it is 0% by construction — the asset
+  // page skips rupees for the same reason.
   let xirr_value: number | null = null
-  if (cashflows.length > 0) {
+  if (holds_non_rupees && cashflows.length > 0) {
     if (!acc_total.equals(0)) cashflows.push({ amount: acc_total.toNumber(), when: new Date() })
     xirr_value = calculate_xirr(cashflows)
   }
@@ -217,6 +237,7 @@ async function Page({ params, searchParams }: Props) {
       }}
       config={{ backLink: headBasePath(type), backText: cfg.backText, entityName: cfg.entityName, subEntityLabel: cfg.subEntityLabel }}
       scope={scope}
+      defaultScope={fallback_scope}
       closingBalanceAction={type === 'income_expense' ? undefined : get_closing_balance}
       loadMoreLineItems={get_more_head_line_items}
       interestCheck={

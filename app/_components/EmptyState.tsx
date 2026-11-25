@@ -22,7 +22,7 @@ export function EmptyState({ icon, title, description, actionUrl, actionLabel, e
     <>
       <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">{icon}</div>
       <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">{title}</h3>
-      <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-md mx-auto">{description}</p>
+      <p className={`text-slate-600 dark:text-slate-400 max-w-md mx-auto${actionUrl ? ' mb-6' : ''}`}>{description}</p>
       {actionUrl && (
         <Link
           href={actionUrl}

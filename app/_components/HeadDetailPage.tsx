@@ -5,7 +5,9 @@ import { useMoreItems } from '@/app/_components/use_more_items'
 import { LINE_ITEMS_PAGE } from '@/app/_utils/line_item_paging'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ViewPageHeader, InfoCard, EmptyState, LineItemRow } from '@/app/_components/ViewPageComponents'
+import { ViewPageHeader, InfoCard, LineItemRow } from '@/app/_components/ViewPageComponents'
+import { EmptyState } from '@/app/_components/EmptyState'
+import { TransactionEmptyIcon } from '@/app/_components/EmptyStateIcons'
 import { HoldingsGrid, HoldingItem } from '@/app/_components/HoldingsGrid'
 import { Card } from '@/app/_components/Card'
 import { asset_type } from '@/generated/prisma/enums'
@@ -122,6 +124,8 @@ type HeadDetailPageProps = {
    * include.
    */
   scope?: HeadScopeValue
+  /** The scope the bare URL (no ?scope=) opens on — the toggle drops the param for it. */
+  defaultScope?: HeadScopeValue
   closingBalanceAction?: (head_id: string, date: string, include_subheads?: boolean) => Promise<ActionResult<ClosingBalance>>
   /** The next page of line items after `offset`, in the same order and scope as the first. */
   loadMoreLineItems?: (head_id: string, offset: number, include_subheads?: boolean) => Promise<ActionResult<LineItem[]>>
@@ -160,7 +164,15 @@ function Amount({ value }: { value: number }) {
   )
 }
 
-export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAction, loadMoreLineItems, interestCheck }: HeadDetailPageProps) {
+export function HeadDetailPage({
+  head,
+  config,
+  scope = 'self',
+  defaultScope = 'self',
+  closingBalanceAction,
+  loadMoreLineItems,
+  interestCheck,
+}: HeadDetailPageProps) {
   const router = useRouter()
   const editLink = `${config.backLink}/${head.id}/update`
   const subEntityLabel = config.subEntityLabel ?? 'sub-heads'
@@ -225,7 +237,7 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
         </Link>
       )}
 
-      {hasChildren && <ScopeToggle active={scope} subEntityLabel={subEntityLabel} />}
+      {hasChildren && <ScopeToggle active={scope} fallback={defaultScope} subEntityLabel={subEntityLabel} />}
 
       {head.lock_date && (
         <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-2.5 flex items-center gap-2.5">
@@ -423,7 +435,16 @@ export function HeadDetailPage({ head, config, scope = 'self', closingBalanceAct
         </div>
 
         {lineItems.items.length === 0 ? (
-          <EmptyState />
+          <EmptyState
+            embedded
+            icon={<TransactionEmptyIcon />}
+            title="No line items yet"
+            description={
+              hasChildren && !inSubtree
+                ? `Nothing is posted to this ${config.entityName.toLowerCase()} directly — its money may sit in its ${subEntityLabel}.`
+                : `Line items appear here once a transaction is posted to this ${config.entityName.toLowerCase()}${inSubtree ? ` or its ${subEntityLabel}` : ''}.`
+            }
+          />
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
             {lineItems.items.map(li => (

@@ -12,6 +12,8 @@ import { asset_type_label } from '@/app/_utils/labels'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { ValueChart, type ValuePoint } from '@/app/_components/ValueChart'
 import { Card } from '@/app/_components/Card'
+import { EmptyState } from '@/app/_components/EmptyState'
+import { HoldingsEmptyIcon, TransactionEmptyIcon } from '@/app/_components/EmptyStateIcons'
 
 type BreakdownItem = {
   accounting_head_id: string
@@ -207,18 +209,12 @@ export default function ClientPage({
         </div>
 
         {asset.breakdown.length === 0 ? (
-          <div className="p-8 text-center">
-            <svg className="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              />
-            </svg>
-            <p className="text-slate-600 dark:text-slate-400 font-medium">No holdings yet</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Holdings will appear here once transactions are recorded</p>
-          </div>
+          <EmptyState
+            embedded
+            icon={<HoldingsEmptyIcon />}
+            title="Not held anywhere yet"
+            description="Accounts holding this asset appear here once a transaction records it."
+          />
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
             <div className="p-4">
@@ -355,7 +351,12 @@ export default function ClientPage({
         </div>
 
         {lineItems.items.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 dark:text-slate-400">No transactions for this asset</div>
+          <EmptyState
+            embedded
+            icon={<TransactionEmptyIcon />}
+            title="No line items yet"
+            description="Line items appear here once a transaction records this asset."
+          />
         ) : (
           <div className="divide-y divide-slate-200 max-h-96 overflow-y-auto">
             <div>

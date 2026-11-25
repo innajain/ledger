@@ -113,7 +113,10 @@ export default async function RootLayout({
                 <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">{children}</main>
 
                 {}
-                <footer className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 mt-auto transition-colors">
+                <footer
+                  data-site-footer
+                  className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 mt-auto transition-colors"
+                >
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
                       <p className="text-center sm:text-left text-sm text-slate-500 dark:text-slate-400">
