@@ -4,6 +4,11 @@ import bundleAnalyzer from '@next/bundle-analyzer'
 const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === 'true' })
 
 const nextConfig: NextConfig = {
+  // Deploy builds (scripts/deploy.sh) ship a self-contained server: the app plus only the
+  // node_modules it traces as needed, run with `node server.js`. Opt-in, so `pnpm build`
+  // / `pnpm start` locally and in CI stay exactly as they were.
+  output: process.env.NEXT_OUTPUT_STANDALONE === '1' ? 'standalone' : undefined,
+
   compress: true,
   poweredByHeader: false,
 
