@@ -135,7 +135,8 @@ echo "$SHA" >"$OUT/REVISION"
 # .env.production after .env without overriding it, and .env is the shared secrets file.
 echo "VERCEL_GIT_COMMIT_SHA=$SHA" >"$OUT/.env.production"
 ln -sfn ../../.env "$OUT/.env"
-tar -C "$OUT" -czf "$WORK/release.tgz" .
+# macOS tar would otherwise add AppleDouble ._* files and xattrs the server's tar warns on.
+COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -C "$OUT" -czf "$WORK/release.tgz" .
 say "Release is $(du -h "$WORK/release.tgz" | cut -f1); uploading"
 remote "rm -rf ~/ledger/releases/$SHORT.tmp && mkdir -p ~/ledger/releases/$SHORT.tmp && tar -xzf - -C ~/ledger/releases/$SHORT.tmp && rm -rf ~/ledger/releases/$SHORT && mv ~/ledger/releases/$SHORT.tmp ~/ledger/releases/$SHORT" <"$WORK/release.tgz"
 

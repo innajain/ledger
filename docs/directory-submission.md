@@ -11,17 +11,19 @@ and the ChatGPT domain-verification route at `/.well-known/openai-apps-challenge
 
 ## Before you open either portal
 
-1. **Deploy** the current `main` to the server: rsync the tree, `pnpm build`, then
-   `sudo systemctl restart ledger`.
+1. **Deploy** the current `main` to the server: `scripts/deploy.sh` from the Mac (see "Single-server
+   mode" in `CLAUDE.md`).
 2. **Set `SUPPORT_EMAIL`** in `~/ledger/.env` on the server and restart. `/privacy` and `/docs`
    show it as the contact; until it is set they fall back to "the operator of this Ledger instance",
    which reviewers will not accept. It is published on those pages, so choose an address you are
    happy to have public.
-3. **Create the reviewer account.** On the server, from `~/ledger`, point the seed at the local
-   database and run it with a fresh password:
+3. **Create the reviewer account.** The server holds only built releases, so run the seed from the
+   Mac against the server's database through an SSH tunnel, with a fresh password:
 
    ```bash
-   SEED_PASSWORD='<new strong password>' DATABASE_URL="$(cat ~/.ledger_vm_db_url)" pnpm dlx tsx scripts/seed_sample_user.ts
+   ssh -N -L 15432:127.0.0.1:5432 vm &
+   SEED_PASSWORD='<new strong password>' DATABASE_URL="$(ssh vm cat ~/secrets/ledger_db_url | sed -E 's#@[^/]+/#@127.0.0.1:15432/#')" pnpm dlx tsx scripts/seed_sample_user.ts
+   kill %1
    ```
 
    It wipes and recreates only the `rahul` user: about six months of salary, rent, food,
