@@ -99,7 +99,11 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
             <div className="w-6 h-6 flex items-center justify-center overflow-hidden">
               <Image src="/logo-256.png" alt="Ledger" width={24} height={24} />
             </div>
-            <span className="font-serif text-[22px] font-semibold tracking-tight">Ledger</span>
+            {/* Trimmed to cap height so items-center centres the capitals: Newsreader's line box
+                centres the x-height, which left the L and d riding ~2.5px above the logo. */}
+            <span className="font-serif text-[22px] font-semibold tracking-tight [text-box-edge:cap_alphabetic] [text-box-trim:trim-both]">
+              Ledger
+            </span>
           </Link>
 
           {}
