@@ -11,6 +11,7 @@ import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { EmptyState } from '@/app/_components/EmptyState'
 import { TagEmptyIcon } from '@/app/_components/EmptyStateIcons'
 import { useToast } from '@/app/_components/Toast'
+import { useConfirm } from '@/app/_components/Confirm'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
 import { update_transaction_tag, delete_transaction_tag, remove_transactions_from_tag } from '@/app/_actions/tags'
 
@@ -61,6 +62,7 @@ export default function ClientPage({ tag }: { tag: Tag }) {
   const router = useRouter()
   const uid = useId()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(tag.name)
   const [description, setDescription] = useState(tag.description ?? '')
@@ -89,8 +91,13 @@ export default function ClientPage({ tag }: { tag: Tag }) {
 
   async function onDelete() {
     const count = tag.summary.count + tag.summary.future_count
-    const detail = count === 0 ? '' : ` Its ${count} transaction${count === 1 ? '' : 's'} will stay exactly as they are — only the label goes.`
-    if (!confirm(`Delete the tag “${tag.name}”?${detail}`)) return
+    const ok = await confirm({
+      title: `Delete the tag “${tag.name}”?`,
+      message: count === 0 ? undefined : `Its ${count} transaction${count === 1 ? '' : 's'} will stay exactly as they are — only the label goes.`,
+      confirmLabel: 'Delete tag',
+      danger: true,
+    })
+    if (!ok) return
     setError(null)
     setBusy(true)
     try {

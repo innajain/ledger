@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { ComponentPropsWithoutRef, ReactNode } from 'react'
+import type { ComponentPropsWithoutRef, ComponentPropsWithRef, ReactNode } from 'react'
 
 /**
  * The one button. Every clickable rectangle in the app renders through this so rank is
@@ -43,7 +43,7 @@ type ButtonProps = {
   size?: Size
   children: ReactNode
   className?: string
-} & Omit<ComponentPropsWithoutRef<'button'>, 'className'>
+} & Omit<ComponentPropsWithRef<'button'>, 'className'>
 
 export function Button({ variant = 'secondary', size = 'md', className = '', type = 'button', children, ...rest }: ButtonProps) {
   return (

@@ -189,6 +189,15 @@
   letter-spacing: -0.02em;
 }
 
+/* A scroll box with no visible bar (short in-page lists; the cut-off last row is the
+   cue that there is more). The -webkit rule covers Safari before 18.2. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Motion policy: animate only what changes state. Overlays and toasts get an
    entrance; static content sits still. No ambient loops, no hover transforms.
@@ -270,6 +279,9 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Scrollbars show while their box scrolls and hide ~1s after it stops: ScrollbarAutoHide
+   stamps data-scrolling on whatever is scrolling (the page's own scroll on <html>). The
+   thumb also shows under the pointer, so a mouse can still find it and drag. */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -280,12 +292,27 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--rule-strong);
+  background: transparent;
   border-radius: 4px;
+}
+
+[data-scrolling]::-webkit-scrollbar-thumb {
+  background: var(--rule-strong);
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--ink-3);
+}
+
+/* Firefox has no ::-webkit-scrollbar; scrollbar-color does the same job there. (Chrome
+   would ignore every rule above once scrollbar-color is set, hence the guard.) */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-color: transparent transparent;
+  }
+  [data-scrolling] {
+    scrollbar-color: var(--rule-strong) transparent;
+  }
 }
 
 .skeleton {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { update_asset } from '@/app/_actions/resources'
 import type { Prisma, asset_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
+import { useConfirm } from '@/app/_components/Confirm'
 import {
   PageHeader,
   FormCard,
@@ -26,6 +27,7 @@ export default function ClientPage({
   deleteAsset?: (id: string) => Promise<ActionResult>
 }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [name, setName] = useState(asset.name)
   const [type, setType] = useState<asset_type>(asset.type)
   const [ticker, setTicker] = useState(asset.ticker ?? '')
@@ -55,7 +57,8 @@ export default function ClientPage({
       setError('Delete operation is not available')
       return
     }
-    if (!confirm('Delete this asset? This action cannot be undone.')) return
+    const ok = await confirm({ title: 'Delete this asset?', message: 'This action cannot be undone.', confirmLabel: 'Delete', danger: true })
+    if (!ok) return
     setError(null)
     try {
       const result = await deleteAsset(asset.id)

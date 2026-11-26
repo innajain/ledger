@@ -29,7 +29,7 @@ export function HomeRequests({ requests }: { requests: HomeRequest[] }) {
       {requests.length === 0 ? (
         <p className="py-3 text-sm text-ink-3">Nothing awaiting you.</p>
       ) : (
-        <ul className="max-h-[232px] overflow-y-auto">
+        <ul className="-mx-2 max-h-[232px] overflow-y-auto px-2">
           {requests.map(r => (
             // Approving needs a balancing-account choice, so this only links through
             // to /requests rather than duplicating that form here.

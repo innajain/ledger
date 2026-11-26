@@ -10,6 +10,7 @@ import { cancel_request } from '@/app/_actions/approvals'
 import type { ActionResult } from '@/app/_actions/_result'
 import { LocalDateTime } from '@/app/_components/LocalDateTime'
 import { Button, ButtonLink } from '@/app/_components/Button'
+import { useConfirm } from '@/app/_components/Confirm'
 import { ChevronLeftIcon, PencilIcon, TrashIcon, CloseIcon, ErrorCircleIcon } from '@/app/_components/icons'
 import { format_bytes } from '@/app/_utils/format_bytes'
 import type { TransactionStatus } from '@/app/_utils/links'
@@ -59,16 +60,22 @@ export default function ClientPage({
   }
 }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isConverting, setIsConverting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
-    const message = linkStatus
-      ? 'Delete this transaction? The linked user will be asked to approve deleting their copy. You can undo from the transactions list.'
-      : 'Delete this transaction? You can undo it from the transactions list right after.'
-    if (!confirm(message)) return
+    const ok = await confirm({
+      title: 'Delete this transaction?',
+      message: linkStatus
+        ? 'The linked user will be asked to approve deleting their copy. You can undo from the transactions list.'
+        : 'You can undo it from the transactions list right after.',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!ok) return
     setIsDeleting(true)
     setError(null)
     try {
@@ -86,7 +93,14 @@ export default function ClientPage({
   }
 
   const handleCancel = async () => {
-    if (!confirm('Cancel the pending request and revert this transaction to the last approved version?')) return
+    const ok = await confirm({
+      title: 'Cancel the pending request?',
+      message: 'This transaction will go back to its last approved version.',
+      confirmLabel: 'Cancel request',
+      cancelLabel: 'Keep request',
+      danger: true,
+    })
+    if (!ok) return
     setCancelling(true)
     setError(null)
     try {

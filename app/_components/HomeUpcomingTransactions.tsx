@@ -23,7 +23,7 @@ export function HomeUpcomingTransactions({ transactions }: { transactions: HomeU
       {transactions.length === 0 ? (
         <p className="py-3 text-sm text-ink-3">Nothing scheduled.</p>
       ) : (
-        <ul className="max-h-[232px] overflow-y-auto">
+        <ul className="-mx-2 max-h-[232px] overflow-y-auto px-2">
           {transactions.map(tx => (
             // Stretched link: the amount needs its own click-to-reveal, so it can't be
             // nested inside the row's <Link>.

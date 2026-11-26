@@ -4,18 +4,25 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useToast } from '@/app/_components/Toast'
 import { Button, buttonClasses } from '@/app/_components/Button'
+import { useConfirm } from '@/app/_components/Confirm'
 import { flush_redis } from './flush'
 import { validate_all_txns, type InvalidTxn } from './validate_all_txns'
 import { SectionHeading } from './SectionHeading'
 
 export function AdminSection() {
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const [flushing, setFlushing] = useState(false)
   const [validating, setValidating] = useState(false)
   const [invalid, setInvalid] = useState<InvalidTxn[] | null>(null)
 
   async function handleFlushRedis() {
-    if (!confirm('Flush the Redis cache? Cached prices and balances will be recomputed on next use.')) return
+    const ok = await confirm({
+      title: 'Flush the Redis cache?',
+      message: 'Cached prices and balances will be recomputed on next use.',
+      confirmLabel: 'Flush cache',
+    })
+    if (!ok) return
     setFlushing(true)
     try {
       const res = await flush_redis()

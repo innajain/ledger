@@ -3,15 +3,17 @@
 import { useState } from 'react'
 import { useToast } from '@/app/_components/Toast'
 import { Button } from '@/app/_components/Button'
+import { useConfirm } from '@/app/_components/Confirm'
 import { log_out } from '@/app/_actions/auth'
 import { SectionHeading } from './SectionHeading'
 
 export function SessionSection() {
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const [loggingOut, setLoggingOut] = useState(false)
 
   async function handleLogout() {
-    if (!confirm('Log out of this device?')) return
+    if (!(await confirm({ title: 'Log out of this device?', confirmLabel: 'Log out' }))) return
     setLoggingOut(true)
     try {
       await log_out()

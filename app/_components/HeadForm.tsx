@@ -6,6 +6,7 @@ import { ist_ymd, ist_midnight } from '@/app/_utils/ist_date'
 import { create_account, update_account, find_user_by_username } from '@/app/_actions/resources'
 import type { Prisma, accounting_head_type } from '@/generated/prisma/client'
 import type { ActionResult } from '@/app/_actions/_result'
+import { useConfirm } from './Confirm'
 import { PageHeader, FormCard, TextInput, ParentSelect, FormActions, ErrorAlert, ToggleSwitch } from '@/app/_components/FormComponents'
 
 type HeadFormConfig = {
@@ -212,6 +213,7 @@ export function CreateHeadForm({ parents, headType }: CreateHeadFormProps) {
 export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUsername: initialLinkedUsername }: UpdateHeadFormProps) {
   const uid = useId()
   const router = useRouter()
+  const confirm = useConfirm()
   const config = headFormConfig(headType)
   const [name, setName] = useState(head.name)
   const [parentId, setParentId] = useState<string | null>(head.parent_id ?? null)
@@ -255,7 +257,13 @@ export function UpdateHeadForm({ head, parents, headType, deleteHead, linkedUser
       setError('Delete operation is not available')
       return
     }
-    if (!confirm(`Delete this ${config.entityName.toLowerCase()}? This action cannot be undone.`)) return
+    const ok = await confirm({
+      title: `Delete this ${config.entityName.toLowerCase()}?`,
+      message: 'This action cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!ok) return
     setError(null)
     try {
       const result = await deleteHead(head.id)

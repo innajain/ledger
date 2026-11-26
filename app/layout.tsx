@@ -8,8 +8,10 @@ import { ThemeProvider } from './_components/ThemeProvider'
 import { THEME_COLOR } from './_utils/theme_color'
 import { PrivacyProvider } from './_components/PrivacyProvider'
 import { ToastProvider } from './_components/Toast'
+import { ConfirmProvider } from './_components/Confirm'
 import { WebVitalsReporter } from './_components/WebVitalsReporter'
 import { ServiceWorkerRegistrar } from './_components/ServiceWorkerRegistrar'
+import { ScrollbarAutoHide } from './_components/ScrollbarAutoHide'
 import { DevQueryToaster } from './_components/DevQueryToaster'
 import { PROFILING_ENABLED } from '@/lib/metrics/profile'
 import { DEV_QUERY_TOASTS_ENABLED } from '@/lib/dev/query-bus'
@@ -102,6 +104,7 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable} font-sans antialiased bg-paper text-ink`}>
         {PROFILING_ENABLED && <WebVitalsReporter />}
         <ServiceWorkerRegistrar />
+        <ScrollbarAutoHide />
         <ThemeProvider initial={prefs.theme} persist={persist}>
           <PrivacyProvider
             initial={{
@@ -112,40 +115,42 @@ export default async function RootLayout({
             persist={persist}
           >
             <ToastProvider>
-              {DEV_QUERY_TOASTS_ENABLED && <DevQueryToaster />}
-              <div className="min-h-screen flex flex-col">
-                <Navbar isLoggedIn={!!user} />
-                {}
-                <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">{children}</main>
+              <ConfirmProvider>
+                {DEV_QUERY_TOASTS_ENABLED && <DevQueryToaster />}
+                <div className="min-h-screen flex flex-col">
+                  <Navbar isLoggedIn={!!user} />
+                  {}
+                  <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">{children}</main>
 
-                {}
-                <footer data-site-footer className="bg-paper border-t border-rule mt-auto transition-colors">
-                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
-                      <p className="text-center sm:text-left text-sm text-ink-3">
-                        Built by
-                        <Link
-                          href="https://github.com/innajain"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-ink-2 hover:underline ml-1"
-                        >
-                          Shreyansh Jain
-                        </Link>
-                      </p>
-                      <nav className="flex items-center gap-4 text-sm text-ink-3">
-                        <Link href="/docs" className="hover:underline">
-                          AI connector
-                        </Link>
-                        <Link href="/privacy" className="hover:underline">
-                          Privacy
-                        </Link>
-                      </nav>
+                  {}
+                  <footer data-site-footer className="bg-paper border-t border-rule mt-auto transition-colors">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                        <p className="text-center sm:text-left text-sm text-ink-3">
+                          Built by
+                          <Link
+                            href="https://github.com/innajain"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-ink-2 hover:underline ml-1"
+                          >
+                            Shreyansh Jain
+                          </Link>
+                        </p>
+                        <nav className="flex items-center gap-4 text-sm text-ink-3">
+                          <Link href="/docs" className="hover:underline">
+                            AI connector
+                          </Link>
+                          <Link href="/privacy" className="hover:underline">
+                            Privacy
+                          </Link>
+                        </nav>
+                      </div>
                     </div>
-                  </div>
-                </footer>
-              </div>
-              <BackToTop />
+                  </footer>
+                </div>
+                <BackToTop />
+              </ConfirmProvider>
             </ToastProvider>
           </PrivacyProvider>
         </ThemeProvider>

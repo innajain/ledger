@@ -15,6 +15,7 @@ import { delete_transaction_template } from '../_actions/templates'
 import { create_transaction, type DeletedTransactionSnapshot } from '../_actions/transactions'
 import { dedupe_template_chips } from '../_components/HomeTemplateChips'
 import { useToast } from '../_components/Toast'
+import { useConfirm } from '../_components/Confirm'
 
 type Transaction = {
   id: string
@@ -202,6 +203,7 @@ export default function ClientPage({
   const router = useRouter()
   const params = useSearchParams()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const uid = useId()
   const [showFilters, setShowFilters] = useState(false)
   const [searchInput, setSearchInput] = useState(searchParams.search || '')
@@ -471,7 +473,7 @@ export default function ClientPage({
               e.stopPropagation()
               const id = deletingTemplate.id
               setDeletingTemplate(null)
-              if (confirm('Delete this template?')) {
+              if (await confirm({ title: 'Delete this template?', confirmLabel: 'Delete', danger: true })) {
                 await delete_transaction_template(id)
               }
             }}
