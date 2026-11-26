@@ -20,6 +20,7 @@ import {
   sign_up_core,
   change_password_core,
   change_username_core,
+  verify_user_password,
 } from '@/app/_core/auth_core'
 
 const token_name = 'ledger_token'
@@ -138,6 +139,31 @@ export async function log_out(): Promise<ActionResult> {
     return ok(undefined, 'Logged out')
   } catch (error) {
     return fromCatch(error, 'auth.logout')
+  }
+}
+
+/**
+ * Re-checks the signed-in user's password: the gate in front of unmasking amounts
+ * (PrivacyProvider). Rate limited per user, since a session left open on an unattended
+ * device is exactly what it guards against.
+ */
+export async function confirm_password(password: string): Promise<ActionResult> {
+  try {
+    const uid = await get_current_user_id()
+    if (!uid) return err('UNAUTHORIZED', 'You are signed out. Log in again.')
+    if (typeof password !== 'string' || password.length === 0) return err('VALIDATION', 'Enter your password')
+    const subject_ref = auditRef(uid)
+    if (!(await rate_limit(`reauth:user:${uid}`, 5, 5 * 60))) {
+      logger.warn({ event: 'auth.denied', action: 'auth.reauth', reason: 'rate_limited', subject_ref }, 'password re-check denied')
+      return err('UNAUTHORIZED', 'Too many attempts. Please wait a few minutes and try again.')
+    }
+    if (!(await verify_user_password(uid, password))) {
+      logger.warn({ event: 'auth.denied', action: 'auth.reauth', reason: 'invalid_credentials', subject_ref }, 'password re-check denied')
+      return err('UNAUTHORIZED', 'Wrong password')
+    }
+    return ok(undefined, 'Password confirmed')
+  } catch (error) {
+    return fromCatch(error, 'auth.reauth')
   }
 }
 

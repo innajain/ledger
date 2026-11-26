@@ -36,6 +36,13 @@ export async function authenticate(username: string, password: string): Promise<
   return { id: rec.id, username: rec.username }
 }
 
+/** True when `password` is the user's current password. */
+export async function verify_user_password(user_id: string, password: string): Promise<boolean> {
+  const rec = await prisma.user.findUnique({ where: { id: user_id }, select: { password_hash: true } })
+  if (!rec) return false
+  return bcrypt.compare(password, rec.password_hash)
+}
+
 export const UsernameSchema = z
   .string()
   .trim()

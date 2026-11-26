@@ -60,7 +60,7 @@ export function MaskedAmount({
   numeric = true,
 }: Props) {
   const className = numeric ? `num${callerClass ? ` ${callerClass}` : ''}` : callerClass
-  const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
+  const { masking_enabled, mask_threshold, reveal_all, reveal_epoch, request_unmask } = usePrivacy()
   const formatter = precise ? (plain ? precise_plain_currency_fmt : precise_currency_fmt) : plain ? plain_currency_fmt : currency_fmt
   const formatted = formatter.format(value)
 
@@ -87,9 +87,11 @@ export function MaskedAmount({
     )
   }
 
-  const toggle = (e: MouseEvent | KeyboardEvent) => {
+  const toggle = async (e: MouseEvent | KeyboardEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    // Hiding is free; revealing needs the password (once per unlock window).
+    if (hidden && !(await request_unmask())) return
     setOverride({ epoch: reveal_epoch, hidden: !hidden })
   }
 

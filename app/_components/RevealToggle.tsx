@@ -17,7 +17,7 @@ export function RevealToggle({ className }: { className?: string }) {
   return (
     <button
       type="button"
-      onClick={() => set_reveal_all(!reveal_all)}
+      onClick={() => void set_reveal_all(!reveal_all)}
       aria-label={label}
       aria-pressed={reveal_all}
       title={label}

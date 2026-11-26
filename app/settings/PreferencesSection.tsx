@@ -98,7 +98,7 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
               </div>
               <button
                 type="button"
-                onClick={() => set_masking_enabled(!masking_enabled)}
+                onClick={() => void set_masking_enabled(!masking_enabled)}
                 role="switch"
                 aria-checked={masking_enabled}
                 aria-label="Toggle amount masking"
@@ -130,7 +130,10 @@ export function PreferencesSection({ accounts, assets, defaults }: { accounts: A
                 onBlur={() => {
                   const parsed = Number(thresholdInput)
                   if (Number.isFinite(parsed) && parsed >= 0) {
-                    set_mask_threshold(parsed)
+                    // A raise the password prompt turned down snaps the field back.
+                    void set_mask_threshold(parsed).then(changed => {
+                      if (!changed) setThresholdInput(String(mask_threshold))
+                    })
                   } else {
                     setThresholdInput(String(mask_threshold))
                   }

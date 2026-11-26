@@ -41,7 +41,7 @@ export function ValueChartBrush({ points, title }: Props) {
   const { resolved_theme } = useTheme()
   const isDark = resolved_theme === 'dark'
   const pal = chart_palette(isDark)
-  const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
+  const { masking_enabled, mask_threshold, reveal_all, reveal_epoch, request_unmask } = usePrivacy()
 
   // Gain, the axis and the tooltip all describe the same holding, so they reveal as one
   // unit rather than each figure toggling independently — mirrors MaskedAmount's
@@ -51,9 +51,10 @@ export function ValueChartBrush({ points, title }: Props) {
     masking_enabled && !reveal_all && points.some(p => Math.abs(p.invested) > mask_threshold || Math.abs(p.current) > mask_threshold)
   const amountsHidden = reveal_override !== null && reveal_override.epoch === reveal_epoch ? reveal_override.hidden : default_hidden
   const fmtAmount = (v: number) => (amountsHidden ? '₹•••••' : currency_fmt.format(v))
-  const toggle_reveal = (e: MouseEvent | KeyboardEvent) => {
+  const toggle_reveal = async (e: MouseEvent | KeyboardEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    if (amountsHidden && !(await request_unmask())) return
     set_reveal_override({ epoch: reveal_epoch, hidden: !amountsHidden })
   }
 
