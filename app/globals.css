@@ -39,6 +39,8 @@
   --pos: #1d6b4a;
   --neg: #a33a2b;
   --warn: #8a5a12;
+  /* The select chevron, stroked in ink-3 — a background image can't take a CSS colour. */
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236f6757' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
 }
 
 .dark {
@@ -57,6 +59,7 @@
   --pos: #86c7a8;
   --neg: #e39484;
   --warn: #d9a55b;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23969696' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
 }
 
 @theme inline {
@@ -169,6 +172,21 @@
   ::selection {
     background-color: var(--accent-soft);
   }
+}
+
+/* Every dropdown draws its own chevron. The native arrow sits hard against the right
+   border whatever the padding says (and is a different glyph on iOS), so it never matched
+   the text's inset. Sized in em so a text-sm select gets a smaller one, and the chevron's
+   drawn edge sits as far in from the right as the text does from the left. Unlayered on
+   purpose: it has to beat the px-* utility every select carries; a select that needs other
+   room can still say so with an important utility (!pr-*). */
+select:not([multiple], [size]) {
+  appearance: none;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 0.55em center;
+  background-size: 1em;
+  padding-inline-end: 2.25em;
 }
 
 /* A section of a page. Paper has no boxes: a section is a strong rule above its

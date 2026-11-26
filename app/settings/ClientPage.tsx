@@ -85,7 +85,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
 
         <div className="space-y-6 min-w-0">
           {}
-          <div className="lg:hidden relative">
+          <div className="lg:hidden">
             <label htmlFor="settings-section" className="sr-only">
               Section
             </label>
@@ -93,7 +93,7 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
               id="settings-section"
               value={activeSection}
               onChange={e => goTo(e.target.value)}
-              className="appearance-none block w-full px-3 py-2 pr-10 bg-paper border border-rule-strong text-ink rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-colors"
+              className="block w-full px-3 py-2 bg-paper border border-rule-strong text-ink rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-colors"
             >
               {sectionLinks.map(s => (
                 <option key={s.id} value={s.id}>
@@ -101,15 +101,6 @@ export default function ClientPage({ user, isAdmin, upiId, accounts, assets, def
                 </option>
               ))}
             </select>
-            <svg
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
           </div>
 
           {activeSection === 'account' && <AccountSection username={user.username} upiId={upiId} />}
