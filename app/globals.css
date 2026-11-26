@@ -22,36 +22,36 @@
    (Newsreader) for headings and the one hero figure on a page.
    --------------------------------------------------------------------------- */
 :root {
-  --paper: #f6f2e9;
-  --raised: #fbf9f4;
-  --sunken: #ede7da;
-  --ink: #22201b;
-  --ink-2: #4d483f;
-  --ink-3: #6f6757;
-  --rule: #ded6c4;
-  --rule-strong: #c4b9a3;
+  --paper: #f7f7f7;
+  --raised: #ffffff;
+  --sunken: #ededed;
+  --ink: #1f1f1f;
+  --ink-2: #4a4a4a;
+  --ink-3: #6b6b6b;
+  --rule: #e0e0e0;
+  --rule-strong: #c4c4c4;
   --accent: #1d5b45;
   --accent-hover: #164a38;
-  --accent-soft: #e1eadc;
-  --on-accent: #fbf9f4;
+  --accent-soft: #e3ece7;
+  --on-accent: #ffffff;
   --pos: #1d6b4a;
   --neg: #a33a2b;
   --warn: #8a5a12;
 }
 
 .dark {
-  --paper: #191713;
-  --raised: #221f1a;
-  --sunken: #2a2620;
-  --ink: #ece6d8;
-  --ink-2: #c9c1b1;
-  --ink-3: #9a9182;
-  --rule: #34302a;
-  --rule-strong: #4a443a;
+  --paper: #171717;
+  --raised: #202020;
+  --sunken: #282828;
+  --ink: #ececec;
+  --ink-2: #c4c4c4;
+  --ink-3: #969696;
+  --rule: #2f2f2f;
+  --rule-strong: #474747;
   --accent: #86c7a8;
   --accent-hover: #9ed4ba;
   --accent-soft: #1f2d27;
-  --on-accent: #12100d;
+  --on-accent: #111111;
   --pos: #86c7a8;
   --neg: #e39484;
   --warn: #d9a55b;
@@ -80,21 +80,21 @@
 }
 
 /* Every Tailwind ramp the components still name directly is re-pointed at the same
-   warm palette, so a class nobody has moved to a token yet still lands on paper
-   rather than on cool slate and bright blue. New code uses the tokens above. */
+   palette, so a class nobody has moved to a token yet still lands on its greys rather
+   than on Tailwind's blue-tinted slate and bright blue. New code uses the tokens above. */
 @theme {
-  --color-white: #fbf9f4;
-  --color-slate-50: #f6f2e9;
-  --color-slate-100: #ede7da;
-  --color-slate-200: #ded6c4;
-  --color-slate-300: #c4b9a3;
-  --color-slate-400: #9a9182;
-  --color-slate-500: #6f6757;
-  --color-slate-600: #574f42;
-  --color-slate-700: #3a352d;
-  --color-slate-800: #221f1a;
-  --color-slate-900: #191713;
-  --color-slate-950: #12100d;
+  --color-white: #ffffff;
+  --color-slate-50: #f7f7f7;
+  --color-slate-100: #ededed;
+  --color-slate-200: #e0e0e0;
+  --color-slate-300: #c4c4c4;
+  --color-slate-400: #969696;
+  --color-slate-500: #6b6b6b;
+  --color-slate-600: #545454;
+  --color-slate-700: #383838;
+  --color-slate-800: #202020;
+  --color-slate-900: #171717;
+  --color-slate-950: #111111;
 
   --color-blue-50: #eaf1ec;
   --color-blue-100: #d5e5da;

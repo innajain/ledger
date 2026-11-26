@@ -15,27 +15,27 @@ export type ChartPalette = {
 }
 
 const LIGHT: ChartPalette = {
-  text: '#6f6757', // ink-3
-  grid: '#ded6c4', // rule
-  invested: '#6f6757', // ink-3: what went in is the quiet line
+  text: '#6b6b6b', // ink-3
+  grid: '#e0e0e0', // rule
+  invested: '#6b6b6b', // ink-3: what went in is the quiet line
   current: '#1d5b45', // accent: what it is worth now is the one to read
   xirr: '#8a5a12', // warn (ochre)
-  tooltip_bg: '#fbf9f4', // raised
-  tooltip_border: '#c4b9a3', // rule-strong
-  tooltip_text: '#22201b', // ink
-  tooltip_muted: '#6f6757', // ink-3
+  tooltip_bg: '#ffffff', // raised
+  tooltip_border: '#c4c4c4', // rule-strong
+  tooltip_text: '#1f1f1f', // ink
+  tooltip_muted: '#6b6b6b', // ink-3
 }
 
 const DARK: ChartPalette = {
-  text: '#9a9182',
-  grid: '#34302a',
-  invested: '#9a9182',
+  text: '#969696',
+  grid: '#2f2f2f',
+  invested: '#969696',
   current: '#86c7a8',
   xirr: '#d9a55b',
-  tooltip_bg: '#221f1a',
-  tooltip_border: '#4a443a',
-  tooltip_text: '#ece6d8',
-  tooltip_muted: '#9a9182',
+  tooltip_bg: '#202020',
+  tooltip_border: '#474747',
+  tooltip_text: '#ececec',
+  tooltip_muted: '#969696',
 }
 
 export function chart_palette(is_dark: boolean): ChartPalette {
