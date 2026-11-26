@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useId } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { currency_fmt } from '../_utils/currency_formatter'
-import { format_day } from '../_utils/format_date'
+import { format_day, format_day_with_weekday, format_datetime, format_time } from '../_utils/format_date'
 import { CloseIcon } from '../_components/icons'
 import { MaskedAmount } from '../_components/MaskedAmount'
 import { PageHeader } from '../_components/PageHeader'
@@ -28,23 +28,6 @@ type Transaction = {
   /** The user's own labels on this transaction (see /tags). */
   tags: { id: string; name: string }[]
 }
-
-// The whole ledger lives in IST (lib/config USER_TIMEZONE), so day headers and row times
-// pin that zone explicitly — identical output on server and client, no hydration dance.
-const IST = 'Asia/Kolkata'
-const day_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: IST, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-const time_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: IST, hour: 'numeric', minute: '2-digit', hour12: true })
-const full_datetime_fmt = new Intl.DateTimeFormat('en-IN', {
-  timeZone: IST,
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-  hour12: true,
-})
-
-const up_ampm = (s: string) => s.replace(/\b(am|pm)\b/g, m => m.toUpperCase())
 
 /** 1 … (current±1) … last, with ellipses only where pages are actually skipped. */
 function page_items(current: number, total: number): (number | 'gap')[] {
@@ -80,7 +63,7 @@ type Template = {
 
 // Memoized so keystrokes in the search input (parent state) don't re-render the whole list
 // before the debounced router.push fires. Everything it renders arrives as a prop or is
-// module-level (the Intl formatters); MaskedAmount subscribes to privacy context directly,
+// module-level (the formatters); MaskedAmount subscribes to privacy context directly,
 // so masking stays live through the memo.
 // A small square status tag — the paper version of a coloured pill.
 const TAG = 'shrink-0 text-[11px] font-medium uppercase tracking-wide px-1.5 py-px rounded-sm border'
@@ -146,9 +129,7 @@ const TransactionsCard = React.memo(function TransactionsCard({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-ink truncate">{tx.description || 'No description'}</p>
                       <p className="text-xs text-ink-3 flex items-center gap-2 min-w-0 mt-0.5">
-                        <span>
-                          {up_ampm(group.label === null ? full_datetime_fmt.format(new Date(tx.date)) : time_fmt.format(new Date(tx.date)))}
-                        </span>
+                        <span>{group.label === null ? format_datetime(tx.date) : format_time(tx.date)}</span>
                         {/* Plain text, not links: the whole row is already one stretched
                             <Link>, and a nested anchor there is invalid and unclickable. */}
                         {tx.tags.length > 0 && <span className="truncate">· {tx.tags.map(g => g.name).join(', ')}</span>}
@@ -402,7 +383,7 @@ export default function ClientPage({
     const groups: { label: string | null; txs: Transaction[] }[] = []
     if (dateSorted) {
       for (const tx of transactions) {
-        const label = day_fmt.format(new Date(tx.date))
+        const label = format_day_with_weekday(tx.date)
         const last = groups[groups.length - 1]
         if (last && last.label === label) last.txs.push(tx)
         else groups.push({ label, txs: [tx] })

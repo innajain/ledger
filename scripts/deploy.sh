@@ -5,15 +5,14 @@
 #   scripts/deploy.sh --rollback  point the VM back at the release before the live one
 #   scripts/deploy.sh --list      show the releases on the VM
 #
-# The build runs in a linux/arm64 Node container (the VM is arm64 too), so the server never
-# compiles anything and the native packages that ship per platform (sharp) are the Linux
-# ones. Next's standalone output is the release: server.js plus only the node_modules it
-# traces as needed, with .next/static and public/ copied beside it.
+# The build runs in a linux/arm64 container (the VM is arm64 too). Node runs pnpm, and
+# Bun builds and serves current revisions. The release contains Next's standalone output,
+# .next/static, public/, and the same Linux Bun binary used to build it.
 #
 # VM layout (one-time cutover recorded in the VM journal, 25 Nov 2026):
 #   ~/ledger/.env                 secrets, unchanged; each release links to it
 #   ~/ledger/releases/<sha>/      one per deploy; the newest three are kept
-#   ~/ledger/current, previous    symlinks; systemd runs `node server.js` in current
+#   ~/ledger/current, previous    symlinks; systemd selects the runtime in current
 #
 # Steps: refuse a commit that isn't on origin/main (ALLOW_UNPUSHED=1 overrides); refuse a
 # release that adds migrations unless MIGRATE=1, then apply them through an SSH tunnel
@@ -150,9 +149,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
-say "Building $SHORT in node:$NODE_VERSION (linux/arm64)"
 mkdir "$WORK/src"
 git archive "$SHA" | tar -x -C "$WORK/src"
+RUNTIME='~/.local/node/bin/node'
+BUN_VERSION=
+if [ -f "$WORK/src/.bun-version" ]; then
+  BUN_VERSION=$(cat "$WORK/src/.bun-version")
+  remote "systemctl show ledger --property=ExecStart --value | grep -Fq './bun --no-env-file'" ||
+    die "configure the ledger systemd service for Bun releases on $HOST (see README)"
+  docker run --rm --platform linux/arm64 --entrypoint cat "oven/bun:${BUN_VERSION}-slim" /usr/local/bin/bun >"$WORK/bun"
+  chmod +x "$WORK/bun"
+  RUNTIME='./bun --no-env-file'
+fi
+
+say "Building $SHORT in node:$NODE_VERSION${BUN_VERSION:+ with Bun $BUN_VERSION} (linux/arm64)"
 {
   printf '%s\n' "$PUBLIC_ENV"
   echo NEXT_OUTPUT_STANDALONE=1
@@ -164,18 +174,26 @@ git archive "$SHA" | tar -x -C "$WORK/src"
   echo CACHE_DRIVER=memory
   echo BLOB_STORAGE=fs
 } >"$WORK/build.env"
-docker run --rm --platform linux/arm64 \
-  -v "$WORK/src:/app" -v ledger-deploy-pnpm-store:/pnpm-store -w /app \
-  --env-file "$WORK/build.env" "node:${NODE_VERSION}-bookworm-slim" \
-  bash -euo pipefail -c 'corepack enable >/dev/null 2>&1; pnpm config set store-dir /pnpm-store >/dev/null; pnpm install --frozen-lockfile --reporter=append-only >/tmp/install.log 2>&1 || { tail -40 /tmp/install.log; exit 1; }; pnpm build'
+build_release() {
+  docker run --rm --platform linux/arm64 \
+    -v "$WORK/src:/app" -v ledger-deploy-pnpm-store:/pnpm-store -w /app \
+    "$@" --env-file "$WORK/build.env" "node:${NODE_VERSION}-bookworm-slim" \
+    bash -euo pipefail -c 'corepack enable >/dev/null 2>&1; pnpm config set store-dir /pnpm-store >/dev/null; pnpm install --frozen-lockfile --reporter=append-only >/tmp/install.log 2>&1 || { tail -40 /tmp/install.log; exit 1; }; pnpm build'
+}
+if [ -n "$BUN_VERSION" ]; then
+  build_release -v "$WORK/bun:/usr/local/bin/bun:ro"
+else
+  build_release
+fi
 
 OUT="$WORK/src/.next/standalone"
 [ -f "$OUT/server.js" ] || die "the build produced no standalone server"
+[ -z "$BUN_VERSION" ] || cp "$WORK/bun" "$OUT/bun"
 cp -R "$WORK/src/.next/static" "$OUT/.next/static"
 cp -R "$WORK/src/public" "$OUT/public"
 echo "$SHA" >"$OUT/REVISION"
-# The release's own env: tags MCP serverInfo and the logs with the commit. Next loads
-# .env.production after .env without overriding it, and .env is the shared secrets file.
+# The release's own env tags MCP serverInfo and logs with the commit. Next also
+# loads the shared secrets from .env.
 echo "VERCEL_GIT_COMMIT_SHA=$SHA" >"$OUT/.env.production"
 ln -sfn ../../.env "$OUT/.env"
 # macOS tar would otherwise add AppleDouble ._* files and xattrs the server's tar warns on.
@@ -198,7 +216,7 @@ if [ "$NEW_MIGRATIONS" -gt 0 ]; then
 fi
 
 say "Smoke test: the release on :3100, every main page as the owner"
-remote "cd ~/ledger/releases/$SHORT && (PORT=3100 HOSTNAME=127.0.0.1 NODE_ENV=production nohup ~/.local/node/bin/node server.js >~/logs/ledger-smoke.log 2>&1 & echo \$! >/tmp/ledger-smoke.pid) && LEDGER_BASE=http://127.0.0.1:3100 LEDGER_APP_DIR=\$PWD ~/bin/ledger-warmup.py --check; rc=\$?; kill \$(cat /tmp/ledger-smoke.pid) 2>/dev/null; rm -f /tmp/ledger-smoke.pid; exit \$rc" ||
+remote "cd ~/ledger/releases/$SHORT && (PORT=3100 HOSTNAME=127.0.0.1 NODE_ENV=production nohup $RUNTIME server.js >~/logs/ledger-smoke.log 2>&1 & echo \$! >/tmp/ledger-smoke.pid) && LEDGER_BASE=http://127.0.0.1:3100 LEDGER_APP_DIR=\$PWD ~/bin/ledger-warmup.py --check; rc=\$?; kill \$(cat /tmp/ledger-smoke.pid) 2>/dev/null; rm -f /tmp/ledger-smoke.pid; exit \$rc" ||
   die "smoke test failed — nothing switched; see ssh $HOST tail -50 ~/logs/ledger-smoke.log"
 
 say "Switching to $SHORT and restarting"
@@ -216,5 +234,5 @@ remote 'cd ~/ledger/releases && keep="$(basename "$(readlink ../current)") $(bas
 
 MIG_NOTE=""
 [ "$NEW_MIGRATIONS" -gt 0 ] && MIG_NOTE=" $NEW_MIGRATIONS migration(s) applied first (not undone by a rollback)."
-journal "- $(date -u +%H:%M) (Mac) Ledger deploy $SHORT via scripts/deploy.sh: $CHANGES. Built on the Mac (node:$NODE_VERSION linux/arm64, standalone), release ~/ledger/releases/$SHORT; smoke test on :3100 all 200; restart healthy.$MIG_NOTE Undo: scripts/deploy.sh --rollback (back to ${PREV#releases/})."
+journal "- $(date -u +%H:%M) (Mac) Ledger deploy $SHORT via scripts/deploy.sh: $CHANGES. Built on the Mac (node:$NODE_VERSION${BUN_VERSION:+ with Bun $BUN_VERSION}, linux/arm64, standalone), release ~/ledger/releases/$SHORT; smoke test on :3100 all 200; restart healthy.$MIG_NOTE Undo: scripts/deploy.sh --rollback (back to ${PREV#releases/})."
 say "Live: $SHORT"

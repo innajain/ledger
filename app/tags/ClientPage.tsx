@@ -12,6 +12,7 @@ import { ErrorAlert } from '@/app/_components/FormComponents'
 import { MaskedAmount } from '@/app/_components/MaskedAmount'
 import { useToast } from '@/app/_components/Toast'
 import { create_transaction_tag } from '@/app/_actions/tags'
+import { format_day } from '@/app/_utils/format_date'
 
 export type TagRow = {
   id: string
@@ -25,9 +26,6 @@ export type TagRow = {
   net: number
   last_datetime: string | null
 }
-
-const IST = 'Asia/Kolkata'
-const day_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: IST, day: 'numeric', month: 'short', year: 'numeric' })
 
 export default function ClientPage({ tags }: { tags: TagRow[] }) {
   const router = useRouter()
@@ -159,7 +157,7 @@ export default function ClientPage({ tags }: { tags: TagRow[] }) {
                   {g.count === 0 && g.future_count === 0
                     ? 'No transactions yet'
                     : `${g.count} transaction${g.count === 1 ? '' : 's'}${g.future_count > 0 ? ` · ${g.future_count} scheduled` : ''}`}
-                  {g.last_datetime && ` · last ${day_fmt.format(new Date(g.last_datetime))}`}
+                  {g.last_datetime && ` · last ${format_day(g.last_datetime)}`}
                 </p>
               </Link>
             </li>

@@ -417,6 +417,8 @@ Profiling tables (`server_metric`, `slow_query`, `web_vital`) live alongside the
 
 ## Local Stack & Prod Sync
 
+Install the versions of Node and Bun pinned in `.nvmrc` and `.bun-version`, then run `pnpm install --frozen-lockfile`. `pnpm dev`, `pnpm build`, and `pnpm start` run Next.js on Bun. Use `pnpm start` after `pnpm build` to serve the production build locally.
+
 `docker-compose.yml` spins up PostgreSQL 17, Redis, and the Vercel Blob emulator locally. An optional `sync-db` service copies a Neon snapshot — plus an optional prod Redis snapshot and an optional prod Vercel Blob snapshot — into the local stack.
 
 ```bash
@@ -427,6 +429,18 @@ docker compose run --rm sync-db   # pulls prod Postgres + Redis + Blob into loca
 The sync logic lives in [`scripts/sync/sync.mjs`](scripts/sync/sync.mjs), mounted read-only into a `node:22-bookworm-slim` container. It always rebuilds local Postgres via `pg_dump | pg_restore` (PGDG `postgresql-client-17` because Bookworm only ships 15 and Neon is on 17). The Redis and Blob phases are gated on `PROD_REDIS_URL` and `PROD_BLOB_READ_WRITE_TOKEN` — when unset, that phase is skipped with a one-line note.
 
 For Blob, the script drains prod into memory (path + bytes + content-type), then clears the local emulator and re-uploads. The `@vercel/blob` SDK reads `VERCEL_BLOB_API_URL` lazily on each call, so the script unsets it during the prod read and sets it to the emulator URL (`http://blob:3000/api/blob` inside the docker network) for the local writes. Prod URLs require an Authorization header (the store is private), and the script refuses to wipe local if prod listed blobs but none could be fetched.
+
+### Standalone VM releases
+
+`scripts/deploy.sh` bundles the pinned Linux ARM64 Bun binary with each standalone release and uses it for the release smoke test. Before the first Bun deploy, use `sudo systemctl edit ledger` on the VM to update `ExecStart` in the service drop-in. The service's working directory should still be `~/ledger/current`. The Node command handles rollback to releases built before Bun.
+
+```ini
+[Service]
+ExecStart=
+ExecStart=/bin/sh -c 'if [ -x ./bun ]; then exec ./bun --no-env-file ./server.js; fi; exec "$$HOME/.local/node/bin/node" ./server.js'
+```
+
+Run `sudo systemctl daemon-reload` before deploying the first Bun release.
 
 ### Migrating prod (Neon)
 

@@ -4,9 +4,8 @@ import bundleAnalyzer from '@next/bundle-analyzer'
 const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === 'true' })
 
 const nextConfig: NextConfig = {
-  // Deploy builds (scripts/deploy.sh) ship a self-contained server: the app plus only the
-  // node_modules it traces as needed, run with `node server.js`. Opt-in, so `pnpm build`
-  // / `pnpm start` locally and in CI stay exactly as they were.
+  // Deploy builds (scripts/deploy.sh) ship a self-contained server with only the
+  // node_modules it traces as needed. Local `pnpm build` pairs with `pnpm start`.
   output: process.env.NEXT_OUTPUT_STANDALONE === '1' ? 'standalone' : undefined,
 
   compress: true,
@@ -18,7 +17,7 @@ const nextConfig: NextConfig = {
   // log_in's password, amounts, account names — into the terminal.
   logging: { serverFunctions: false },
 
-  // Node-only server deps stay external instead of being bundled into the server output.
+  // Keep these server dependencies external to the server bundle.
   serverExternalPackages: ['ioredis', 'pino', 'yahoo-finance2', 'web-push'],
 
   images: {

@@ -1,5 +1,13 @@
-import { describe, expect, it } from 'vitest'
-import { format_datetime, format_time } from './format_date'
+import { describe, expect, it, vi } from 'vitest'
+import { format_day_with_weekday, format_datetime, format_time } from './format_date'
+
+describe('format_day_with_weekday', () => {
+  it('keeps the same date and punctuation at the IST midnight boundary', () => {
+    expect(format_day_with_weekday('2026-09-30T18:29:00Z')).toBe('Wed, 30 Sept, 2026')
+    expect(format_day_with_weekday('2026-09-30T18:30:00Z')).toBe('Thu, 1 Oct, 2026')
+    expect(format_day_with_weekday('2026-09-30', false)).toBe('Wed, 30 Sept')
+  })
+})
 
 describe('format_time', () => {
   it('renders the IST time of day in 12-hour form, upper-case', () => {
@@ -11,6 +19,15 @@ describe('format_time', () => {
   it('matches the time half of format_datetime', () => {
     const at = '2026-11-26T13:36:00Z'
     expect(format_datetime(at)).toBe(`26 Nov 2026, ${format_time(at)}`)
+  })
+
+  it('keeps IST time during a daylight-saving gap in other time zones', () => {
+    vi.stubEnv('TZ', 'America/New_York')
+    try {
+      expect(format_datetime('2026-03-07T21:00:00Z')).toBe('8 Mar 2026, 2:30 AM')
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('returns an empty string for an unparseable value', () => {

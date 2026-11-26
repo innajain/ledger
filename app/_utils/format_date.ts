@@ -10,27 +10,42 @@ function to_date(input: Date | string): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-// Pinned to USER_TIMEZONE (all app dates are IST) so the same string renders on the
-// server and the client — dates can be server-rendered instead of filled in after
-// hydration, which used to blank every date cell in the SSR HTML.
-const day_fmt = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: USER_TIMEZONE })
-const time_fmt = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: USER_TIMEZONE })
+const date_fmt = new Intl.DateTimeFormat('en-US', { timeZone: USER_TIMEZONE, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+const time_fmt = new Intl.DateTimeFormat('en-US', { timeZone: USER_TIMEZONE, hour: 'numeric', minute: '2-digit', hourCycle: 'h12' })
+
+// Assemble the parts ourselves so differences in runtime locale data do not change the SSR text.
+function parts(formatter: Intl.DateTimeFormat, date: Date) {
+  return Object.fromEntries(formatter.formatToParts(date).map(({ type, value }) => [type, value]))
+}
+
+function day_parts(date: Date) {
+  const { weekday, day, month, year } = parts(date_fmt, date)
+  return { weekday, day, month: month === 'Sep' ? 'Sept' : month, year }
+}
 
 export function format_day(input: Date | string): string {
   const d = to_date(input)
   if (!d) return ''
-  return day_fmt.format(d)
+  const { day, month, year } = day_parts(d)
+  return `${day} ${month} ${year}`
+}
+
+export function format_day_with_weekday(input: Date | string, include_year = true): string {
+  const d = to_date(input)
+  if (!d) return ''
+  const { weekday, day, month, year } = day_parts(d)
+  return `${weekday}, ${day} ${month}${include_year ? `, ${year}` : ''}`
 }
 
 /** Time of day alone ("9:00 PM"), for rows that already sit under their day. */
 export function format_time(input: Date | string): string {
   const d = to_date(input)
   if (!d) return ''
-  return time_fmt.format(d).toUpperCase()
+  const { hour, minute, dayPeriod } = parts(time_fmt, d)
+  return `${hour}:${minute} ${dayPeriod.toUpperCase()}`
 }
 
 export function format_datetime(input: Date | string): string {
   const d = to_date(input)
-  if (!d) return ''
-  return `${day_fmt.format(d)}, ${format_time(d)}`
+  return d ? `${format_day(d)}, ${format_time(d)}` : ''
 }

@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
-    "start": "next start",
+    "dev": "bun --no-env-file --bun next dev",
+    "build": "bun --no-env-file --bun prisma generate && bun --no-env-file --bun next build",
+    "start": "bun --no-env-file --bun next start",
     "lint": "eslint",
     "typecheck": "node node_modules/typescript-7/bin/tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "analyze": "ANALYZE=true next build --webpack",
+    "analyze": "ANALYZE=true bun --no-env-file --bun next build --webpack",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "simple-git-hooks"

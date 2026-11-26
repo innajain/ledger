@@ -13,6 +13,7 @@ import { TagEmptyIcon } from '@/app/_components/EmptyStateIcons'
 import { useToast } from '@/app/_components/Toast'
 import { useConfirm } from '@/app/_components/Confirm'
 import { currency_fmt } from '@/app/_utils/currency_formatter'
+import { format_datetime } from '@/app/_utils/format_date'
 import { update_transaction_tag, delete_transaction_tag, remove_transactions_from_tag } from '@/app/_actions/tags'
 
 type TagTransaction = {
@@ -31,18 +32,6 @@ type Tag = {
   summary: { count: number; future_count: number; inflow: number; outflow: number; net: number }
   transactions: TagTransaction[]
 }
-
-const IST = 'Asia/Kolkata'
-const datetime_fmt = new Intl.DateTimeFormat('en-IN', {
-  timeZone: IST,
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-  hour12: true,
-})
-const up_ampm = (s: string) => s.replace(/\b(am|pm)\b/g, m => m.toUpperCase())
 
 // Every figure here is a signed flow in the ledger's own convention — money out
 // negative, money in positive and green — so the tag summary reads the same way
@@ -246,7 +235,7 @@ export default function ClientPage({ tag }: { tag: Tag }) {
                   <Link href={`/transactions/${t.id}`} className="text-sm font-medium text-ink truncate hover:underline">
                     {t.description || 'No description'}
                   </Link>
-                  <p className="text-sm text-ink-3">{up_ampm(datetime_fmt.format(new Date(t.datetime)))}</p>
+                  <p className="text-sm text-ink-3">{format_datetime(t.datetime)}</p>
                 </div>
                 <div className="shrink-0 flex items-center gap-3">
                   {t.is_future && (

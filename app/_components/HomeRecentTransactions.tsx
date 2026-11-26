@@ -4,8 +4,7 @@ import { Fragment } from 'react'
 import Link from 'next/link'
 import { MaskedAmount } from './MaskedAmount'
 import { HomeSectionHead, HOME_ROW } from './HomeSection'
-import { USER_TIMEZONE } from '@/lib/config'
-import { format_time } from '@/app/_utils/format_date'
+import { format_day_with_weekday, format_time } from '@/app/_utils/format_date'
 
 export type HomeRecentTransaction = {
   id: string
@@ -16,14 +15,11 @@ export type HomeRecentTransaction = {
   tags: string[]
 }
 
-// Formatted in the ledger's own timezone so server and client render the same day.
-const day_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: USER_TIMEZONE, weekday: 'short', day: 'numeric', month: 'short' })
-
 /** The latest few transactions, grouped under each day with the day's net flow. */
 export function HomeRecentTransactions({ transactions }: { transactions: HomeRecentTransaction[] }) {
   const days: { label: string; txs: HomeRecentTransaction[] }[] = []
   for (const tx of transactions) {
-    const label = day_fmt.format(new Date(tx.date))
+    const label = format_day_with_weekday(tx.date, false)
     const last = days[days.length - 1]
     if (last && last.label === label) last.txs.push(tx)
     else days.push({ label, txs: [tx] })
