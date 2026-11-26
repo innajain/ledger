@@ -21,19 +21,21 @@
    Fonts: sans (Geist) for UI, mono (Geist Mono, tabular) for every amount, serif
    (Newsreader) for headings and the one hero figure on a page.
    --------------------------------------------------------------------------- */
+/* Light mode is warm paper; dark mode is neutral grey — warm tones on a dark page read
+   like a night-reading filter. */
 :root {
-  --paper: #f7f7f7;
-  --raised: #ffffff;
-  --sunken: #ededed;
-  --ink: #1f1f1f;
-  --ink-2: #4a4a4a;
-  --ink-3: #6b6b6b;
-  --rule: #e0e0e0;
-  --rule-strong: #c4c4c4;
+  --paper: #f6f2e9;
+  --raised: #fbf9f4;
+  --sunken: #ede7da;
+  --ink: #22201b;
+  --ink-2: #4d483f;
+  --ink-3: #6f6757;
+  --rule: #ded6c4;
+  --rule-strong: #c4b9a3;
   --accent: #1d5b45;
   --accent-hover: #164a38;
-  --accent-soft: #e3ece7;
-  --on-accent: #ffffff;
+  --accent-soft: #e1eadc;
+  --on-accent: #fbf9f4;
   --pos: #1d6b4a;
   --neg: #a33a2b;
   --warn: #8a5a12;
@@ -80,16 +82,16 @@
 }
 
 /* Every Tailwind ramp the components still name directly is re-pointed at the same
-   palette, so a class nobody has moved to a token yet still lands on its greys rather
+   palette, so a class nobody has moved to a token yet still lands on its colours rather
    than on Tailwind's blue-tinted slate and bright blue. New code uses the tokens above. */
 @theme {
-  --color-white: #ffffff;
-  --color-slate-50: #f7f7f7;
-  --color-slate-100: #ededed;
-  --color-slate-200: #e0e0e0;
-  --color-slate-300: #c4c4c4;
+  --color-white: #fbf9f4;
+  --color-slate-50: #f6f2e9;
+  --color-slate-100: #ede7da;
+  --color-slate-200: #ded6c4;
+  --color-slate-300: #c4b9a3;
   --color-slate-400: #969696;
-  --color-slate-500: #6b6b6b;
+  --color-slate-500: #6f6757;
   --color-slate-600: #545454;
   --color-slate-700: #383838;
   --color-slate-800: #202020;
