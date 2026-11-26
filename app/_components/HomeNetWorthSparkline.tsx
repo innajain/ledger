@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { MaskedAmount } from './MaskedAmount'
 import { usePrivacy } from './PrivacyProvider'
 import { USER_TIMEZONE } from '@/lib/config'
@@ -9,36 +10,42 @@ export type SparkPoint = { date: string; value: number }
 type Props = {
   points: SparkPoint[]
   days: number
+  /** What the line measures, named in the caption ("in investments"); omitted for net worth. */
+  subject?: string
 }
 
 // Axis labels at either end of the line, in the ledger's own timezone.
 const axis_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: USER_TIMEZONE, day: 'numeric', month: 'short' })
+const hover_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: USER_TIMEZONE, weekday: 'short', day: 'numeric', month: 'short' })
+
+/** How long a tapped reading stays up after the finger lifts (a mouse clears it on leave). */
+const TOUCH_READOUT_MS = 2000
 
 const WIDTH = 100
 const HEIGHT = 32
 const PAD = 3
 
-function build_path(points: SparkPoint[]): { line: string; area: string } {
+/** Each point in viewBox units: x across 0–WIDTH, y down 0–HEIGHT. */
+function chart_coords(points: SparkPoint[]): { x: number; y: number }[] {
   const values = points.map(p => p.value)
   const min = Math.min(...values)
   const max = Math.max(...values)
   const span = max - min
   const step = points.length > 1 ? WIDTH / (points.length - 1) : 0
 
-  const coords = points.map((p, i) => {
-    const x = i * step
+  return points.map((p, i) => {
     // A flat series sits on the mid-line instead of collapsing onto an edge.
     const ratio = span === 0 ? 0.5 : (p.value - min) / span
-    const y = HEIGHT - PAD - ratio * (HEIGHT - 2 * PAD)
-    return `${x.toFixed(2)},${y.toFixed(2)}`
+    return { x: i * step, y: HEIGHT - PAD - ratio * (HEIGHT - 2 * PAD) }
   })
-
-  const line = `M${coords.join(' L')}`
-  return { line, area: `${line} L${WIDTH},${HEIGHT} L0,${HEIGHT} Z` }
 }
 
-export function HomeNetWorthSparkline({ points, days }: Props) {
+export function HomeNetWorthSparkline({ points, days, subject }: Props) {
   const { graphs_visible, masking_enabled, mask_threshold, reveal_all } = usePrivacy()
+  // Index of the day under the pointer (or finger), shown as a dot and a readout.
+  const [hover, setHover] = useState<number | null>(null)
+  const touchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(touchTimer.current), [])
   if (points.length < 2) return null
 
   const first = points[0].value
@@ -51,23 +58,72 @@ export function HomeNetWorthSparkline({ points, days }: Props) {
   const total_masked = masking_enabled && !reveal_all && (Math.abs(first) > mask_threshold || Math.abs(last) > mask_threshold)
   const pct = !total_masked && first !== 0 ? (change / Math.abs(first)) * 100 : null
   const tone = change > 0 ? 'text-pos' : change < 0 ? 'text-neg' : 'text-ink-3'
-  const { line } = build_path(points)
+  const coords = chart_coords(points)
+  const line = `M${coords.map(c => `${c.x.toFixed(2)},${c.y.toFixed(2)}`).join(' L')}`
+
+  function track(e: PointerEvent<HTMLDivElement>) {
+    clearTimeout(touchTimer.current)
+    const rect = e.currentTarget.getBoundingClientRect()
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+    setHover(Math.round(ratio * (points.length - 1)))
+  }
+
+  const at = hover !== null ? coords[hover] : null
+  // Centred over the point, but pinned to an edge near either end so it never spills out.
+  const readout_pos: CSSProperties | undefined = at
+    ? at.x < 15
+      ? { left: 0 }
+      : at.x > 85
+        ? { right: 0 }
+        : { left: `${at.x}%`, transform: 'translateX(-50%)' }
+    : undefined
 
   return (
     <div>
       {graphs_visible && (
         <>
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" aria-hidden="true" className="h-20 w-full text-ink">
-            <path
-              d={line}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
+          {/* touch-pan-y: a vertical swipe still scrolls the page, a sideways one scrubs the line. */}
+          <div
+            className="relative h-20 touch-pan-y"
+            onPointerDown={track}
+            onPointerMove={track}
+            onPointerLeave={e => {
+              if (e.pointerType === 'mouse') setHover(null)
+            }}
+            onPointerUp={e => {
+              if (e.pointerType !== 'mouse') touchTimer.current = setTimeout(() => setHover(null), TOUCH_READOUT_MS)
+            }}
+            onPointerCancel={() => setHover(null)}
+          >
+            <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" aria-hidden="true" className={`h-full w-full ${tone}`}>
+              <path
+                d={line}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            {/* Drawn in HTML, not the SVG: the SVG stretches unevenly, which would squash a dot. */}
+            {at && hover !== null && (
+              <>
+                <div className="pointer-events-none absolute inset-y-0 w-px bg-rule-strong" style={{ left: `${at.x}%` }} />
+                <div
+                  className={`pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ${tone}`}
+                  style={{ left: `${at.x}%`, top: `${(at.y / HEIGHT) * 100}%` }}
+                />
+                <div
+                  className="pointer-events-none absolute bottom-full z-10 mb-1 whitespace-nowrap border border-rule bg-raised px-2 py-1 text-xs"
+                  style={readout_pos}
+                >
+                  <span className="text-ink-3">{hover_fmt.format(new Date(points[hover].date))}</span>{' '}
+                  <MaskedAmount value={points[hover].value} plain interactive={false} className="text-ink" />
+                </div>
+              </>
+            )}
+          </div>
           <div className="flex justify-between border-t border-rule-strong pt-1 text-xs text-ink-3 num" aria-hidden="true">
             <span>{axis_fmt.format(new Date(points[0].date))}</span>
             <span>{axis_fmt.format(new Date(points[points.length - 1].date))}</span>
@@ -87,7 +143,7 @@ export function HomeNetWorthSparkline({ points, days }: Props) {
             {pct.toFixed(1)}%)
           </span>
         )}{' '}
-        over the last {days} days
+        {subject && `in ${subject} `}over the last {days} days
       </p>
     </div>
   )

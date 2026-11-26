@@ -9,8 +9,8 @@ import { compute_head_value } from '@/app/_utils/head_value'
 import { normalize_line_items } from '@/app/_utils/normalize_txn'
 import { get_inbox } from '@/app/_utils/links'
 import { is_future_txn_due, NOT_FUTURE } from '@/app/_utils/future_txn'
-import { USER_TIMEZONE } from '@/lib/config'
 import { InvestXirrBadge, InvestXirrBadgeFallback } from '@/app/_components/InvestXirrBadge'
+import { compute_xirr_for_accounts } from '@/app/_core/valuation_core'
 import { HomeNetWorthTrend, HomeNetWorthTrendFallback } from '@/app/_components/HomeNetWorthTrend'
 import type { AssetBalance } from '@/app/_utils/home_networth_series'
 import type { HomeUpcomingTransaction } from '@/app/_components/HomeUpcomingTransactions'
@@ -20,14 +20,6 @@ import { profile } from '@/lib/metrics/profile'
 
 const UPCOMING_TRANSACTION_COUNT = 15
 const RECENT_TRANSACTION_COUNT = 10
-
-// "Wednesday, 25 November 2026" in IST — assembled from parts because en-IN puts a comma
-// before the year, and the server's own locale data shouldn't decide the punctuation.
-const date_parts_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: USER_TIMEZONE, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-function today_label(now: Date): string {
-  const part = (type: Intl.DateTimeFormatPartTypes) => date_parts_fmt.formatToParts(now).find(p => p.type === type)?.value ?? ''
-  return `${part('weekday')}, ${part('day')} ${part('month')} ${part('year')}`
-}
 
 // Only the fields the summary/recent rollups and normalize_line_items read — the full
 // accounting_head/asset relation rows multiply the payload of the first-paint page.
@@ -56,15 +48,14 @@ function book_total(line_items: { accounting_head: { type: string }; txn_value: 
 }
 
 async function Home() {
-  // One `now` for the whole render, so the date line, the due flags and the recent list
-  // can't disagree about what "today" is. Decided on the server: the client re-rendering
+  // One `now` for the whole render, so the due flags and the recent list can't
+  // disagree about what "today" is. Decided on the server: the client re-rendering
   // against its own clock/timezone would hydrate differently.
   const now = new Date()
-  const date_label = today_label(now)
 
   const user = await get_current_user()
   if (!user) {
-    return <ClientPage dateLabel={date_label} networth={null} />
+    return <ClientPage networth={null} />
   }
 
   // The asset table is a shared catalog — only price what this user actually holds.
@@ -157,30 +148,42 @@ async function Home() {
   const networth = allocation_values.reduce((sum, v) => sum.add(v?.total ?? new Prisma.Decimal(0)), new Prisma.Decimal(0)).toNumber()
 
   const investSubtreeIds = invest ? Array.from(get_subtree_accounting_head_ids(invest)) : []
-  const investXirrSlot =
-    invest && invest_with_value && invest_with_value.total !== 0 ? (
-      <Suspense fallback={<InvestXirrBadgeFallback />}>
-        <InvestXirrBadge userId={user.id} subtreeAccountIds={investSubtreeIds} currentValue={invest_with_value.total} />
-      </Suspense>
-    ) : null
+  // Investments lead the page when there are any; net worth sits under them. Without an
+  // Investments head (or with nothing in it) the page leads with net worth as before.
+  const investments = invest_with_value && invest_with_value.total !== 0 ? invest_with_value.total : null
+  // One computation, shown twice: beside the Investments hero and on the table's Investments row.
+  const xirr = investments !== null ? compute_xirr_for_accounts(user.id, investSubtreeIds, investments) : null
+  const investXirrSlot = xirr ? (
+    <Suspense fallback={<InvestXirrBadgeFallback />}>
+      <InvestXirrBadge xirr={xirr} />
+    </Suspense>
+  ) : null
 
-  // Net worth is the total across allocation heads, so its per-asset balance is too.
-  const current_by_asset = new Map<string, AssetBalance>()
-  for (const acc of allocations) {
-    for (const [asset_id, balance] of balances.get(acc.id) ?? new Map<string, AssetBalance>()) {
-      const running = current_by_asset.get(asset_id) ?? { qty: 0, txn_value: 0 }
-      current_by_asset.set(asset_id, { qty: running.qty + balance.qty, txn_value: running.txn_value + balance.txn_value })
+  // Per-asset balance summed over some allocation heads: all of them for net worth, the
+  // Investments subtree for investments — the basis the 90-day line walks back from.
+  function balance_by_asset(head_ids: Iterable<string>) {
+    const by_asset = new Map<string, AssetBalance>()
+    for (const id of head_ids) {
+      for (const [asset_id, balance] of balances.get(id) ?? new Map<string, AssetBalance>()) {
+        const running = by_asset.get(asset_id) ?? { qty: 0, txn_value: 0 }
+        by_asset.set(asset_id, { qty: running.qty + balance.qty, txn_value: running.txn_value + balance.txn_value })
+      }
     }
+    return by_asset
   }
 
-  const networthTrendSlot =
-    current_by_asset.size > 0 ? (
+  // The line traces whichever figure leads the page.
+  const trend_current = investments !== null ? balance_by_asset(investSubtreeIds) : balance_by_asset(allocations.map(a => a.id))
+  const trendSlot =
+    trend_current.size > 0 ? (
       <Suspense fallback={<HomeNetWorthTrendFallback />}>
         <HomeNetWorthTrend
           userId={user.id}
-          current={current_by_asset}
+          current={trend_current}
+          headIds={investments !== null ? investSubtreeIds : undefined}
           assets={assets.map(a => ({ id: a.id, type: a.type, ticker: a.ticker }))}
-          networth={networth}
+          latest={investments ?? networth}
+          subject={investments !== null ? 'investments' : undefined}
         />
       </Suspense>
     ) : null
@@ -215,10 +218,11 @@ async function Home() {
 
   return (
     <ClientPage
-      dateLabel={date_label}
       loggedIn
       networth={networth}
-      networthTrendSlot={networthTrendSlot}
+      investments={investments}
+      investXirrSlot={investXirrSlot}
+      trendSlot={trendSlot}
       allocations={top_allocations}
       allocationExtra={invest && investXirrSlot ? { [invest.id]: investXirrSlot } : undefined}
       recent={recent}

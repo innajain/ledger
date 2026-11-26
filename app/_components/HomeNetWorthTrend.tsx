@@ -12,15 +12,22 @@ export const HOME_TREND_DAYS = 90
 
 type Props = {
   userId: string
-  /** Today's per-asset balance across all allocation heads — the basis of net worth. */
+  /**
+   * Today's per-asset balance across the heads being traced: every allocation head for net
+   * worth, or just `headIds` for a slice of it.
+   */
   current: ReadonlyMap<string, AssetBalance>
+  /** Trace only these allocation heads (the Investments subtree); omitted, the whole of net worth. */
+  headIds?: string[]
   assets: { id: string; type: asset_type; ticker: string | null }[]
-  /** The net worth the page already computed; the series is pinned to it so the two agree. */
-  networth: number
+  /** The figure the page already computed for the same heads; the series is pinned to it so the two agree. */
+  latest: number
+  /** What the line measures, for the caption ("investments"); omitted for net worth. */
+  subject?: string
   days?: number
 }
 
-export async function HomeNetWorthTrend({ userId, current, assets, networth, days = HOME_TREND_DAYS }: Props) {
+export async function HomeNetWorthTrend({ userId, current, headIds, assets, latest, subject, days = HOME_TREND_DAYS }: Props) {
   const window = ist_day_window(new Date(), days)
   const since = window[0].start
 
@@ -33,6 +40,7 @@ export async function HomeNetWorthTrend({ userId, current, assets, networth, day
     datetime: true,
     line_items: {
       select: {
+        accounting_head_id: true,
         asset_id: true,
         datetime: true,
         quantity: true,
@@ -55,7 +63,10 @@ export async function HomeNetWorthTrend({ userId, current, assets, networth, day
   const seen = new Set<string>()
   const raw = [...in_window, ...overridden_into_window].filter(t => (seen.has(t.id) ? false : (seen.add(t.id), true)))
 
-  const events = collect_networth_events(raw.map(t => ({ datetime: t.datetime, line_items: normalize_line_items(t.line_items) })))
+  const events = collect_networth_events(
+    raw.map(t => ({ datetime: t.datetime, line_items: normalize_line_items(t.line_items) })),
+    headIds ? new Set(headIds) : undefined,
+  )
 
   const relevant = new Set<string>([...current.keys(), ...events.map(e => e.asset_id)])
   const lookups = await get_price_lookups_for_assets(
@@ -65,9 +76,9 @@ export async function HomeNetWorthTrend({ userId, current, assets, networth, day
   const price_at: PriceAt = (asset_id, at) => lookups.get(asset_id)?.(at) ?? null
 
   const points = build_networth_sparkline(window, current, events, price_at)
-  if (points.length > 0) points[points.length - 1] = { ...points[points.length - 1], value: networth }
+  if (points.length > 0) points[points.length - 1] = { ...points[points.length - 1], value: latest }
 
-  return <HomeNetWorthSparkline points={points} days={days} />
+  return <HomeNetWorthSparkline points={points} days={days} subject={subject} />
 }
 
 export function HomeNetWorthTrendFallback({ days = HOME_TREND_DAYS }: { days?: number }) {

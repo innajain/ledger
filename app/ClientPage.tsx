@@ -7,22 +7,27 @@ import { HomeRecentTransactions, type HomeRecentTransaction } from './_component
 import { HomeUpcomingTransactions, type HomeUpcomingTransaction } from './_components/HomeUpcomingTransactions'
 import { HomeRequests, type HomeRequest } from './_components/HomeRequests'
 
+const LABEL = 'text-[11px] font-medium uppercase tracking-[0.09em] text-ink-3'
+
 export default function ClientPage({
-  dateLabel,
   loggedIn = false,
   networth,
-  networthTrendSlot,
+  investments = null,
+  investXirrSlot,
+  trendSlot,
   allocations = [],
   allocationExtra,
   recent = [],
   upcoming = [],
   requests = [],
 }: {
-  /** Today in IST, e.g. "Wednesday, 25 November 2026" — formatted on the server. */
-  dateLabel: string
   loggedIn?: boolean
   networth: number | null
-  networthTrendSlot?: React.ReactNode
+  /** The Investments subtree's value; when set it leads the page and net worth sits under it. */
+  investments?: number | null
+  investXirrSlot?: React.ReactNode
+  /** The 90-day line of whichever figure leads. */
+  trendSlot?: React.ReactNode
   allocations?: HomeAllocation[]
   /** A note hung off an allocation row, keyed by head id (the Investments XIRR). */
   allocationExtra?: Record<string, React.ReactNode>
@@ -38,17 +43,36 @@ export default function ClientPage({
 
       <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-end pb-8 border-b border-rule">
         <div className="min-w-0">
-          <p className="font-serif text-[15px] text-ink-3 mb-5">{dateLabel}</p>
-          {networth !== null && (
+          {investments !== null ? (
             <>
-              <p className="text-[11px] font-medium uppercase tracking-[0.09em] text-ink-3 mb-2">Net worth</p>
+              <div className="flex items-baseline mb-2">
+                <p className={LABEL}>Investments</p>
+                {investXirrSlot}
+              </div>
               <p className="font-serif text-5xl sm:text-6xl leading-none tracking-tight text-ink">
-                <MaskedAmount value={networth} precise numeric={false} />
+                <MaskedAmount value={investments} plain numeric={false} />
               </p>
+              {networth !== null && (
+                <>
+                  <p className={`${LABEL} mt-6 mb-1.5`}>Net worth</p>
+                  <p className="font-serif text-2xl sm:text-3xl leading-none tracking-tight text-ink-2">
+                    <MaskedAmount value={networth} plain numeric={false} />
+                  </p>
+                </>
+              )}
             </>
+          ) : (
+            networth !== null && (
+              <>
+                <p className={`${LABEL} mb-2`}>Net worth</p>
+                <p className="font-serif text-5xl sm:text-6xl leading-none tracking-tight text-ink">
+                  <MaskedAmount value={networth} plain numeric={false} />
+                </p>
+              </>
+            )
           )}
         </div>
-        {networthTrendSlot}
+        {trendSlot}
       </section>
 
       {loggedIn && (

@@ -43,6 +43,7 @@ export function ist_day_window(now: Date, days: number): SparkDay[] {
 }
 
 type LineLike = {
+  accounting_head_id?: string
   accounting_head: { type: string }
   asset_id: string
   datetime: Date | null
@@ -56,12 +57,16 @@ type TxnLike = { datetime: Date; line_items: LineLike[] }
  * Net-worth movements from already-normalized transactions. Allocation heads are the basis
  * because net worth is the total across them (per-asset they mirror the account lines), and
  * per-line datetime overrides win over the transaction's own datetime.
+ *
+ * `only_heads` narrows it to some allocation heads (the Investments subtree) for a trend of
+ * just that slice; `current` passed to build_networth_sparkline must be narrowed to match.
  */
-export function collect_networth_events(transactions: TxnLike[]): SparkEvent[] {
+export function collect_networth_events(transactions: TxnLike[], only_heads?: ReadonlySet<string>): SparkEvent[] {
   const events: SparkEvent[] = []
   for (const txn of transactions) {
     for (const li of txn.line_items) {
       if (li.accounting_head.type !== 'allocation') continue
+      if (only_heads && (li.accounting_head_id === undefined || !only_heads.has(li.accounting_head_id))) continue
       events.push({
         asset_id: li.asset_id,
         at: li.datetime ?? txn.datetime,

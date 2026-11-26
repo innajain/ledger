@@ -1,12 +1,18 @@
 'use client'
 
 import { useState, type KeyboardEvent, type MouseEvent } from 'react'
-import { currency_fmt, precise_currency_fmt } from '../_utils/currency_formatter'
+import { currency_fmt, plain_currency_fmt, precise_currency_fmt, precise_plain_currency_fmt } from '../_utils/currency_formatter'
 import { usePrivacy } from './PrivacyProvider'
 
 type Props = {
   value: number
   precise?: boolean
+  /**
+   * A balance rather than a flow: no "+" on a positive value (a "-" still shows). Use it
+   * for a standalone figure like the net-worth hero, where the sign says nothing and, in
+   * the serif face, the "+" sets the figure visibly in from its label.
+   */
+  plain?: boolean
   className?: string
   /**
    * Render as a click-to-reveal control (the default). Pass false inside links and other
@@ -44,10 +50,18 @@ function build_mask(value: number, formatter: Intl.NumberFormat, keep_sign: bool
   return `${prefix}${BULLETS}`.trimStart()
 }
 
-export function MaskedAmount({ value, precise = false, className: callerClass, interactive = true, keep_sign = false, numeric = true }: Props) {
+export function MaskedAmount({
+  value,
+  precise = false,
+  plain = false,
+  className: callerClass,
+  interactive = true,
+  keep_sign = false,
+  numeric = true,
+}: Props) {
   const className = numeric ? `num${callerClass ? ` ${callerClass}` : ''}` : callerClass
   const { masking_enabled, mask_threshold, reveal_all, reveal_epoch } = usePrivacy()
-  const formatter = precise ? precise_currency_fmt : currency_fmt
+  const formatter = precise ? (plain ? precise_plain_currency_fmt : precise_currency_fmt) : plain ? plain_currency_fmt : currency_fmt
   const formatted = formatter.format(value)
 
   // Per-instance click-to-toggle, tagged with the reveal epoch it was made in. Flipping

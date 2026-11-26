@@ -53,6 +53,21 @@ describe('collect_networth_events', () => {
     ])
     expect(events.map(e => e.at.getTime())).toEqual([ist_at('02-08-2026', 9).getTime(), ist_at('05-08-2026', 9).getTime()])
   })
+
+  it('narrows to the given allocation heads', () => {
+    const on = (accounting_head_id: string, qty: number) => ({ ...line('allocation', 'mf', qty, qty * 10), accounting_head_id })
+    const events = collect_networth_events(
+      [
+        {
+          datetime: ist_at('10-08-2026', 9),
+          line_items: [on('invest', 5), on('invest-child', 2), on('savings', 7), line('allocation', 'mf', 9, 90)],
+        },
+      ],
+      new Set(['invest', 'invest-child']),
+    )
+    // The line with no head id can't be shown to belong to the subtree, so it is left out.
+    expect(events.map(e => e.qty)).toEqual([5, 2])
+  })
 })
 
 describe('build_networth_sparkline', () => {

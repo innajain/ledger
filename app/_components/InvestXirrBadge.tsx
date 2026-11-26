@@ -1,14 +1,12 @@
 import 'server-only'
-import { compute_xirr_for_accounts } from '@/app/_core/valuation_core'
 
-type Props = {
-  userId: string
-  subtreeAccountIds: string[]
-  currentValue: number
-}
-
-export async function InvestXirrBadge({ userId, subtreeAccountIds, currentValue }: Props) {
-  const xirr = await compute_xirr_for_accounts(userId, subtreeAccountIds, currentValue)
+/**
+ * Takes the XIRR as a promise the page starts once (compute_xirr_for_accounts), so the
+ * badge can appear in more than one place — beside the hero and on the allocations row —
+ * without computing it more than once.
+ */
+export async function InvestXirrBadge({ xirr: pending }: { xirr: Promise<number | null> }) {
+  const xirr = await pending
   if (xirr === null || xirr === undefined) return null
 
   return (

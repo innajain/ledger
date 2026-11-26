@@ -22,8 +22,15 @@ export function format_day(input: Date | string): string {
   return day_fmt.format(d)
 }
 
+/** Time of day alone ("9:00 PM"), for rows that already sit under their day. */
+export function format_time(input: Date | string): string {
+  const d = to_date(input)
+  if (!d) return ''
+  return time_fmt.format(d).toUpperCase()
+}
+
 export function format_datetime(input: Date | string): string {
   const d = to_date(input)
   if (!d) return ''
-  return `${day_fmt.format(d)}, ${time_fmt.format(d).toUpperCase()}`
+  return `${day_fmt.format(d)}, ${format_time(d)}`
 }
