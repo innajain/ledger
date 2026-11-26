@@ -1,11 +1,18 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { MaskedAmount } from './MaskedAmount'
 import { usePrivacy } from './PrivacyProvider'
 import { USER_TIMEZONE } from '@/lib/config'
 
 export type SparkPoint = { date: string; value: number }
+
+/**
+ * Whether the figure this line belongs to (the home hero) is masked. The hover readout and
+ * the % change follow it: reveal the hero and they show, hide it and they hide. Null
+ * outside a provider, where the line falls back to the threshold rule.
+ */
+export const TrendMaskContext = createContext<boolean | null>(null)
 
 type Props = {
   points: SparkPoint[]
@@ -42,6 +49,7 @@ function chart_coords(points: SparkPoint[]): { x: number; y: number }[] {
 
 export function HomeNetWorthSparkline({ points, days, subject }: Props) {
   const { graphs_visible, masking_enabled, mask_threshold, reveal_all } = usePrivacy()
+  const lead_hidden = useContext(TrendMaskContext)
   // Index of the day under the pointer (or finger), shown as a dot and a readout.
   const [hover, setHover] = useState<number | null>(null)
   const touchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -55,7 +63,8 @@ export function HomeNetWorthSparkline({ points, days, subject }: Props) {
   // the clear — that's fine on its own, but pairing it with a percentage lets anyone solve
   // `base = change / pct` and recover the masked total above. Hide the percentage whenever
   // either endpoint is itself something the mask would hide, even though the delta isn't.
-  const total_masked = masking_enabled && !reveal_all && (Math.abs(first) > mask_threshold || Math.abs(last) > mask_threshold)
+  // With the hero revealed, the total is on screen already and the percentage gives nothing away.
+  const total_masked = lead_hidden ?? (masking_enabled && !reveal_all && (Math.abs(first) > mask_threshold || Math.abs(last) > mask_threshold))
   const pct = !total_masked && first !== 0 ? (change / Math.abs(first)) * 100 : null
   const tone = change > 0 ? 'text-pos' : change < 0 ? 'text-neg' : 'text-ink-3'
   const coords = chart_coords(points)
@@ -119,7 +128,7 @@ export function HomeNetWorthSparkline({ points, days, subject }: Props) {
                   style={readout_pos}
                 >
                   <span className="text-ink-3">{hover_fmt.format(new Date(points[hover].date))}</span>{' '}
-                  <MaskedAmount value={points[hover].value} plain interactive={false} className="text-ink" />
+                  <MaskedAmount value={points[hover].value} plain interactive={false} hidden={lead_hidden ?? undefined} className="text-ink" />
                 </div>
               </>
             )}

@@ -1,7 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { MaskedAmount } from './_components/MaskedAmount'
+import { useAmountMask, usePrivacy } from './_components/PrivacyProvider'
+import { TrendMaskContext } from './_components/HomeNetWorthSparkline'
 import { HomeAllocations, type HomeAllocation } from './_components/HomeAllocations'
 import { HomeRecentTransactions, type HomeRecentTransaction } from './_components/HomeRecentTransactions'
 import { HomeUpcomingTransactions, type HomeUpcomingTransaction } from './_components/HomeUpcomingTransactions'
@@ -35,6 +37,15 @@ export default function ClientPage({
   upcoming?: HomeUpcomingTransaction[]
   requests?: HomeRequest[]
 }) {
+  // The hero (investments, or net worth when it leads) carries one reveal that its trend
+  // line shares: the hover readout and the % change show exactly when the hero does.
+  const { reveal_epoch } = usePrivacy()
+  const { hide } = useAmountMask()
+  const lead = investments ?? networth
+  const [leadOverride, setLeadOverride] = useState<{ epoch: number; hidden: boolean } | null>(null)
+  const leadHidden = leadOverride !== null && leadOverride.epoch === reveal_epoch ? leadOverride.hidden : lead !== null && hide(lead)
+  const leadMask = { hidden: leadHidden, on_toggle_hidden: (hidden: boolean) => setLeadOverride({ epoch: reveal_epoch, hidden }) }
+
   return (
     <div className="space-y-10">
       {/* Every other route gets its h1 from PageHeader; this one has no visible title, so the
@@ -50,7 +61,7 @@ export default function ClientPage({
                 {investXirrSlot}
               </div>
               <p className="font-serif text-5xl sm:text-6xl leading-none tracking-tight text-ink">
-                <MaskedAmount value={investments} plain numeric={false} />
+                <MaskedAmount value={investments} plain numeric={false} {...leadMask} />
               </p>
               {networth !== null && (
                 <>
@@ -66,13 +77,13 @@ export default function ClientPage({
               <>
                 <p className={`${LABEL} mb-2`}>Net worth</p>
                 <p className="font-serif text-5xl sm:text-6xl leading-none tracking-tight text-ink">
-                  <MaskedAmount value={networth} plain numeric={false} />
+                  <MaskedAmount value={networth} plain numeric={false} {...leadMask} />
                 </p>
               </>
             )
           )}
         </div>
-        {trendSlot}
+        <TrendMaskContext.Provider value={leadHidden}>{trendSlot}</TrendMaskContext.Provider>
       </section>
 
       {loggedIn && (

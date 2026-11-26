@@ -31,6 +31,13 @@ type Props = {
    * only for a figure that carries its own face, like a page's serif hero number.
    */
   numeric?: boolean
+  /**
+   * Controlled masking: the caller decides whether this is hidden, and a click asks the
+   * caller to flip it (still behind the password). Lets figures share one reveal — the
+   * home hero and the readout on its trend line. Ignored while masking is off.
+   */
+  hidden?: boolean
+  on_toggle_hidden?: (next_hidden: boolean) => void
 }
 
 const BULLETS = '•••••'
@@ -58,6 +65,8 @@ export function MaskedAmount({
   interactive = true,
   keep_sign = false,
   numeric = true,
+  hidden: controlled_hidden,
+  on_toggle_hidden,
 }: Props) {
   const className = numeric ? `num${callerClass ? ` ${callerClass}` : ''}` : callerClass
   const { masking_enabled, mask_threshold, reveal_all, reveal_epoch, request_unmask } = usePrivacy()
@@ -72,7 +81,7 @@ export function MaskedAmount({
   if (!masking_enabled) return <span className={className}>{formatted}</span>
 
   const current_override = interactive && override !== null && override.epoch === reveal_epoch ? override.hidden : null
-  const hidden = current_override ?? (!reveal_all && Math.abs(value) > mask_threshold)
+  const hidden = controlled_hidden ?? current_override ?? (!reveal_all && Math.abs(value) > mask_threshold)
   const text = hidden ? build_mask(value, formatter, keep_sign) : formatted
 
   if (!interactive) {
@@ -92,7 +101,8 @@ export function MaskedAmount({
     e.stopPropagation()
     // Hiding is free; revealing needs the password (once per unlock window).
     if (hidden && !(await request_unmask())) return
-    setOverride({ epoch: reveal_epoch, hidden: !hidden })
+    if (on_toggle_hidden) on_toggle_hidden(!hidden)
+    else setOverride({ epoch: reveal_epoch, hidden: !hidden })
   }
 
   return (
