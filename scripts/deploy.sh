@@ -34,7 +34,37 @@ die() {
   printf '\033[31merror:\033[0m %s\n' "$*" >&2
   exit 1
 }
-remote() { ssh -o BatchMode=yes "$HOST" "$@"; }
+# One SSH connection per run, shared by every step. The path to the VM sometimes stalls a
+# handshake for minutes before resetting it (sshd logs no throttling; HTTPS to the same
+# address is unaffected), so a run makes as few handshakes as it can: connect() opens a
+# master, gives each attempt 30 s, tries three times, and everything else rides on it.
+SOCK="/tmp/ledger-deploy-$$.sock"
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ControlPath="$SOCK")
+MASTER_PID=
+connect() {
+  ssh "${SSH_OPTS[@]}" -O check "$HOST" 2>/dev/null && return 0
+  local attempt i
+  for attempt in 1 2 3; do
+    [ -n "$MASTER_PID" ] && kill "$MASTER_PID" 2>/dev/null
+    rm -f "$SOCK"
+    ssh "${SSH_OPTS[@]}" -o ControlMaster=yes -N "$HOST" &
+    MASTER_PID=$!
+    for i in $(seq 1 30); do
+      ssh "${SSH_OPTS[@]}" -O check "$HOST" 2>/dev/null && return 0
+      kill -0 "$MASTER_PID" 2>/dev/null || break
+      sleep 1
+    done
+    say "SSH to $HOST did not come up (attempt $attempt of 3)"
+  done
+  die "could not connect to $HOST"
+}
+disconnect() {
+  ssh "${SSH_OPTS[@]}" -O exit "$HOST" 2>/dev/null || true
+  [ -n "$MASTER_PID" ] && kill "$MASTER_PID" 2>/dev/null || true
+  rm -f "$SOCK"
+}
+trap disconnect EXIT
+remote() { ssh "${SSH_OPTS[@]}" -o ControlMaster=no "$HOST" "$@"; }
 
 # Appends one line to the VM journal under today's heading (UTC), adding the heading if
 # today has none yet. The text travels base64-encoded so no quoting can mangle it.
@@ -44,11 +74,23 @@ journal() {
   remote "today=\$(date -u +%F); [ \"\$(grep '^## ' ~/JOURNAL.md | tail -1)\" = \"## \$today\" ] || printf '\n## %s\n\n' \"\$today\" >> ~/JOURNAL.md; echo '$b64' | base64 -d >> ~/JOURNAL.md; echo >> ~/JOURNAL.md"
 }
 
-# Restarts the service and waits for /api/health; systemctl returns once the warm-up
-# (ExecStartPost) has run, so the pages are already loaded when this passes.
+# Restarts the service, then asks for /api/health over fresh connections. systemctl
+# returns once the warm-up (ExecStartPost) has run; the restart itself is a systemd job,
+# so it completes even if this connection drops — which is why health is judged on new
+# connections rather than on the restart session's exit status.
 restart_and_check() {
-  remote 'sudo systemctl restart ledger && for i in $(seq 1 30); do [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/api/health)" = 200 ] && exit 0; sleep 1; done; exit 1'
+  remote 'sudo systemctl restart ledger' || say "Lost the connection during the restart; checking health over a new one"
+  local i code
+  for i in $(seq 1 10); do
+    connect
+    code=$(remote 'curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://127.0.0.1:3000/api/health' 2>/dev/null || true)
+    [ "$code" = 200 ] && return 0
+    sleep 3
+  done
+  return 1
 }
+
+connect
 
 case "${1:-}" in
   --list)
@@ -90,7 +132,7 @@ PUBLIC_ENV=$(remote "grep -E '^NEXT_PUBLIC_[A-Z0-9_]+=' ~/ledger/.env || true" |
 if [ -n "$LIVE" ]; then
   [ "$LIVE" = "$SHA" ] && die "$SHORT is already live"
   NEW_MIGRATIONS=$(git diff --name-only --diff-filter=A "$LIVE" "$SHA" -- prisma/migrations | grep -c 'migration.sql$' || true)
-  CHANGES=$(git log --format='%s' "$LIVE..$SHA" 2>/dev/null | paste -sd ';' - | sed 's/;/; /g')
+  CHANGES=$(git log --format='%s' "$LIVE..$SHA" 2>/dev/null | awk 'NR > 1 { printf "; " } { printf "%s", $0 }')
 else
   NEW_MIGRATIONS=0
   CHANGES=$(git log -1 --format='%s' "$SHA")
@@ -104,6 +146,7 @@ TUNNEL_PID=
 cleanup() {
   [ -n "$TUNNEL_PID" ] && kill "$TUNNEL_PID" 2>/dev/null || true
   rm -rf "$WORK"
+  disconnect
 }
 trap cleanup EXIT
 
@@ -138,12 +181,13 @@ ln -sfn ../../.env "$OUT/.env"
 # macOS tar would otherwise add AppleDouble ._* files and xattrs the server's tar warns on.
 COPYFILE_DISABLE=1 tar --no-mac-metadata --no-xattrs -C "$OUT" -czf "$WORK/release.tgz" .
 say "Release is $(du -h "$WORK/release.tgz" | cut -f1); uploading"
+connect # the build took a while; reopen the connection if it went away meanwhile
 remote "rm -rf ~/ledger/releases/$SHORT.tmp && mkdir -p ~/ledger/releases/$SHORT.tmp && tar -xzf - -C ~/ledger/releases/$SHORT.tmp && rm -rf ~/ledger/releases/$SHORT && mv ~/ledger/releases/$SHORT.tmp ~/ledger/releases/$SHORT" <"$WORK/release.tgz"
 
 if [ "$NEW_MIGRATIONS" -gt 0 ]; then
   say "Applying $NEW_MIGRATIONS migration(s) through an SSH tunnel"
   DB_URL=$(remote 'cat ~/secrets/ledger_db_url')
-  ssh -o BatchMode=yes -o ExitOnForwardFailure=yes -N -L 15432:127.0.0.1:5432 "$HOST" &
+  ssh "${SSH_OPTS[@]}" -o ControlMaster=no -o ExitOnForwardFailure=yes -N -L 15432:127.0.0.1:5432 "$HOST" &
   TUNNEL_PID=$!
   sleep 2
   TUNNELED=$(printf '%s' "$DB_URL" | sed -E 's#@[^/]+/#@host.docker.internal:15432/#')
