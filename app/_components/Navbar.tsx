@@ -95,7 +95,8 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
         <div className="flex items-center justify-between h-16">
           {}
           <Link href="/" className="flex items-center space-x-2 text-ink hover:text-ink-2 transition-all shrink-0 group" onClick={closeMenu}>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+            {/* Sized to the image itself: a larger box centred it and set the logo in from the page edge. */}
+            <div className="w-6 h-6 flex items-center justify-center overflow-hidden">
               <Image src="/logo-256.png" alt="Ledger" width={24} height={24} />
             </div>
             <span className="font-serif text-[22px] font-semibold tracking-tight">Ledger</span>
@@ -113,7 +114,9 @@ export default function Navbar({ isLoggedIn }: { isLoggedIn: boolean }) {
           )}
 
           {}
-          <div className="flex items-center gap-2 shrink-0 ml-2">
+          {/* -mr-2.5 cancels the buttons' p-2 plus the icons' own inset, so the drawn icon (not
+              its tap target) lines up with the page's right edge. */}
+          <div className="flex items-center gap-2 shrink-0 ml-2 -mr-2.5">
             {isLoggedIn && (
               <Link
                 href={SETTINGS_HREF}
