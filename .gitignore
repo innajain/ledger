@@ -47,3 +47,6 @@ next-env.d.ts
 # Local Claude Code state stays out; checked-in skills are shared tooling.
 .claude/*
 !.claude/skills/
+
+# A local copy of .claude/skills for other agents; .claude/skills/ is the source.
+.agents/
