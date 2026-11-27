@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { MaskedAmount } from './MaskedAmount'
 import { usePrivacy } from './PrivacyProvider'
-import { USER_TIMEZONE } from '@/lib/config'
+import { format_day_month, format_day_with_weekday } from '@/app/_utils/format_date'
 
 export type SparkPoint = { date: string; value: number }
 
@@ -20,10 +20,6 @@ type Props = {
   /** What the line measures, named in the caption ("in investments"); omitted for net worth. */
   subject?: string
 }
-
-// Axis labels at either end of the line, in the ledger's own timezone.
-const axis_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: USER_TIMEZONE, day: 'numeric', month: 'short' })
-const hover_fmt = new Intl.DateTimeFormat('en-IN', { timeZone: USER_TIMEZONE, weekday: 'short', day: 'numeric', month: 'short' })
 
 /** How long a tapped reading stays up after the finger lifts (a mouse clears it on leave). */
 const TOUCH_READOUT_MS = 2000
@@ -127,15 +123,15 @@ export function HomeNetWorthSparkline({ points, days, subject }: Props) {
                   className="pointer-events-none absolute bottom-full z-10 mb-1 whitespace-nowrap border border-rule bg-raised px-2 py-1 text-xs"
                   style={readout_pos}
                 >
-                  <span className="text-ink-3">{hover_fmt.format(new Date(points[hover].date))}</span>{' '}
+                  <span className="text-ink-3">{format_day_with_weekday(points[hover].date, false)}</span>{' '}
                   <MaskedAmount value={points[hover].value} plain interactive={false} hidden={lead_hidden ?? undefined} className="text-ink" />
                 </div>
               </>
             )}
           </div>
           <div className="flex justify-between border-t border-rule-strong pt-1 text-xs text-ink-3 num" aria-hidden="true">
-            <span>{axis_fmt.format(new Date(points[0].date))}</span>
-            <span>{axis_fmt.format(new Date(points[points.length - 1].date))}</span>
+            <span>{format_day_month(points[0].date)}</span>
+            <span>{format_day_month(points[points.length - 1].date)}</span>
           </div>
         </>
       )}

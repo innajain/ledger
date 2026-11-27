@@ -1,11 +1,20 @@
 import { describe, expect, it, vi } from 'vitest'
-import { format_day_with_weekday, format_datetime, format_time } from './format_date'
+import { format_day_month, format_day_with_weekday, format_datetime, format_time } from './format_date'
 
 describe('format_day_with_weekday', () => {
   it('keeps the same date and punctuation at the IST midnight boundary', () => {
     expect(format_day_with_weekday('2026-09-30T18:29:00Z')).toBe('Wed, 30 Sept, 2026')
     expect(format_day_with_weekday('2026-09-30T18:30:00Z')).toBe('Thu, 1 Oct, 2026')
     expect(format_day_with_weekday('2026-09-30', false)).toBe('Wed, 30 Sept')
+  })
+})
+
+describe('format_day_month', () => {
+  it('renders the IST day and month without the year', () => {
+    expect(format_day_month('2026-09-30T18:29:00Z')).toBe('30 Sept')
+    expect(format_day_month('2026-09-30T18:30:00Z')).toBe('1 Oct')
+    expect(format_day_month('2026-09-30')).toBe('30 Sept')
+    expect(format_day_month('not a date')).toBe('')
   })
 })
 

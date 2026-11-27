@@ -30,6 +30,14 @@ export function format_day(input: Date | string): string {
   return `${day} ${month} ${year}`
 }
 
+/** Day and month alone ("30 Sept"), for labels where the year is already clear. */
+export function format_day_month(input: Date | string): string {
+  const d = to_date(input)
+  if (!d) return ''
+  const { day, month } = day_parts(d)
+  return `${day} ${month}`
+}
+
 export function format_day_with_weekday(input: Date | string, include_year = true): string {
   const d = to_date(input)
   if (!d) return ''
